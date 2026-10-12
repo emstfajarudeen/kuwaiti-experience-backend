@@ -1,0 +1,71 @@
+@layouts.admin({ title: 'Categories', active: 'categories', adminName: admin.fullName })
+  <div class="eyebrow">ORGANIZE THE JOURNEY</div><div class="page-head"><div><h1>Categories</h1><p>Control the filters visitors use within each place type.</p></div><a class="button secondary" href="/admin/category-types">Manage category types ↗</a></div>
+  <div class="content-grid">
+    <section class="panel form-panel"><span class="eyebrow">NEW CATEGORY</span><h2>Add a category</h2>
+      
+@form({ action: '/admin/categories', method: 'POST', class: 'form-grid' })
+
+        <label>Place type<select name="type">
+@each(type in types)
+<option value="{{ type.code }}">{{ type.name_en }}</option>
+@end
+</select></label>
+        <label>English name<input name="nameEn" required maxlength="160" placeholder="Landmarks"></label>
+        <label>Arabic name<input name="nameAr" dir="rtl" lang="ar" maxlength="160"></label>
+        <label>Slug<input name="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="landmarks"></label>
+        <label>Order<input name="sortOrder" type="number" value="0"></label>
+        <label class="checkbox-line"><input name="active" type="checkbox" checked> Visible to visitors</label>
+        <button class="button primary" type="submit">Create category <span>→</span></button>
+      
+@end
+
+    </section>
+    <section class="panel form-panel"><span class="eyebrow">CURRENT FILTERS</span><h2>{{ rows.length }} categories</h2>
+      
+@if(rows.length)
+
+        <div class="stack-list">
+          
+@each(item in rows)
+
+            <details class="edit-disclosure"><summary><span><strong>{{ item.name }}</strong><small>{{ item.type.replace('_', ' ') }} / {{ item.slug }}</small></span><span>↗</span></summary>
+              
+@form({ action: `/admin/categories/${item.id}/save`, method: 'POST', class: 'form-grid compact-form' })
+
+                <label>Place type<select name="type">
+@each(type in types)
+<option value="{{ type.code }}"
+@if(item.type === type.code)
+ selected
+@end
+>{{ type.name_en }}</option>
+@end
+</select></label>
+                <label>English name<input name="nameEn" value="{{ item.name }}" required></label><label>Arabic name<input name="nameAr" dir="rtl" value="{{ item.name_ar || '' }}"></label><label>Slug<input name="slug" value="{{ item.slug }}" required></label>
+                <label>Order<input name="sortOrder" type="number" value="{{ item.sort_order }}"></label><label class="checkbox-line"><input name="active" type="checkbox" 
+@if(item.active)
+ checked 
+@end
+> Visible</label>
+                <button class="button secondary" type="submit">Save changes</button>
+              
+@end
+
+              
+@form({ action: `/admin/categories/${item.id}/delete`, method: 'POST', 'onsubmit': "return confirm('Delete category?')" })
+<button class="text-button danger" type="submit">Delete category</button>
+@end
+
+            </details>
+          
+@end
+
+        </div>
+      
+@else
+<div class="empty-state">No categories yet.</div>
+@end
+
+    </section>
+  </div>
+@end

@@ -1,0 +1,37 @@
+@layouts.admin({ title: page ? 'Edit page' : 'New page', active: 'pages', adminName: admin.fullName })
+  <a class="back-link" href="/admin/pages">← Back to pages</a><div class="eyebrow">WORDS THAT MATTER</div><div class="page-head"><div><h1>{{ page ? en?.title : 'Create a page' }}</h1><p>Clear, useful information for every visitor.</p></div>
+@if(page)
+<span class="status {{ page.status }}">{{ page.status }}</span>
+@end
+</div>
+  
+@form({ action: page ? `/admin/pages/${page.id}/save` : '/admin/pages', method: 'POST', class: 'editor-grid' })
+
+    <div class="editor-main"><section class="panel form-panel"><span class="eyebrow">ENGLISH CONTENT</span><h2>Page details</h2><div class="form-grid"><label>Page title<input name="titleEn" value="{{ en?.title || '' }}" required maxlength="200"></label><label>URL slug<input name="slug" value="{{ page?.slug || '' }}" required pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="about-us"></label><label>Body<textarea name="bodyEn" rows="13" required maxlength="50000">{{ en?.body || '' }}</textarea></label><label>SEO title<input name="seoTitleEn" value="{{ en?.seo_title || '' }}"></label><label>SEO description<textarea name="seoDescriptionEn" rows="2">{{ en?.seo_description || '' }}</textarea></label></div></section>
+      <section class="panel form-panel"><span class="eyebrow">ARABIC CONTENT</span><h2>Optional translation</h2><div class="form-grid"><label>Arabic title<input name="titleAr" dir="rtl" lang="ar" value="{{ ar?.title || '' }}"></label><label>Arabic body<textarea name="bodyAr" dir="rtl" lang="ar" rows="8">{{ ar?.body || '' }}</textarea></label></div></section></div>
+    <aside class="editor-aside"><section class="panel form-panel actions-panel"><span class="eyebrow">PAGE STATUS</span><p class="panel-help">Save your changes, then publish when approved.</p><button class="button primary wide" type="submit">Save page <span>→</span></button></section></aside>
+  
+@end
+
+  
+@if(page)
+<div class="danger-row">
+@if(page.status !== 'published')
+@form({ action: `/admin/pages/${page.id}/publish`, method: 'POST' })
+<button class="button secondary" type="submit">Publish page</button>
+@end
+@else
+@form({ action: `/admin/pages/${page.id}/archive`, method: 'POST' })
+<button class="button secondary" type="submit">Archive page</button>
+@end
+@end
+
+    
+@form({ action: `/admin/pages/${page.id}/delete`, method: 'POST', 'onsubmit': "return confirm('Permanently delete page?')" })
+<button class="text-button danger" type="submit">Delete permanently</button>
+@end
+</div>
+@end
+
+@end
+

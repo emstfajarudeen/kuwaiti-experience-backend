@@ -1,0 +1,580 @@
+openapi: 3.1.0
+info:
+  title: The Kuwaiti Experience API
+  version: 1.0.0
+  description: >-
+    Public guide content and bearer-authenticated admin CMS API. Admin browser pages
+    at /admin use HttpOnly cookies and CSRF-protected HTML forms instead.
+servers:
+  - url: http://localhost:3333
+paths:
+  /api/v1/health:
+    get:
+      tags: [Public]
+      summary: HTTP health check
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /api/v1/home:
+    get:
+      tags: [Public]
+      summary: Landing page hero, category type tiles and featured place groups
+      parameters: [{ $ref: '#/components/parameters/Locale' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /api/v1/site:
+    get:
+      tags: [Public]
+      summary: Public branding, contact and store links
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /api/v1/categories:
+    get:
+      tags: [Public]
+      summary: Active categories for one place type
+      parameters:
+        - { $ref: '#/components/parameters/PlaceType' }
+        - { $ref: '#/components/parameters/Locale' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/v1/places:
+    get:
+      tags: [Public]
+      summary: Published place cards with filtered pagination totals
+      parameters:
+        - { $ref: '#/components/parameters/PlaceType' }
+        - { $ref: '#/components/parameters/Locale' }
+        - in: query
+          name: category
+          description: Category slug; omit or use `all` to include all categories and uncategorized places.
+          schema: { type: string }
+        - { in: query, name: q, schema: { type: string, maxLength: 80 } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
+        - { in: query, name: perPage, schema: { type: integer, minimum: 1, maximum: 50, default: 12 } }
+      responses:
+        '200': { $ref: '#/components/responses/PaginatedPlaces' }
+        '422': { $ref: '#/components/responses/Error' }
+  /api/v1/places/{slug}:
+    parameters: [{ $ref: '#/components/parameters/Slug' }]
+    get:
+      tags: [Public]
+      summary: Published place details, ordered gallery, visit data and cab metadata
+      parameters: [{ $ref: '#/components/parameters/Locale' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/pages/{slug}:
+    parameters: [{ $ref: '#/components/parameters/Slug' }]
+    get:
+      tags: [Public]
+      summary: Published static page
+      parameters: [{ $ref: '#/components/parameters/Locale' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/transport/locations:
+    get:
+      tags: [Public]
+      summary: Active pickup and destination locations
+      parameters: [{ $ref: '#/components/parameters/Locale' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /api/v1/transport/enquiry-link:
+    post:
+      tags: [Public]
+      summary: Return a WhatsApp enquiry URL; no reservation is created
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pickupId, destinationId, dateTime]
+              properties:
+                pickupId: { type: integer, minimum: 1 }
+                destinationId: { type: integer, minimum: 1 }
+                dateTime: { type: string, format: date-time, description: Interpreted in Asia/Kuwait }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+  /api/v1/media/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Public]
+      summary: Serve an image only while referenced by public content
+      responses:
+        '200': { description: Image bytes, content: { image/webp: { schema: { type: string, format: binary } } } }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Start an admin session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Login' }
+      responses:
+        '200': { $ref: '#/components/responses/Tokens' }
+        '401': { $ref: '#/components/responses/Error' }
+        '429': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Rotate an opaque refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties: { refreshToken: { type: string } }
+      responses:
+        '200': { $ref: '#/components/responses/Tokens' }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/auth/me:
+    get:
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      summary: Current administrator
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /api/v1/admin/auth/logout:
+    post:
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      summary: Revoke the current session
+      responses: { '204': { description: Signed out } }
+  /api/v1/admin/auth/password:
+    patch:
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      summary: Change password and revoke all sessions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string, minLength: 14 }
+      responses: { '204': { description: Changed; re-authentication required } }
+  /api/v1/admin/dashboard:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Actual content counts and recent audit actions
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /api/v1/admin/places:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Admin place list
+      parameters:
+        - { in: query, name: type, schema: { $ref: '#/components/schemas/PlaceType' } }
+        - { in: query, name: status, schema: { type: string, enum: [draft, published, archived] } }
+        - { in: query, name: q, schema: { type: string, maxLength: 80 } }
+        - { in: query, name: page, schema: { type: integer, minimum: 1 } }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Create a draft place
+      requestBody: { $ref: '#/components/requestBodies/Place' }
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /api/v1/admin/places/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Admin place editor data
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    put:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Replace editable place fields
+      requestBody: { $ref: '#/components/requestBodies/Place' }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    delete:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Permanently delete a place
+      responses: { '204': { description: Deleted } }
+  /api/v1/admin/places/{id}/preview:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Public-shaped response for a draft or published place
+      parameters: [{ $ref: '#/components/parameters/Locale' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /api/v1/admin/places/{id}/publish:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Publish a complete place
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /api/v1/admin/places/{id}/archive:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Hide a place from public APIs
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /api/v1/admin/category-types:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: List category types
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Create a category type
+      requestBody: { $ref: '#/components/requestBodies/CategoryType' }
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /api/v1/admin/category-types/{code}:
+    parameters:
+      - in: path
+        name: code
+        required: true
+        schema: { $ref: '#/components/schemas/PlaceType' }
+    put:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Update a category type name, image, and display order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nameEn, sortOrder]
+              properties:
+                nameEn: { type: string, minLength: 2, maxLength: 160 }
+                nameAr: { type: [string, 'null'], maxLength: 160 }
+                imageId: { type: [integer, 'null'] }
+                sortOrder: { type: integer }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    delete:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Delete a category type when no categories or places use it
+      responses:
+        '204': { description: Deleted }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/categories:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: List categories
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Create category
+      requestBody: { $ref: '#/components/requestBodies/Category' }
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /api/v1/admin/categories/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    put:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Update category
+      requestBody: { $ref: '#/components/requestBodies/Category' }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    delete:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Delete unassigned category
+      responses: { '204': { description: Deleted } }
+  /api/v1/admin/pages:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: List static pages
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Create draft page
+      requestBody: { $ref: '#/components/requestBodies/Page' }
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /api/v1/admin/pages/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Admin page editor data
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    put:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Update page
+      requestBody: { $ref: '#/components/requestBodies/Page' }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    delete:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Delete page
+      responses: { '204': { description: Deleted } }
+  /api/v1/admin/pages/{id}/publish:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Publish a page with English title and body
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /api/v1/admin/pages/{id}/archive:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Archive page
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /api/v1/admin/media:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Paginated private media library
+      parameters: [{ in: query, name: page, schema: { type: integer, minimum: 1 } }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Upload a JPEG, PNG or WebP (5 MB, 20 megapixels maximum)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, alt_en]
+              properties:
+                file: { type: string, format: binary }
+                alt_en: { type: string, minLength: 1, maxLength: 255 }
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /api/v1/admin/media/{id}/file:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Serve an admin-only image, including drafts
+      responses: { '200': { description: Image bytes } }
+  /api/v1/admin/media/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    delete:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Delete an image only if unreferenced
+      responses:
+        '204': { description: Deleted }
+        '409': { $ref: '#/components/responses/Error' }
+  /api/v1/admin/settings:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Read site settings
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    patch:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Update branding, contact and app-store settings
+      requestBody: { $ref: '#/components/requestBodies/Settings' }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /api/v1/admin/home:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Read homepage content for a locale
+      parameters: [{ $ref: '#/components/parameters/Locale' }]
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    patch:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Update homepage content
+      requestBody: { $ref: '#/components/requestBodies/Home' }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+  /api/v1/admin/transport/locations:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: List all transport locations
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Create transport location
+      requestBody: { $ref: '#/components/requestBodies/Location' }
+      responses: { '201': { $ref: '#/components/responses/Success' } }
+  /api/v1/admin/transport/locations/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    put:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Update transport location
+      requestBody: { $ref: '#/components/requestBodies/Location' }
+      responses: { '200': { $ref: '#/components/responses/Success' } }
+    delete:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      summary: Delete transport location
+      responses: { '204': { description: Deleted } }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    Id: { in: path, name: id, required: true, schema: { type: integer, minimum: 1 } }
+    Slug: { in: path, name: slug, required: true, schema: { type: string } }
+    PlaceType: { in: query, name: type, required: true, schema: { $ref: '#/components/schemas/PlaceType' } }
+    Locale: { in: query, name: locale, schema: { type: string, enum: [en, ar], default: en } }
+  schemas:
+    PlaceType: { type: string, pattern: '^[a-z0-9]+(_[a-z0-9]+)*$', maxLength: 32, description: Must match an existing category type code }
+    CategoryType:
+      type: object
+      required: [code, nameEn, sortOrder]
+      properties:
+        code: { type: string, pattern: '^[a-z0-9]+(_[a-z0-9]+)*$', maxLength: 32 }
+        nameEn: { type: string, minLength: 2, maxLength: 160 }
+        nameAr: { type: [string, 'null'], maxLength: 160 }
+        imageId: { type: [integer, 'null'] }
+        sortOrder: { type: integer }
+    Login:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    Place:
+      type: object
+      required: [type, slug, titleEn, summaryEn, addressEn]
+      properties:
+        type: { $ref: '#/components/schemas/PlaceType' }
+        slug: { type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$' }
+        categoryId: { type: [integer, 'null'] }
+        coverMediaId: { type: [integer, 'null'] }
+        titleEn: { type: string, maxLength: 200 }
+        summaryEn: { type: string, maxLength: 500 }
+        addressEn: { type: string, maxLength: 300 }
+        bodyEn: { type: [string, 'null'] }
+        titleAr: { type: [string, 'null'] }
+        summaryAr: { type: [string, 'null'] }
+        addressAr: { type: [string, 'null'] }
+        featured: { type: boolean, description: Feature this published place on the landing page }
+        bodyAr: { type: [string, 'null'] }
+        priceMode: { type: string, enum: [unknown, free, from, fixed] }
+        priceAmount: { type: [string, 'null'], pattern: '^\\d{1,7}(?:\\.\\d{1,3})?$' }
+        galleryIds: { type: array, maxItems: 20, uniqueItems: true, items: { type: integer } }
+        hours: { type: array, items: { type: object } }
+    Category:
+      type: object
+      required: [type, slug, nameEn]
+      properties:
+        type: { $ref: '#/components/schemas/PlaceType' }
+        slug: { type: string }
+        nameEn: { type: string }
+        nameAr: { type: [string, 'null'] }
+        imageId: { type: [integer, 'null'] }
+        sortOrder: { type: integer }
+        active: { type: boolean }
+    Page:
+      type: object
+      required: [slug, titleEn, bodyEn]
+      properties:
+        slug: { type: string }
+        titleEn: { type: string }
+        bodyEn: { type: string }
+        titleAr: { type: [string, 'null'] }
+        bodyAr: { type: [string, 'null'] }
+        seoTitleEn: { type: [string, 'null'] }
+        seoDescriptionEn: { type: [string, 'null'] }
+    Location:
+      type: object
+      required: [code, nameEn, pickupEnabled, dropoffEnabled, active, sortOrder]
+      properties:
+        code: { type: string }
+        nameEn: { type: string }
+        nameAr: { type: [string, 'null'] }
+        pickupEnabled: { type: boolean }
+        dropoffEnabled: { type: boolean }
+        active: { type: boolean }
+        sortOrder: { type: integer }
+    Settings:
+      type: object
+      required: [brandName]
+      properties:
+        brandName: { type: string }
+        whatsappNumber: { type: [string, 'null'] }
+        contactEmail: { type: [string, 'null'], format: email }
+        appStoreUrl: { type: [string, 'null'], format: uri }
+        playStoreUrl: { type: [string, 'null'], format: uri }
+        logoMediaId: { type: [integer, 'null'] }
+    Home:
+      type: object
+      required: [locale, heroEyebrow, heroTitle, discoveryTitle]
+      properties:
+        locale: { type: string, enum: [en, ar] }
+        heroEyebrow: { type: string }
+        heroTitle: { type: string }
+        discoveryTitle: { type: string }
+        heroMediaId: { type: [integer, 'null'] }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            requestId: { type: string }
+            fields: {}
+  requestBodies:
+    CategoryType: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryType' } } } }
+    Place: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Place' } } } }
+    Category: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Category' } } } }
+    Page: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Page' } } } }
+    Location: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Location' } } } }
+    Settings: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Settings' } } } }
+    Home: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Home' } } } }
+  responses:
+    Success:
+      description: JSON data envelope
+      content: { application/json: { schema: { type: object, required: [data], properties: { data: {} } } } }
+    Tokens:
+      description: Access JWT and rotating opaque refresh token
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                type: object
+                required: [accessToken, refreshToken, expiresIn]
+                properties:
+                  accessToken: { type: string }
+                  refreshToken: { type: string }
+                  expiresIn: { type: integer, description: Seconds until access expiry }
+    PaginatedPlaces:
+      description: Place cards and filtered pagination metadata
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data, meta]
+            properties:
+              data: { type: array, items: { type: object } }
+              meta:
+                type: object
+                required: [page, perPage, total, lastPage]
+                properties:
+                  page: { type: integer }
+                  perPage: { type: integer }
+                  total: { type: integer }
+                  lastPage: { type: integer }
+    Error:
+      description: Consistent API error
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }

@@ -1,0 +1,11 @@
+@layouts.admin({ title: 'My account', active: 'account', adminName: admin.fullName })
+  <div class="eyebrow">ACCOUNT SECURITY</div>
+  <div class="page-head"><div><h1>Change password</h1><p>Changing your password signs out every active admin session.</p></div></div>
+  @form({ action: '/admin/account/password', method: 'POST', class: 'panel form-panel' })
+    <div class="form-grid two">
+      <label>Current password<input type="password" name="currentPassword" autocomplete="current-password" required></label>
+      <label>New password<input type="password" name="newPassword" autocomplete="new-password" minlength="14" required></label>
+    </div>
+    <button class="button primary" type="submit">Update password →</button>
+  @end
+@end

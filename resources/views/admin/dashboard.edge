@@ -1,0 +1,48 @@
+@layouts.admin({ title: 'Overview', active: 'dashboard', adminName: admin.fullName })
+  <div class="eyebrow">WELCOME TO YOUR WORKSPACE</div>
+  <div class="page-head">
+    <div><h1>Good to see you, {{ admin.fullName.split(' ')[0] }}.</h1><p>Your Kuwait guide, at a glance.</p></div>
+    <a class="button primary" href="/admin/places/new">Add a place <span>↗</span></a>
+  </div>
+  <div class="stats-grid">
+    
+@each(stat in stats)
+
+      <div class="stat-card"><span>{{ stat.label }}</span><strong>{{ stat.count }}</strong><small>{{ stat.note }}</small></div>
+    
+@end
+
+  </div>
+  <div class="content-grid">
+    <section class="panel">
+      <div class="panel-heading"><div><span class="eyebrow">LATEST CHANGES</span><h2>Recent activity</h2></div></div>
+      
+@if(recent.length)
+
+        <div class="activity-list">
+          
+@each(event in recent)
+
+            <div><span class="activity-icon">↗</span><span><strong>{{ event.action.replaceAll('.', ' ') }}</strong><small>{{ event.entity_type }} #{{ event.entity_id || '—' }}</small></span><time>{{ event.created_at }}</time></div>
+          
+@end
+
+        </div>
+      
+@else
+
+        <div class="empty-state">No edits yet. Add the first place to begin.</div>
+      
+@end
+
+    </section>
+    <section class="panel quick-panel">
+      <span class="eyebrow">QUICK ACCESS</span><h2>Shape the experience</h2>
+      <a href="/admin/places/new">Create a place <span>↗</span></a>
+      <a href="/admin/home">Edit homepage <span>↗</span></a>
+      <a href="/admin/media">Manage images <span>↗</span></a>
+      <a href="/admin/settings">Site settings <span>↗</span></a>
+    </section>
+  </div>
+@end
+

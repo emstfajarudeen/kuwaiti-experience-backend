@@ -1,0 +1,19 @@
+@layouts.admin({ title: 'Pages', active: 'pages', adminName: admin.fullName })
+  <div class="eyebrow">SITE INFORMATION</div><div class="page-head"><div><h1>Pages</h1><p>Keep the supporting stories and policies current.</p></div><a class="button primary" href="/admin/pages/new">Create page <span>↗</span></a></div>
+  <section class="panel table-panel"><div class="panel-heading"><div><span class="eyebrow">EDITORIAL PAGES</span><h2>{{ rows.length }} pages</h2></div></div>
+    
+@if(rows.length)
+<div class="table-scroll"><table class="data-table"><thead><tr><th>Page</th><th>URL</th><th>Status</th><th></th></tr></thead><tbody>
+    
+@each(page in rows)
+<tr><td><strong>{{ page.title || 'Untitled' }}</strong></td><td>/{{ page.slug }}</td><td><span class="status {{ page.status }}">{{ page.status }}</span></td><td><a class="round-link" href="/admin/pages/{{ page.id }}/edit" aria-label="Edit page">↗</a></td></tr>
+@end
+
+    </tbody></table></div>
+@else
+<div class="empty-state">No pages yet. <a href="/admin/pages/new">Create one.</a></div>
+@end
+
+  </section>
+@end
+

@@ -1,0 +1,137 @@
+@layouts.admin({ title: place ? 'Edit place' : 'New place', active: 'places', adminName: admin.fullName })
+  <a class="back-link" href="/admin/places">← Back to places</a>
+  <div class="eyebrow">{{ place ? 'REFINE THE EXPERIENCE' : 'ADD TO THE COLLECTION' }}</div>
+  <div class="page-head"><div><h1>{{ place ? en.title : 'Create a new place' }}</h1><p>Write the details visitors need before they explore.</p></div>
+@if(place)
+<span class="status {{ place.status }}">{{ place.status }}</span>
+@end
+</div>
+  
+@form({ action: place ? `/admin/places/${place.id}/save` : '/admin/places', method: 'POST', class: 'editor-grid' })
+
+    <div class="editor-main">
+      <section class="panel form-panel"><span class="eyebrow">01 / ESSENTIALS</span><h2>Place details</h2>
+        <div class="form-grid two">
+          <label>Place type<select name="type" required>
+            @each(type in types)
+              <option value="{{ type.code }}"
+@if((place && place.type === type.code) || (!place && type.code === types[0].code))
+ selected
+@end
+>{{ type.name_en }}</option>
+            @end
+          </select></label>
+          <label>Category<select name="categoryId"><option value="">Uncategorized</option>
+@each(category in categories)
+<option value="{{ category.id }}" 
+@if(place && place.category_id === category.id)
+ selected 
+@end
+>{{ category.type.replace('_', ' ') }} / {{ category.slug }}</option>
+@end
+</select></label>
+          <label>English title<input name="titleEn" value="{{ en?.title || '' }}" maxlength="200" required></label>
+          <label>URL slug<input name="slug" value="{{ place?.slug || '' }}" pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="160" placeholder="kuwait-towers" required></label>
+          <label class="full">Short summary<textarea name="summaryEn" rows="2" maxlength="500" required>{{ en?.summary || '' }}</textarea></label>
+          <label class="full">Address<input name="addressEn" value="{{ en?.address || '' }}" maxlength="300" required></label>
+          <label class="full">About this place<textarea name="bodyEn" rows="8" maxlength="30000">{{ en?.body || '' }}</textarea></label>
+        </div>
+      </section>
+      <section class="panel form-panel"><span class="eyebrow">02 / ARABIC CONTENT</span><h2>Optional translation</h2><p class="panel-help">Visitors see the English version wherever Arabic copy is missing.</p>
+        <div class="form-grid two"><label>Arabic title<input name="titleAr" lang="ar" dir="rtl" value="{{ ar?.title || '' }}"></label><label>Arabic address<input name="addressAr" lang="ar" dir="rtl" value="{{ ar?.address || '' }}"></label><label class="full">Arabic summary<textarea name="summaryAr" lang="ar" dir="rtl" rows="2">{{ ar?.summary || '' }}</textarea></label><label class="full">Arabic body<textarea name="bodyAr" lang="ar" dir="rtl" rows="5">{{ ar?.body || '' }}</textarea></label></div>
+      </section>
+      <section class="panel form-panel"><span class="eyebrow">03 / VISIT INFORMATION</span><h2>Plan a visit</h2>
+        <div class="form-grid two">
+          <label>Price type<select name="priceMode"><option value="unknown" 
+@if(!place || place.price_mode === 'unknown')
+ selected 
+@end
+>Unknown</option><option value="free" 
+@if(place && place.price_mode === 'free')
+ selected 
+@end
+>Free</option><option value="from" 
+@if(place && place.price_mode === 'from')
+ selected 
+@end
+>From</option><option value="fixed" 
+@if(place && place.price_mode === 'fixed')
+ selected 
+@end
+>Fixed</option></select></label>
+          <label>Price in KWD<input name="priceAmount" inputmode="decimal" placeholder="3.000" value="{{ place?.price_amount || '' }}"></label>
+          <label>Price unit<input name="priceUnitEn" placeholder="per person" value="{{ en?.price_unit || '' }}"></label>
+          <label>Hours summary<input name="hoursNoteEn" placeholder="9:00 AM – 11:00 PM" value="{{ en?.hours_note || '' }}"></label>
+          <label>Latitude<input name="latitude" inputmode="decimal" value="{{ place?.latitude || '' }}"></label><label>Longitude<input name="longitude" inputmode="decimal" value="{{ place?.longitude || '' }}"></label>
+          <label class="full">Website URL<input name="websiteUrl" type="url" placeholder="https://" value="{{ place?.website_url || '' }}"></label>
+          <label class="full">Structured weekly hours <small>(JSON intervals; weekday 0 = Sunday)</small><textarea name="hoursJson" rows="5" spellcheck="false" class="code-field">{{ hoursJson }}</textarea></label>
+        </div>
+      </section>
+      <section class="panel form-panel"><span class="eyebrow">04 / SEARCH</span><h2>Search preview</h2><div class="form-grid two"><label>SEO title<input name="seoTitleEn" value="{{ en?.seo_title || '' }}"></label><label class="checkbox-line"><input name="featured" type="checkbox"
+@if(place && place.featured_order !== null)
+ checked
+@end
+> Feature on homepage</label><label class="full">SEO description<textarea name="seoDescriptionEn" rows="2">{{ en?.seo_description || '' }}</textarea></label></div></section>
+    </div>
+    <aside class="editor-aside">
+      <section class="panel form-panel"><span class="eyebrow">VISUAL STORY</span><h2>Cover image</h2>
+@if(place && place.cover_media_id)
+<img class="cover-preview" src="/admin/media/{{ place.cover_media_id }}/file" alt="Current cover">
+@else
+<div class="cover-placeholder">Your cover image appears here</div>
+@end
+<label>Choose image<select name="coverMediaId"><option value="">No image</option>
+@each(image in media)
+<option value="{{ image.id }}" 
+@if(place && place.cover_media_id === image.id)
+ selected 
+@end
+>{{ image.original_name }}</option>
+@end
+</select></label><a class="text-button" href="/admin/media">Upload images in the media library ↗</a></section>
+      <section class="panel form-panel"><span class="eyebrow">DETAIL GALLERY</span><h2>Gallery images</h2><p class="panel-help">Choose one or more images from the dropdown.</p><select name="galleryIds[]" multiple size="7" class="multi-select">
+@each(image in media)
+<option value="{{ image.id }}" 
+@if(galleryIds.includes(image.id))
+ selected 
+@end
+>{{ image.original_name }}</option>
+@end
+</select></section>
+      <section class="panel form-panel actions-panel">
+        <span class="eyebrow">READY TO SAVE?</span>
+        @if(!place || place.status !== 'published')
+          <p class="panel-help">Save a draft or publish it now. Publishing requires a cover image.</p>
+          <button class="button secondary wide" type="submit" name="intent" value="save">Save {{ place ? 'changes' : 'draft' }}</button>
+          <button class="button primary wide" type="submit" name="intent" value="publish">Save and publish <span>→</span></button>
+        @else
+          <p class="panel-help">Changes to this published place go live when you save.</p>
+          <button class="button primary wide" type="submit" name="intent" value="save">Save changes <span>→</span></button>
+        @end
+      </section>
+    </aside>
+  
+@end
+
+  
+@if(place)
+
+    <div class="danger-row">
+      <a class="button secondary" href="/admin/places/{{ place.id }}/preview">Preview place</a>
+      
+@if(place.status === 'published')
+@form({ action: `/admin/places/${place.id}/archive`, method: 'POST' })
+<button class="button secondary" type="submit">Archive place</button>
+@end
+@end
+
+      
+@form({ action: `/admin/places/${place.id}/delete`, method: 'POST', 'onsubmit': "return confirm('Permanently delete this place?')" })
+<button class="text-button danger" type="submit">Delete permanently</button>
+@end
+
+    </div>
+  
+@end
+
+@end

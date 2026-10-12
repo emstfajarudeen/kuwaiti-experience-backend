@@ -1,0 +1,50 @@
+@layouts.admin({ title: 'Category types', active: 'category-types', adminName: admin.fullName })
+  <div class="eyebrow">DISCOVERY MASTER</div>
+  <div class="page-head"><div><h1>Category types</h1><p>Add, edit, and order the discovery tiles and place types.</p></div></div>
+  <p class="panel-help">Lower order numbers appear first. Upload images in the <a href="/admin/media">media library ↗</a>, then select them here. A type with categories or places cannot be deleted.</p>
+  <section class="panel form-panel category-type-create"><span class="eyebrow">NEW TYPE</span><h2>Add a category type</h2>
+    @form({ action: '/admin/category-types', method: 'POST', class: 'form-grid two' })
+      <label>Code<input name="code" required maxlength="32" pattern="[a-z0-9]+(_[a-z0-9]+)*" placeholder="museum"></label>
+      <label>Display order<input name="sortOrder" type="number" value="{{ rows.length }}" required></label>
+      <label>English name<input name="nameEn" required maxlength="160" placeholder="Museums"></label>
+      <label>Arabic name<input name="nameAr" dir="rtl" lang="ar" maxlength="160"></label>
+      <label>Tile image<select name="imageId"><option value="">None</option>
+@each(image in media)
+<option value="{{ image.id }}">{{ image.original_name }}</option>
+@end
+      </select></label>
+      <button class="button primary" type="submit">Create category type <span>→</span></button>
+    @end
+  </section>
+  <div class="category-type-grid">
+    @each(item in rows)
+      <section class="panel form-panel category-type-card">
+        @if(item.image_id)
+          <img class="category-type-preview" src="/admin/media/{{ item.image_id }}/file" alt="Preview of {{ item.name_en }} tile">
+        @else
+          <div class="category-type-preview category-type-placeholder">No tile image selected</div>
+        @end
+        <span class="eyebrow">{{ item.code.replace('_', ' ') }}</span>
+        <h2>{{ item.name_en }}</h2>
+        @form({ action: `/admin/category-types/${item.code}/save`, method: 'POST', class: 'form-grid' })
+          <label>English name<input name="nameEn" value="{{ item.name_en }}" required maxlength="160"></label>
+          <label>Arabic name<input name="nameAr" dir="rtl" lang="ar" value="{{ item.name_ar || '' }}" maxlength="160"></label>
+          <label>Tile image<select name="imageId"><option value="">None</option>
+            @each(image in media)
+              <option value="{{ image.id }}"
+@if(item.image_id === image.id)
+ selected
+@end
+>{{ image.original_name }}</option>
+            @end
+          </select></label>
+          <label>Display order<input name="sortOrder" type="number" value="{{ item.sort_order }}" required></label>
+          <button class="button secondary" type="submit">Save {{ item.name_en }}</button>
+        @end
+        @form({ action: `/admin/category-types/${item.code}/delete`, method: 'POST', 'onsubmit': "return confirm('Delete this category type?')" })
+          <button class="text-button danger" type="submit">Delete type</button>
+        @end
+      </section>
+    @end
+  </div>
+@end

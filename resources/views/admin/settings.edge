@@ -1,0 +1,24 @@
+@layouts.admin({ title: 'Site settings', active: 'settings', adminName: admin.fullName })
+  <div class="eyebrow">THE DETAILS THAT CONNECT</div><div class="page-head"><div><h1>Site settings</h1><p>Brand, contact and app links for the public website.</p></div></div>
+  
+@form({ action: '/admin/settings', method: 'POST', class: 'editor-grid' })
+
+    <div class="editor-main">
+      <section class="panel form-panel"><span class="eyebrow">IDENTITY</span><h2>Brand</h2><div class="form-grid"><label>Brand name<input name="brandName" value="{{ settings?.brand_name || 'The Kuwaiti Experience' }}" required></label><label>Logo image<select name="logoMediaId"><option value="">Text wordmark only</option>
+@each(image in media)
+<option value="{{ image.id }}" 
+@if(settings && settings.logo_media_id === image.id)
+ selected 
+@end
+>{{ image.original_name }}</option>
+@end
+</select></label></div></section>
+      <section class="panel form-panel"><span class="eyebrow">CONTACT</span><h2>Reach the team</h2><div class="form-grid"><label>Contact email<input name="contactEmail" type="email" value="{{ settings?.contact_email || '' }}"></label><label>WhatsApp number <small>(international format)</small><input name="whatsappNumber" type="tel" placeholder="+965XXXXXXXX" value="{{ settings?.whatsapp_number || '' }}"></label></div><p class="panel-help" style="margin:15px 0 0">Cab enquiry links stay unavailable until a real number is set.</p></section>
+      <section class="panel form-panel"><span class="eyebrow">MOBILE APP</span><h2>Store links</h2><div class="form-grid"><label>App Store URL<input name="appStoreUrl" type="url" value="{{ settings?.app_store_url || '' }}"></label><label>Google Play URL<input name="playStoreUrl" type="url" value="{{ settings?.play_store_url || '' }}"></label></div></section>
+    </div>
+    <aside class="editor-aside"><section class="panel form-panel actions-panel"><span class="eyebrow">PUBLISH SETTINGS</span><p class="panel-help">Changes appear in the site API as soon as they are saved.</p><button class="button primary wide" type="submit">Save settings <span>→</span></button></section></aside>
+  
+@end
+
+@end
+

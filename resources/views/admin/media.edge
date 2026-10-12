@@ -1,0 +1,45 @@
+@layouts.admin({ title: 'Media library', active: 'media', adminName: admin.fullName })
+  <div class="eyebrow">THE VISUAL STORY</div><div class="page-head"><div><h1>Media library</h1><p>Keep imagery thoughtful, descriptive and ready to publish.</p></div></div>
+  <section class="panel form-panel upload-panel"><div><span class="eyebrow">ADD IMAGERY</span><h2>Upload an image</h2><p class="panel-help">JPEG, PNG or WebP · 5 MB maximum. Images are converted to WebP.</p></div>
+    
+@form({ action: '/admin/media', method: 'POST', enctype: 'multipart/form-data', class: 'upload-form' })
+
+      <div class="upload-field"><span>Choose file</span><input name="file" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose image" required></div>
+      <label>English alt text<input name="alt_en" maxlength="255" placeholder="Describe the image for visitors"></label>
+      <button class="button primary" type="submit">Upload image <span>↑</span></button>
+    
+@end
+
+  </section>
+  <div class="section-heading"><span class="eyebrow">YOUR IMAGES</span><h2>{{ rows.length }} images shown</h2></div>
+  
+@if(rows.length)
+
+    <div class="media-grid">
+@each(image in rows)
+
+      <article class="media-card"><img src="/admin/media/{{ image.id }}/file" alt="{{ image.alt_en || image.original_name }}"><div class="media-info"><strong>{{ image.original_name }}</strong><small>{{ Math.round(image.bytes / 1024) }} KB</small>
+        
+@form({ action: `/admin/media/${image.id}/alt`, method: 'POST', class: 'form-grid compact-form' })
+
+          <label>English alt text<input name="alt_en" value="{{ image.alt_en || '' }}" required maxlength="255"></label>
+          <label>Arabic alt text<input name="alt_ar" lang="ar" dir="rtl" value="{{ image.alt_ar || '' }}" maxlength="255"></label>
+          <button class="text-button" type="submit">Save description ↗</button>
+        
+@end
+
+        
+@form({ action: `/admin/media/${image.id}/delete`, method: 'POST', 'onsubmit': "return confirm('Delete this image? It must not be used by any content.')" })
+<button class="text-button danger" type="submit">Delete image</button>
+@end
+
+      </div></article>
+    
+@end
+</div>
+  
+@else
+<div class="panel empty-state">No images yet. Upload one above.</div>
+@end
+
+@end

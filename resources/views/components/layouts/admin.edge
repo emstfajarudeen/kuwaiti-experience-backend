@@ -1,0 +1,96 @@
+@let(title = $props.get('title') || 'Dashboard')
+@let(active = $props.get('active') || 'dashboard')
+@let(adminName = $props.get('adminName') || 'Administrator')
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>{{ title }} · The Kuwaiti Experience CMS</title>
+    @vite(['resources/css/admin.css', 'resources/js/app.js'])
+  </head>
+  <body class="cms-body">
+    <div class="cms-shell">
+      <aside class="cms-sidebar">
+        <a href="/admin" class="brand" aria-label="Kuwaiti Experience dashboard">
+          <span class="brand-mark">K</span>
+          <span>
+            THE KUWAITI
+            <br />
+            EXPERIENCE
+            <small>CONTENT STUDIO</small>
+          </span>
+        </a>
+        <div class="sidebar-label">WORKSPACE</div>
+        <nav aria-label="CMS navigation" class="cms-nav">
+          <a class="{{ active === 'dashboard' ? 'active' : '' }}" href="/admin">
+            <span>◫</span>
+            Overview
+          </a>
+          <a class="{{ active === 'places' ? 'active' : '' }}" href="/admin/places">
+            <span>⌁</span>
+            Places
+          </a>
+          <a class="{{ active === 'categories' ? 'active' : '' }}" href="/admin/categories">
+            <span>◈</span>
+            Categories
+          </a>
+          <a class="{{ active === 'category-types' ? 'active' : '' }}" href="/admin/category-types">
+            <span>◇</span>
+            Category types
+          </a>
+          <a class="{{ active === 'media' ? 'active' : '' }}" href="/admin/media">
+            <span>▧</span>
+            Media library
+          </a>
+          <a class="{{ active === 'pages' ? 'active' : '' }}" href="/admin/pages">
+            <span>▤</span>
+            Pages
+          </a>
+        </nav>
+        <div class="sidebar-label second">EXPERIENCE</div>
+        <nav aria-label="Experience settings" class="cms-nav">
+          <a class="{{ active === 'home' ? 'active' : '' }}" href="/admin/home">
+            <span>✧</span>
+            Homepage
+          </a>
+          <a class="{{ active === 'transport' ? 'active' : '' }}" href="/admin/transport">
+            <span>↗</span>
+            Transport
+          </a>
+          <a class="{{ active === 'settings' ? 'active' : '' }}" href="/admin/settings">
+            <span>⚙</span>
+            Site settings
+          </a>
+          <a class="{{ active === 'account' ? 'active' : '' }}" href="/admin/account">
+            <span>♙</span>
+            My account
+          </a>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="admin-avatar">{{ adminName.slice(0, 1).toUpperCase() }}</div>
+          <div><strong>{{ adminName }}</strong><small>Administrator</small></div>
+          @form({ action: '/admin/logout', method: 'POST', class: 'logout-form' })
+            <button type="submit" title="Sign out" aria-label="Sign out">↪</button>
+          @end
+        </div>
+      </aside>
+      <div class="cms-main">
+        <header class="cms-topbar">
+          <span class="topbar-path">THE KUWAITI EXPERIENCE <b>/</b> {{ title }}</span>
+          <span class="topbar-right"><span class="live-dot"></span> Content management</span>
+        </header>
+        <main class="cms-content">
+          @if(flashMessages.has('success'))
+            <div class="notice success" role="status">{{ flashMessages.get('success') }}</div>
+          @end
+          @if(flashMessages.has('error'))
+            <div class="notice error" role="alert">{{ flashMessages.get('error') }}</div>
+          @end
+          {{{ await $slots.main() }}}
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

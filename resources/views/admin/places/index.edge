@@ -1,0 +1,41 @@
+@layouts.admin({ title: 'Places', active: 'places', adminName: admin.fullName })
+  <div class="eyebrow">DISCOVER KUWAIT</div>
+  <div class="page-head"><div><h1>Places</h1><p>Curate places across your category types.</p></div><a class="button primary" href="/admin/places/new">Add a place <span>↗</span></a></div>
+  <form class="places-filter" action="/admin/places" method="GET">
+    <label for="places-type-filter">Filter by type</label>
+    <select id="places-type-filter" name="type" onchange="this.form.requestSubmit()">
+      <option value="">All places</option>
+      @each(type in types)
+        <option value="{{ type.code }}" @if(selectedType === type.code) selected @end>{{ type.name_en }}</option>
+      @end
+    </select>
+  </form>
+  <section class="panel table-panel">
+    <div class="panel-heading"><div><span class="eyebrow">YOUR COLLECTION</span><h2>{{ rows.length }} places shown</h2></div></div>
+    
+@if(rows.length)
+
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Place</th><th>Type</th><th>Status</th><th>Last edit</th><th></th></tr></thead><tbody>
+      
+@each(place in rows)
+
+        <tr><td><div class="place-cell">
+@if(place.cover_media_id)
+<img src="/admin/media/{{ place.cover_media_id }}/file" alt="">
+@else
+<span class="thumb-empty">K</span>
+@end
+<div><strong>{{ place.title }}</strong><small>/{{ place.slug }}</small></div></div></td><td>{{ place.type.replace('_', ' ') }}</td><td><span class="status {{ place.status }}">{{ place.status }}</span></td><td>{{ place.updated_at || '—' }}</td><td><a class="round-link" href="/admin/places/{{ place.id }}/edit" aria-label="Edit {{ place.title }}">↗</a></td></tr>
+      
+@end
+
+      </tbody></table></div>
+    
+@else
+
+      <div class="empty-state">No places in this view. <a href="/admin/places/new">Add one now.</a></div>
+    
+@end
+
+  </section>
+@end

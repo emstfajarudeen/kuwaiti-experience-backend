@@ -1,0 +1,16 @@
+@layouts.admin({ title: 'Place preview', active: 'places', adminName: admin.fullName })
+  <a class="back-link" href="/admin/places/{{ place.id }}/edit">← Back to editor</a>
+  <div class="eyebrow">EDITORIAL PREVIEW / {{ status.toUpperCase() }}</div>
+  <div class="page-head"><div><h1>{{ place.title }}</h1><p>{{ place.address }}</p></div></div>
+  <div class="panel form-panel">
+    @if(place.cover)
+      <img class="cover-preview" src="/admin/media/{{ place.cover.id }}/file" alt="Preview cover">
+    @end
+    <p>{{ place.summary }}</p>
+    <p>{{ place.body }}</p>
+    <h2>Plan your visit</h2>
+    <p>Price: {{ place.price.mode === 'unknown' ? 'Not supplied' : `${place.price.amount || ''} ${place.price.currency}` }}</p>
+    <p>Hours: {{ place.hoursNote || 'Not supplied' }}</p>
+    <p>Gallery: {{ place.gallery.length }} images</p>
+  </div>
+@end

@@ -1,0 +1,49 @@
+@layouts.admin({ title: 'Transport', active: 'transport', adminName: admin.fullName })
+  <div class="eyebrow">MOVE THROUGH KUWAIT</div><div class="page-head"><div><h1>Transport locations</h1><p>Choose the pickup and destination options in the cab enquiry form.</p></div></div>
+  <div class="content-grid">
+    <section class="panel form-panel"><span class="eyebrow">ADD A STOP</span><h2>New location</h2>
+      
+@form({ action: '/admin/transport', method: 'POST', class: 'form-grid' })
+
+        <label>English name<input name="nameEn" required placeholder="Kuwait International Airport T1"></label><label>Arabic name<input name="nameAr" dir="rtl" lang="ar"></label><label>Code<input name="code" pattern="[a-z0-9]+(-[a-z0-9]+)*" required placeholder="kuwait-airport-t1"></label><label>Order<input name="sortOrder" type="number" value="0"></label><label class="checkbox-line"><input name="pickupEnabled" type="checkbox" checked> Allow pickup</label><label class="checkbox-line"><input name="dropoffEnabled" type="checkbox" checked> Allow destination</label><label class="checkbox-line"><input name="active" type="checkbox" checked> Active</label><button class="button primary" type="submit">Add location <span>→</span></button>
+      
+@end
+
+    </section>
+    <section class="panel form-panel"><span class="eyebrow">CURRENT STOPS</span><h2>{{ locations.length }} locations</h2>
+      <div class="stack-list">
+@each(item in locations)
+
+        <details class="edit-disclosure"><summary><span><strong>{{ item.name }}</strong><small>{{ item.code }}</small></span><span>↗</span></summary>
+          
+@form({ action: `/admin/transport/${item.id}/save`, method: 'POST', class: 'form-grid compact-form' })
+
+            <label>English name<input name="nameEn" value="{{ item.name }}" required></label><label>Arabic name<input name="nameAr" dir="rtl" value="{{ item.name_ar || '' }}"></label><label>Code<input name="code" value="{{ item.code }}" required></label><label>Order<input name="sortOrder" type="number" value="{{ item.sort_order }}"></label><label class="checkbox-line"><input name="pickupEnabled" type="checkbox" 
+@if(item.pickup_enabled)
+ checked 
+@end
+> Pickup</label><label class="checkbox-line"><input name="dropoffEnabled" type="checkbox" 
+@if(item.dropoff_enabled)
+ checked 
+@end
+> Destination</label><label class="checkbox-line"><input name="active" type="checkbox" 
+@if(item.active)
+ checked 
+@end
+> Active</label><button class="button secondary" type="submit">Save changes</button>
+          
+@end
+
+          
+@form({ action: `/admin/transport/${item.id}/delete`, method: 'POST', 'onsubmit': "return confirm('Delete location?')" })
+<button class="text-button danger" type="submit">Delete location</button>
+@end
+
+        </details>
+      
+@end
+</div>
+    </section>
+  </div>
+@end
+

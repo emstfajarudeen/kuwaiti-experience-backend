@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin sign in · The Kuwaiti Experience</title>
+  @vite(['resources/css/admin.css', 'resources/js/app.js'])
+</head>
+<body class="login-body">
+  <main class="login-shell">
+    <section class="login-visual" aria-label="Kuwait inspired background">
+      <div class="login-brand">THE KUWAITI<br>EXPERIENCE</div>
+      <div class="login-skyline" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="login-tag">A CURATED JOURNEY THROUGH KUWAIT</div>
+      <h1>Every great journey<br>starts with <em>a story.</em></h1>
+    </section>
+    <section class="login-panel">
+      <div class="eyebrow">CONTENT STUDIO</div>
+      <h2>Welcome back.</h2>
+      <p>Sign in to manage the places and stories that shape the Kuwaiti Experience.</p>
+      
+@if(flashMessages.has('loginError'))
+<div class="notice error" role="alert">{{ flashMessages.get('loginError') }}</div>
+@end
+
+      
+@form({ action: '/admin/login', method: 'POST', class: 'editor-form' })
+
+        <label>Email address<input type="email" name="email" autocomplete="username" required></label>
+        <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
+        <button class="button primary wide" type="submit">Sign in <span>→</span></button>
+      
+@end
+
+      
+@if(canRefresh)
+
+        
+@form({ action: '/admin/refresh', method: 'POST', class: 'continue-form' })
+
+          <button class="text-button" type="submit">Continue previous session</button>
+        
+@end
+
+      
+@end
+
+      <div class="login-footer">Authorized staff only · Kuwait local time</div>
+    </section>
+  </main>
+</body>
+</html>
