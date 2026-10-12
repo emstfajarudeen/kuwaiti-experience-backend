@@ -67,7 +67,7 @@ for (const textarea of document.querySelectorAll('textarea')) {
   decorateField(textarea, field)
 }
 
-for (const select of document.querySelectorAll('select')) {
+for (const select of document.querySelectorAll('select:not([data-native-filter])')) {
   const field = document.createElement('wa-select')
   copyAttributes(select, field, ['onchange', 'size'])
   const wrapper = select.closest('label')
@@ -83,9 +83,6 @@ for (const select of document.querySelectorAll('select')) {
     item.textContent = option.textContent
     if (option.selected) item.setAttribute('selected', '')
     field.append(item)
-  }
-  if (select.id === 'places-type-filter') {
-    field.addEventListener('change', () => field.form?.requestSubmit())
   }
   if (wrapper) {
     field.classList.add(...wrapper.classList)

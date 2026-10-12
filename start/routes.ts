@@ -18,6 +18,7 @@ const AdminPlacesPageController = () => import('#controllers/admin/places_contro
 const AdminCategoriesPageController = () => import('#controllers/admin/categories_controller')
 const AdminCategoryTypesPageController = () =>
   import('#controllers/admin/category_types_controller')
+const AdminSaveSuccessController = () => import('#controllers/admin/save_success_controller')
 const AdminPagesPageController = () => import('#controllers/admin/pages_controller')
 const AdminMediaPageController = () => import('#controllers/admin/media_controller')
 const AdminSitePageController = () => import('#controllers/admin/site_controller')
@@ -30,6 +31,7 @@ router
   .group(() => {
     router.get('/', [AdminDashboardController, 'index'])
     router.post('/logout', [AdminAuthController, 'logout'])
+    router.get('/:resource/saved', [AdminSaveSuccessController, 'show'])
     router.get('/places', [AdminPlacesPageController, 'index'])
     router.get('/places/new', [AdminPlacesPageController, 'create'])
     router.post('/places', [AdminPlacesPageController, 'save']).as('cms.places.create')
@@ -42,15 +44,23 @@ router
     router.post('/places/:id/archive', [AdminPlacesPageController, 'archive'])
     router.post('/places/:id/delete', [AdminPlacesPageController, 'destroy'])
     router.get('/categories', [AdminCategoriesPageController, 'index'])
-    router.get('/category-types', [AdminCategoryTypesPageController, 'index'])
-    router.post('/category-types', [AdminCategoryTypesPageController, 'create'])
-    router.post('/category-types/:code/save', [AdminCategoryTypesPageController, 'save'])
-    router.post('/category-types/:code/delete', [AdminCategoryTypesPageController, 'destroy'])
+    router.get('/categories/new', [AdminCategoriesPageController, 'create'])
+    router.get('/categories/:id/edit', [AdminCategoriesPageController, 'edit'])
     router.post('/categories', [AdminCategoriesPageController, 'save']).as('cms.categories.create')
     router
       .post('/categories/:id/save', [AdminCategoriesPageController, 'save'])
       .as('cms.categories.update')
     router.post('/categories/:id/delete', [AdminCategoriesPageController, 'destroy'])
+    router.get('/category-types', [AdminCategoryTypesPageController, 'index'])
+    router.get('/category-types/new', [AdminCategoryTypesPageController, 'create'])
+    router.get('/category-types/:code/edit', [AdminCategoryTypesPageController, 'edit'])
+    router
+      .post('/category-types', [AdminCategoryTypesPageController, 'save'])
+      .as('cms.categoryTypes.create')
+    router
+      .post('/category-types/:code/save', [AdminCategoryTypesPageController, 'save'])
+      .as('cms.categoryTypes.update')
+    router.post('/category-types/:code/delete', [AdminCategoryTypesPageController, 'destroy'])
     router.get('/pages', [AdminPagesPageController, 'index'])
     router.get('/pages/new', [AdminPagesPageController, 'edit']).as('cms.pages.new')
     router.post('/pages', [AdminPagesPageController, 'save']).as('cms.pages.create')

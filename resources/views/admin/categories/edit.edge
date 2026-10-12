@@ -1,0 +1,29 @@
+@let(hasForm = flashMessages.has('categoryForm'))
+@let(form = flashMessages.get('categoryForm') || {})
+@layouts.admin({ title: category ? 'Edit category' : 'New category', active: 'categories', adminName: admin.fullName })
+  <a class="back-link" href="/admin/categories">← Back to categories</a>
+  <div class="eyebrow">{{ category ? 'REFINE THE FILTER' : 'ADD TO THE COLLECTION' }}</div>
+  <div class="page-head"><div><h1>{{ category ? en?.name || category.slug : 'Create a new category' }}</h1><p>Set the visitor-facing filter for a category type.</p></div></div>
+  @form({ action: category ? `/admin/categories/${category.id}/save` : '/admin/categories', method: 'POST', class: 'editor-grid' })
+    <div class="editor-main"><section class="panel form-panel"><span class="eyebrow">CATEGORY DETAILS</span><h2>Filter information</h2><div class="form-grid two">
+      <label>Category type<select name="type" required>
+        @each(type in types)
+          <option value="{{ type.code }}"
+            @if((form.type ?? category?.type ?? defaultType ?? '') === type.code)
+              selected
+            @end
+          >{{ type.name_en }}</option>
+        @end
+      </select></label>
+      <label>Display order<input name="sortOrder" type="number" value="{{ form.sortOrder ?? category?.sort_order ?? 0 }}" required></label>
+      <label>English name<input name="nameEn" value="{{ form.nameEn ?? en?.name ?? '' }}" required maxlength="160" placeholder="Landmarks"></label>
+      <label>Arabic name<input name="nameAr" dir="rtl" lang="ar" value="{{ form.nameAr ?? ar?.name ?? '' }}" maxlength="160"></label>
+      <label class="full">URL slug<input name="slug" value="{{ form.slug ?? category?.slug ?? '' }}" required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="160" placeholder="landmarks"></label>
+      <label class="checkbox-line"><input name="active" type="checkbox" @if(hasForm ? form.active === 'on' : (!category || category.active)) checked @end> Visible to visitors</label>
+    </div></section></div>
+    <aside class="editor-aside"><section class="panel form-panel actions-panel"><span class="eyebrow">READY TO SAVE?</span><p class="panel-help">Categories are grouped under a category type and become visitor filters when visible.</p><button class="button primary wide" type="submit">Save {{ category ? 'changes' : 'category' }} <span>→</span></button></section></aside>
+  @end
+  @if(category)
+    <div class="danger-row">@form({ action: `/admin/categories/${category.id}/delete`, method: 'POST', 'onsubmit': "return confirm('Delete category?')" })<button class="text-button danger" type="submit">Delete category</button>@end</div>
+  @end
+@end

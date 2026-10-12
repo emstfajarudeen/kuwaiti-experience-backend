@@ -16,6 +16,24 @@ test.group('CMS pages', (group) => {
       active: true,
       created_at: new Date(),
     })
+    await db.table('category_types').insert({
+      code: 'attraction',
+      name_en: 'Attractions',
+      sort_order: 0,
+    })
+    const [categoryId] = await db.table('categories').insert({
+      type: 'attraction',
+      slug: 'landmarks',
+      sort_order: 0,
+      active: true,
+      created_at: new Date(),
+      updated_at: new Date(),
+    })
+    await db.table('category_translations').insert({
+      category_id: categoryId,
+      locale: 'en',
+      name: 'Landmarks',
+    })
     const login = await loginAdmin('admin@example.com', 'a-very-long-test-password')
     const token = login.accessToken
     const pages = [
@@ -23,7 +41,11 @@ test.group('CMS pages', (group) => {
       '/admin/places',
       '/admin/places/new',
       '/admin/categories',
+      '/admin/categories/new',
+      `/admin/categories/${categoryId}/edit`,
       '/admin/category-types',
+      '/admin/category-types/new',
+      '/admin/category-types/attraction/edit',
       '/admin/pages',
       '/admin/pages/new',
       '/admin/media',
@@ -36,6 +58,16 @@ test.group('CMS pages', (group) => {
       const response = await client.get(path).cookie('admin_access', token)
       response.assertStatus(200)
     }
+    const missingCategory = await client
+      .get('/admin/categories/not-a-category/edit')
+      .cookie('admin_access', token)
+    missingCategory.assertStatus(200)
+    missingCategory.assertTextIncludes('Categories')
+    const missingCategoryType = await client
+      .get('/admin/category-types/not-a-category-type/edit')
+      .cookie('admin_access', token)
+    missingCategoryType.assertStatus(200)
+    missingCategoryType.assertTextIncludes('Category types')
   })
 
   test('does not create content without a CSRF token', async ({ client, assert }) => {

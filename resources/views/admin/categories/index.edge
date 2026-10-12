@@ -1,0 +1,26 @@
+@layouts.admin({ title: 'Categories', active: 'categories', adminName: admin.fullName })
+  <div class="eyebrow">ORGANIZE THE JOURNEY</div>
+  <div class="page-head"><div><h1>Categories</h1><p>Control the filters visitors use within each place type.</p></div><a class="button primary" href="/admin/categories/new">Add a category <span>↗</span></a></div>
+  <form class="places-filter" action="/admin/categories" method="GET">
+    <label for="categories-type-filter">Filter by category type</label>
+    <select id="categories-type-filter" name="type" data-native-filter onchange="this.form.submit()">
+      <option value="" {{ !selectedType ? 'selected' : '' }}>All categories</option>
+      @each(type in types)
+        <option value="{{ type.code }}" {{ selectedType === type.code ? 'selected' : '' }}>{{ type.name_en }}</option>
+      @end
+    </select>
+    <noscript><button type="submit">Apply filter</button></noscript>
+  </form>
+  <section class="panel table-panel">
+    <div class="panel-heading"><div><span class="eyebrow">YOUR FILTERS</span><h2>{{ rows.length }} categories shown</h2></div><a class="text-button" href="/admin/category-types">Manage category types ↗</a></div>
+    @if(rows.length)
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Category</th><th>Type</th><th>Visibility</th><th>Order</th><th></th></tr></thead><tbody>
+        @each(category in rows)
+          <tr><td><div><strong>{{ category.name }}</strong></div></td><td>{{ category.type_name_en }}</td><td><span class="status {{ category.active ? 'published' : 'archived' }}">{{ category.active ? 'visible' : 'hidden' }}</span></td><td>{{ category.sort_order }}</td><td><a class="round-link" href="/admin/categories/{{ category.id }}/edit" aria-label="Edit {{ category.name }}">↗</a></td></tr>
+        @end
+      </tbody></table></div>
+    @else
+      <div class="empty-state">No categories in this view. <a href="/admin/categories/new">Add one now.</a></div>
+    @end
+  </section>
+@end

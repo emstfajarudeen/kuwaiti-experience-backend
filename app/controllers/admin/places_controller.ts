@@ -16,19 +16,33 @@ function idsFrom(value: unknown): number[] {
 
 export default class AdminPlacesPageController {
   async index({ request, view, admin }: HttpContext) {
-    const type = request.input('type')
+    const requestedType = request.input('type')
+    const types = await categoryTypes()
+    const selectedType =
+      typeof requestedType === 'string' && types.some((type) => type.code === requestedType)
+        ? requestedType
+        : ''
     const query = db
       .from('places as p')
       .join('place_translations as t', function () {
         this.on('t.place_id', '=', 'p.id').andOnVal('t.locale', '=', 'en')
       })
-      .select('p.id', 'p.type', 'p.slug', 'p.status', 'p.cover_media_id', 'p.updated_at', 't.title')
-    if (typeof type === 'string' && (await db.from('category_types').where('code', type).first())) {
-      query.where('p.type', type)
+      .leftJoin('category_types as ct', 'ct.code', 'p.type')
+      .select(
+        'p.id',
+        'p.type',
+        'p.slug',
+        'p.status',
+        'p.cover_media_id',
+        'p.updated_at',
+        't.title',
+        db.raw('COALESCE(ct.name_en, p.type) as type_name_en')
+      )
+    if (selectedType) {
+      query.where('p.type', selectedType)
     }
     const rows = await query.orderBy('p.id', 'desc').limit(100)
-    const types = await categoryTypes()
-    return view.render('admin/places/index', { admin, rows, types, selectedType: type ?? '' })
+    return view.render('admin/places/index', { admin, rows, types, selectedType })
   }
 
   async create({ view, admin }: HttpContext) {
@@ -129,11 +143,11 @@ export default class AdminPlacesPageController {
         hours,
       })
       const publish = request.input('intent') === 'publish'
-      const id = await savePlace(input, admin.id, params.id ? Number(params.id) : undefined, {
+      await savePlace(input, admin.id, params.id ? Number(params.id) : undefined, {
         publish,
       })
       session.flash('success', publish ? 'Place published.' : 'Place saved.')
-      return response.redirect(`/admin/places/${id}/edit`)
+      return response.redirect('/admin/places/saved')
     } catch (error) {
       session.flash('error', error instanceof Error ? error.message : 'Unable to save place')
       return response.redirect(params.id ? `/admin/places/${params.id}/edit` : '/admin/places/new')

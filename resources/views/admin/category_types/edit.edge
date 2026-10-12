@@ -1,0 +1,33 @@
+@let(hasForm = flashMessages.has('categoryTypeForm'))
+@let(form = flashMessages.get('categoryTypeForm') || {})
+@layouts.admin({ title: categoryType ? 'Edit category type' : 'New category type', active: 'category-types', adminName: admin.fullName })
+  <a class="back-link" href="/admin/category-types">← Back to category types</a>
+  <div class="eyebrow">{{ categoryType ? 'REFINE DISCOVERY' : 'ADD TO DISCOVERY' }}</div>
+  <div class="page-head"><div><h1>{{ categoryType ? categoryType.name_en : 'Create a category type' }}</h1><p>Manage the discovery tile and place type used throughout the guide.</p></div></div>
+  @form({ action: categoryType ? `/admin/category-types/${categoryType.code}/save` : '/admin/category-types', method: 'POST', class: 'editor-grid' })
+    <div class="editor-main"><section class="panel form-panel"><span class="eyebrow">TYPE DETAILS</span><h2>Discovery information</h2><div class="form-grid two">
+      @if(!categoryType)
+        <label>Code<input name="code" value="{{ form.code ?? '' }}" required maxlength="32" pattern="[a-z0-9]+(_[a-z0-9]+)*" placeholder="museum"></label>
+      @else
+        <label>Code<input value="{{ categoryType.code }}" readonly></label>
+      @end
+      <label>Display order<input name="sortOrder" type="number" value="{{ form.sortOrder ?? categoryType?.sort_order ?? nextOrder }}" required></label>
+      <label>English name<input name="nameEn" value="{{ form.nameEn ?? categoryType?.name_en ?? '' }}" required maxlength="160" placeholder="Museums"></label>
+      <label>Arabic name<input name="nameAr" dir="rtl" lang="ar" value="{{ form.nameAr ?? categoryType?.name_ar ?? '' }}" maxlength="160"></label>
+      <label class="full">Tile image<select name="imageId">
+        <option value="">No tile image</option>
+        @each(image in media)
+          <option value="{{ image.id }}"
+            @if(String(form.imageId ?? categoryType?.image_id ?? '') === String(image.id))
+              selected
+            @end
+          >{{ image.original_name }}</option>
+        @end
+      </select></label>
+    </div></section></div>
+    <aside class="editor-aside"><section class="panel form-panel actions-panel"><span class="eyebrow">READY TO SAVE?</span><p class="panel-help">The tile image is managed in the media library and is optional.</p><button class="button primary wide" type="submit">Save {{ categoryType ? 'changes' : 'category type' }} <span>→</span></button></section></aside>
+  @end
+  @if(categoryType)
+    <div class="danger-row">@form({ action: `/admin/category-types/${categoryType.code}/delete`, method: 'POST', 'onsubmit': "return confirm('Delete this category type?')" })<button class="text-button danger" type="submit">Delete category type</button>@end</div>
+  @end
+@end

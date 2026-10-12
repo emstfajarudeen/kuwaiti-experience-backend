@@ -1,0 +1,17 @@
+@layouts.admin({ title: 'Category types', active: 'category-types', adminName: admin.fullName })
+  <div class="eyebrow">DISCOVERY MASTER</div>
+  <div class="page-head"><div><h1>Category types</h1><p>Add, edit, and order the discovery tiles and place types.</p></div><a class="button primary" href="/admin/category-types/new">Add a category type <span>↗</span></a></div>
+  <p class="panel-help">Lower order numbers appear first. Upload images in the <a href="/admin/media">media library ↗</a>. A type with categories or places cannot be deleted.</p>
+  <section class="panel table-panel">
+    <div class="panel-heading"><div><span class="eyebrow">DISCOVERY TYPES</span><h2>{{ rows.length }} category types</h2></div></div>
+    @if(rows.length)
+      <div class="table-scroll"><table class="data-table"><thead><tr><th>Type</th><th>Arabic name</th><th>Order</th><th>Tile image</th><th></th></tr></thead><tbody>
+        @each(item in rows)
+          <tr><td><div><strong>{{ item.name_en }}</strong></div></td><td>{{ item.name_ar || '—' }}</td><td>{{ item.sort_order }}</td><td>{{ item.image_id ? 'Selected' : 'None' }}</td><td><a class="round-link" href="/admin/category-types/{{ item.code }}/edit" aria-label="Edit {{ item.name_en }}">↗</a></td></tr>
+        @end
+      </tbody></table></div>
+    @else
+      <div class="empty-state">No category types yet. <a href="/admin/category-types/new">Add one now.</a></div>
+    @end
+  </section>
+@end

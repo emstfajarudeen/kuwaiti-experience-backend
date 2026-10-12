@@ -3,12 +3,13 @@
   <div class="page-head"><div><h1>Places</h1><p>Curate places across your category types.</p></div><a class="button primary" href="/admin/places/new">Add a place <span>↗</span></a></div>
   <form class="places-filter" action="/admin/places" method="GET">
     <label for="places-type-filter">Filter by type</label>
-    <select id="places-type-filter" name="type" onchange="this.form.requestSubmit()">
-      <option value="">All places</option>
+    <select id="places-type-filter" name="type" data-native-filter onchange="this.form.submit()">
+      <option value="" {{ !selectedType ? 'selected' : '' }}>All places</option>
       @each(type in types)
-        <option value="{{ type.code }}" @if(selectedType === type.code) selected @end>{{ type.name_en }}</option>
+        <option value="{{ type.code }}" {{ selectedType === type.code ? 'selected' : '' }}>{{ type.name_en }}</option>
       @end
     </select>
+    <noscript><button type="submit">Apply filter</button></noscript>
   </form>
   <section class="panel table-panel">
     <div class="panel-heading"><div><span class="eyebrow">YOUR COLLECTION</span><h2>{{ rows.length }} places shown</h2></div></div>
@@ -25,7 +26,7 @@
 @else
 <span class="thumb-empty">K</span>
 @end
-<div><strong>{{ place.title }}</strong><small>/{{ place.slug }}</small></div></div></td><td>{{ place.type.replace('_', ' ') }}</td><td><span class="status {{ place.status }}">{{ place.status }}</span></td><td>{{ place.updated_at || '—' }}</td><td><a class="round-link" href="/admin/places/{{ place.id }}/edit" aria-label="Edit {{ place.title }}">↗</a></td></tr>
+<div><strong>{{ place.title }}</strong></div></div></td><td>{{ place.type_name_en }}</td><td><span class="status {{ place.status }}">{{ place.status }}</span></td><td>{{ place.updated_at || '—' }}</td><td><a class="round-link" href="/admin/places/{{ place.id }}/edit" aria-label="Edit {{ place.title }}">↗</a></td></tr>
       
 @end
 
