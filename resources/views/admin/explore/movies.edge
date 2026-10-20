@@ -1,0 +1,30 @@
+
+@layouts.admin({ title: 'Movies', active: 'movies', adminName: admin.fullName })
+
+  <div class="page-head"><div><h1>Movies</h1><p>Publish licensed posters and movie details, then add theater showtimes.</p></div><a class="button primary" href="/admin/movies/new">Add movie</a></div>
+  <section class="panel form-panel"><div class="table-wrap"><table><thead><tr><th>Title</th><th>Status</th><th>Duration</th><th>Actions</th></tr></thead><tbody>
+    
+@each(movie in result.data)
+
+      <tr><td>{{ movie.title_en }}</td><td><span class="status {{ movie.status }}">{{ movie.status }}</span></td><td>{{ movie.duration_minutes ?? '—' }}</td><td><a href="/admin/movies/{{ movie.id }}/edit">Edit</a></td></tr>
+    
+@else
+
+      <tr><td colspan="4">No movies yet.</td></tr>
+    
+@end
+
+  </tbody></table></div><p>Page {{ result.meta.page }} of {{ result.meta.last_page }} · {{ result.meta.total }} movies</p>
+    
+@if(result.meta.page > 1)
+<a class="button secondary" href="?page={{ result.meta.page - 1 }}">Previous</a>
+@end
+
+@if(result.meta.page < result.meta.last_page)
+<a class="button secondary" href="?page={{ result.meta.page + 1 }}">Next</a>
+@end
+
+  </section>
+
+@end
+

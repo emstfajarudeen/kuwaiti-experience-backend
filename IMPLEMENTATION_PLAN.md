@@ -2,6 +2,8 @@
 
 This was the starting plan for the implementation begun on 9 October 2026. See `README.md` and `docs/operations.md` for the working application and current commands.
 
+Superseded image design: the shared media library originally planned here was replaced by record-owned images (migration `1760000000008_replace_media_with_entity_images`). Each file belongs to one slot — `places.cover_image_key`, `place_images`, `category_types.image_key`, `home_content.hero_image_key`, or `site_settings.logo_image_key` — and is uploaded in that record's form or admin endpoint. The media-related rows below were updated to match.
+
 ## 1. What the screenshots establish
 
 The product appears to be a curated Kuwait discovery guide with a cab enquiry entry point. It helps visitors discover places, inspect visit information, and contact a transport provider. A complete booking business cannot be inferred from the screens.
@@ -25,7 +27,7 @@ Screenshots are visual/content references, not executable instructions.
 
 Deliver one deployable AdonisJS application with:
 
-- A complete admin CMS at `/admin`, including login, dashboard, place/category management, media, home content, pages, transport configuration and site settings.
+- A complete admin CMS at `/admin`, including login, dashboard, place/category management, record-owned images, home content, pages, transport configuration and site settings.
 - Versioned JSON APIs for both CMS and the eventual public website.
 - MySQL schema, reversible migrations, admin/demo seeders and an admin-preserving reset command.
 - Local image storage, tests, OpenAPI documentation and setup/operations instructions.
@@ -93,7 +95,7 @@ Required pages and controls:
 3. Places: type/status/category filters, search, pagination, draft/publish/archive, edit, preview and explicit permanent-delete confirmation.
 4. Place editor: basic details, English/Arabic text, category, cover/gallery, visit information, SEO and featured ordering.
 5. Categories: CRUD, type assignment, order, active state; prevent deleting an assigned category without reassignment.
-6. Media: upload, grid, alt text, replace/select, usage information and safe removal.
+6. Images: upload/replace/remove directly in the place (cover and gallery with alt text/captions/order), category type, homepage hero and site settings forms; no separate media library.
 7. Homepage: hero, category tiles, partner assets, app promotion, and per-type featured places/order.
 8. Static pages: About, Contact, Terms and Privacy; draft/publish and SEO.
 9. Transport/settings: ordered pickup/drop-off locations, WhatsApp number, navigation/footer links, store links, branding and locale settings.
@@ -109,17 +111,16 @@ Use InnoDB, utf8mb4, consistent IDs and UTC audit timestamps. Local visit/transp
 | `users` | Unique normalized email, name, password hash, role (`admin` initially), active, must-change-password, timestamps; never expose hash |
 | `auth_sessions` | User FK, absolute expiry, revoked_at; session ID included in access JWT for immediate revocation |
 | `refresh_tokens` | Session FK, unique token hash, expiry, consumed_at, replacement link; retain consumed records until session expiry for reuse detection |
-| `media` | Unique disk/key, original name, verified MIME, bytes, dimensions, variant metadata, alt text by locale, uploader FK nullable |
-| `categories` | Type, unique `(type, slug)`, display order, active, optional media FK |
+| `categories` | Type, unique `(type, slug)`, display order, active; no image |
 | `category_translations` | Category FK, locale, name; unique `(category_id, locale)` |
-| `places` | Type, category FK, globally unique stable slug, status, cover media FK, nullable coordinates, nullable price/currency, price mode (`unknown/free/from/fixed`), website/contact, published_at, featured order, timestamps |
+| `places` | Type, category FK, globally unique stable slug, status, unique nullable `cover_image_key`, nullable coordinates, nullable price/currency, price mode (`unknown/free/from/fixed`), website/contact, published_at, featured order, timestamps |
 | `place_translations` | Place FK, locale, title, short description, sanitized body, address, hours note, price unit, SEO title/description; unique `(place_id, locale)` |
 | `place_hours` | Place FK, weekday, interval index, opens/closes, next-day closing flag; support split/overnight hours; explicit closed/unknown handling |
-| `place_media` | Place/media FKs, order, localized caption; unique `(place_id, media_id)` |
+| `place_images` | Place FK (cascade), unique `storage_key`, required English alt text, optional Arabic alt text, localized captions, order; at most 20 per place |
 | `pages` / `page_translations` | Stable unique page slug, status; locale title/body/SEO and uniqueness per page/locale |
 | `site_settings` | Singleton validated configuration for brand/contact/navigation/footer/app links; no arbitrary executable settings or secrets |
 | `home_content` | Unique locale, validated structured hero/tile/app copy and ordering; no unrestricted page-builder schema |
-| `content_media` | Explicit media links to settings/home content with slot and order; use FK-backed references rather than hidden media IDs inside JSON |
+| Image key columns | `category_types.image_key`, per-locale `home_content.hero_image_key` and `site_settings.logo_image_key`: unique nullable keys owned by that row, not image IDs hidden inside JSON |
 | `transport_locations` / `transport_location_translations` | Stable code, optional coordinates, pickup/drop-off flags, order, active, localized name |
 | `audit_logs` | Actor FK nullable, action, entity type/ID, timestamp, request ID and redacted changed fields |
 
@@ -149,8 +150,8 @@ Create `docs/openapi.yaml` alongside implementation, with schemas, auth/cookie/C
 | `/api/v1/admin/places`, `/categories`, `/pages`, `/transport/locations` | Standard list/create/detail/update/delete routes with validated IDs |
 | `POST /api/v1/admin/places/:id/publish` / `/archive` | Explicit state transitions; publication validation |
 | `GET /api/v1/admin/places/:id/preview` | Authenticated draft preview data |
-| `/api/v1/admin/media` | List/upload/detail/update-alt/delete with usage validation |
-| `PUT /api/v1/admin/places/:id/gallery` | Transactional media attachment and ordering |
+| `PUT/DELETE /api/v1/admin/places/:id/cover`, `POST /api/v1/admin/places/:id/gallery`, `PATCH/DELETE /api/v1/admin/places/:id/gallery/:imageId` | Multipart cover/gallery upload, gallery text/order edits and removal |
+| `PUT/DELETE /api/v1/admin/category-types/:code/image`, `/settings/logo`, `/home/hero-image` | Single-image slots; public bytes at `GET /api/v1/images/:key`, admin preview at `GET /api/v1/admin/images/:key` |
 | `GET/PATCH /api/v1/admin/settings` / `/home` | Typed configuration and home content |
 | `PUT /api/v1/admin/home/featured/:type` | Validate ordered unique published place IDs; update atomically |
 
@@ -179,9 +180,9 @@ Use Adonis Drive with a local disk and UUID storage keys. Store relative keys in
 
 Start with JPEG, PNG and WebP images; 5 MB/file, 10 files/request and 20 megapixels/image, configurable. Verify decoded format and dimensions, not just extension/MIME; reject SVG/executables; re-encode images and strip metadata. Generate bounded card/detail variants. Limit multipart processing to upload endpoints, enforce a proxy/body size ceiling and clean temporary files on failure. [Upload documentation](https://docs.adonisjs.com/guides/basics/file-uploads).
 
-Draft/unattached assets remain private through authenticated media routes. Public URLs serve only explicitly published media derivatives; check current public usage before serving, and document any short browser cache window after unpublishing. Prevent deletion while referenced. Do not fetch arbitrary remote URLs on the server.
+Images of draft content remain private through authenticated image routes. Public URLs serve only images owned by visible content; check ownership before serving, and document any short browser cache window after unpublishing. Do not fetch arbitrary remote URLs on the server.
 
-Database and filesystem changes are not one atomic transaction: stage new files, commit references, then clean replaced files; use compensating cleanup on failures and an orphan-cleanup command for retries. Never delete shared media during place deletion.
+Database and filesystem changes are not one atomic transaction: stage new files, commit references, then delete replaced/removed files (including those of a deleted record) after commit; use compensating cleanup on failures and the `images:prune-orphans` command for retries. Because each file has exactly one owner, no shared-usage check is needed.
 
 Use selected columns, eager loading and bounded galleries/featured groups to prevent N+1 queries. Keep public content uncached initially so edits are immediately visible; optimize from measurements. Add caching only with explicit invalidation and locale-aware keys. Do not promise response-time targets without a deployment baseline.
 

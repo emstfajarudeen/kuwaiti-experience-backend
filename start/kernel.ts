@@ -45,4 +45,5 @@ router.use([
  */
 export const middleware = router.named({
   jwtAdmin: () => import('#middleware/jwt_admin_middleware'),
+  customerAuth: () => import('#middleware/customer_auth_middleware'),
 })

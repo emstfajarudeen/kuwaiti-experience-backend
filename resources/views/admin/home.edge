@@ -2,19 +2,24 @@
   <div class="eyebrow">THE FIRST IMPRESSION</div><div class="page-head"><div><h1>Homepage</h1><p>Shape the discovery experience visitors see first.</p></div></div>
   <div class="filter-pills"><a href="/admin/home?locale=en" class="{{ locale === 'en' ? 'selected' : '' }}">English</a><a href="/admin/home?locale=ar" class="{{ locale === 'ar' ? 'selected' : '' }}">Arabic</a></div>
   
-@form({ action: '/admin/home', method: 'POST', class: 'editor-grid' })
+@form({ action: '/admin/home', method: 'POST', enctype: 'multipart/form-data', class: 'editor-grid' })
 
     <input type="hidden" name="locale" value="{{ locale }}">
     <div class="editor-main">
-      <section class="panel form-panel"><span class="eyebrow">01 / THE ARRIVAL</span><h2>Hero</h2><div class="form-grid"><label>Eyebrow<input name="heroEyebrow" value="{{ home?.hero_eyebrow || 'WELCOME TO KUWAIT' }}" required></label><label>Headline<input name="heroTitle" value="{{ home?.hero_title || 'Explore Kuwait' }}" required></label><label>Hero image<select name="heroMediaId"><option value="">No image</option>
-@each(image in media)
-<option value="{{ image.id }}" 
-@if(home && home.hero_media_id === image.id)
- selected 
-@end
->{{ image.original_name }}</option>
-@end
-</select></label></div></section>
+      <section class="panel form-panel"><span class="eyebrow">01 / THE ARRIVAL</span><h2>Hero</h2><div class="form-grid"><label>Eyebrow<input name="heroEyebrow" value="{{ home?.hero_eyebrow || 'WELCOME TO KUWAIT' }}" required></label><label>Headline<input name="heroTitle" value="{{ home?.hero_title || 'Explore Kuwait' }}" required></label><div class="image-field">
+        <span class="field-title">Hero image <small>({{ locale === 'ar' ? 'Arabic' : 'English' }} homepage)</small></span>
+        @if(heroImageUrl)
+          <img class="cover-preview" src="{{ heroImageUrl }}" alt="Current hero image">
+        @end
+        <div class="image-upload">
+          <span>{{ heroImageUrl ? 'Replace hero image' : 'Upload a hero image' }}</span>
+          <input type="file" name="heroImage" accept="image/jpeg,image/png,image/webp" aria-label="Hero image" data-image-upload>
+        </div>
+        <p class="panel-help">JPEG, PNG or WebP · 5 MB maximum. Images are converted to WebP.</p>
+        @if(heroImageUrl)
+          <label class="checkbox-line"><input type="checkbox" name="removeHeroImage"> Remove hero image</label>
+        @end
+      </div></div></section>
       <section class="panel form-panel"><span class="eyebrow">02 / DISCOVERY</span><h2>Category section</h2><div class="form-grid"><label>Section headline<input name="discoveryTitle" value="{{ home?.discovery_title || 'What would you like to do?' }}" required></label></div><p class="panel-help" style="margin:16px 0 0">Tile names, images, and order are managed in <a href="/admin/category-types">Category types ↗</a></p></section>
     </div>
     <aside class="editor-aside"><section class="panel form-panel actions-panel"><span class="eyebrow">READY TO SAVE?</span><p class="panel-help">Content is visible on the public API immediately.</p><button class="button primary wide" type="submit">Save homepage <span>→</span></button></section></aside>

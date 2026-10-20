@@ -1,13 +1,15 @@
 # The Kuwaiti Experience
 
+The first App 2 account/support APIs are implemented under `/api/v2`: see [customer API integration](docs/customer-api.md) and [OpenAPI](docs/customer-openapi.json). The CMS includes a Contact requests inbox. Phone OTP returns 503 until a real SMS adapter is configured; existing admin JWT login is separate.
+
 AdonisJS 7, TypeScript, MySQL backend and browser-based admin CMS for a Kuwait discovery guide. The public website screens are supported by `/api/v1`; this repository does not render the public website itself. The CMS is available at `/admin`.
 
 ## What is implemented
 
-- Place, category, category-type, static-page, homepage, media, transport-location, and site-settings management in a navy/ivory/gold CMS inspired by the supplied screenshots. Category types can be added or deleted in the CMS; deletion is blocked while categories or places use a type.
+- Place, category, category-type, static-page, homepage, transport-location, and site-settings management in a navy/ivory/gold CMS inspired by the supplied screenshots. Category types can be added or deleted in the CMS; deletion is blocked while categories or places use a type.
 - Public landing page, listing, detail, category, page, site, and cab-enquiry-link APIs. The landing page returns category type tiles and published places selected as featured in the place editor. The cab action creates a WhatsApp enquiry link; it does **not** confirm a booking or charge a fare.
 - Admin JWT bearer API and HttpOnly-cookie CMS sessions. Access tokens last 15 minutes; hashed, rotating refresh tokens last up to seven days. Logout and password changes revoke sessions.
-- Private local image uploads with image decoding/re-encoding, publication-aware public delivery, and reference-safe deletion.
+- Images owned by the records that use them, with no shared media library: place cover and gallery, category type tile, per-locale homepage hero, and site logo are uploaded directly in their CMS forms (or the matching admin API endpoints). Uploads are stored privately, decoded and re-encoded to WebP, and served publicly at `/api/v1/images/{key}` only while their owner is visible. Replacing or removing an image, or deleting its record, deletes the file after the database commit.
 - Reversible MySQL migrations, idempotent admin/demo seeders, an admin-preserving content reset command, and tests against a separate MySQL test database.
 
 The screenshot is a visual reference for the public site, not an admin screenshot. CMS colors and layout follow its design language; exact brand fonts, original logo, photos, and phone mockups were not supplied. Demo images are labeled placeholders, and demo prices/hours are not asserted as real visitor information.
@@ -78,7 +80,7 @@ npm run lint
 npm run build
 ```
 
-After changing migrations, rerun `node ace migration:run` for the development database. `npm run build` compiles the server and CMS assets into `build/`. For a production deployment, configure production values for `NODE_ENV`, `APP_URL`, secrets, database, and upload storage. From `build/`, run `npm ci --omit=dev`, apply migrations with `node ace migration:run`, and seed **only** the administrator with `node ace db:seed --files database/seeders/admin_seeder.ts` if one does not already exist. Start with `npm start` (equivalent to `node bin/server.js`). Run migrations as a controlled release step before serving traffic. The demo seeder refuses production. Persist and back up both MySQL and `storage/uploads`; see [operations](docs/operations.md) for deployment and recovery details.
+After changing migrations, rerun `node ace migration:run` for the development database. `npm run build` compiles the server and CMS assets into `build/`. For a production deployment, configure production values for `NODE_ENV`, `APP_URL`, secrets, database, and upload storage. From `build/`, run `npm ci --omit=dev`, apply migrations with `node ace migration:run`, and seed **only** the administrator with `node ace db:seed --files database/seeders/admin_seeder.ts` if one does not already exist. Start with `npm start` (equivalent to `node bin/server.js`). Run migrations as a controlled release step before serving traffic. The demo seeder refuses production. Persist and back up both MySQL and `storage/uploads`; see [operations](docs/operations.md) for deployment and recovery details. Migration `1760000000008_replace_media_with_entity_images` drops the old shared `media`/`place_media` data: back up first, re-upload images afterward, and clean the old files with `images:prune-orphans` (see operations).
 
 For an intentional **development or test** password reset, set `ADMIN_EMAIL` and `ADMIN_PASSWORD`, then run `ADMIN_SEED_RESET_PASSWORD=true node ace db:seed --files database/seeders/admin_seeder.ts`. This one-time path permits an eight-character local password, replaces the configured admin's hash, and revokes that admin's sessions. It is disabled in production; omit the flag for normal idempotent seeding.
 
@@ -113,15 +115,15 @@ Example public responses for frontend integration are in [Frontend API responses
 ```text
 node ace content:reset --dry-run
 node ace content:reset --confirm=kuwaitiexperience_dev
-node ace media:prune-orphans
-node ace media:prune-orphans --delete
+node ace images:prune-orphans
+node ace images:prune-orphans --delete
 npm run typecheck
 npm run lint
 node ace test functional
 npm run build
 ```
 
-`content:reset` removes all content, media, sessions, non-admin users, and rate-limit records, while preserving admin rows and password hashes. It refuses unexpected database names and requires an exact `--confirm` value; production also requires `--force-production`. This action is irreversible without a backup. The command deletes managed files after the database commit, and `media:prune-orphans` handles partial file cleanup. Never point tests at a non-test database: the test runner explicitly rejects names other than `kuwaitiexperience_test`.
+`content:reset` removes all content (including place gallery rows and every content image file it can delete), sessions, non-admin users, and rate-limit records, while preserving admin rows and password hashes. It refuses unexpected database names and requires an exact `--confirm` value; production also requires `--force-production`. This action is irreversible without a backup. The command deletes managed files after the database commit and suggests `images:prune-orphans` if any file could not be removed. `images:prune-orphans` lists managed image files (including `customer-profiles/` photos) that no record owns and that are older than one hour; add `--delete` to remove them after inspection. Never point tests at a non-test database: the test runner explicitly rejects names other than `kuwaitiexperience_test`.
 
 ## Structure
 

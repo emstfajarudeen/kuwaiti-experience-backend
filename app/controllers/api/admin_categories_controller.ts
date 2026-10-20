@@ -11,7 +11,7 @@ export default class AdminCategoriesController {
       .join('category_translations as t', function () {
         this.on('t.category_id', '=', 'c.id').andOnVal('t.locale', '=', 'en')
       })
-      .select('c.id', 'c.type', 'c.slug', 'c.active', 'c.image_id', 'c.sort_order', 't.name')
+      .select('c.id', 'c.type', 'c.slug', 'c.active', 'c.sort_order', 't.name')
     if (request.input('type')) query.where('c.type', await assertPlaceType(request.input('type')))
     return { data: await query.orderBy('c.type').orderBy('c.sort_order').orderBy('c.id') }
   }
@@ -19,14 +19,10 @@ export default class AdminCategoriesController {
   async store({ request, response, admin }: HttpContext) {
     const input = await request.validateUsing(categoryValidator)
     await assertPlaceType(input.type)
-    if (input.imageId && !(await db.from('media').where('id', input.imageId).first())) {
-      throw new ApiError(422, 'INVALID_MEDIA', 'Image not found')
-    }
     const id = await db.transaction(async (trx) => {
       const [categoryId] = await trx.table('categories').insert({
         type: input.type,
         slug: input.slug,
-        image_id: input.imageId ?? null,
         sort_order: input.sortOrder ?? 0,
         active: input.active ?? true,
         created_at: new Date(),
@@ -69,9 +65,6 @@ export default class AdminCategoriesController {
         'Reassign places before changing the category type'
       )
     }
-    if (input.imageId && !(await db.from('media').where('id', input.imageId).first())) {
-      throw new ApiError(422, 'INVALID_MEDIA', 'Image not found')
-    }
     await db.transaction(async (trx) => {
       await trx
         .from('categories')
@@ -79,7 +72,6 @@ export default class AdminCategoriesController {
         .update({
           type: input.type,
           slug: input.slug,
-          image_id: input.imageId ?? null,
           sort_order: input.sortOrder ?? 0,
           active: input.active ?? true,
           updated_at: new Date(),

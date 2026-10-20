@@ -2,6 +2,9 @@ import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import { ApiError } from './api_error.js'
 import { publicCategoryTypes } from './category_type_service.js'
+import { publicImageUrl } from './image_storage_service.js'
+
+type ImageUrl = (key: string | null | undefined) => string | null
 
 export function localeFrom(value: unknown): 'en' | 'ar' {
   return value === 'ar' ? 'ar' : 'en'
@@ -25,7 +28,7 @@ function placeQuery(locale: 'en' | 'ar', publishedOnly = true) {
       'p.slug',
       'p.type',
       'p.category_id',
-      'p.cover_media_id',
+      'p.cover_image_key',
       'p.featured_order',
       'c.slug as category_slug',
       db.raw(`${title} as title`),
@@ -37,7 +40,8 @@ function placeQuery(locale: 'en' | 'ar', publishedOnly = true) {
   return query
 }
 
-export function placeCard(row: Record<string, unknown>) {
+export function placeCard(row: Record<string, unknown>, imageUrl: ImageUrl = publicImageUrl) {
+  const coverUrl = imageUrl(row.cover_image_key as string | null)
   return {
     id: row.id,
     slug: row.slug,
@@ -46,9 +50,7 @@ export function placeCard(row: Record<string, unknown>) {
     title: row.title,
     summary: row.summary,
     address: row.address,
-    cover: row.cover_media_id
-      ? { id: row.cover_media_id, url: `/api/v1/media/${row.cover_media_id}` }
-      : null,
+    cover: coverUrl ? { url: coverUrl } : null,
   }
 }
 
@@ -81,7 +83,7 @@ export async function listPlaces(input: {
     .limit(input.perPage)
     .offset((input.page - 1) * input.perPage)
   return {
-    data: rows.map(placeCard),
+    data: rows.map((row) => placeCard(row)),
     meta: {
       page: input.page,
       perPage: input.perPage,
@@ -91,7 +93,16 @@ export async function listPlaces(input: {
   }
 }
 
-export async function showPlace(slug: string, locale: 'en' | 'ar', preview = false) {
+/**
+ * Place detail. Admin previews include drafts and pass an authenticated image
+ * URL builder because public image delivery hides unpublished content.
+ */
+export async function showPlace(
+  slug: string,
+  locale: 'en' | 'ar',
+  preview = false,
+  imageUrl: ImageUrl = publicImageUrl
+) {
   const card = await placeQuery(locale, !preview).where('p.slug', slug).first()
   if (!card) throw new ApiError(404, 'NOT_FOUND', 'Place not found')
   const translation =
@@ -103,12 +114,11 @@ export async function showPlace(slug: string, locale: 'en' | 'ar', preview = fal
     (await db.from('place_translations').where('place_id', card.id).where('locale', 'en').first())
   const place = await db.from('places').where('id', card.id).first()
   const gallery = await db
-    .from('place_media as pm')
-    .join('media as m', 'm.id', 'pm.media_id')
-    .where('pm.place_id', card.id)
-    .select('m.id', 'm.alt_en', 'm.alt_ar', 'pm.caption_en', 'pm.caption_ar')
-    .orderBy('pm.sort_order')
-    .orderBy('pm.id')
+    .from('place_images')
+    .where('place_id', card.id)
+    .select('id', 'storage_key', 'alt_en', 'alt_ar', 'caption_en', 'caption_ar')
+    .orderBy('sort_order')
+    .orderBy('id')
     .limit(20)
   const hours = await db
     .from('place_hours')
@@ -118,7 +128,7 @@ export async function showPlace(slug: string, locale: 'en' | 'ar', preview = fal
     .orderBy('interval_index')
   return {
     data: {
-      ...placeCard(card),
+      ...placeCard(card, imageUrl),
       body: translation?.body ?? '',
       hoursNote: translation?.hours_note ?? null,
       price: {
@@ -137,7 +147,7 @@ export async function showPlace(slug: string, locale: 'en' | 'ar', preview = fal
       hours,
       gallery: gallery.map((image) => ({
         id: image.id,
-        url: `/api/v1/media/${image.id}`,
+        url: imageUrl(image.storage_key),
         alt: locale === 'ar' ? image.alt_ar || image.alt_en : image.alt_en,
         caption: locale === 'ar' ? image.caption_ar || image.caption_en : image.caption_en,
       })),
@@ -190,7 +200,7 @@ export async function homeContent(locale: 'en' | 'ar') {
         .whereNotNull('p.featured_order')
         .orderBy('p.featured_order')
         .orderBy('p.id')
-      return { type, places: rows.map(placeCard) }
+      return { type, places: rows.map((row) => placeCard(row)) }
     })
   )
   const settings = await publicSettings()
@@ -199,7 +209,7 @@ export async function homeContent(locale: 'en' | 'ar') {
       hero: {
         eyebrow: home?.hero_eyebrow ?? 'WELCOME TO KUWAIT',
         title: home?.hero_title ?? 'Explore Kuwait',
-        image: home?.hero_media_id ? `/api/v1/media/${home.hero_media_id}` : null,
+        image: publicImageUrl(home?.hero_image_key),
       },
       discoveryTitle: home?.discovery_title ?? 'What would you like to do?',
       categoryTypes,
@@ -219,7 +229,7 @@ export async function publicSettings() {
       brandName: row?.brand_name ?? 'The Kuwaiti Experience',
       contactEmail: row?.contact_email ?? null,
       whatsappAvailable: Boolean(row?.whatsapp_number),
-      logo: row?.logo_media_id ? `/api/v1/media/${row.logo_media_id}` : null,
+      logo: publicImageUrl(row?.logo_image_key),
       appStoreUrl: row?.app_store_url ?? null,
       playStoreUrl: row?.play_store_url ?? null,
     },

@@ -2,10 +2,22 @@ import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
 import hash from '@adonisjs/core/services/hash'
+import drive from '@adonisjs/drive/services/main'
+import limiter from '@adonisjs/limiter/services/main'
+import sharp from 'sharp'
 import { loginAdmin } from '../../app/services/auth_service.js'
+import { allImageKeys } from '../../app/services/image_reference_service.js'
+import { deleteImages } from '../../app/services/image_storage_service.js'
 
 test.group('Category type master', (group) => {
-  group.each.setup(() => testUtils.db().truncate())
+  group.each.setup(async () => {
+    await limiter.clear()
+    const truncate = await testUtils.db().truncate()
+    return async () => {
+      await deleteImages(await allImageKeys())
+      await truncate()
+    }
+  })
 
   test('admin edits feed the ordered public tiles and CMS', async ({ client, assert }) => {
     await db.table('users').insert({
@@ -20,22 +32,24 @@ test.group('Category type master', (group) => {
       { code: 'attraction', name_en: 'Attractions', sort_order: 0 },
       { code: 'restaurant', name_en: 'Restaurants', sort_order: 1 },
     ])
-    const [imageId] = await db.table('media').insert({
-      disk: 'local',
-      storage_key: 'test/category-type.webp',
-      original_name: 'dining.webp',
-      mime: 'image/webp',
-      bytes: 100,
-      alt_en: 'Dining tile',
-      created_at: new Date(),
-    })
     const login = await loginAdmin('types@example.com', 'a-very-long-test-password')
     const token = login.accessToken
     const updated = await client
       .put('/api/v1/admin/category-types/restaurant')
       .header('Authorization', `Bearer ${token}`)
-      .json({ nameEn: 'Dining', nameAr: 'مطاعم', imageId, sortOrder: -1 })
+      .json({ nameEn: 'Dining', nameAr: 'مطاعم', sortOrder: -1 })
     updated.assertStatus(200)
+    const tileImage = await sharp({
+      create: { width: 16, height: 16, channels: 3, background: 'teal' },
+    })
+      .jpeg()
+      .toBuffer()
+    const uploaded = await client
+      .put('/api/v1/admin/category-types/restaurant/image')
+      .header('Authorization', `Bearer ${token}`)
+      .file('file', tileImage, { filename: 'dining.jpg', contentType: 'image/jpeg' })
+    uploaded.assertStatus(200)
+    const imageKey = uploaded.body().data.image_url.split('/').pop()
 
     const tiles = await client.get('/api/v1/home?locale=ar')
     tiles.assertStatus(200)
@@ -51,11 +65,21 @@ test.group('Category type master', (group) => {
     const home = await client.get('/api/v1/home?locale=en')
     home.assertStatus(200)
     assert.equal(home.body().data.categoryTypes[0].name, 'Dining')
-    assert.equal(home.body().data.categoryTypes[0].image, `/api/v1/media/${imageId}`)
-    const deletion = await client
-      .delete(`/api/v1/admin/media/${imageId}`)
+    assert.equal(home.body().data.categoryTypes[0].image, `/api/v1/images/${imageKey}`)
+    const publicImage = await client.get(`/api/v1/images/${imageKey}`)
+    publicImage.assertStatus(200)
+    const listed = await client
+      .get('/api/v1/admin/category-types')
       .header('Authorization', `Bearer ${token}`)
-    deletion.assertStatus(409)
+    assert.equal(listed.body().data[0].image_url, `/api/v1/admin/images/${imageKey}`)
+    assert.notProperty(listed.body().data[0], 'image_key')
+    const removed = await client
+      .delete('/api/v1/admin/category-types/restaurant/image')
+      .header('Authorization', `Bearer ${token}`)
+    removed.assertStatus(204)
+    assert.isFalse(await drive.use('local').exists(imageKey))
+    const withoutImage = await client.get('/api/v1/home?locale=en')
+    assert.isNull(withoutImage.body().data.categoryTypes[0].image)
     const cms = await client.get('/admin/category-types').cookie('admin_access', token)
     cms.assertStatus(200)
     assert.include(cms.text(), 'Dining')

@@ -1,0 +1,93 @@
+
+@let(form = flashMessages.get('exploreForm') || {})
+
+@layouts.admin({ title: 'Explore details', active: 'places', adminName: admin.fullName })
+
+  <a class="back-link" href="/admin/places/{{ place.id }}/edit">← Back to place</a>
+  <div class="page-head"><div><h1>Explore details</h1><p>{{ place.slug }} · {{ place.type }} — contact, visitor details, features and weekly hours.</p></div></div>
+  
+@form({ action: `/admin/places/${place.id}/explore`, method: 'POST' })
+
+    <section class="panel form-panel"><h2>Visitor information</h2><div class="form-grid two">
+      <label>Venue phone<input name="phone_e164" value="{{ form.phone_e164 ?? place.phone_e164 ?? '' }}" placeholder="+96590987788" maxlength="16"><small>International format. Leave blank to hide Call.</small></label>
+      
+@if(place.type === 'hotel_resort')
+
+        <label>Check-in time<input name="check_in_time" type="time" value="{{ (form.check_in_time ?? place.check_in_time ?? '').slice(0, 5) }}"><small>Kuwait local time.</small></label>
+        <label>Check-out time<input name="check_out_time" type="time" value="{{ (form.check_out_time ?? place.check_out_time ?? '').slice(0, 5) }}"></label>
+      
+@end
+
+@if(place.type === 'theater')
+
+        <label>Number of screens<input name="screen_count" type="number" min="1" max="1000" value="{{ form.screen_count ?? place.screen_count ?? '' }}"></label>
+        <p><a href="/admin/showtimes?place_id={{ place.id }}">Manage this theater's movies and showtimes →</a></p>
+      
+@end
+
+    </div></section>
+    <section class="panel form-panel"><h2>Highlights, amenities and capabilities</h2>
+      <p class="panel-help">Select the features shown on this place. <a href="/admin/place-features?type={{ place.type }}">Manage feature definitions →</a></p>
+      <div class="form-grid two">
+        
+@each(feature in features)
+
+          <label class="checkbox-line"><input type="checkbox" name="feature_ids[]" value="{{ feature.id }}" 
+@if(selectedFeatures.includes(feature.id))
+ checked 
+@end
+> {{ feature.name_en }} · {{ feature.kind }}{{ feature.active ? '' : ' (hidden)' }}</label>
+        
+@else
+
+          <p>No features yet. Add feature definitions for this place type first.</p>
+        
+@end
+
+      </div>
+    </section>
+    <section class="panel form-panel"><h2>Weekly opening hours</h2>
+      <p class="panel-help">Open Now is calculated from these hours in Kuwait time. Leave a day's rows unused when its hours are unknown. Choose a day and Closed for an explicitly closed day. Add another row for split hours; use a different interval order. Overnight closes on the next day. Check-in/out above are separate.</p>
+      <div class="table-wrap"><table><thead><tr><th>Day</th><th>Interval order</th><th>Opens</th><th>Closes</th><th>Next day</th><th>Closed</th></tr></thead><tbody>
+        
+@each((hour, index) in hourSlots)
+
+          <tr>
+            <td><select name="place_hours[{{ index }}][weekday]" aria-label="Day for interval {{ index + 1 }}"><option value="">Unused</option>
+              
+@each((day, weekday) in ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'])
+
+                <option value="{{ weekday }}" 
+@if(hour && hour.weekday === weekday)
+ selected 
+@end
+>{{ day }}</option>
+              
+@end
+
+            </select></td>
+            <td><input type="number" name="place_hours[{{ index }}][interval_index]" min="0" max="9" value="{{ hour?.interval_index ?? 0 }}" aria-label="Interval order {{ index + 1 }}"></td>
+            <td><input type="time" name="place_hours[{{ index }}][opens_at]" value="{{ hour?.opens_at?.slice(0, 5) || '' }}" aria-label="Opening time {{ index + 1 }}"></td>
+            <td><input type="time" name="place_hours[{{ index }}][closes_at]" value="{{ hour?.closes_at?.slice(0, 5) || '' }}" aria-label="Closing time {{ index + 1 }}"></td>
+            <td><input type="checkbox" name="place_hours[{{ index }}][closes_next_day]" 
+@if(hour?.closes_next_day)
+ checked 
+@end
+ aria-label="Closes next day {{ index + 1 }}"></td>
+            <td><input type="checkbox" name="place_hours[{{ index }}][closed]" 
+@if(hour?.closed)
+ checked 
+@end
+ aria-label="Closed day {{ index + 1 }}"></td>
+          </tr>
+        
+@end
+
+      </tbody></table></div>
+    </section>
+    <button class="button primary" type="submit">Save Explore details</button>
+  
+@end
+
+@end
+

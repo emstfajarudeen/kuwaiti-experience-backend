@@ -40,10 +40,6 @@
             <span>◇</span>
             Category types
           </a>
-          <a class="{{ active === 'media' ? 'active' : '' }}" href="/admin/media">
-            <span>▧</span>
-            Media library
-          </a>
           <a class="{{ active === 'pages' ? 'active' : '' }}" href="/admin/pages">
             <span>▤</span>
             Pages
@@ -51,6 +47,10 @@
         </nav>
         <div class="sidebar-label second">EXPERIENCE</div>
         <nav aria-label="Experience settings" class="cms-nav">
+          <a class="{{ active === 'place-features' ? 'active' : '' }}" href="/admin/place-features"><span>◇</span>Place features</a>
+          <a class="{{ active === 'movies' ? 'active' : '' }}" href="/admin/movies"><span>▤</span>Movies</a>
+          <a class="{{ active === 'showtimes' ? 'active' : '' }}" href="/admin/showtimes"><span>◷</span>Showtimes</a>
+          <a class="{{ active === 'contacts' ? 'active' : '' }}" href="/admin/contact-requests"><span>✉</span>Contact requests</a>
           <a class="{{ active === 'home' ? 'active' : '' }}" href="/admin/home">
             <span>✧</span>
             Homepage

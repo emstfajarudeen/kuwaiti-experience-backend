@@ -13,7 +13,7 @@ This guide describes the repository as implemented, based on the source, migrati
 - [7. Authentication and authorization](#7-authentication-and-authorization)
 - [8. Public API](#8-public-api)
 - [9. Admin API and browser CMS](#9-admin-api-and-browser-cms)
-- [10. Media and content workflows](#10-media-and-content-workflows)
+- [10. Image and content workflows](#10-image-and-content-workflows)
 - [11. Seed, reset, and cleanup operations](#11-seed-reset-and-cleanup-operations)
 - [12. Development, build, test, and lint commands](#12-development-build-test-and-lint-commands)
 - [13. Deployment and production operations](#13-deployment-and-production-operations)
@@ -29,7 +29,7 @@ The project is a private AdonisJS 7 / TypeScript application backed by MySQL. It
 1. A browser-based administrative CMS at `/admin`, rendered with Edge templates and styled with Vite/CSS.
 2. A versioned JSON API at `/api/v1` for the visitor-facing website and authenticated CMS clients.
 
-The public visitor website is not in this repository. The public API supplies discovery content, places, pages, site settings, media, transport locations, and a WhatsApp enquiry URL. The transport endpoint does not create a booking, charge a fare, or claim availability.
+The public visitor website is not in this repository. The public API supplies discovery content, places, pages, site settings, record-owned images, transport locations, and a WhatsApp enquiry URL. The transport endpoint does not create a booking, charge a fare, or claim availability.
 
 The application is a modular monolith. HTTP controllers validate input and coordinate services; write operations use Lucid query-builder transactions; public serializers are assembled in `app/services/public_content_service.ts`. There are no application model classes under `app/models`; the generated `database/schema.ts` contains schema metadata, while current services query tables directly through Lucid's database service.
 
@@ -37,13 +37,13 @@ The application is a modular monolith. HTTP controllers validate input and coord
 
 | Path | Responsibility |
 | --- | --- |
-| `app/controllers/api` | Public, authentication, media, and admin JSON endpoints |
+| `app/controllers/api` | Public, authentication, image delivery, and admin JSON endpoints |
 | `app/controllers/admin` | Edge-rendered CMS pages and HTML form handlers |
 | `app/services` | JWT/session authentication, content writes, public queries, category types, API errors |
 | `app/validators` | VineJS validation for auth, content, and transport input |
 | `app/middleware` | Request bindings and the JWT/cookie admin gate |
 | `app/exceptions/handler.ts` | JSON error normalization and production HTML status pages |
-| `commands` | `content:reset` and `media:prune-orphans` Ace commands |
+| `commands` | `content:reset` and `images:prune-orphans` Ace commands |
 | `config` | Database, Drive, session, Shield, limiter, logger, static, Vite, hashing, and encryption settings |
 | `database/migrations` | Ordered MySQL schema and category-type bootstrap |
 | `database/seeders` | Administrator and non-production demo data |
@@ -167,7 +167,7 @@ Migrations run in this order:
 
 1. `users`
 2. `auth_sessions` and `refresh_tokens`
-3. content tables: media, categories/translations, places/translations, hours, galleries, pages, settings, homepage, transport, audit logs
+3. content tables: categories/translations, places/translations, hours, galleries, pages, settings, homepage, transport, audit logs (the original shared media tables were removed later by `1760000000008_replace_media_with_entity_images`)
 4. `rate_limits`
 5. `category_types`, initially populated with `attraction`, `restaurant`, `hotel_resort`, and `theater`
 6. foreign keys linking category and place `type` values to `category_types.code`
@@ -176,19 +176,19 @@ The main tables and behavior are:
 
 - `users`: normalized unique email, scrypt password hash, role, active flag, and `must_change_password`. Password is excluded by the generated schema serializer.
 - `auth_sessions` / `refresh_tokens`: session revocation state and hashed, one-time refresh tokens.
-- `category_types`: dynamic discovery/place types with English/Arabic names, optional image, and sort order.
-- `categories` / `category_translations`: type-scoped slugs, active state, ordering, optional image, and localized names.
-- `places` / `place_translations`: stable slug, dynamic type, optional category, draft/published/archived status, cover media, coordinates, KWD price mode/amount, website, featured order, localized editorial and SEO content.
+- `category_types`: dynamic discovery/place types with English/Arabic names, optional tile image (`image_key`), and sort order.
+- `categories` / `category_translations`: type-scoped slugs, active state, ordering, and localized names. Categories have no image.
+- `places` / `place_translations`: stable slug, dynamic type, optional category, draft/published/archived status, cover image (`cover_image_key`), coordinates, KWD price mode/amount, website, featured order, localized editorial and SEO content.
 - `place_hours`: weekday intervals, optional overnight closing, and explicit closed state. The CMS JSON uses weekday `0` for Sunday.
-- `place_media`: ordered gallery references with optional captions. Duplicate media on one place is rejected.
+- `place_images`: the place's own ordered gallery (up to 20), one stored file per row (`storage_key`, unique), required English alt text, optional Arabic alt text and EN/AR captions. Rows cascade with the place.
 - `pages` / `page_translations`: localized static pages with publication state and SEO fields.
-- `site_settings`: singleton row `id=1` for brand, contact, WhatsApp, store links, and logo.
-- `home_content`: one row per locale for hero eyebrow/title, discovery heading, and hero media. Featured places are selected on each place through `featured_order`.
+- `site_settings`: singleton row `id=1` for brand, contact, WhatsApp, store links, and logo (`logo_image_key`).
+- `home_content`: one row per locale for hero eyebrow/title, discovery heading, and hero image (`hero_image_key`). Featured places are selected on each place through `featured_order`.
 - `transport_locations` / translations: active pickup/drop-off choices and order.
 - `audit_logs`: actor, action, entity, optional changed fields/request ID, and timestamp.
 - `rate_limits`: database limiter state when `LIMITER_STORE=database`.
 
-Foreign keys protect referenced media and content. Places and categories cannot be deleted or type-changed while their dependent relationships make that unsafe. Prices are stored as `DECIMAL(10,3)` and public responses format amounts to three decimal places; currency defaults to KWD. Local transport date-times are interpreted in `Asia/Kuwait` and must be future values no more than one year ahead.
+Every image key column is a nullable, unique `varchar(120)`, so each stored file belongs to exactly one record slot. Foreign keys protect related content. Places and categories cannot be deleted or type-changed while their dependent relationships make that unsafe. Prices are stored as `DECIMAL(10,3)` and public responses format amounts to three decimal places; currency defaults to KWD. Local transport date-times are interpreted in `Asia/Kuwait` and must be future values no more than one year ahead.
 
 Migrations are reversible at schema level, but rollback drops tables and data. Back up production before applying or rolling back migrations; never use migration rollback as a content reset.
 
@@ -220,7 +220,7 @@ The browser gate redirects unauthenticated HTML requests to `/admin/login`, whil
 
 - Admin login/refresh: 10 requests per IP per minute, blocked for 15 minutes.
 - Public enquiry: 20 requests per IP per minute.
-- Media upload: 20 requests per hour per authenticated admin (or IP fallback).
+- Image upload: 60 image files per hour per authenticated admin, counted per file and only when a request attaches files; text-only saves are not limited. At most 5 image files per request.
 
 ## 8. Public API
 
@@ -239,7 +239,7 @@ All routes below are relative to the application origin. Full OpenAPI documentat
 | `GET /api/v1/pages/:slug?locale=en\|ar` | Published static page |
 | `GET /api/v1/transport/locations?locale=en\|ar` | Active pickup/drop-off options |
 | `POST /api/v1/transport/enquiry-link` | Validates two distinct location IDs and future Kuwait-local time, then returns a WhatsApp URL with `confirmed: false` |
-| `GET /api/v1/media/:id` | WebP/image bytes only while the media is referenced by published content |
+| `GET /api/v1/images/:key` | WebP bytes only while the image is owned by visible content (published place cover/gallery, category type tile, homepage hero, site logo, published movie poster) |
 
 Locale accepts `en` or `ar`; other/missing values fall back to English. Arabic fields fall back independently to English where the service uses `COALESCE`. Place list search currently searches English title and summary. `category=all` or an omitted category includes uncategorized places.
 
@@ -275,7 +275,7 @@ Failures use:
 {"error":{"code":"INVALID_TYPE","message":"Choose a valid place type","requestId":"<id>"}}
 ```
 
-Validation may add `fields`. Common implemented codes include `UNAUTHENTICATED`, `INVALID_CREDENTIALS`, `INVALID_TYPE`, `INVALID_PAGINATION`, `INVALID_MEDIA`, `INCOMPLETE_PLACE`, `MEDIA_IN_USE`, `TYPE_IN_USE`, `INVALID_LOCATION`, `INVALID_TIME`, `RATE_LIMITED`, `NOT_FOUND`, `CONFLICT`, and `INTERNAL_ERROR`. Empty lists return `200`; successful deletes use `204`.
+Validation may add `fields`. Common implemented codes include `UNAUTHENTICATED`, `INVALID_CREDENTIALS`, `INVALID_TYPE`, `INVALID_PAGINATION`, `INVALID_IMAGE`, `TOO_MANY_FILES`, `GALLERY_FULL`, `COVER_REQUIRED`, `INCOMPLETE_PLACE`, `TYPE_IN_USE`, `INVALID_LOCATION`, `INVALID_TIME`, `RATE_LIMITED`, `NOT_FOUND`, `CONFLICT`, and `INTERNAL_ERROR`. Empty lists return `200`; successful deletes use `204`.
 
 ## 9. Admin API and browser CMS
 
@@ -284,13 +284,14 @@ Validation may add `fields`. Common implemented codes include `UNAUTHENTICATED`,
 Every route under `/api/v1/admin` except login and refresh requires a bearer JWT. The resource groups are:
 
 - Auth: `GET /auth/me`, `POST /auth/logout`, `PATCH /auth/password`.
-- Dashboard: `GET /dashboard` for real place counts by type/status, page/media counts, and recent audit actions.
-- Places: list/create/show/update/delete, preview, publish, and archive. Place list pages at 20 records; public list default is 12 and maximum 50.
-- Category types: list/create/update/delete by code. Deletion returns `409 TYPE_IN_USE` if categories or places reference the type.
+- Dashboard: `GET /dashboard` for real place counts by type/status, page count, and recent audit actions.
+- Places: list/create/show/update/delete, preview, publish, and archive. Place list pages at 20 records; public list default is 12 and maximum 50. List rows include `coverUrl`; show returns `coverUrl` and `gallery[{ id, url, altEn, altAr, captionEn, captionAr, sortOrder }]`.
+- Place images (multipart): `PUT/DELETE /places/:id/cover` (field `file`; removal returns `422 COVER_REQUIRED` while published), `POST /places/:id/gallery` (field `files`, up to 5, optional `altEn` defaulting to the place title; `422 GALLERY_FULL` beyond 20), `PATCH /places/:id/gallery/:imageId` (JSON alt/caption/`sortOrder` 0–999), and `DELETE /places/:id/gallery/:imageId`.
+- Category types: list/create/update/delete by code; list rows include `image_url`. `PUT/DELETE /category-types/:code/image` (field `file`) manages the tile image. Deletion returns `409 TYPE_IN_USE` if categories or places reference the type.
 - Categories: list/create/update/delete. A category cannot be deleted while places reference it.
 - Pages: list/create/show/update/delete/publish/archive.
-- Media: list/upload/admin file/delete. Deletion is blocked while any known content reference exists.
-- Settings/home: read/update singleton site settings and localized homepage fields.
+- Settings/home: read/update singleton site settings (`logo_image_url`) and localized homepage fields (`hero_image_url`). `PATCH` does not change images; use `PUT/DELETE /settings/logo` and `PUT/DELETE /home/hero-image?locale=en|ar` (field `file`).
+- Image preview: `GET /images/:key` streams any image still owned by a record, including drafts, with `Cache-Control: private, no-store`.
 - Transport locations: list/create/update/delete.
 
 Writable fields are Vine-validated. Place publication requires English title, summary, address, and a cover image. A place can be saved as draft before it is complete; public services exclude draft, archived, and future-published content. Admin preview uses the public-shaped serializer but permits draft data.
@@ -299,33 +300,36 @@ Writable fields are Vine-validated. Place publication requires English title, su
 
 The Edge CMS navigation exposes:
 
-- **Overview** (`/admin`): dynamic counts by category type, published count, media count, recent audit activity, and quick links. It does not show fabricated traffic or revenue metrics.
-- **Places**: type filter, list, create/edit, English and optional Arabic content, category, cover/gallery selection, price, hours JSON, coordinates, website, SEO, featured flag, preview, publish, archive, and permanent delete.
+- **Overview** (`/admin`): dynamic counts by category type, published count, recent audit activity, and quick links. It does not show fabricated traffic or revenue metrics.
+- **Places**: type filter, list, create/edit, English and optional Arabic content, category, cover image upload/replace (remove only while not published), gallery (add up to 5 images per save with optional alt text defaulting to the place title; edit each image's EN/AR alt text, EN/AR caption and order, or remove it), price, hours JSON, coordinates, website, SEO, featured flag, preview, publish, archive, and permanent delete.
 - **Categories**: create/edit/delete type-scoped visitor filters. Deletion is blocked when used by a place.
-- **Category types**: create/edit/order/delete dynamic discovery tiles and optional media. An in-use type cannot be removed.
-- **Media library**: upload images, edit English/Arabic alt text, inspect private images, and delete unreferenced images.
+- **Category types**: create/edit/order/delete dynamic discovery tiles and upload, replace, or remove the tile image. An in-use type cannot be removed.
 - **Pages**: edit English/Arabic body and SEO, save draft, publish, archive, and permanently delete.
-- **Homepage**: edit English or Arabic hero and discovery headings/media. Tile names/order/images are managed under Category types; featured places are managed in the place editor.
+- **Homepage**: edit English or Arabic hero and discovery headings, and upload, replace, or remove that locale's hero image. Tile names/order/images are managed under Category types; featured places are managed in the place editor.
 - **Transport**: maintain ordered locations and pickup/destination/active flags.
-- **Site settings**: brand, logo, contact email, WhatsApp number, App Store and Google Play URLs.
+- **Site settings**: brand, logo upload/replace/remove, contact email, WhatsApp number, App Store and Google Play URLs.
 - **My account**: change password; all active sessions are revoked.
 
-The CMS is responsive, uses a navy/ivory/gold design system, and enhances native controls with WebAwesome. FilePond provides upload previews and client-side type/size hints. The JavaScript marks editor forms as changed and shows the browser unsaved-change prompt. Destructive actions use a confirmation dialog. Server-side CSRF remains required for non-GET browser forms.
+The CMS is responsive, uses a navy/ivory/gold design system, and enhances native controls with WebAwesome. There is no separate media library screen: image fields are part of their forms, which submit as multipart with the CSRF field in the body. FilePond provides upload previews and client-side type/size hints. After a validation error the editor must re-select attached files, because browsers cannot refill file inputs. The JavaScript marks editor forms as changed and shows the browser unsaved-change prompt. Destructive actions use a confirmation dialog. Server-side CSRF remains required for non-GET browser forms.
 
-## 10. Media and content workflows
+## 10. Image and content workflows
 
 ### Upload and delivery
 
-Accepted upload extensions are JPEG, JPG, PNG, and WebP. The API limits a file to 5 MB and the multipart parser limits the complete request to 6 MB. `sharp` decodes the image, checks the decoded format and a 20-megapixel maximum, rotates it, re-encodes it as WebP at quality 82, and strips the original representation/metadata through re-encoding. Files receive UUID-based `.webp` keys and a media row records dimensions, bytes, MIME, original name, and alt text.
+There is no shared media library. Each image is owned by exactly one record slot: a place cover, a place gallery row (`place_images`), a category type tile, a per-locale homepage hero, the site logo, or a movie poster. Editors upload images directly in those CMS forms or through the matching multipart admin API endpoints.
 
-Admin files are available at `/api/v1/admin/media/:id/file` or `/admin/media/:id/file` only behind admin authentication. Public `/api/v1/media/:id` checks references to published places, active categories/category types, homepage media, or site logo before streaming the file. Public media is cached for 60 seconds. Media deletion is rejected if referenced; file and database deletion are separate operations, so orphan cleanup exists for recovery.
+Accepted upload extensions are JPEG, JPG, PNG, and WebP. A file may be at most 5 MB, a request may carry at most 5 image files, and the multipart parser limits the complete request to 26 MB. Multipart bodies are auto-processed only for the route patterns listed in `config/bodyparser.ts`. `sharp` decodes the image, checks the decoded format and a 20-megapixel maximum, rotates it, re-encodes it as WebP at quality 82, and strips the original representation/metadata through re-encoding. All files of a request are validated before anything is stored. Files receive `<uuid>.webp` keys (demo seeds use `demo-<slug>.webp`) stored directly on the owning row.
+
+Replacing or removing an image, or deleting its record, deletes the old file after the database transaction commits; if a write fails, newly stored files are removed. A failed file deletion is logged and left for `images:prune-orphans`.
+
+Admin previews are available at `/api/v1/admin/images/:key` (bearer) or `/admin/images/:key` (CMS cookie) for any image still owned by a record, with `Cache-Control: private, no-store`. Public `/api/v1/images/:key` serves only images owned by visible content: covers and gallery images of published places (`published_at` not in the future), category type tiles, homepage heroes, the site logo, and published movie posters. Other or unmanaged keys return 404. Public images are cached for 60 seconds.
 
 ### Recommended editorial lifecycle
 
-1. Upload a licensed or clearly labelled image and provide English alt text.
-2. Create or edit a draft place/page.
-3. Add English required content; add complete Arabic title/summary/address together for places when using Arabic fields.
-4. Select cover/gallery media and, for places, validate structured hours JSON.
+1. Create or edit a draft place/page.
+2. Add English required content; add complete Arabic title/summary/address together for places when using Arabic fields.
+3. For places, upload a licensed or clearly labelled cover image and gallery images in the place form, review gallery alt text (it defaults to the place title), and validate structured hours JSON.
+4. Upload category type tiles, homepage heroes, and the site logo in their own forms.
 5. Use admin preview for draft content.
 6. Publish only after factual copy, price, hours, image rights, and SEO are approved.
 7. Mark a place/page featured only when it should appear in the landing response; featured places still must be published.
@@ -353,7 +357,7 @@ This is disabled in production, revokes the admin's active sessions, and should 
 
 ### Demo data
 
-The demo seeder refuses `NODE_ENV=production`, is intended to be repeatable, and creates dynamic types, attraction/category examples, additional restaurant/hotel/theater examples, placeholder WebP media, transport locations, default site settings, homepage content, and draft information pages. It does not populate real WhatsApp or store URLs. Run it only in a disposable or non-production environment:
+The demo seeder refuses `NODE_ENV=production`, is intended to be repeatable, and creates dynamic types, attraction/category examples, additional restaurant/hotel/theater examples, placeholder WebP images owned by those records (keys `demo-<slug>.webp`), transport locations, default site settings, homepage content, and draft information pages. It does not populate real WhatsApp or store URLs. Run it only in a disposable or non-production environment:
 
 ```text
 node ace db:seed --files database/seeders/demo_seeder.ts
@@ -361,7 +365,7 @@ node ace db:seed --files database/seeders/demo_seeder.ts
 
 ### Content reset
 
-This is destructive and irreversible without a backup. It preserves all admin user rows/password hashes and migration metadata, but deletes content, media rows, sessions/tokens, rate limits, audit logs, and non-admin users. It also attempts to delete managed upload files after the database transaction.
+This is destructive and irreversible without a backup. It preserves all admin user rows/password hashes and migration metadata, but deletes content (including place gallery rows), sessions/tokens, rate limits, audit logs, and non-admin users. After the database transaction it deletes every content image file it can and suggests `images:prune-orphans` if any deletion fails.
 
 ```text
 node ace content:reset --dry-run
@@ -375,11 +379,11 @@ The command accepts only database names matching `kuwaitiexperience_{dev|test|st
 ### Orphan cleanup
 
 ```text
-node ace media:prune-orphans
-node ace media:prune-orphans --delete
+node ace images:prune-orphans
+node ace images:prune-orphans --delete
 ```
 
-The first lists managed files with no `media` row. The second deletes only UUID `.webp` files and `demo/<slug>.webp` files that are not recorded in the selected environment's media table.
+The first lists managed image files that no record owns (place covers/galleries, category type tiles, homepage heroes, site logo, movie posters, and `customer-profiles/` photos). The second deletes them. Only managed keys (`<uuid>.webp`, `demo-<slug>.webp`, `customer-profiles/<uuid>.webp`) are considered, and files younger than one hour are ignored so in-flight uploads are not removed. Use it after an incomplete cleanup or after migration `1760000000008_replace_media_with_entity_images`, which discards the old shared media rows.
 
 ## 12. Development, build, test, and lint commands
 
@@ -419,7 +423,7 @@ npm run build
 7. Create the first administrator with `database/seeders/admin_seeder.ts` only if required. Do not run the demo seeder in production.
 8. Start with `npm start` (`node bin/server.js`) under the chosen process manager.
 9. Back up MySQL and `storage/uploads` together. A local Drive disk is safe for one application instance; multiple instances require shared storage or another Drive adapter.
-10. Verify `/api/v1/health`, admin login, a public content request, private/public media behavior, logs, and write permissions.
+10. Verify `/api/v1/health`, admin login, a public content request, private/public image behavior, logs, and write permissions.
 
 The app's HSTS setting is enabled, cookies become Secure in production, Shield provides CSRF for browser routes and clickjacking/content-sniffing headers, and API auth responses are not cacheable. Configure the reverse proxy's trusted-proxy behavior, TLS, request/body limits, exact CORS policy if a separate frontend needs it, and process restart/health checks at the deployment layer; those settings are not present in this repository.
 
@@ -451,9 +455,9 @@ The app's HSTS setting is enabled, cookies become Secure in production, Shield p
 
 **Browser form redirects to login or does not save.** The CMS requires a Shield CSRF field. Use the rendered form rather than a hand-built POST, keep cookies enabled, and inspect the session/flash error. API routes intentionally bypass CSRF because they require bearer authentication.
 
-**Uploads fail.** Use JPEG/PNG/WebP, remain under 5 MB and 20 megapixels, provide `alt_en`, and keep the complete multipart request below 6 MB. Ensure `storage/uploads` is writable. The test environment writes to `storage/test-uploads`.
+**Uploads fail.** Use JPEG/PNG/WebP, remain under 5 MB and 20 megapixels per file, attach at most 5 files per request, and keep the complete multipart request below 26 MB. A place gallery holds at most 20 images (`GALLERY_FULL`), and each admin may upload 60 files per hour (`RATE_LIMITED`). After a CMS validation error, re-select the files; browsers cannot refill file inputs. A new upload route must also be listed in `config/bodyparser.ts`. Ensure `storage/uploads` is writable. The test environment writes to `storage/test-uploads`.
 
-**Images disappear from the public API.** Public delivery requires a reference from currently published content. Draft/unreferenced media remains admin-only. After a failed cleanup, inspect with `node ace media:prune-orphans`.
+**Images disappear from the public API.** Public delivery requires ownership by currently visible content; images of draft, archived, or future-published places remain admin-only. A replaced image gets a new key, so the old URL returns 404. After a failed cleanup, inspect with `node ace images:prune-orphans`.
 
 **CMS assets are missing.** Use `npm run dev` for Vite middleware in development or deploy the generated `public/assets`/build output. Confirm the build includes Edge views and the process is serving the correct working directory.
 
@@ -468,12 +472,12 @@ These points are intentionally not guessed:
 - The public frontend, native app, booking/dispatch system, payments, customer accounts, favorites, and live availability are outside this repository.
 - The real WhatsApp number, approved venue copy, prices/hours, licensed photography/logo assets, store URLs, and complete Arabic copy are not supplied by source. Demo values are placeholders.
 - The meaning of a “Schedule” navigation concept is unresolved; no schedule workflow is implemented.
-- `home_content` has database columns for app title/body/media, but current admin/API code only edits/returns hero and discovery fields; app promotion copy/artwork is not CMS-managed.
+- `home_content` has database columns for app title/body, but current admin/API code only edits/returns hero and discovery fields; app promotion copy/artwork is not CMS-managed.
 - `featured_order` is toggled as a boolean-like default (`0` for featured) rather than offering a CMS ordering editor. Ordering is therefore primarily database/order-of-selection behavior, not an explicit editorial drag-and-drop workflow.
 - `docs/openapi.yaml` describes the intended API contract but is not generated from routes. Validate it against `start/routes.ts` when changing endpoints. In particular, some documented request/response details are broader than the current controllers.
 - The test configuration declares unit and browser suites, but no `tests/unit` or `tests/browser` files are present in the repository inventory. Current automated coverage is functional/MySQL coverage.
 - `config/shield.ts` disables CSP, despite the broader security goals in `IMPLEMENTATION_PLAN.md`.
-- The local filesystem adapter and process configuration do not provide multi-instance shared media or backup automation.
+- The local filesystem adapter and process configuration do not provide multi-instance shared image storage or backup automation.
 - The checked-in code has no explicit proxy/CORS/observability/deployment manifest. Configure those at the deployment boundary and verify them in the target environment.
 - `config/logger.ts` reads `APP_NAME`, while `start/env.ts` and `.env.example` do not define it. The effective logger name should be verified during deployment; it is not documented as a supported application variable.
 - The repository contains no `app/models` implementation despite the historical plan describing models; direct table queries are the current convention.

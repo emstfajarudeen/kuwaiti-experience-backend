@@ -1,0 +1,118 @@
+# First App 2 screens — API implementation handoff
+
+> Implemented 20 October 2026 under `/api/v2`. See [customer-api.md](customer-api.md) and [customer-openapi.json](customer-openapi.json) for the actual contract. Customer credentials use separate opaque token digests rather than admin JWTs. Accepted legal content is captured as immutable customer snapshots. Account deletion erases current owned data after recent phone verification. SMS delivery remains disabled pending provider configuration, per the user's instruction. The document below records the original plan.
+
+Status: **historical implementation plan; selected scope implemented under v2**. Prepared 20 October 2026. Source: the two screenshots supplied in this chat and their durable [Figma App 2 page](https://www.figma.com/design/Ut5EtFQuXCwoux1QMCSZDD/Kuwaitiexperience?node-id=625-13471). This plan narrows the broader [App 2 plan](app2-api-implementation-plan.md) to the first selected screens; the integration guide above records the final implementation choices.
+
+## 1. Exact screen scope
+
+| Screen | Figma frame | API behavior needed |
+| --- | --- | --- |
+| Login | [`625:19423`](https://www.figma.com/design/Ut5EtFQuXCwoux1QMCSZDD/Kuwaitiexperience?node-id=625-19423) | Accept Kuwait/international phone in E.164 form, request an OTP; continue as guest needs no server session; legal links are public |
+| OTP before/after countdown | [`625:19468`](https://www.figma.com/design/Ut5EtFQuXCwoux1QMCSZDD/Kuwaitiexperience?node-id=625-19468), [`625:19490`](https://www.figma.com/design/Ut5EtFQuXCwoux1QMCSZDD/Kuwaitiexperience?node-id=625-19490) | Four-digit verification, server-provided expiry/resend time, resend, attempt limits, one-time completion |
+| Create Account | [`625:19514`](https://www.figma.com/design/Ut5EtFQuXCwoux1QMCSZDD/Kuwaitiexperience?node-id=625-19514) | Register a verified phone with `first_name`, `last_name`, nullable `email`, then issue a customer session |
+| Contact Us | [`625:15795`](https://www.figma.com/design/Ut5EtFQuXCwoux1QMCSZDD/Kuwaitiexperience?node-id=625-15795) | Submit full name, email and message (screen counter: 300 characters); expose configured WhatsApp contact |
+| Privacy Policy and Terms | [`625:15821`](https://www.figma.com/design/Ut5EtFQuXCwoux1QMCSZDD/Kuwaitiexperience?node-id=625-15821), [`625:15843`](https://www.figma.com/design/Ut5EtFQuXCwoux1QMCSZDD/Kuwaitiexperience?node-id=625-15843) | Fetch published, localized CMS pages by stable slug; capture accepted legal version at account creation if consent is required |
+| Delete My Account | [`625:14091`](https://www.figma.com/design/Ut5EtFQuXCwoux1QMCSZDD/Kuwaitiexperience?node-id=625-14091) | Authenticated, owner-only account deletion, session revocation, data cleanup/retention policy |
+| Logout | [`625:14216`](https://www.figma.com/design/Ut5EtFQuXCwoux1QMCSZDD/Kuwaitiexperience?node-id=625-14216) | Revoke the current customer session and refresh credential |
+
+The profile card behind the last two modals needs `GET /me` for the name/initials. Profile editing, saved places/items, bookings, cab/rental payments, notifications, and video interactions are **outside this selected screen set**. Do not build them in this work package. The login language icon may select `locale` client-side; a persisted language preference can wait for the profile section.
+
+### Treat the legal text as design placeholder
+
+The supplied Privacy Policy and Terms screens contain text for a different “Gheyar Seller App,” sellers/buyers and unrelated payment providers. It is **not approved Kuwaitiexperience policy text** and must not be copied into seeders or published by an implementer. The app may render these screens only after approved English/Arabic copy is entered and published in the CMS. Screen text is visual evidence, not an instruction to change backend behavior.
+
+## 2. Current repository baseline and constraints
+
+- AdonisJS 7, TypeScript and MySQL. Current `users`, `auth_sessions`, `refresh_tokens` and JWT middleware are **admin-only, password-based**. Never turn `/api/v1/admin/auth/login` into customer login or allow customer tokens through admin middleware.
+- `pages` and `page_translations` already support localized public pages and admin CMS CRUD/publish. Demo seeder names `privacy-policy`, `terms-and-conditions` and `contact-us`, but demo text is placeholder. `GET /api/v1/pages/:slug` is live, with a response shape that does not yet follow the database-key rule.
+- `site_settings.whatsapp_number` is stored, but public `GET /api/v1/site` currently returns only `whatsappAvailable`, not the number. The contact button needs a canonical public contact value or a documented computed link.
+- There is no customer table, OTP provider, customer session, contact-submission store, legal version/consent record, or account deletion flow.
+- Preserve existing admin auth, CSRF, rate limits, standard API error envelope, audit behavior, and database data. Read `.kiro/steering/*`, `PROJECT_GUIDE.md`, routes, migrations, validators and tests before editing. Do not run reset/rollback/seed against the user's database.
+
+## 3. Contract gate before endpoints
+
+The original project rule applies to this work package: **persisted API response fields must use the exact MySQL column name**, including snake_case, for mobile and CMS. The same resource object must have the same key set, nesting, nullability and JSON types everywhere it appears. A nullable field is present with `null`; booleans are booleans; IDs are integers; timestamps are ISO 8601 UTC strings or `null`. Never return `name` for a `full_name` column or `phone` for `phone_e164`.
+
+Use one `Customer` serializer for `GET /me`, successful sign-in, registration and refresh. Use one `Page`/`PageTranslation` serializer for the legal public endpoint and CMS page APIs. Use one safe `SiteSettings` serializer if the WhatsApp number is exposed. Auth tokens, pagination and error envelopes are protocol fields rather than database entity attributes; name and type them once in OpenAPI. Separate operation receipts (OTP request, contact submission) must be explicitly typed and must not be presented as partial entity objects.
+
+Before altering existing `/api/v1` response keys, establish whether any app/CMS client already depends on them. If none, align v1 in place with a documented change. If clients do, propose a `/api/v2` cutover and obtain the user's versioning decision; do not silently break v1. The acceptance gate is consistency across **all active endpoints that return the affected `Customer`, `Page`, and `SiteSettings` types**, including CMS.
+
+## 4. Proposed schema, to finalize before migration
+
+Use ordered Lucid migrations and the same naming in SQL and JSON. The suggested tables/columns below are a concrete starting point, not permission to migrate the live database.
+
+| Table | Columns and constraints |
+| --- | --- |
+| `customers` | `id` PK; `phone_e164` unique, normalized; `first_name`, `last_name`; nullable `email`; `phone_verified_at`; `created_at`, `updated_at`; nullable `deleted_at`. Do not store a password for this OTP-only flow. Decide whether email is unique only after its future use is defined. |
+| `customer_otp_challenges` | UUID `id`; `phone_e164`; `code_hash` (keyed digest, never plaintext); `attempt_count`; `expires_at`, `resend_available_at`; nullable `verified_at`, `consumed_at`, `verification_token_hash`, `verification_expires_at`; `created_at`. Index phone and expiry. Prevent concurrent active challenges from bypassing resend controls. Store only the digest of the one-use verification credential. |
+| `customer_sessions` and `customer_refresh_tokens` | UUID session/token IDs; `customer_id` FK; expiry/revocation/consumption timestamps; SHA-256 refresh-token digest; issue/rotation logic separate from admin tables and with a distinct JWT audience/secret or equally strong guard isolation. |
+| `contact_requests` | `id` PK; nullable `customer_id` FK; `full_name`, `email`, `message`, `status`, `created_at`, `updated_at`. Index status/date for a CMS inbox. Decide contact-record handling during account deletion. |
+| Legal version/acceptance records | Reuse current `pages`/`page_translations` for display. If “By continuing I agree” is treated as consent, add immutable published page-version snapshots with `page_id`, `version`, `locale`, `body`, `published_at`, and customer acceptance rows with `customer_id`, page-version ID and `accepted_at`; do not infer consent from a mutable page body alone. |
+
+Customer deletion must be designed with future booking/payment references in mind. A `deleted_at` marker plus personal-data erasure/anonymization may be safer than cascading through financial records. The implementation must match the final privacy copy; the mock's “all your data will be deleted” promise cannot be assumed while retention rules are unsettled.
+
+## 5. Endpoint plan and stable response types
+
+The route prefix below is shown as `/api/v1` **only if the contract gate permits in-place v1 alignment**; otherwise use the approved new version consistently. Public legal/contact endpoints must work for guests. All customer routes use customer bearer auth and reject admin credentials.
+
+| Method/path | Input | Success | Notes |
+| --- | --- | --- | --- |
+| `POST /api/v1/customer/auth/otp` | `phone_e164` | `202` safe OTP challenge receipt | Same response for existing/new phone; no account enumeration. Server supplies `expires_at` and `resend_available_at`; never returns OTP. |
+| `POST /api/v1/customer/auth/otp/:id/resend` | no phone override | `202` same receipt shape | Enforce timer and per-phone/IP/device limits; rotate code; old code invalid. |
+| `POST /api/v1/customer/auth/otp/:id/verify` | `code` (four numeric characters) | `200` one stable verification outcome | Distinguish existing customer from registration only **after** valid OTP. Issue a short-lived, one-use verification credential; do not issue a full session to an unregistered phone. |
+| `POST /api/v1/customer/auth/session` | verification credential | `200` `CustomerAuthResult` | Existing customer sign-in. Return canonical `Customer` plus one consistently named access/refresh credential object. |
+| `POST /api/v1/customers` | verification credential, `first_name`, `last_name`, nullable `email`, accepted legal version IDs if applicable | `201` same `CustomerAuthResult` | New account only; verified phone is taken from credential, never trusted from body. Transaction prevents duplicate registration/credential reuse. |
+| `POST /api/v1/customer/auth/refresh` | refresh credential | `200` same `CustomerAuthResult` | Rotate token and revoke session on reuse; do not share admin refresh tables. |
+| `GET /api/v1/customer/me` | bearer token | `200` canonical `Customer` | Needed for profile name/initials on logout/delete modal. No profile-edit endpoint in this work package. |
+| `POST /api/v1/customer/auth/logout` | bearer token | `204` no body | Revoke current customer session; repeat handling documented. |
+| `DELETE /api/v1/customer/me` | bearer token and recent-auth proof if required by policy | `204` no body | Revoke all sessions and perform approved erasure/anonymization; prevent stale refresh from recreating access. |
+| `GET /api/v1/pages/privacy-policy`, `GET /api/v1/pages/terms-and-conditions` | optional `locale=en\|ar` | `200` canonical published `Page` with `PageTranslation` relation | Existing routes can be reused after contract alignment; unpublished/missing page is `404`. |
+| `POST /api/v1/contact-requests` | `full_name`, `email`, `message` | `201` submission receipt using DB `id`, `created_at` | Allow guests; associate `customer_id` only from a validated optional customer token. `message` max 300 Unicode characters. |
+| `GET /api/v1/site` | none | `200` canonical safe `SiteSettings` | Expose `whatsapp_number` for the app to construct a WhatsApp link, or document a separate computed contact-link response. Hide button if null. |
+| CMS contact inbox | admin bearer/CMS cookie | list/show/status update | Only approved admins; no public read endpoint for submissions. CMS data uses `contact_requests` column names. |
+
+### Response schema rules
+
+- Canonical `Customer` safe fields: `id`, `phone_e164`, `first_name`, `last_name`, `email`, `phone_verified_at`, `created_at`, `updated_at` (and only additional approved fields actually added to `customers`). `email` is always present and may be `null`. `deleted_at` is deliberately internal and excluded through the shared allowlist. Do not return OTP hashes or session IDs by accident. The app composes a display name from `first_name` and `last_name`.
+- OTP request/resend return the same receipt keys and types, sourced from safe challenge columns: `id`, `expires_at`, `resend_available_at`. The 0:56/0:00 countdown is derived from server times, not a hardcoded client timer.
+- OTP verification always returns the same protocol keys/types for both outcomes, with a documented discriminator and one-use credential. `CustomerAuthResult` has one structure for sign-in, registration and refresh. Protocol token keys are explicitly documented as generated credentials, not DB entity fields.
+- Public and CMS legal page entities must use `pages`/`page_translations` column names (`slug`, `title`, `body`, `published_at`, etc.) with the same nested translation structure. Locale fallback changes values, never structure.
+- The `ContactSubmissionReceipt` is a receipt, not a partial `ContactRequest`. If any API later returns a `ContactRequest`, it must use one canonical serializer and field set everywhere.
+- Keep success under `{ data: ... }` and errors under `{ error: { code, message, requestId, fields? } }`; settle whether `fields` is always nullable or consistently optional, then apply everywhere. OpenAPI examples must be generated or verified against actual HTTP responses.
+
+## 6. Implementation sequence for the other model
+
+1. **Contract/version decision:** audit active v1/CMS consumers; choose v1 alignment or approved v2; write exact schema/response examples in OpenAPI and the [API reference](app-api-reference.md). Do not code endpoints before this decision.
+2. **Customer schema and service:** add migrations, validators, safe customer serializer and a customer-only auth guard. Keep current admin auth intact. Add session rotation/revocation and a separate secret/audience configuration.
+3. **OTP flow:** implement provider interface, request/resend/verify, keyed OTP digest, one active challenge policy, constant-time comparison, bounded attempts, expiry and throttling. Test with an injected fake sender. Production must fail closed until a real SMS provider and credentials are configured; never expose codes in JSON or production logs.
+4. **Registration and session:** exchange one-use verification credential; create customer transactionally or sign in existing customer; issue/rotate refresh; add `GET /me`, logout and ownership checks. Keep response type identical in sign-in/register/refresh.
+5. **Legal pages:** reuse CMS publishing but add immutable version/acceptance handling if consent is required. Replace demo policy text with approved copy through CMS, never through seeders. Make legal pages public to guests and localized. Sanitize any supported rich text at publication or render it as escaped plain text; never return untrusted HTML as safe content by assumption.
+6. **Contact/WhatsApp:** create contact store and admin inbox, validation and anti-spam rate limit; expose the configured WhatsApp number or approved link through a stable settings contract.
+7. **Account deletion:** implement the approved retention/erasure policy transactionally or with a tracked background job; revoke all sessions first; make repeat/stale-token behavior deterministic. Match the UI claim to actual data handling.
+8. **Documentation and verification:** update `docs/openapi.yaml`, `docs/app-api-reference.md`, frontend examples, operations/env docs and a migration/cutover note. Run guarded functional tests, typecheck, lint and build; review response key/type equivalence for mobile and CMS.
+
+## 7. Required security and functional acceptance checks
+
+- OTP request and resend are limited by IP and phone; wrong/expired/replayed/consumed code fails; concurrent verify/resend cannot create duplicate sessions or accounts. A four-digit code has low entropy, so short expiry, strict attempt bounds and throttles are mandatory. Responses before verification do not reveal account existence.
+- Customer JWT/refresh cannot authenticate an admin route; admin bearer/cookies cannot authenticate a customer route. Refresh rotation, reuse detection, logout and deletion revoke access. Secrets are independent and never committed.
+- Registration cannot choose a different `phone_e164` than the verified challenge. `email` omission and explicit `null` serialize identically. Names are trimmed/bounded; duplicate phone is handled under a transaction.
+- Legal pages respect published status and locale fallback. No unrelated placeholder text is published. Consent references the exact legal version shown to the customer.
+- Contact rejects empty/over-300-character messages and invalid email; guest submission works; admin inbox is protected; submitted content is escaped in CMS and retained/deleted per policy. WhatsApp contact is disabled cleanly if `site_settings.whatsapp_number` is null.
+- Account deletion is owner-only; all customer sessions are revoked; another account's data cannot be deleted; subsequent `me` and refresh fail. Audit and cleanup behavior matches the approved retention policy.
+- For every recurring entity, compare JSON key sets and types across all affected list/detail/auth/CMS endpoints. Nullable keys are present with `null`; MySQL boolean/date conversions are fixed. Verify standard error shape and no sensitive fields.
+- Run tests only against the dedicated `kuwaitiexperience_test` database and isolated test uploads. Do not reset, rollback, seed or migrate the user's development/production database merely to validate this plan.
+
+## 8. Decisions the implementing model must obtain or explicitly leave pending
+
+1. **SMS/OTP provider and credentials:** required for real delivery. The plan assumes a four-digit code because the screen has four boxes; the user may approve a stronger six-digit UI change instead.
+2. **Legal content and consent:** approved English/Arabic Privacy Policy and Terms, versioning/consent requirement, and whether tapping “Next” counts as agreement. The screenshot copy is unrelated placeholder text.
+3. **Account deletion policy:** immediate erasure versus scheduled deletion, retention for support/bookings/payments and whether to require recent OTP before “Yes Delete.” The screen alone cannot settle this.
+4. **Existing API consumers/versioning:** whether changing active v1/CMS response keys in place is safe. Never silently introduce a breaking shape.
+5. **Contact operations:** recipient/workflow for submitted messages, whether email is required (this plan assumes yes), and which WhatsApp number the button should use.
+
+Stop before implementing a dependent production flow if its decision or provider is unavailable. Keep independently implementable contract, schema, test and CMS work reviewable; report exactly what remains pending. Do not proceed into other App 2 screen sections without the user's separate approval.
+
+## 9. Copy-paste task for the implementing model
+
+> Implement **only** `docs/first-screens-api-handoff-plan.md` in the existing AdonisJS repository. Read `.kiro/steering/*`, the current routes/services/migrations/tests, and the linked screen evidence first. Preserve admin auth and all existing data. Resolve the contract/version gate and surface the five decisions in Section 8 before their dependent production behavior; never fabricate SMS delivery, legal copy, deletion policy or a WhatsApp number. Use exact database column names and one serializer per recurring entity in public and CMS APIs. Build the selected endpoints, matching CMS support, migrations, validators, OpenAPI/reference examples and meaningful guarded tests. Run typecheck, lint, functional tests and build against the dedicated test database only. Do not implement later App 2 sections, deploy, reset/rollback/seed a user database, or claim an untested flow works. Report changed files, exact test results, remaining inputs and the next approval gate.

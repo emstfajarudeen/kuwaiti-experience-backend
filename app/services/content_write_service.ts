@@ -1,12 +1,19 @@
 import db from '@adonisjs/lucid/services/db'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { ApiError } from './api_error.js'
 import { assertPlaceType } from './category_type_service.js'
+import { validateHours } from './explore_write_service.js'
+import {
+  MAX_GALLERY_IMAGES,
+  deleteImages,
+  withStoredImages,
+  type PreparedImage,
+} from './image_storage_service.js'
 
 type PlaceInput = {
   type: string
   slug: string
   categoryId?: number | null
-  coverMediaId?: number | null
   titleEn: string
   summaryEn: string
   addressEn: string
@@ -25,7 +32,6 @@ type PlaceInput = {
   latitude?: number | null
   longitude?: number | null
   featured?: boolean
-  galleryIds?: number[]
   hours?: Array<{
     weekday: number
     intervalIndex: number
@@ -36,14 +42,26 @@ type PlaceInput = {
   }>
 }
 
-async function requireMedia(ids: number[]) {
-  if (!ids.length) return
-  const unique = [...new Set(ids)]
-  if (unique.length !== ids.length || unique.length > 20) {
-    throw new ApiError(422, 'INVALID_MEDIA', 'Choose up to 20 distinct images')
-  }
-  const rows = await db.from('media').whereIn('id', unique).select('id')
-  if (rows.length !== unique.length) throw new ApiError(422, 'INVALID_MEDIA', 'Image not found')
+export type GalleryItemChange = {
+  id: number
+  altEn?: string | null
+  altAr?: string | null
+  captionEn?: string | null
+  captionAr?: string | null
+  sortOrder?: number
+  remove?: boolean
+}
+
+/**
+ * Image changes that accompany a place write. `cover` replaces or removes the
+ * cover, `galleryAdd` appends new gallery images and `galleryItems` edits or
+ * removes existing gallery images of this place.
+ */
+export type PlaceImageChanges = {
+  cover?: PreparedImage | 'remove'
+  galleryAdd?: PreparedImage[]
+  galleryAltEn?: string | null
+  galleryItems?: GalleryItemChange[]
 }
 
 async function validatePlace(input: PlaceInput) {
@@ -54,13 +72,6 @@ async function validatePlace(input: PlaceInput) {
       throw new ApiError(422, 'INVALID_CATEGORY', 'Category must belong to this place type')
     }
   }
-  const galleryIds = input.galleryIds ?? []
-  if (galleryIds.length > 20 || new Set(galleryIds).size !== galleryIds.length) {
-    throw new ApiError(422, 'INVALID_MEDIA', 'Choose up to 20 distinct gallery images')
-  }
-  await requireMedia([
-    ...new Set([...(input.coverMediaId ? [input.coverMediaId] : []), ...galleryIds]),
-  ])
   const arabicFields = [input.titleAr, input.summaryAr, input.addressAr]
   if (arabicFields.some(Boolean) && !arabicFields.every(Boolean)) {
     throw new ApiError(422, 'INCOMPLETE_ARABIC', 'Enter Arabic title, summary and address together')
@@ -81,6 +92,16 @@ async function validatePlace(input: PlaceInput) {
     throw new ApiError(422, 'INVALID_URL', 'Website URL must use HTTP or HTTPS')
   }
   const hours = input.hours ?? []
+  validateHours(
+    hours.map((h) => ({
+      weekday: h.weekday,
+      interval_index: h.intervalIndex,
+      opens_at: h.opensAt ?? null,
+      closes_at: h.closesAt ?? null,
+      closed: h.closed ?? false,
+      closes_next_day: h.closesNextDay ?? false,
+    }))
+  )
   const slots = new Set<string>()
   for (const hour of hours) {
     const key = `${hour.weekday}:${hour.intervalIndex}`
@@ -98,137 +119,271 @@ async function validatePlace(input: PlaceInput) {
   }
 }
 
+function newImages(changes: PlaceImageChanges) {
+  return [
+    ...(changes.cover && changes.cover !== 'remove' ? [changes.cover] : []),
+    ...(changes.galleryAdd ?? []),
+  ]
+}
+
+/** Splits stored keys into the cover and gallery parts and resolves the final cover. */
+function resolveCover(
+  currentCover: string | null,
+  changes: PlaceImageChanges,
+  keys: string[],
+  released: string[]
+) {
+  const hasNewCover = Boolean(changes.cover && changes.cover !== 'remove')
+  const coverKey = hasNewCover ? keys[0] : changes.cover === 'remove' ? null : currentCover
+  if (currentCover && currentCover !== coverKey) released.push(currentCover)
+  return { coverKey, galleryKeys: keys.slice(hasNewCover ? 1 : 0) }
+}
+
+async function applyGalleryChanges(
+  trx: TransactionClientContract,
+  placeId: number,
+  changes: PlaceImageChanges,
+  newKeys: string[],
+  defaultAlt: string,
+  released: string[]
+) {
+  const items = changes.galleryItems ?? []
+  if (new Set(items.map((item) => item.id)).size !== items.length) {
+    throw new ApiError(422, 'INVALID_GALLERY_ITEM', 'Each gallery image can only be changed once')
+  }
+  const rows = await trx.from('place_images').where('place_id', placeId).select('id', 'storage_key')
+  const byId = new Map(rows.map((row) => [Number(row.id), row]))
+  let remaining = rows.length
+  for (const item of items) {
+    const row = byId.get(item.id)
+    if (!row) throw new ApiError(404, 'NOT_FOUND', 'Gallery image not found')
+    if (item.remove) {
+      await trx.from('place_images').where('id', item.id).delete()
+      released.push(row.storage_key)
+      remaining--
+      continue
+    }
+    const update: Record<string, unknown> = {}
+    if (item.altEn !== undefined) update.alt_en = item.altEn || defaultAlt
+    if (item.altAr !== undefined) update.alt_ar = item.altAr || null
+    if (item.captionEn !== undefined) update.caption_en = item.captionEn || null
+    if (item.captionAr !== undefined) update.caption_ar = item.captionAr || null
+    if (item.sortOrder !== undefined) update.sort_order = item.sortOrder
+    if (Object.keys(update).length) {
+      await trx.from('place_images').where('id', item.id).update(update)
+    }
+  }
+  if (remaining + newKeys.length > MAX_GALLERY_IMAGES) {
+    throw new ApiError(
+      422,
+      'GALLERY_FULL',
+      `A place can have up to ${MAX_GALLERY_IMAGES} gallery images`
+    )
+  }
+  if (!newKeys.length) return
+  const last = await trx
+    .from('place_images')
+    .where('place_id', placeId)
+    .max('sort_order as max')
+    .first()
+  const start = last?.max === null || last?.max === undefined ? 0 : Number(last.max) + 1
+  await trx.table('place_images').insert(
+    newKeys.map((key, index) => ({
+      place_id: placeId,
+      storage_key: key,
+      alt_en: changes.galleryAltEn || defaultAlt,
+      sort_order: start + index,
+      created_at: new Date(),
+    }))
+  )
+}
+
 export async function savePlace(
   input: PlaceInput,
   actorId: number,
   id?: number,
-  options: { publish?: boolean } = {}
+  options: { publish?: boolean; images?: PlaceImageChanges } = {}
 ) {
   await validatePlace(input)
-  return db.transaction(async (trx) => {
-    const existing = id ? await trx.from('places').where('id', id).forUpdate().first() : null
-    if (id && !existing) throw new ApiError(404, 'NOT_FOUND', 'Place not found')
-    if (existing?.status === 'published' && !input.coverMediaId) {
-      throw new ApiError(422, 'COVER_REQUIRED', 'Published places need a cover image')
-    }
-    const fields = {
-      type: input.type,
-      slug: input.slug,
-      category_id: input.categoryId ?? null,
-      cover_media_id: input.coverMediaId ?? null,
-      price_mode: input.priceMode ?? 'unknown',
-      price_amount: input.priceAmount ?? null,
-      price_currency: 'KWD',
-      website_url: input.websiteUrl ?? null,
-      latitude: input.latitude ?? null,
-      longitude: input.longitude ?? null,
-      featured_order:
-        input.featured === undefined
-          ? (existing?.featured_order ?? null)
-          : input.featured
-            ? (existing?.featured_order ?? 0)
-            : null,
-      updated_at: new Date(),
-    }
-    let placeId = id
-    if (id) {
-      await trx.from('places').where('id', id).update(fields)
-    } else {
-      const [createdId] = await trx
-        .table('places')
-        .insert({ ...fields, status: 'draft', created_at: new Date() })
-      placeId = createdId
-    }
-    if (!placeId) throw new ApiError(500, 'WRITE_FAILED', 'Place could not be saved')
-    await trx
-      .table('place_translations')
-      .insert({
-        place_id: placeId,
-        locale: 'en',
-        title: input.titleEn,
-        summary: input.summaryEn,
-        address: input.addressEn,
-        body: input.bodyEn ?? null,
-        hours_note: input.hoursNoteEn ?? null,
-        price_unit: input.priceUnitEn ?? null,
-        seo_title: input.seoTitleEn ?? null,
-        seo_description: input.seoDescriptionEn ?? null,
-      })
-      .onConflict(['place_id', 'locale'])
-      .merge()
-    if (input.titleAr && input.summaryAr && input.addressAr) {
+  const changes = options.images ?? {}
+  return withStoredImages(newImages(changes), async (keys) => {
+    const released: string[] = []
+    const result = await db.transaction(async (trx) => {
+      const existing = id ? await trx.from('places').where('id', id).forUpdate().first() : null
+      if (id && !existing) throw new ApiError(404, 'NOT_FOUND', 'Place not found')
+      if (existing && existing.type !== input.type) {
+        const assigned = await trx.from('place_feature_assignments').where('place_id', id!).first()
+        const showtime = await trx.from('theater_showtimes').where('place_id', id!).first()
+        if (
+          assigned ||
+          showtime ||
+          existing.check_in_time ||
+          existing.check_out_time ||
+          existing.screen_count
+        ) {
+          throw new ApiError(
+            409,
+            'PLACE_TYPE_IN_USE',
+            'Clear Explore features, stay/theater details and showtimes before changing the place type'
+          )
+        }
+      }
+      const { coverKey, galleryKeys } = resolveCover(
+        existing?.cover_image_key ?? null,
+        changes,
+        keys,
+        released
+      )
+      if (existing?.status === 'published' && !coverKey) {
+        throw new ApiError(422, 'COVER_REQUIRED', 'Published places need a cover image')
+      }
+      const fields = {
+        type: input.type,
+        slug: input.slug,
+        category_id: input.categoryId ?? null,
+        cover_image_key: coverKey,
+        price_mode: input.priceMode ?? 'unknown',
+        price_amount: input.priceAmount ?? null,
+        price_currency: 'KWD',
+        website_url: input.websiteUrl ?? null,
+        latitude: input.latitude ?? null,
+        longitude: input.longitude ?? null,
+        featured_order:
+          input.featured === undefined
+            ? (existing?.featured_order ?? null)
+            : input.featured
+              ? (existing?.featured_order ?? 0)
+              : null,
+        updated_at: new Date(),
+      }
+      let placeId = id
+      if (id) {
+        await trx.from('places').where('id', id).update(fields)
+      } else {
+        const [createdId] = await trx
+          .table('places')
+          .insert({ ...fields, status: 'draft', created_at: new Date() })
+        placeId = createdId
+      }
+      if (!placeId) throw new ApiError(500, 'WRITE_FAILED', 'Place could not be saved')
       await trx
         .table('place_translations')
         .insert({
           place_id: placeId,
-          locale: 'ar',
-          title: input.titleAr,
-          summary: input.summaryAr,
-          address: input.addressAr,
-          body: input.bodyAr ?? null,
+          locale: 'en',
+          title: input.titleEn,
+          summary: input.summaryEn,
+          address: input.addressEn,
+          body: input.bodyEn ?? null,
+          hours_note: input.hoursNoteEn ?? null,
+          price_unit: input.priceUnitEn ?? null,
+          seo_title: input.seoTitleEn ?? null,
+          seo_description: input.seoDescriptionEn ?? null,
         })
         .onConflict(['place_id', 'locale'])
         .merge()
-    } else if (id) {
-      await trx.from('place_translations').where('place_id', placeId).where('locale', 'ar').delete()
-    }
-    if (input.galleryIds !== undefined) {
-      await trx.from('place_media').where('place_id', placeId).delete()
-      if (input.galleryIds.length)
-        await trx.table('place_media').insert(
-          input.galleryIds.map((mediaId, sortOrder) => ({
+      if (input.titleAr && input.summaryAr && input.addressAr) {
+        await trx
+          .table('place_translations')
+          .insert({
             place_id: placeId,
-            media_id: mediaId,
-            sort_order: sortOrder,
-          }))
-        )
-    }
-    if (input.hours !== undefined) {
-      await trx.from('place_hours').where('place_id', placeId).delete()
-      if (input.hours.length)
-        await trx.table('place_hours').insert(
-          input.hours.map((hour) => ({
-            place_id: placeId,
-            weekday: hour.weekday,
-            interval_index: hour.intervalIndex,
-            opens_at: hour.opensAt ?? null,
-            closes_at: hour.closesAt ?? null,
-            closes_next_day: hour.closesNextDay ?? false,
-            closed: hour.closed ?? false,
-          }))
-        )
-    }
-    if (options.publish) {
-      if (!input.coverMediaId || !input.titleEn || !input.summaryEn || !input.addressEn) {
-        throw new ApiError(
-          422,
-          'INCOMPLETE_PLACE',
-          'Add English details and a cover image before publishing'
-        )
+            locale: 'ar',
+            title: input.titleAr,
+            summary: input.summaryAr,
+            address: input.addressAr,
+            body: input.bodyAr ?? null,
+          })
+          .onConflict(['place_id', 'locale'])
+          .merge()
+      } else if (id) {
+        await trx
+          .from('place_translations')
+          .where('place_id', placeId)
+          .where('locale', 'ar')
+          .delete()
       }
-      await trx.from('places').where('id', placeId).update({
-        status: 'published',
-        published_at: new Date(),
-        updated_at: new Date(),
-      })
-    }
-    await trx.table('audit_logs').insert({
-      actor_id: actorId,
-      action: id ? 'place.updated' : 'place.created',
-      entity_type: 'place',
-      entity_id: String(placeId),
-      created_at: new Date(),
-    })
-    if (options.publish) {
+      await applyGalleryChanges(trx, placeId, changes, galleryKeys, input.titleEn, released)
+      if (input.hours !== undefined) {
+        await trx.from('place_hours').where('place_id', placeId).delete()
+        if (input.hours.length)
+          await trx.table('place_hours').insert(
+            input.hours.map((hour) => ({
+              place_id: placeId,
+              weekday: hour.weekday,
+              interval_index: hour.intervalIndex,
+              opens_at: hour.opensAt ?? null,
+              closes_at: hour.closesAt ?? null,
+              closes_next_day: hour.closesNextDay ?? false,
+              closed: hour.closed ?? false,
+            }))
+          )
+      }
+      if (options.publish) {
+        if (!coverKey || !input.titleEn || !input.summaryEn || !input.addressEn) {
+          throw new ApiError(
+            422,
+            'INCOMPLETE_PLACE',
+            'Add English details and a cover image before publishing'
+          )
+        }
+        await trx.from('places').where('id', placeId).update({
+          status: 'published',
+          published_at: new Date(),
+          updated_at: new Date(),
+        })
+      }
       await trx.table('audit_logs').insert({
         actor_id: actorId,
-        action: 'place.published',
+        action: id ? 'place.updated' : 'place.created',
         entity_type: 'place',
         entity_id: String(placeId),
         created_at: new Date(),
       })
-    }
-    return placeId
+      if (options.publish) {
+        await trx.table('audit_logs').insert({
+          actor_id: actorId,
+          action: 'place.published',
+          entity_type: 'place',
+          entity_id: String(placeId),
+          created_at: new Date(),
+        })
+      }
+      return placeId
+    })
+    return { result, released }
+  })
+}
+
+/** Changes only the images of an existing place (used by the admin image endpoints). */
+export async function updatePlaceImages(id: number, changes: PlaceImageChanges, actorId: number) {
+  await withStoredImages(newImages(changes), async (keys) => {
+    const released: string[] = []
+    await db.transaction(async (trx) => {
+      const place = await trx.from('places').where('id', id).forUpdate().first()
+      if (!place) throw new ApiError(404, 'NOT_FOUND', 'Place not found')
+      const { coverKey, galleryKeys } = resolveCover(place.cover_image_key, changes, keys, released)
+      if (place.status === 'published' && !coverKey) {
+        throw new ApiError(422, 'COVER_REQUIRED', 'Published places need a cover image')
+      }
+      const en = await trx
+        .from('place_translations')
+        .where('place_id', id)
+        .where('locale', 'en')
+        .first()
+      await applyGalleryChanges(trx, id, changes, galleryKeys, en?.title ?? place.slug, released)
+      await trx
+        .from('places')
+        .where('id', id)
+        .update({ cover_image_key: coverKey, updated_at: new Date() })
+      await trx.table('audit_logs').insert({
+        actor_id: actorId,
+        action: 'place.images.updated',
+        entity_type: 'place',
+        entity_id: String(id),
+        created_at: new Date(),
+      })
+    })
+    return { result: undefined, released }
   })
 }
 
@@ -246,7 +401,7 @@ export async function setPlaceStatus(
         .where('place_id', id)
         .where('locale', 'en')
         .first()
-      if (!place.cover_media_id || !en?.title || !en.summary || !en.address) {
+      if (!place.cover_image_key || !en?.title || !en.summary || !en.address) {
         throw new ApiError(
           422,
           'INCOMPLETE_PLACE',
@@ -273,9 +428,11 @@ export async function setPlaceStatus(
 }
 
 export async function deletePlace(id: number, actorId: number) {
-  await db.transaction(async (trx) => {
-    const count = await trx.from('places').where('id', id).delete()
-    if (!count) throw new ApiError(404, 'NOT_FOUND', 'Place not found')
+  const released = await db.transaction(async (trx) => {
+    const place = await trx.from('places').where('id', id).forUpdate().first()
+    if (!place) throw new ApiError(404, 'NOT_FOUND', 'Place not found')
+    const gallery = await trx.from('place_images').where('place_id', id).select('storage_key')
+    await trx.from('places').where('id', id).delete()
     await trx.table('audit_logs').insert({
       actor_id: actorId,
       action: 'place.deleted',
@@ -283,5 +440,7 @@ export async function deletePlace(id: number, actorId: number) {
       entity_id: String(id),
       created_at: new Date(),
     })
+    return [place.cover_image_key, ...gallery.map((row) => row.storage_key)]
   })
+  await deleteImages(released)
 }

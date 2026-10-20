@@ -11,7 +11,8 @@ const allowedOrigins = new Set(
 
 export default class ApiCorsMiddleware {
   handle(ctx: HttpContext, next: NextFn) {
-    if (!ctx.request.url().startsWith('/api/v1/')) return next()
+    if (!/^\/api\/v[12]\//.test(ctx.request.url())) return next()
+    if (ctx.request.url().startsWith('/api/v2/')) ctx.response.header('Cache-Control', 'no-store')
 
     ctx.response.header('Vary', 'Origin')
     const origin = ctx.request.header('origin')

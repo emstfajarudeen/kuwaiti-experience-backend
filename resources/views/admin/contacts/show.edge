@@ -1,0 +1,15 @@
+@layouts.admin({ title: 'Contact request', active: 'contacts', adminName: admin.fullName })
+  <div class="page-head"><div><h1>{{ contact.full_name }}</h1><p>{{ contact.email }} · {{ contact.created_at }}</p></div><a href="/admin/contact-requests">Back to inbox</a></div>
+  <section class="panel">
+    <h2>Message</h2><p style="white-space: pre-wrap">{{ contact.message }}</p>
+    @form({ action: '/admin/contact-requests/' + contact.id + '/status', method: 'POST' })
+      <label for="status">Status</label>
+      <select id="status" name="status">
+        @each(status in ['new', 'in_progress', 'resolved'])
+          <option value="{{ status }}" @if(status === contact.status) selected @end>{{ status }}</option>
+        @end
+      </select>
+      <button type="submit" class="button primary">Save status</button>
+    @end
+  </section>
+@end

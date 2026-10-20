@@ -53,16 +53,7 @@ export class AuthSessionSchema extends BaseModel {
 }
 
 export class CategorySchema extends BaseModel {
-  static $columns = [
-    'active',
-    'createdAt',
-    'id',
-    'imageId',
-    'slug',
-    'sortOrder',
-    'type',
-    'updatedAt',
-  ] as const
+  static $columns = ['active', 'createdAt', 'id', 'slug', 'sortOrder', 'type', 'updatedAt'] as const
   $columns = CategorySchema.$columns
   @column()
   declare active: boolean
@@ -70,8 +61,6 @@ export class CategorySchema extends BaseModel {
   declare createdAt: DateTime
   @column({ isPrimary: true })
   declare id: number
-  @column()
-  declare imageId: number | null
   @column()
   declare slug: string
   @column()
@@ -96,12 +85,12 @@ export class CategoryTranslationSchema extends BaseModel {
 }
 
 export class CategoryTypeSchema extends BaseModel {
-  static $columns = ['code', 'imageId', 'nameAr', 'nameEn', 'sortOrder', 'updatedAt'] as const
+  static $columns = ['code', 'imageKey', 'nameAr', 'nameEn', 'sortOrder', 'updatedAt'] as const
   $columns = CategoryTypeSchema.$columns
   @column({ isPrimary: true })
   declare code: string
   @column()
-  declare imageId: number | null
+  declare imageKey: string | null
   @column()
   declare nameAr: string | null
   @column()
@@ -112,14 +101,225 @@ export class CategoryTypeSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class ContactRequestSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'customerId',
+    'email',
+    'fullName',
+    'id',
+    'message',
+    'status',
+    'updatedAt',
+  ] as const
+  $columns = ContactRequestSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare customerId: number | null
+  @column()
+  declare email: string
+  @column()
+  declare fullName: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare message: string
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class CustomerLegalAcceptanceSchema extends BaseModel {
+  static $columns = [
+    'acceptedAt',
+    'body',
+    'contentHash',
+    'customerId',
+    'id',
+    'locale',
+    'slug',
+    'title',
+  ] as const
+  $columns = CustomerLegalAcceptanceSchema.$columns
+  @column.dateTime()
+  declare acceptedAt: DateTime
+  @column()
+  declare body: string
+  @column()
+  declare contentHash: string
+  @column()
+  declare customerId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare locale: string
+  @column()
+  declare slug: string
+  @column()
+  declare title: string
+}
+
+export class CustomerOtpChallengeSchema extends BaseModel {
+  static $columns = [
+    'attemptCount',
+    'codeHash',
+    'consumedAt',
+    'createdAt',
+    'customerId',
+    'expiresAt',
+    'id',
+    'phoneE164',
+    'purpose',
+    'resendAvailableAt',
+    'sendCount',
+    'sendWindowAt',
+    'sessionId',
+    'verificationExpiresAt',
+    'verificationTokenHash',
+    'verifiedAt',
+  ] as const
+  $columns = CustomerOtpChallengeSchema.$columns
+  @column()
+  declare attemptCount: number
+  @column()
+  declare codeHash: string | null
+  @column.dateTime()
+  declare consumedAt: DateTime | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare customerId: number | null
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare phoneE164: string
+  @column()
+  declare purpose: string
+  @column.dateTime()
+  declare resendAvailableAt: DateTime
+  @column()
+  declare sendCount: number
+  @column.dateTime()
+  declare sendWindowAt: DateTime
+  @column()
+  declare sessionId: string | null
+  @column.dateTime()
+  declare verificationExpiresAt: DateTime | null
+  @column()
+  declare verificationTokenHash: string | null
+  @column.dateTime()
+  declare verifiedAt: DateTime | null
+}
+
+export class CustomerRefreshTokenSchema extends BaseModel {
+  static $columns = [
+    'consumedAt',
+    'createdAt',
+    'expiresAt',
+    'id',
+    'sessionId',
+    'tokenHash',
+  ] as const
+  $columns = CustomerRefreshTokenSchema.$columns
+  @column.dateTime()
+  declare consumedAt: DateTime | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare sessionId: string
+  @column()
+  declare tokenHash: string
+}
+
+export class CustomerSavedPlaceSchema extends BaseModel {
+  static $columns = ['createdAt', 'customerId', 'placeId'] as const
+  $columns = CustomerSavedPlaceSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare customerId: number
+  @column()
+  declare placeId: number
+}
+
+export class CustomerSessionSchema extends BaseModel {
+  static $columns = [
+    'accessExpiresAt',
+    'accessTokenHash',
+    'authenticatedAt',
+    'createdAt',
+    'customerId',
+    'expiresAt',
+    'id',
+    'revokedAt',
+  ] as const
+  $columns = CustomerSessionSchema.$columns
+  @column.dateTime()
+  declare accessExpiresAt: DateTime
+  @column()
+  declare accessTokenHash: string
+  @column.dateTime()
+  declare authenticatedAt: DateTime
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare customerId: number
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column.dateTime()
+  declare revokedAt: DateTime | null
+}
+
+export class CustomerSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'email',
+    'firstName',
+    'id',
+    'lastName',
+    'phoneE164',
+    'phoneVerifiedAt',
+    'profilePhotoId',
+    'updatedAt',
+  ] as const
+  $columns = CustomerSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare email: string | null
+  @column()
+  declare firstName: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare lastName: string
+  @column()
+  declare phoneE164: string
+  @column.dateTime()
+  declare phoneVerifiedAt: DateTime
+  @column()
+  declare profilePhotoId: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class HomeContentSchema extends BaseModel {
   static $columns = [
     'appBody',
-    'appMediaId',
     'appTitle',
     'discoveryTitle',
     'heroEyebrow',
-    'heroMediaId',
+    'heroImageKey',
     'heroTitle',
     'locale',
     'updatedAt',
@@ -128,15 +328,13 @@ export class HomeContentSchema extends BaseModel {
   @column()
   declare appBody: string | null
   @column()
-  declare appMediaId: number | null
-  @column()
   declare appTitle: string | null
   @column()
   declare discoveryTitle: string
   @column()
   declare heroEyebrow: string
   @column()
-  declare heroMediaId: number | null
+  declare heroImageKey: string | null
   @column()
   declare heroTitle: string
   @column({ isPrimary: true })
@@ -145,46 +343,46 @@ export class HomeContentSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
-export class MediaSchema extends BaseModel {
+export class MovieSchema extends BaseModel {
   static $columns = [
-    'altAr',
-    'altEn',
-    'bytes',
+    'ageRating',
     'createdAt',
-    'disk',
-    'height',
+    'durationMinutes',
     'id',
-    'mime',
-    'originalName',
-    'storageKey',
-    'uploadedBy',
-    'width',
+    'posterImageKey',
+    'publishedAt',
+    'status',
+    'synopsisAr',
+    'synopsisEn',
+    'titleAr',
+    'titleEn',
+    'updatedAt',
   ] as const
-  $columns = MediaSchema.$columns
+  $columns = MovieSchema.$columns
   @column()
-  declare altAr: string | null
-  @column()
-  declare altEn: string
-  @column()
-  declare bytes: number
+  declare ageRating: string | null
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column()
-  declare disk: string
-  @column()
-  declare height: number | null
+  declare durationMinutes: number | null
   @column({ isPrimary: true })
   declare id: number
   @column()
-  declare mime: string
+  declare posterImageKey: string | null
+  @column.dateTime()
+  declare publishedAt: DateTime | null
   @column()
-  declare originalName: string
+  declare status: string
   @column()
-  declare storageKey: string
+  declare synopsisAr: string | null
   @column()
-  declare uploadedBy: number | null
+  declare synopsisEn: string | null
   @column()
-  declare width: number | null
+  declare titleAr: string | null
+  @column()
+  declare titleEn: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
 }
 
 export class PageTranslationSchema extends BaseModel {
@@ -231,6 +429,51 @@ export class PageSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class PlaceFeatureAssignmentSchema extends BaseModel {
+  static $columns = ['featureId', 'placeId'] as const
+  $columns = PlaceFeatureAssignmentSchema.$columns
+  @column()
+  declare featureId: number
+  @column({ isPrimary: true })
+  declare placeId: number
+}
+
+export class PlaceFeatureSchema extends BaseModel {
+  static $columns = [
+    'active',
+    'code',
+    'createdAt',
+    'id',
+    'kind',
+    'nameAr',
+    'nameEn',
+    'sortOrder',
+    'type',
+    'updatedAt',
+  ] as const
+  $columns = PlaceFeatureSchema.$columns
+  @column()
+  declare active: boolean
+  @column()
+  declare code: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare kind: string
+  @column()
+  declare nameAr: string | null
+  @column()
+  declare nameEn: string
+  @column()
+  declare sortOrder: number
+  @column()
+  declare type: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class PlaceHourSchema extends BaseModel {
   static $columns = [
     'closed',
@@ -261,21 +504,37 @@ export class PlaceHourSchema extends BaseModel {
   declare weekday: number
 }
 
-export class PlaceMediaSchema extends BaseModel {
-  static $columns = ['captionAr', 'captionEn', 'id', 'mediaId', 'placeId', 'sortOrder'] as const
-  $columns = PlaceMediaSchema.$columns
+export class PlaceImageSchema extends BaseModel {
+  static $columns = [
+    'altAr',
+    'altEn',
+    'captionAr',
+    'captionEn',
+    'createdAt',
+    'id',
+    'placeId',
+    'sortOrder',
+    'storageKey',
+  ] as const
+  $columns = PlaceImageSchema.$columns
+  @column()
+  declare altAr: string | null
+  @column()
+  declare altEn: string
   @column()
   declare captionAr: string | null
   @column()
   declare captionEn: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
   @column({ isPrimary: true })
   declare id: number
-  @column()
-  declare mediaId: number
   @column()
   declare placeId: number
   @column()
   declare sortOrder: number
+  @column()
+  declare storageKey: string
 }
 
 export class PlaceTranslationSchema extends BaseModel {
@@ -320,16 +579,20 @@ export class PlaceTranslationSchema extends BaseModel {
 export class PlaceSchema extends BaseModel {
   static $columns = [
     'categoryId',
-    'coverMediaId',
+    'checkInTime',
+    'checkOutTime',
+    'coverImageKey',
     'createdAt',
     'featuredOrder',
     'id',
     'latitude',
     'longitude',
+    'phoneE164',
     'priceAmount',
     'priceCurrency',
     'priceMode',
     'publishedAt',
+    'screenCount',
     'slug',
     'status',
     'type',
@@ -340,7 +603,11 @@ export class PlaceSchema extends BaseModel {
   @column()
   declare categoryId: number | null
   @column()
-  declare coverMediaId: number | null
+  declare checkInTime: string | null
+  @column()
+  declare checkOutTime: string | null
+  @column()
+  declare coverImageKey: string | null
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column()
@@ -352,6 +619,8 @@ export class PlaceSchema extends BaseModel {
   @column()
   declare longitude: string | null
   @column()
+  declare phoneE164: string | null
+  @column()
   declare priceAmount: string | null
   @column()
   declare priceCurrency: string
@@ -359,6 +628,8 @@ export class PlaceSchema extends BaseModel {
   declare priceMode: string
   @column.dateTime()
   declare publishedAt: DateTime | null
+  @column()
+  declare screenCount: number | null
   @column()
   declare slug: string
   @column()
@@ -412,7 +683,7 @@ export class SiteSettingSchema extends BaseModel {
     'brandName',
     'contactEmail',
     'id',
-    'logoMediaId',
+    'logoImageKey',
     'playStoreUrl',
     'updatedAt',
     'whatsappNumber',
@@ -427,13 +698,43 @@ export class SiteSettingSchema extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
   @column()
-  declare logoMediaId: number | null
+  declare logoImageKey: string | null
   @column()
   declare playStoreUrl: string | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
   @column()
   declare whatsappNumber: string | null
+}
+
+export class TheaterShowtimeSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'format',
+    'id',
+    'movieId',
+    'placeId',
+    'startsAt',
+    'status',
+    'updatedAt',
+  ] as const
+  $columns = TheaterShowtimeSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare format: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare movieId: number
+  @column()
+  declare placeId: number
+  @column.dateTime()
+  declare startsAt: DateTime
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
 }
 
 export class TransportLocationTranslationSchema extends BaseModel {

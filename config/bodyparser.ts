@@ -71,7 +71,26 @@ const bodyParserConfig = defineConfig({
      * move all uploaded files inside the tmp folder of your
      * operating system
      */
-    autoProcess: ['/api/v1/admin/media', '/admin/media'],
+    autoProcess: [
+      // CMS forms that carry image fields. Patterns must match routes exactly,
+      // otherwise multipart fields (including the CSRF token) are not parsed.
+      '/admin/places',
+      '/admin/places/:id/save',
+      '/admin/category-types',
+      '/admin/category-types/:code/save',
+      '/admin/home',
+      '/admin/settings',
+      // Admin API image endpoints.
+      '/api/v1/admin/places/:id/cover',
+      '/api/v1/admin/places/:id/gallery',
+      '/api/v1/admin/category-types/:code/image',
+      '/api/v1/admin/home/hero-image',
+      '/api/v1/admin/settings/logo',
+      '/api/v2/customer/me/photo',
+      '/admin/movies',
+      '/admin/movies/:id/save',
+      '/api/v2/admin/movies/:id/poster',
+    ],
 
     /**
      * Convert empty strings to null values.
@@ -92,9 +111,9 @@ const bodyParserConfig = defineConfig({
 
     /**
      * Maximum limit of data to parse including all files
-     * and fields
+     * and fields. Sized for up to five 5 MB images plus form fields.
      */
-    limit: '6mb',
+    limit: '26mb',
 
     /**
      * Content types that should be parsed as multipart form data.

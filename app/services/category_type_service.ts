@@ -1,5 +1,11 @@
 import db from '@adonisjs/lucid/services/db'
 import { ApiError } from './api_error.js'
+import {
+  deleteImages,
+  publicImageUrl,
+  withStoredImages,
+  type PreparedImage,
+} from './image_storage_service.js'
 
 const typeCodePattern = /^[a-z0-9]+(?:_[a-z0-9]+)*$/
 
@@ -22,79 +28,105 @@ export async function publicCategoryTypes(locale: 'en' | 'ar') {
   return rows.map((row) => ({
     type: row.code,
     name: locale === 'ar' ? row.name_ar || row.name_en : row.name_en,
-    image: row.image_id ? `/api/v1/media/${row.image_id}` : null,
+    image: publicImageUrl(row.image_key),
     order: row.sort_order,
   }))
 }
 
-export async function updateCategoryType(
+type CategoryTypeInput = { nameEn: string; nameAr?: string | null; sortOrder: number }
+
+/** `undefined` keeps the current tile image, `'remove'` clears it. */
+type ImageChange = PreparedImage | 'remove' | undefined
+
+function newImage(image: ImageChange) {
+  return image && image !== 'remove' ? [image] : []
+}
+
+async function writeCategoryType(
   code: string,
-  input: { nameEn: string; nameAr?: string | null; imageId?: number | null; sortOrder: number },
+  input: CategoryTypeInput | null,
+  image: ImageChange,
   actorId: number
 ) {
-  const existing = await db.from('category_types').where('code', code).first()
-  if (!existing) throw new ApiError(404, 'NOT_FOUND', 'Category type not found')
-  if (input.imageId && !(await db.from('media').where('id', input.imageId).first())) {
-    throw new ApiError(422, 'INVALID_MEDIA', 'Image not found')
-  }
-  await db.transaction(async (trx) => {
-    await trx
-      .from('category_types')
-      .where('code', code)
-      .update({
-        name_en: input.nameEn,
-        name_ar: input.nameAr || null,
-        image_id: input.imageId ?? null,
-        sort_order: input.sortOrder,
-        updated_at: new Date(),
+  await withStoredImages(newImage(image), async ([key]) => {
+    const released: string[] = []
+    await db.transaction(async (trx) => {
+      const existing = await trx.from('category_types').where('code', code).forUpdate().first()
+      if (!existing) throw new ApiError(404, 'NOT_FOUND', 'Category type not found')
+      const imageKey = key ?? (image === 'remove' ? null : existing.image_key)
+      if (existing.image_key && existing.image_key !== imageKey) released.push(existing.image_key)
+      await trx
+        .from('category_types')
+        .where('code', code)
+        .update({
+          ...(input
+            ? { name_en: input.nameEn, name_ar: input.nameAr || null, sort_order: input.sortOrder }
+            : {}),
+          image_key: imageKey,
+          updated_at: new Date(),
+        })
+      await trx.table('audit_logs').insert({
+        actor_id: actorId,
+        action: 'category_type.updated',
+        entity_type: 'category_type',
+        entity_id: code,
+        created_at: new Date(),
       })
-    await trx.table('audit_logs').insert({
-      actor_id: actorId,
-      action: 'category_type.updated',
-      entity_type: 'category_type',
-      entity_id: code,
-      created_at: new Date(),
     })
+    return { result: undefined, released }
   })
 }
 
-export async function createCategoryType(
-  input: {
-    code: string
-    nameEn: string
-    nameAr?: string | null
-    imageId?: number | null
-    sortOrder: number
-  },
+export async function updateCategoryType(
+  code: string,
+  input: CategoryTypeInput,
+  actorId: number,
+  image?: ImageChange
+) {
+  await writeCategoryType(code, input, image, actorId)
+}
+
+/** Replaces or removes only the tile image (admin image endpoints). */
+export async function setCategoryTypeImage(
+  code: string,
+  image: PreparedImage | 'remove',
   actorId: number
+) {
+  await writeCategoryType(code, null, image, actorId)
+}
+
+export async function createCategoryType(
+  input: CategoryTypeInput & { code: string },
+  actorId: number,
+  image?: PreparedImage
 ) {
   if (await db.from('category_types').where('code', input.code).first()) {
     throw new ApiError(409, 'TYPE_EXISTS', 'Category type code already exists')
   }
-  if (input.imageId && !(await db.from('media').where('id', input.imageId).first())) {
-    throw new ApiError(422, 'INVALID_MEDIA', 'Image not found')
-  }
-  await db.transaction(async (trx) => {
-    await trx.table('category_types').insert({
-      code: input.code,
-      name_en: input.nameEn,
-      name_ar: input.nameAr || null,
-      image_id: input.imageId ?? null,
-      sort_order: input.sortOrder,
-      updated_at: new Date(),
+  await withStoredImages(newImage(image), async ([key]) => {
+    await db.transaction(async (trx) => {
+      await trx.table('category_types').insert({
+        code: input.code,
+        name_en: input.nameEn,
+        name_ar: input.nameAr || null,
+        image_key: key ?? null,
+        sort_order: input.sortOrder,
+        updated_at: new Date(),
+      })
+      await trx.table('audit_logs').insert({
+        actor_id: actorId,
+        action: 'category_type.created',
+        entity_type: 'category_type',
+        entity_id: input.code,
+        created_at: new Date(),
+      })
     })
-    await trx.table('audit_logs').insert({
-      actor_id: actorId,
-      action: 'category_type.created',
-      entity_type: 'category_type',
-      entity_id: input.code,
-      created_at: new Date(),
-    })
+    return { result: undefined, released: [] }
   })
 }
 
 export async function deleteCategoryType(code: string, actorId: number) {
-  await db.transaction(async (trx) => {
+  const imageKey = await db.transaction(async (trx) => {
     const row = await trx.from('category_types').where('code', code).forUpdate().first()
     if (!row) throw new ApiError(404, 'NOT_FOUND', 'Category type not found')
     if (
@@ -111,5 +143,7 @@ export async function deleteCategoryType(code: string, actorId: number) {
       entity_id: code,
       created_at: new Date(),
     })
+    return row.image_key as string | null
   })
+  await deleteImages([imageKey])
 }

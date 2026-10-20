@@ -178,8 +178,10 @@ if (messages.length) {
   })
 }
 
-const upload = document.querySelector('input[type="file"][name="file"]')
-if (upload) {
+// Image fields upload together with their form: FilePond keeps the files in
+// native inputs (storeAsFile) so they are posted with the normal submit.
+const uploads = [...document.querySelectorAll('input[type="file"][data-image-upload]')]
+if (uploads.length) {
   Promise.all([
     import('filepond'),
     import('filepond-plugin-image-preview'),
@@ -187,13 +189,20 @@ if (upload) {
     import('filepond-plugin-file-validate-size'),
   ]).then(([FilePond, preview, type, size]) => {
     FilePond.registerPlugin(preview.default, type.default, size.default)
-    FilePond.create(upload, {
-      storeAsFile: true,
-      allowProcess: false,
-      allowMultiple: false,
-      acceptedFileTypes: ['image/jpeg', 'image/png', 'image/webp'],
-      maxFileSize: '5MB',
-      labelIdle: 'Drop an image or <span class="filepond--label-action">browse</span>',
-    })
+    for (const upload of uploads) {
+      const multiple = upload.multiple
+      FilePond.create(upload, {
+        storeAsFile: true,
+        allowProcess: false,
+        allowMultiple: multiple,
+        maxFiles: multiple ? Number(upload.dataset.maxFiles) || null : 1,
+        acceptedFileTypes: ['image/jpeg', 'image/png', 'image/webp'],
+        maxFileSize: '5MB',
+        credits: false,
+        labelIdle: multiple
+          ? 'Drop images or <span class="filepond--label-action">browse</span>'
+          : 'Drop an image or <span class="filepond--label-action">browse</span>',
+      })
+    }
   })
 }

@@ -2,21 +2,34 @@ import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
 import hash from '@adonisjs/core/services/hash'
+import drive from '@adonisjs/drive/services/main'
+import limiter from '@adonisjs/limiter/services/main'
 import sharp from 'sharp'
 import { loginAdmin } from '../../app/services/auth_service.js'
 import { savePlace } from '../../app/services/content_write_service.js'
+import { allImageKeys } from '../../app/services/image_reference_service.js'
+import { deleteImages } from '../../app/services/image_storage_service.js'
+
+function keyOf(url: string) {
+  return url.split('/').pop()!
+}
 
 test.group('Content lifecycle', (group) => {
   group.each.setup(async () => {
-    await testUtils.db().truncate()
+    await limiter.clear()
+    const truncate = await testUtils.db().truncate()
     await db
       .table('category_types')
       .insert({ code: 'attraction', name_en: 'Attractions' })
       .onConflict('code')
       .ignore()
+    return async () => {
+      await deleteImages(await allImageKeys())
+      await truncate()
+    }
   })
 
-  test('upload, draft preview, publish, archive and safe media removal', async ({
+  test('draft preview, cover upload, publish, archive and image cleanup', async ({
     client,
     assert,
   }) => {
@@ -37,13 +50,6 @@ test.group('Content lifecycle', (group) => {
     )
       .png()
       .toBuffer()
-    const upload = await client
-      .post('/api/v1/admin/media')
-      .header('Authorization', auth)
-      .field('alt_en', 'A test image')
-      .file('file', image, { filename: 'sample.png', contentType: 'image/png' })
-    upload.assertStatus(201)
-    const mediaId = upload.body().data.id as number
 
     const payload = {
       type: 'attraction',
@@ -51,7 +57,6 @@ test.group('Content lifecycle', (group) => {
       titleEn: 'Test Landmark',
       summaryEn: 'A place for integration testing',
       addressEn: 'Kuwait City',
-      coverMediaId: mediaId,
       featured: true,
     }
     const created = await client
@@ -60,6 +65,20 @@ test.group('Content lifecycle', (group) => {
       .json(payload)
     created.assertStatus(201)
     const placeId = created.body().data.id as number
+    const incomplete = await client
+      .post(`/api/v1/admin/places/${placeId}/publish`)
+      .header('Authorization', auth)
+    incomplete.assertStatus(422)
+    assert.equal(incomplete.body().error.code, 'INCOMPLETE_PLACE')
+    const upload = await client
+      .put(`/api/v1/admin/places/${placeId}/cover`)
+      .header('Authorization', auth)
+      .file('file', image, { filename: 'sample.png', contentType: 'image/png' })
+    upload.assertStatus(200)
+    const coverKey = keyOf(upload.body().data.coverUrl)
+    assert.isTrue(await drive.use('local').exists(coverKey))
+    const draftImage = await client.get(`/api/v1/images/${coverKey}`)
+    draftImage.assertStatus(404)
 
     const hidden = await client.get('/api/v1/places/test-landmark')
     hidden.assertStatus(404)
@@ -75,19 +94,13 @@ test.group('Content lifecycle', (group) => {
       .cookie('admin_access', login.accessToken)
     htmlPreview.assertStatus(200)
 
-    const duplicate = await client
-      .put(`/api/v1/admin/places/${placeId}`)
-      .header('Authorization', auth)
-      .json({ ...payload, galleryIds: [mediaId, mediaId] })
-    duplicate.assertStatus(422)
-    assert.equal(duplicate.body().error.code, 'INVALID_MEDIA')
-
     const published = await client
       .post(`/api/v1/admin/places/${placeId}/publish`)
       .header('Authorization', auth)
     published.assertStatus(200)
     const visible = await client.get('/api/v1/places/test-landmark')
     visible.assertStatus(200)
+    assert.deepEqual(visible.body().data.cover, { url: `/api/v1/images/${coverKey}` })
     const featuredHome = await client.get('/api/v1/home')
     featuredHome.assertStatus(200)
     assert.equal(featuredHome.body().data.featured[0].type, 'attraction')
@@ -99,12 +112,17 @@ test.group('Content lifecycle', (group) => {
     unfeatured.assertStatus(200)
     const homeWithoutFeatured = await client.get('/api/v1/home')
     assert.deepEqual(homeWithoutFeatured.body().data.featured[0].places, [])
-    const imageResponse = await client.get(`/api/v1/media/${mediaId}`)
+    assert.equal(unfeatured.body().data.id, placeId)
+    const stored = await db.from('places').where('id', placeId).first()
+    assert.equal(stored.cover_image_key, coverKey, 'JSON place updates keep the uploaded cover')
+    const imageResponse = await client.get(`/api/v1/images/${coverKey}`)
     imageResponse.assertStatus(200)
-    const inUse = await client
-      .delete(`/api/v1/admin/media/${mediaId}`)
+    imageResponse.assertHeader('content-type', 'image/webp')
+    const coverRequired = await client
+      .delete(`/api/v1/admin/places/${placeId}/cover`)
       .header('Authorization', auth)
-    inUse.assertStatus(409)
+    coverRequired.assertStatus(422)
+    assert.equal(coverRequired.body().error.code, 'COVER_REQUIRED')
 
     const archived = await client
       .post(`/api/v1/admin/places/${placeId}/archive`)
@@ -112,14 +130,13 @@ test.group('Content lifecycle', (group) => {
     archived.assertStatus(200)
     const hiddenAgain = await client.get('/api/v1/places/test-landmark')
     hiddenAgain.assertStatus(404)
+    const archivedImage = await client.get(`/api/v1/images/${coverKey}`)
+    archivedImage.assertStatus(404)
     const deleted = await client
       .delete(`/api/v1/admin/places/${placeId}`)
       .header('Authorization', auth)
     deleted.assertStatus(204)
-    const mediaRemoved = await client
-      .delete(`/api/v1/admin/media/${mediaId}`)
-      .header('Authorization', auth)
-    mediaRemoved.assertStatus(204)
+    assert.isFalse(await drive.use('local').exists(coverKey))
   })
 
   test('saves and publishes a new place together, rolling back if its cover is missing', async ({
@@ -134,13 +151,13 @@ test.group('Content lifecycle', (group) => {
       active: true,
       created_at: new Date(),
     })
-    const [mediaId] = await db.table('media').insert({
-      storage_key: 'test/publish-cover.png',
-      original_name: 'publish-cover.png',
-      mime: 'image/png',
-      bytes: 1,
-      created_at: new Date(),
-    })
+    const cover = {
+      buffer: await sharp({
+        create: { width: 8, height: 8, channels: 3, background: '#123c5b' },
+      })
+        .webp()
+        .toBuffer(),
+    }
     const input = {
       type: 'publish_test',
       slug: 'publish-from-form',
@@ -154,10 +171,12 @@ test.group('Content lifecycle', (group) => {
     )
     assert.isNull(await db.from('places').where('slug', input.slug).first())
 
-    const id = await savePlace({ ...input, coverMediaId: mediaId }, adminId, undefined, {
+    const id = await savePlace(input, adminId, undefined, {
       publish: true,
+      images: { cover },
     })
     const place = await db.from('places').where('id', id).first()
+    assert.isTrue(await drive.use('local').exists(place.cover_image_key))
     assert.equal(place?.status, 'published')
     assert.isNotNull(place?.published_at)
     const actions = await db.from('audit_logs').where('entity_type', 'place').where('entity_id', id)

@@ -1,74 +1,62 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 import { homeValidator, locationValidator, settingsValidator } from '../../validators/content.js'
+import { cmsImageUrl, imageFiles, prepareImages } from '../../services/image_storage_service.js'
+import { saveHome, saveSettings } from '../../services/site_content_service.js'
 
-function numberOrNull(value: unknown) {
-  return value ? Number(value) : null
+async function formImage(ctx: HttpContext, field: string, removeField: string) {
+  const { image } = await prepareImages(ctx.admin.id, { image: imageFiles(ctx.request, field) })
+  return image[0] ?? (ctx.request.input(removeField) === 'on' ? ('remove' as const) : undefined)
+}
+
+function saveError(request: HttpContext['request'], error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : fallback
+  return Object.keys(request.allFiles()).length > 0
+    ? `${message.replace(/\.$/, '')}. Re-select the image you attached.`
+    : message
 }
 
 export default class AdminSitePageController {
   async home({ view, admin, request }: HttpContext) {
     const locale = request.input('locale') === 'ar' ? 'ar' : 'en'
     const home = await db.from('home_content').where('locale', locale).first()
-    const media = await db
-      .from('media')
-      .select('id', 'original_name')
-      .orderBy('id', 'desc')
-      .limit(100)
-    return view.render('admin/home', { admin, locale, home, media })
+    return view.render('admin/home', {
+      admin,
+      locale,
+      home,
+      heroImageUrl: cmsImageUrl(home?.hero_image_key),
+    })
   }
 
-  async saveHome({ request, response, session, admin }: HttpContext) {
+  async saveHome(ctx: HttpContext) {
+    const { request, response, session, admin } = ctx
+    const locale = request.input('locale') === 'ar' ? 'ar' : 'en'
     try {
       const input = await homeValidator.validate({
         locale: request.input('locale'),
         heroEyebrow: request.input('heroEyebrow'),
         heroTitle: request.input('heroTitle'),
         discoveryTitle: request.input('discoveryTitle'),
-        heroMediaId: numberOrNull(request.input('heroMediaId')),
       })
-      if (input.heroMediaId && !(await db.from('media').where('id', input.heroMediaId).first()))
-        throw new Error('Image not found')
-      await db.transaction(async (trx) => {
-        await trx
-          .table('home_content')
-          .insert({
-            locale: input.locale,
-            hero_eyebrow: input.heroEyebrow,
-            hero_title: input.heroTitle,
-            discovery_title: input.discoveryTitle,
-            hero_media_id: input.heroMediaId ?? null,
-            updated_at: new Date(),
-          })
-          .onConflict('locale')
-          .merge()
-        await trx.table('audit_logs').insert({
-          actor_id: admin.id,
-          action: 'home.updated',
-          entity_type: 'home_content',
-          entity_id: input.locale,
-          created_at: new Date(),
-        })
-      })
+      await saveHome(input, admin.id, await formImage(ctx, 'heroImage', 'removeHeroImage'))
       session.flash('success', 'Homepage content saved.')
-      return response.redirect(`/admin/home?locale=${input.locale}`)
     } catch (error) {
-      session.flash('error', error instanceof Error ? error.message : 'Unable to save homepage')
-      return response.redirect('/admin/home')
+      session.flash('error', saveError(request, error, 'Unable to save homepage'))
     }
+    return response.redirect(`/admin/home?locale=${locale}`)
   }
 
   async settings({ view, admin }: HttpContext) {
     const settings = await db.from('site_settings').where('id', 1).first()
-    const media = await db
-      .from('media')
-      .select('id', 'original_name')
-      .orderBy('id', 'desc')
-      .limit(100)
-    return view.render('admin/settings', { admin, settings, media })
+    return view.render('admin/settings', {
+      admin,
+      settings,
+      logoImageUrl: cmsImageUrl(settings?.logo_image_key),
+    })
   }
 
-  async saveSettings({ request, response, session, admin }: HttpContext) {
+  async saveSettings(ctx: HttpContext) {
+    const { request, response, session, admin } = ctx
     try {
       const input = await settingsValidator.validate({
         brandName: request.input('brandName'),
@@ -76,41 +64,11 @@ export default class AdminSitePageController {
         contactEmail: request.input('contactEmail') || null,
         appStoreUrl: request.input('appStoreUrl') || null,
         playStoreUrl: request.input('playStoreUrl') || null,
-        logoMediaId: numberOrNull(request.input('logoMediaId')),
       })
-      for (const value of [input.appStoreUrl, input.playStoreUrl]) {
-        if (value && !['https:', 'http:'].includes(new URL(value).protocol))
-          throw new Error('Store links must use HTTP or HTTPS')
-      }
-      if (input.logoMediaId && !(await db.from('media').where('id', input.logoMediaId).first())) {
-        throw new Error('Logo image not found')
-      }
-      await db.transaction(async (trx) => {
-        await trx
-          .table('site_settings')
-          .insert({
-            id: 1,
-            brand_name: input.brandName,
-            whatsapp_number: input.whatsappNumber ?? null,
-            contact_email: input.contactEmail ?? null,
-            app_store_url: input.appStoreUrl ?? null,
-            play_store_url: input.playStoreUrl ?? null,
-            logo_media_id: input.logoMediaId ?? null,
-            updated_at: new Date(),
-          })
-          .onConflict('id')
-          .merge()
-        await trx.table('audit_logs').insert({
-          actor_id: admin.id,
-          action: 'site.settings.updated',
-          entity_type: 'site_settings',
-          entity_id: '1',
-          created_at: new Date(),
-        })
-      })
+      await saveSettings(input, admin.id, await formImage(ctx, 'logoImage', 'removeLogo'))
       session.flash('success', 'Site settings saved.')
     } catch (error) {
-      session.flash('error', error instanceof Error ? error.message : 'Unable to save settings')
+      session.flash('error', saveError(request, error, 'Unable to save settings'))
     }
     return response.redirect('/admin/settings')
   }

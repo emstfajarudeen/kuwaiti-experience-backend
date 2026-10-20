@@ -48,7 +48,6 @@ test.group('CMS pages', (group) => {
       '/admin/category-types/attraction/edit',
       '/admin/pages',
       '/admin/pages/new',
-      '/admin/media',
       '/admin/home',
       '/admin/transport',
       '/admin/settings',
@@ -58,6 +57,12 @@ test.group('CMS pages', (group) => {
       const response = await client.get(path).cookie('admin_access', token)
       response.assertStatus(200)
     }
+    const editor = await client.get('/admin/places/new').cookie('admin_access', token)
+    editor.assertTextIncludes('name="coverImage"')
+    editor.assertTextIncludes('name="galleryImages[]"')
+    editor.assertTextIncludes('enctype="multipart/form-data"')
+    const library = await client.get('/admin/media').cookie('admin_access', token)
+    library.assertStatus(404)
     const missingCategory = await client
       .get('/admin/categories/not-a-category/edit')
       .cookie('admin_access', token)

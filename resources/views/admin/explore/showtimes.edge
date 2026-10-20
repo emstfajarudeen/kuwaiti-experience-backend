@@ -1,0 +1,77 @@
+
+@let(form = flashMessages.get('exploreForm') || {})
+
+@layouts.admin({ title: 'Theater showtimes', active: 'showtimes', adminName: admin.fullName })
+
+  <div class="page-head"><div><h1>Theater showtimes</h1><p>CMS-maintained sessions in Kuwait time. Expired and cancelled sessions are hidden publicly.</p></div></div>
+  
+@form({ action: editing ? `/admin/showtimes/${editing.id}/save` : '/admin/showtimes', method: 'POST' })
+
+    <section class="panel form-panel"><h2>{{ editing ? 'Edit showtime' : 'Add showtime' }}</h2><div class="form-grid two">
+      <label>Theater<select name="place_id" required><option value="">Choose a theater</option>
+@each(place in theaters)
+<option value="{{ place.id }}" 
+@if(Number(form.place_id ?? editing?.place_id) === place.id)
+ selected 
+@end
+>{{ place.slug }} ({{ place.status }})</option>
+@end
+</select></label>
+      <label>Movie<select name="movie_id" required><option value="">Choose a movie</option>
+@each(movie in movies)
+<option value="{{ movie.id }}" 
+@if(Number(form.movie_id ?? editing?.movie_id) === movie.id)
+ selected 
+@end
+>{{ movie.title_en }} ({{ movie.status }})</option>
+@end
+</select></label>
+      <label>Starts at (Kuwait time)<input name="starts_at" type="datetime-local" value="{{ form.starts_at ?? startsLocal }}" required></label>
+      <label>Presentation format<input name="format" value="{{ form.format ?? editing?.format ?? '' }}" maxlength="80" placeholder="IMAX · Dolby Atmos" required></label>
+      <label>Status<select name="status">
+@each(status in ['draft', 'published', 'cancelled'])
+<option value="{{ status }}" 
+@if((form.status ?? editing?.status ?? 'draft') === status)
+ selected 
+@end
+>{{ status }}</option>
+@end
+</select></label>
+    </div><p class="panel-help">Publish the theater and movie before publishing its sessions. This is an editorial schedule, not ticket inventory.</p><button class="button primary" type="submit">Save showtime</button> 
+@if(editing)
+<a class="button secondary" href="/admin/showtimes">Add another</a>
+@end
+</section>
+  
+@end
+
+  <section class="panel form-panel"><h2>Sessions</h2><div class="table-wrap"><table><thead><tr><th>Theater ID</th><th>Movie</th><th>Starts (UTC)</th><th>Format</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+    
+@each(showtime in result.data)
+
+      <tr><td>{{ showtime.place_id }}</td><td>{{ result.included.movies.find((m) => m.id === showtime.movie_id)?.title_en || showtime.movie_id }}</td><td>{{ showtime.starts_at }}</td><td>{{ showtime.format }}</td><td>{{ showtime.status }}</td><td><a href="/admin/showtimes/{{ showtime.id }}/edit">Edit</a> 
+@form({ action: `/admin/showtimes/${showtime.id}/delete`, method: 'POST' })
+<button class="text-button danger" type="submit">Delete</button>
+@end
+</td></tr>
+    
+@else
+
+      <tr><td colspan="6">No showtimes yet.</td></tr>
+    
+@end
+
+  </tbody></table></div><p>Page {{ result.meta.page }} of {{ result.meta.last_page }} · {{ result.meta.total }} sessions</p>
+    
+@if(result.meta.page > 1)
+<a class="button secondary" href="?page={{ result.meta.page - 1 }}">Previous</a>
+@end
+
+@if(result.meta.page < result.meta.last_page)
+<a class="button secondary" href="?page={{ result.meta.page + 1 }}">Next</a>
+@end
+
+  </section>
+
+@end
+

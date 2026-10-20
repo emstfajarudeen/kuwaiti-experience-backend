@@ -4,7 +4,7 @@
   <div class="page-head"><div><h1>{{ place.title }}</h1><p>{{ place.address }}</p></div></div>
   <div class="panel form-panel">
     @if(place.cover)
-      <img class="cover-preview" src="/admin/media/{{ place.cover.id }}/file" alt="Preview cover">
+      <img class="cover-preview" src="{{ place.cover.url }}" alt="Preview cover">
     @end
     <p>{{ place.summary }}</p>
     <p>{{ place.body }}</p>

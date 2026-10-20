@@ -19,4 +19,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   JWT_ISSUER: Env.schema.string(),
   JWT_AUDIENCE: Env.schema.string(),
   LIMITER_STORE: Env.schema.enum(['database', 'memory'] as const),
+  CUSTOMER_OTP_SECRET: Env.schema.secret.optional(),
+  SMS_WEBHOOK_URL: Env.schema.string.optional({ format: 'url' }),
+  SMS_WEBHOOK_TOKEN: Env.schema.secret.optional(),
 })

@@ -39,10 +39,13 @@ function slug(title: string) {
     .replace(/^-|-$/g, '')
 }
 
-async function demoImage(name: string, hue: string) {
-  const key = `demo/${slug(name)}.webp`
-  const existing = await db.from('media').where('storage_key', key).first()
-  if (existing && (await drive.use('local').exists(key))) return existing.id as number
+/**
+ * Writes a generated placeholder image and returns its storage key. Each key
+ * is owned by exactly one record, so every image slot gets its own file.
+ */
+async function demoImage(name: string, hue: string, variant = '') {
+  const key = `demo-${slug(`${name} ${variant}`)}.webp`
+  if (await drive.use('local').exists(key)) return key
   const title = name.replace(/[&<>"']/g, '')
   const svg = `<svg width="1200" height="720" xmlns="http://www.w3.org/2000/svg">
     <rect width="1200" height="720" fill="${hue}"/>
@@ -53,19 +56,7 @@ async function demoImage(name: string, hue: string) {
   </svg>`
   const buffer = await sharp(Buffer.from(svg)).webp({ quality: 85 }).toBuffer()
   await drive.use('local').put(key, buffer)
-  if (existing) return existing.id as number
-  const [id] = await db.table('media').insert({
-    disk: 'local',
-    storage_key: key,
-    original_name: `${slug(name)}.webp`,
-    mime: 'image/webp',
-    bytes: buffer.length,
-    width: 1200,
-    height: 720,
-    alt_en: `${name} demo placeholder`,
-    created_at: new Date(),
-  })
-  return id as number
+  return key
 }
 
 export default class DemoSeeder extends BaseSeeder {
@@ -125,7 +116,7 @@ export default class DemoSeeder extends BaseSeeder {
     ]
     for (const [index, [title, type, category, address]] of allPlaces.entries()) {
       if (await db.from('places').where('slug', slug(title)).first()) continue
-      const imageId = await demoImage(
+      const coverKey = await demoImage(
         title,
         type === 'attraction'
           ? '#123c5b'
@@ -135,13 +126,15 @@ export default class DemoSeeder extends BaseSeeder {
               ? '#39616b'
               : '#2d3658'
       )
+      const galleryKey =
+        title === 'Kuwait Towers' ? await demoImage(title, '#1d4f73', 'gallery') : null
       await db.transaction(async (trx) => {
         const [id] = await trx.table('places').insert({
           type,
           category_id: categoryIds.get(`${type}:${category}`),
           slug: slug(title),
           status: 'published',
-          cover_media_id: imageId,
+          cover_image_key: coverKey,
           price_mode: title === 'Kuwait Towers' ? 'fixed' : 'unknown',
           price_amount: title === 'Kuwait Towers' ? '3.000' : null,
           price_currency: 'KWD',
@@ -160,12 +153,14 @@ export default class DemoSeeder extends BaseSeeder {
           hours_note: title === 'Kuwait Towers' ? '9:00 AM – 11:00 PM (demo; verify)' : null,
           price_unit: title === 'Kuwait Towers' ? 'per person (demo; verify)' : null,
         })
-        if (title === 'Kuwait Towers') {
-          await trx.table('place_media').insert({
+        if (galleryKey) {
+          await trx.table('place_images').insert({
             place_id: id,
-            media_id: imageId,
-            sort_order: 0,
+            storage_key: galleryKey,
+            alt_en: `${title} demo placeholder`,
             caption_en: 'Demo gallery placeholder',
+            sort_order: 0,
+            created_at: new Date(),
           })
         }
       })
@@ -197,7 +192,7 @@ export default class DemoSeeder extends BaseSeeder {
         hero_eyebrow: 'WELCOME TO KUWAIT',
         hero_title: 'Explore Kuwait',
         discovery_title: 'What would you like to do?',
-        hero_media_id: hero,
+        hero_image_key: hero,
         updated_at: new Date(),
       })
     }

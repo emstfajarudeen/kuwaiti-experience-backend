@@ -18,7 +18,6 @@ export const categoryTypeValidator = vine.compile(
   vine.object({
     nameEn: vine.string().trim().minLength(2).maxLength(160),
     nameAr: vine.string().trim().maxLength(160).nullable().optional(),
-    imageId: vine.number().positive().withoutDecimals().nullable().optional(),
     sortOrder: vine.number().withoutDecimals(),
   })
 )
@@ -28,7 +27,6 @@ export const newCategoryTypeValidator = vine.compile(
     code: categoryTypeCode,
     nameEn: vine.string().trim().minLength(2).maxLength(160),
     nameAr: vine.string().trim().maxLength(160).nullable().optional(),
-    imageId: vine.number().positive().withoutDecimals().nullable().optional(),
     sortOrder: vine.number().withoutDecimals(),
   })
 )
@@ -39,7 +37,6 @@ export const categoryValidator = vine.compile(
     slug: slug,
     nameEn: vine.string().minLength(2).maxLength(160),
     nameAr: vine.string().maxLength(160).nullable().optional(),
-    imageId: vine.number().positive().withoutDecimals().nullable().optional(),
     sortOrder: vine.number().withoutDecimals().optional(),
     active: vine.boolean().optional(),
   })
@@ -50,7 +47,6 @@ export const placeValidator = vine.compile(
     type: placeType,
     slug,
     categoryId: vine.number().positive().withoutDecimals().nullable().optional(),
-    coverMediaId: vine.number().positive().withoutDecimals().nullable().optional(),
     titleEn: vine.string().minLength(2).maxLength(200),
     summaryEn: vine.string().minLength(2).maxLength(500),
     addressEn: vine.string().minLength(2).maxLength(300),
@@ -73,7 +69,6 @@ export const placeValidator = vine.compile(
     latitude: vine.number().range([-90, 90]).nullable().optional(),
     longitude: vine.number().range([-180, 180]).nullable().optional(),
     featured: vine.boolean().optional(),
-    galleryIds: vine.array(vine.number().positive().withoutDecimals()).optional(),
     hours: vine
       .array(
         vine.object({
@@ -93,6 +88,7 @@ export const placeValidator = vine.compile(
           closed: vine.boolean().optional(),
         })
       )
+      .maxLength(70)
       .optional(),
   })
 )
@@ -132,7 +128,6 @@ export const settingsValidator = vine.compile(
     contactEmail: vine.string().email().maxLength(254).nullable().optional(),
     appStoreUrl: httpUrl.nullable().optional(),
     playStoreUrl: httpUrl.nullable().optional(),
-    logoMediaId: vine.number().positive().withoutDecimals().nullable().optional(),
   })
 )
 
@@ -142,6 +137,34 @@ export const homeValidator = vine.compile(
     heroEyebrow: vine.string().maxLength(120),
     heroTitle: vine.string().minLength(2).maxLength(200),
     discoveryTitle: vine.string().minLength(2).maxLength(200),
-    heroMediaId: vine.number().positive().withoutDecimals().nullable().optional(),
   })
 )
+
+const imageText = () => vine.string().trim().maxLength(255).nullable().optional()
+const galleryItemFields = () => ({
+  altEn: imageText(),
+  altAr: imageText(),
+  captionEn: imageText(),
+  captionAr: imageText(),
+  sortOrder: vine.number().min(0).max(999).withoutDecimals().optional(),
+})
+
+/** Edits to existing gallery images submitted with the CMS place form. */
+export const galleryItemsValidator = vine.compile(
+  vine.object({
+    items: vine
+      .array(
+        vine.object({
+          id: vine.number().positive().withoutDecimals(),
+          ...galleryItemFields(),
+          remove: vine.boolean().optional(),
+        })
+      )
+      .maxLength(20),
+  })
+)
+
+export const galleryImageUpdateValidator = vine.compile(vine.object(galleryItemFields()))
+
+/** Optional English alternative text applied to newly uploaded gallery images. */
+export const galleryUploadValidator = vine.compile(vine.object({ altEn: imageText() }))

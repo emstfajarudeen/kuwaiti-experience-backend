@@ -1,18 +1,23 @@
 @layouts.admin({ title: 'Site settings', active: 'settings', adminName: admin.fullName })
   <div class="eyebrow">THE DETAILS THAT CONNECT</div><div class="page-head"><div><h1>Site settings</h1><p>Brand, contact and app links for the public website.</p></div></div>
   
-@form({ action: '/admin/settings', method: 'POST', class: 'editor-grid' })
+@form({ action: '/admin/settings', method: 'POST', enctype: 'multipart/form-data', class: 'editor-grid' })
 
     <div class="editor-main">
-      <section class="panel form-panel"><span class="eyebrow">IDENTITY</span><h2>Brand</h2><div class="form-grid"><label>Brand name<input name="brandName" value="{{ settings?.brand_name || 'The Kuwaiti Experience' }}" required></label><label>Logo image<select name="logoMediaId"><option value="">Text wordmark only</option>
-@each(image in media)
-<option value="{{ image.id }}" 
-@if(settings && settings.logo_media_id === image.id)
- selected 
-@end
->{{ image.original_name }}</option>
-@end
-</select></label></div></section>
+      <section class="panel form-panel"><span class="eyebrow">IDENTITY</span><h2>Brand</h2><div class="form-grid"><label>Brand name<input name="brandName" value="{{ settings?.brand_name || 'The Kuwaiti Experience' }}" required></label><div class="image-field">
+        <span class="field-title">Logo image <small>(optional; the brand name is shown as a text wordmark without it)</small></span>
+        @if(logoImageUrl)
+          <img class="logo-preview" src="{{ logoImageUrl }}" alt="Current logo">
+        @end
+        <div class="image-upload">
+          <span>{{ logoImageUrl ? 'Replace logo' : 'Upload a logo' }}</span>
+          <input type="file" name="logoImage" accept="image/jpeg,image/png,image/webp" aria-label="Logo image" data-image-upload>
+        </div>
+        <p class="panel-help">JPEG, PNG or WebP · 5 MB maximum. Images are converted to WebP.</p>
+        @if(logoImageUrl)
+          <label class="checkbox-line"><input type="checkbox" name="removeLogo"> Remove logo</label>
+        @end
+      </div></div></section>
       <section class="panel form-panel"><span class="eyebrow">CONTACT</span><h2>Reach the team</h2><div class="form-grid"><label>Contact email<input name="contactEmail" type="email" value="{{ settings?.contact_email || '' }}"></label><label>WhatsApp number <small>(international format)</small><input name="whatsappNumber" type="tel" placeholder="+965XXXXXXXX" value="{{ settings?.whatsapp_number || '' }}"></label></div><p class="panel-help" style="margin:15px 0 0">Cab enquiry links stay unavailable until a real number is set.</p></section>
       <section class="panel form-panel"><span class="eyebrow">MOBILE APP</span><h2>Store links</h2><div class="form-grid"><label>App Store URL<input name="appStoreUrl" type="url" value="{{ settings?.app_store_url || '' }}"></label><label>Google Play URL<input name="playStoreUrl" type="url" value="{{ settings?.play_store_url || '' }}"></label></div></section>
     </div>

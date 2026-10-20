@@ -1,10 +1,50 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
-import { placeValidator } from '../../validators/content.js'
+import {
+  galleryImageUpdateValidator,
+  galleryUploadValidator,
+  placeValidator,
+} from '../../validators/content.js'
 import { ApiError } from '../../services/api_error.js'
-import { deletePlace, savePlace, setPlaceStatus } from '../../services/content_write_service.js'
+import {
+  deletePlace,
+  savePlace,
+  setPlaceStatus,
+  updatePlaceImages,
+} from '../../services/content_write_service.js'
 import { showPlace } from '../../services/public_content_service.js'
 import { assertPlaceType } from '../../services/category_type_service.js'
+import {
+  MAX_IMAGES_PER_REQUEST,
+  adminApiImageUrl,
+  imageFiles,
+  prepareImages,
+} from '../../services/image_storage_service.js'
+
+async function placeImages(placeId: number) {
+  const [place, gallery] = await Promise.all([
+    db.from('places').where('id', placeId).select('cover_image_key').first(),
+    db.from('place_images').where('place_id', placeId).orderBy('sort_order').orderBy('id'),
+  ])
+  return {
+    coverUrl: adminApiImageUrl(place?.cover_image_key),
+    gallery: gallery.map((image) => ({
+      id: image.id,
+      url: adminApiImageUrl(image.storage_key),
+      altEn: image.alt_en,
+      altAr: image.alt_ar,
+      captionEn: image.caption_en,
+      captionAr: image.caption_ar,
+      sortOrder: image.sort_order,
+    })),
+  }
+}
+
+function idFrom(value: unknown, message = 'Place not found') {
+  const id = Number(value)
+  if (!Number.isInteger(id) || id < 1) throw new ApiError(404, 'NOT_FOUND', message)
+  return id
+}
 
 export default class AdminPlacesController {
   async index({ request }: HttpContext) {
@@ -32,14 +72,22 @@ export default class AdminPlacesController {
     }
     const count = await query.clone().count('* as total').first()
     const rows = await query
-      .select('p.id', 'p.slug', 'p.type', 'p.status', 'p.cover_media_id', 'p.updated_at', 't.title')
+      .select(
+        'p.id',
+        'p.slug',
+        'p.type',
+        'p.status',
+        'p.cover_image_key',
+        'p.updated_at',
+        't.title'
+      )
       .orderBy('p.id', 'desc')
       .limit(20)
       .offset((page - 1) * 20)
     return {
-      data: rows.map((row) => ({
+      data: rows.map(({ cover_image_key: coverImageKey, ...row }) => ({
         ...row,
-        coverUrl: row.cover_media_id ? `/api/v1/admin/media/${row.cover_media_id}/file` : null,
+        coverUrl: adminApiImageUrl(coverImageKey),
       })),
       meta: { page, perPage: 20, total: Number(count?.total ?? 0) },
     }
@@ -48,22 +96,29 @@ export default class AdminPlacesController {
   async show({ params }: HttpContext) {
     const place = await db.from('places').where('id', params.id).first()
     if (!place) throw new ApiError(404, 'NOT_FOUND', 'Place not found')
-    const [translations, gallery, hours] = await Promise.all([
+    const fields = { ...place }
+    delete fields.cover_image_key
+    const [translations, images, hours] = await Promise.all([
       db.from('place_translations').where('place_id', place.id),
-      db.from('place_media').where('place_id', place.id).orderBy('sort_order'),
+      placeImages(place.id),
       db
         .from('place_hours')
         .where('place_id', place.id)
         .orderBy('weekday')
         .orderBy('interval_index'),
     ])
-    return { data: { ...place, translations, gallery, hours } }
+    return { data: { ...fields, ...images, translations, hours } }
   }
 
   async preview({ params, request }: HttpContext) {
     const place = await db.from('places').where('id', params.id).select('slug').first()
     if (!place) throw new ApiError(404, 'NOT_FOUND', 'Place not found')
-    return showPlace(place.slug, request.input('locale') === 'ar' ? 'ar' : 'en', true)
+    return showPlace(
+      place.slug,
+      request.input('locale') === 'ar' ? 'ar' : 'en',
+      true,
+      adminApiImageUrl
+    )
   }
 
   async store({ request, response, admin }: HttpContext) {
@@ -91,6 +146,50 @@ export default class AdminPlacesController {
 
   async destroy({ params, admin, response }: HttpContext) {
     await deletePlace(Number(params.id), admin.id)
+    return response.noContent()
+  }
+
+  async updateCover({ params, request, admin }: HttpContext) {
+    const id = idFrom(params.id)
+    const files = imageFiles(request, 'file')
+    if (!files.length) throw new ApiError(422, 'INVALID_IMAGE', 'Attach an image file')
+    const { cover } = await prepareImages(admin.id, { cover: files })
+    await updatePlaceImages(id, { cover: cover[0] }, admin.id)
+    return { data: await placeImages(id) }
+  }
+
+  async removeCover({ params, admin, response }: HttpContext) {
+    await updatePlaceImages(idFrom(params.id), { cover: 'remove' }, admin.id)
+    return response.noContent()
+  }
+
+  async addGalleryImages({ params, request, admin, response }: HttpContext) {
+    const id = idFrom(params.id)
+    const { altEn } = await galleryUploadValidator.validate({ altEn: request.input('altEn') })
+    const files = imageFiles(request, 'files', MAX_IMAGES_PER_REQUEST)
+    if (!files.length) throw new ApiError(422, 'INVALID_IMAGE', 'Attach at least one image file')
+    const { gallery } = await prepareImages(admin.id, { gallery: files })
+    await updatePlaceImages(id, { galleryAdd: gallery, galleryAltEn: altEn }, admin.id)
+    return response.created({ data: await placeImages(id) })
+  }
+
+  async updateGalleryImage({ params, request, admin }: HttpContext) {
+    const id = idFrom(params.id)
+    const input = await request.validateUsing(galleryImageUpdateValidator)
+    await updatePlaceImages(
+      id,
+      { galleryItems: [{ id: idFrom(params.imageId, 'Gallery image not found'), ...input }] },
+      admin.id
+    )
+    return { data: await placeImages(id) }
+  }
+
+  async removeGalleryImage({ params, admin, response }: HttpContext) {
+    await updatePlaceImages(
+      idFrom(params.id),
+      { galleryItems: [{ id: idFrom(params.imageId, 'Gallery image not found'), remove: true }] },
+      admin.id
+    )
     return response.noContent()
   }
 }

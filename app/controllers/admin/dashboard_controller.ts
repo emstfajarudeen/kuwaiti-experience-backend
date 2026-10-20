@@ -10,7 +10,6 @@ export default class AdminDashboardController {
       .where('status', 'published')
       .count('* as count')
       .first()
-    const media = await db.from('media').count('* as count').first()
     const types = await categoryTypes()
     const recent = await db
       .from('audit_logs')
@@ -27,7 +26,7 @@ export default class AdminDashboardController {
       {
         label: 'PUBLISHED',
         count: Number(published?.count ?? 0),
-        note: `${Number(media?.count ?? 0)} images in library`,
+        note: 'Places visible to visitors',
       },
     ]
     return view.render('admin/dashboard', { admin, stats, recent })

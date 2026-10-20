@@ -1,0 +1,54 @@
+
+@let(form = flashMessages.get('exploreForm') || {})
+
+@layouts.admin({ title: movie ? 'Edit movie' : 'Add movie', active: 'movies', adminName: admin.fullName })
+
+  <a class="back-link" href="/admin/movies">← Back to movies</a>
+  <div class="page-head"><div><h1>{{ movie ? 'Edit movie' : 'Add movie' }}</h1><p>Movie details and licensed poster. Draft and archived movies are hidden from public showtimes.</p></div></div>
+  
+@form({ action: movie ? `/admin/movies/${movie.id}/save` : '/admin/movies', method: 'POST', enctype: 'multipart/form-data' })
+
+    <section class="panel form-panel"><div class="form-grid two">
+      <label>English title<input name="title_en" value="{{ form.title_en ?? movie?.title_en ?? '' }}" maxlength="200" required></label>
+      <label>Arabic title<input name="title_ar" value="{{ form.title_ar ?? movie?.title_ar ?? '' }}" maxlength="200" lang="ar" dir="rtl"></label>
+      <label>English synopsis<textarea name="synopsis_en" rows="4" maxlength="10000">{{ form.synopsis_en ?? movie?.synopsis_en ?? '' }}</textarea></label>
+      <label>Arabic synopsis<textarea name="synopsis_ar" rows="4" maxlength="10000" lang="ar" dir="rtl">{{ form.synopsis_ar ?? movie?.synopsis_ar ?? '' }}</textarea></label>
+      <label>Duration in minutes<input name="duration_minutes" type="number" min="1" max="600" value="{{ form.duration_minutes ?? movie?.duration_minutes ?? '' }}"></label>
+      <label>Age rating<input name="age_rating" value="{{ form.age_rating ?? movie?.age_rating ?? '' }}" maxlength="30"></label>
+      <label>Status<select name="status">
+@each(status in ['draft', 'published', 'archived'])
+<option value="{{ status }}" 
+@if((form.status ?? movie?.status ?? 'draft') === status)
+ selected 
+@end
+>{{ status }}</option>
+@end
+</select></label>
+      <div>
+@if(posterUrl)
+<img class="cover-preview" src="{{ posterUrl }}" alt="Current poster">
+@end
+
+        <label>Poster image<input name="poster" type="file" accept="image/jpeg,image/png,image/webp" data-image-upload></label><small>JPEG, PNG or WebP, up to 5 MB. A poster is required to publish.</small>
+        
+@if(posterUrl)
+<label class="checkbox-line"><input name="remove_poster" type="checkbox"> Remove poster (draft/archive only)</label>
+@end
+
+      </div>
+    </div><button class="button primary" type="submit">Save movie</button></section>
+  
+@end
+
+@if(movie)
+
+    <div class="danger-row">
+@form({ action: `/admin/movies/${movie.id}/delete`, method: 'POST', onsubmit: "return confirm('Delete this movie? Showtimes must be removed first.')" })
+<button class="text-button danger" type="submit">Delete movie</button>
+@end
+</div>
+  
+@end
+
+@end
+

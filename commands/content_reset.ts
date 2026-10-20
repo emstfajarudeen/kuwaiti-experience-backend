@@ -3,10 +3,16 @@ import type { CommandOptions } from '@adonisjs/core/types/ace'
 import db from '@adonisjs/lucid/services/db'
 import drive from '@adonisjs/drive/services/main'
 import env from '#start/env'
+import { allImageKeys } from '#services/image_reference_service'
 
 const tables = [
   'audit_logs',
-  'place_media',
+  'theater_showtimes',
+  'movies',
+  'customer_saved_places',
+  'place_feature_assignments',
+  'place_features',
+  'place_images',
   'place_hours',
   'place_translations',
   'places',
@@ -21,7 +27,6 @@ const tables = [
   'transport_locations',
   'refresh_tokens',
   'auth_sessions',
-  'media',
   'rate_limits',
 ] as const
 
@@ -65,15 +70,15 @@ export default class ContentReset extends BaseCommand {
       throw new Error('Production reset also requires --force-production and a verified backup')
     }
 
-    const media = await db.from('media').select('storage_key')
+    const imageKeys = await allImageKeys()
     await db.transaction(async (trx) => {
       for (const table of tables) await trx.from(table).delete()
       await trx.from('users').whereNot('role', 'admin').delete()
     })
     let failedFiles = 0
-    for (const item of media) {
+    for (const key of imageKeys) {
       try {
-        await drive.use('local').delete(item.storage_key)
+        await drive.use('local').delete(key)
       } catch {
         failedFiles++
       }
@@ -83,7 +88,7 @@ export default class ContentReset extends BaseCommand {
     )
     if (failedFiles) {
       this.logger.warning(
-        `${failedFiles} upload file(s) could not be deleted. Run media:prune-orphans.`
+        `${failedFiles} upload file(s) could not be deleted. Run images:prune-orphans.`
       )
       this.exitCode = 1
     }

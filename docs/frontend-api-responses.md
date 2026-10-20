@@ -1,6 +1,8 @@
 # Frontend integration guide for the public API
 
-Use this document as the contract when implementing the visitor-facing frontend. The examples are illustrative; IDs, text, category type codes, categories, and media URLs come from the CMS and can change. Integrate the public `/api/v1` endpoints below. The `/api/v1/admin/*` endpoints are for the CMS and are not needed by the visitor frontend.
+> **Current v1 behavior only.** The App 2 Figma flows are mapped in the [screen audit](app2-figma-screen-audit.md) and [section plan](app2-api-implementation-plan.md); the [API reference](app-api-reference.md) tracks live versus proposed routes. Several examples below use presentation keys or different place shapes and will change after section approval. Do not use them as the target contract for new typed models.
+
+This document describes the currently implemented visitor-facing `/api/v1` responses. The examples are illustrative; IDs, text, category type codes, categories, and image URLs come from the CMS and can change. The `/api/v1/admin/*` endpoints are for the CMS and are not needed by the visitor frontend.
 
 ## Start here: page-to-API map
 
@@ -12,7 +14,7 @@ Use this document as the contract when implementing the visitor-facing frontend.
 | Static content page | `GET /api/v1/pages/{slug}?locale=en` | CMS page title and body. |
 | Shared branding/contact | `GET /api/v1/site` | Brand name, logo, contact email, WhatsApp availability, and store links. |
 | Cab enquiry | `GET /api/v1/transport/locations?locale=en`, then `POST /api/v1/transport/enquiry-link` | Pickup/destination choices and a WhatsApp enquiry URL. |
-| Image | `GET /api/v1/media/{id}` | Image bytes; use the media paths returned by the other endpoints. |
+| Image | `GET /api/v1/images/{key}` | Image bytes; use the image paths returned by the other endpoints. |
 
 ## Integration rules
 
@@ -22,7 +24,7 @@ Use this document as the contract when implementing the visitor-facing frontend.
 4. On the landing page, use `data.categoryTypes` in its returned order. Use each tile's `type` code in the listing URL and later API calls; use `name` as visible text. Do not hardcode type codes such as `attraction`, because admins can add or remove types.
 5. Fetch category filters on the listing page, after a type is selected. The landing response deliberately has no `categories` key. Each category filter uses its `slug`, not its `id`. Categories have no image in the public response.
 6. For the “All” filter, omit `category` or send `category=all`. This includes published places without a category. For a specific filter, send its slug, for example `category=parks`. Keep `type` in every listing request. Reset `page` to `1` when the type, category, or search changes.
-7. Treat all arrays as possibly empty and all documented nullable fields as nullable. Join relative media paths to the API origin. Do not use CMS/admin media URLs for the public site.
+7. Treat all arrays as possibly empty and all documented nullable fields as nullable. Join relative image paths to the API origin. Do not use CMS/admin image URLs (`/admin/images/*`, `/api/v1/admin/images/*`) for the public site.
 8. App promotion title, body, and artwork are static frontend content. Only `appStoreUrl` and `playStoreUrl` come from the API; hide a store button when its URL is `null`.
 
 Navigation flow: a category type tile opens the listing for its `type`. A featured or listing place card opens the detail page using its `slug`. The frontend may choose its own page URLs; the API query values must come from these fields. `featured` is an array, so find a group by its `type` when rendering a specific section.
@@ -48,14 +50,14 @@ The code above illustrates URL construction; adapt state and error handling to t
     "hero": {
       "eyebrow": "WELCOME TO KUWAIT",
       "title": "Explore Kuwait",
-      "image": "/api/v1/media/10"
+      "image": "/api/v1/images/5f0c6b1e-8a7d-4c2b-9e1f-3a2b1c0d9e8f.webp"
     },
     "discoveryTitle": "What would you like to do?",
     "categoryTypes": [
       {
         "type": "attraction",
         "name": "Attractions",
-        "image": "/api/v1/media/11",
+        "image": "/api/v1/images/0d3e9a4c-1b2f-4e5a-8c7d-6f5e4d3c2b1a.webp",
         "order": 0
       }
     ],
@@ -71,7 +73,7 @@ The code above illustrates URL construction; adapt state and error handling to t
             "title": "Sample Park",
             "summary": "An example place summary",
             "address": "Kuwait City",
-            "cover": { "id": 13, "url": "/api/v1/media/13" }
+            "cover": { "url": "/api/v1/images/9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d.webp" }
           }
         ]
       }
@@ -112,7 +114,7 @@ This endpoint is only for the first landing page. It does not provide category f
       "title": "Sample Park",
       "summary": "An example place summary",
       "address": "Kuwait City",
-      "cover": { "id": 13, "url": "/api/v1/media/13" }
+      "cover": { "url": "/api/v1/images/9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d.webp" }
     }
   ],
   "meta": { "page": 1, "perPage": 12, "total": 1, "lastPage": 1 }
@@ -133,7 +135,7 @@ This endpoint is only for the first landing page. It does not provide category f
     "title": "Sample Park",
     "summary": "An example place summary",
     "address": "Kuwait City",
-    "cover": { "id": 13, "url": "/api/v1/media/13" },
+    "cover": { "url": "/api/v1/images/9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d.webp" },
     "body": "Example place description",
     "hoursNote": null,
     "price": { "mode": "free", "amount": null, "currency": "KWD", "unit": null },
@@ -148,7 +150,7 @@ This endpoint is only for the first landing page. It does not provide category f
       }
     ],
     "gallery": [
-      { "id": 15, "url": "/api/v1/media/15", "alt": "Example gallery image", "caption": null }
+      { "id": 15, "url": "/api/v1/images/2c1b0a9f-8e7d-4c6b-9a5f-4e3d2c1b0a9f.webp", "alt": "Example gallery image", "caption": null }
     ],
     "seo": { "title": null, "description": null },
     "cabDestination": { "placeId": 42, "name": "Sample Park" }
@@ -156,7 +158,7 @@ This endpoint is only for the first landing page. It does not provide category f
 }
 ```
 
-`coordinates` can be `null`; `hours` and `gallery` can be empty. `price.mode` is `unknown`, `free`, `from`, or `fixed`. `price.amount` is a three-decimal string when set. The `hours` keys currently use database-style snake case, and its boolean fields may be returned as database booleans or `0`/`1` depending on the driver. `cabDestination` identifies this place for display; its `placeId` is not a transport location ID.
+`coordinates` can be `null`; `hours` and `gallery` can be empty. Gallery items are ordered; `id` identifies the gallery image within its place, and Arabic `alt`/`caption` fall back to English. `price.mode` is `unknown`, `free`, `from`, or `fixed`. `price.amount` is a three-decimal string when set. The `hours` keys currently use database-style snake case, and its boolean fields may be returned as database booleans or `0`/`1` depending on the driver. `cabDestination` identifies this place for display; its `placeId` is not a transport location ID.
 
 ## Other public endpoints
 
@@ -226,9 +228,9 @@ Successful response:
 The URL opens a WhatsApp enquiry. It does not create a confirmed booking. The example phone number and URL are illustrative.
 Offer only locations with `pickupEnabled: true` as pickups and only locations with `dropoffEnabled: true` as destinations. Both request IDs must come from `/transport/locations`, must differ, and must not be taken from a place's `cabDestination.placeId`. Send a future `dateTime` interpreted in the `Asia/Kuwait` time zone. Open the returned `url` for the visitor after a successful response; do not display the enquiry as a confirmed reservation.
 
-### `GET /api/v1/media/13`
+### `GET /api/v1/images/{key}`
 
-Returns WebP image bytes (`Content-Type: image/webp`) rather than JSON. Public media is available only while referenced by public content.
+Returns WebP image bytes (`Content-Type: image/webp`, `Cache-Control: public, max-age=60`) rather than JSON. An image is served only while it belongs to visible content: a published place's cover or gallery, a category type tile, a homepage hero, the site logo, or a published movie poster. Otherwise it returns `404`. Treat the URL as opaque; it changes when an editor replaces the image. `logo` in `/site` is also such a path or `null`.
 
 ## Error response
 

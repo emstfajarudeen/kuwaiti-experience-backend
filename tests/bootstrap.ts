@@ -6,7 +6,9 @@ import { pluginAdonisJS } from '@japa/plugin-adonisjs'
 import { dbAssertions } from '@adonisjs/lucid/plugins/db'
 import testUtils from '@adonisjs/core/services/test_utils'
 import { sessionBrowserClient } from '@adonisjs/session/plugins/browser_client'
+import { sessionApiClient } from '@adonisjs/session/plugins/api_client'
 import { apiClient } from '@japa/api-client'
+import { shieldApiClient } from '@adonisjs/shield/plugins/api_client'
 
 /**
  * This file is imported by the "bin/test.ts" entrypoint file
@@ -23,6 +25,8 @@ export const plugins: Config['plugins'] = [
   browserClient({ runInSuites: ['browser'] }),
   sessionBrowserClient(app),
   apiClient(),
+  sessionApiClient(app),
+  shieldApiClient(),
 ]
 
 /**
@@ -38,7 +42,7 @@ export const runnerHooks: Required<Pick<Config, 'setup' | 'teardown'>> = {
       if (process.env.DB_DATABASE !== 'kuwaitiexperience_test') {
         throw new Error('Tests require the isolated kuwaitiexperience_test database')
       }
-      return testUtils.db().migrate()
+      return testUtils.db('test_migrations').migrate()
     },
   ],
   teardown: [],

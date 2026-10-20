@@ -21,8 +21,8 @@
 @each(place in rows)
 
         <tr><td><div class="place-cell">
-@if(place.cover_media_id)
-<img src="/admin/media/{{ place.cover_media_id }}/file" alt="">
+@if(place.cover_image_key)
+<img src="/admin/images/{{ place.cover_image_key }}" alt="">
 @else
 <span class="thumb-empty">K</span>
 @end

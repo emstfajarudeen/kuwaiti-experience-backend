@@ -1,5 +1,8 @@
 @layouts.admin({ title: place ? 'Edit place' : 'New place', active: 'places', adminName: admin.fullName })
   <a class="back-link" href="/admin/places">← Back to places</a>
+  @if(place)
+    <a class="button secondary" href="/admin/places/{{ place.id }}/explore">Manage Explore details, features and opening hours →</a>
+  @end
   <div class="eyebrow">{{ place ? 'REFINE THE EXPERIENCE' : 'ADD TO THE COLLECTION' }}</div>
   <div class="page-head"><div><h1>{{ place ? en.title : 'Create a new place' }}</h1><p>Write the details visitors need before they explore.</p></div>
 @if(place)
@@ -7,7 +10,7 @@
 @end
 </div>
   
-@form({ action: place ? `/admin/places/${place.id}/save` : '/admin/places', method: 'POST', class: 'editor-grid' })
+@form({ action: place ? `/admin/places/${place.id}/save` : '/admin/places', method: 'POST', enctype: 'multipart/form-data', class: 'editor-grid' })
 
     <div class="editor-main">
       <section class="panel form-panel"><span class="eyebrow">01 / ESSENTIALS</span><h2>Place details</h2>
@@ -72,32 +75,51 @@
  checked
 @end
 > Feature on homepage</label><label class="full">SEO description<textarea name="seoDescriptionEn" rows="2">{{ en?.seo_description || '' }}</textarea></label></div></section>
+      <section class="panel form-panel"><span class="eyebrow">05 / DETAIL GALLERY</span><h2>Gallery images</h2>
+        <p class="panel-help">Up to 20 images per place. Add up to {{ maxUploads }} images per save; new images go to the end of the gallery.</p>
+        @if(gallery.length)
+          <div class="gallery-editor">
+            @each((image, index) in gallery)
+              <article class="gallery-item">
+                <img src="{{ image.url }}" alt="{{ image.alt_en }}">
+                <input type="hidden" name="gallery[{{ index }}][id]" value="{{ image.id }}">
+                <div class="form-grid two">
+                  <label>English alt text<input name="gallery[{{ index }}][altEn]" value="{{ image.alt_en || '' }}" maxlength="255"></label>
+                  <label>Arabic alt text<input name="gallery[{{ index }}][altAr]" lang="ar" dir="rtl" value="{{ image.alt_ar || '' }}" maxlength="255"></label>
+                  <label>English caption<input name="gallery[{{ index }}][captionEn]" value="{{ image.caption_en || '' }}" maxlength="255"></label>
+                  <label>Arabic caption<input name="gallery[{{ index }}][captionAr]" lang="ar" dir="rtl" value="{{ image.caption_ar || '' }}" maxlength="255"></label>
+                  <label>Order<input name="gallery[{{ index }}][sortOrder]" type="number" min="0" max="999" value="{{ image.sort_order }}"></label>
+                  <label class="checkbox-line"><input type="checkbox" name="gallery[{{ index }}][remove]"> Remove image</label>
+                </div>
+              </article>
+            @end
+          </div>
+        @end
+        <div class="form-grid">
+          <div class="image-upload">
+            <span>Add gallery images</span>
+            <input type="file" name="galleryImages[]" multiple accept="image/jpeg,image/png,image/webp" aria-label="Add gallery images" data-image-upload data-max-files="{{ maxUploads }}">
+          </div>
+          <label>Alt text for new images <small>(defaults to the place title)</small><input name="galleryAltEn" maxlength="255"></label>
+        </div>
+      </section>
     </div>
     <aside class="editor-aside">
       <section class="panel form-panel"><span class="eyebrow">VISUAL STORY</span><h2>Cover image</h2>
-@if(place && place.cover_media_id)
-<img class="cover-preview" src="/admin/media/{{ place.cover_media_id }}/file" alt="Current cover">
-@else
-<div class="cover-placeholder">Your cover image appears here</div>
-@end
-<label>Choose image<select name="coverMediaId"><option value="">No image</option>
-@each(image in media)
-<option value="{{ image.id }}" 
-@if(place && place.cover_media_id === image.id)
- selected 
-@end
->{{ image.original_name }}</option>
-@end
-</select></label><a class="text-button" href="/admin/media">Upload images in the media library ↗</a></section>
-      <section class="panel form-panel"><span class="eyebrow">DETAIL GALLERY</span><h2>Gallery images</h2><p class="panel-help">Choose one or more images from the dropdown.</p><select name="galleryIds[]" multiple size="7" class="multi-select">
-@each(image in media)
-<option value="{{ image.id }}" 
-@if(galleryIds.includes(image.id))
- selected 
-@end
->{{ image.original_name }}</option>
-@end
-</select></section>
+        @if(coverUrl)
+          <img class="cover-preview" src="{{ coverUrl }}" alt="Current cover">
+        @else
+          <div class="cover-placeholder">Your cover image appears here</div>
+        @end
+        <div class="image-upload">
+          <span>{{ coverUrl ? 'Replace cover image' : 'Upload a cover image' }}</span>
+          <input type="file" name="coverImage" accept="image/jpeg,image/png,image/webp" aria-label="Cover image" data-image-upload>
+        </div>
+        <p class="panel-help">JPEG, PNG or WebP · 5 MB maximum. Images are converted to WebP.</p>
+        @if(coverUrl && place.status !== 'published')
+          <label class="checkbox-line"><input type="checkbox" name="removeCover"> Remove cover image</label>
+        @end
+      </section>
       <section class="panel form-panel actions-panel">
         <span class="eyebrow">READY TO SAVE?</span>
         @if(!place || place.status !== 'published')

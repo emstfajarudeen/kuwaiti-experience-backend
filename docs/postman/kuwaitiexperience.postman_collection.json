@@ -1,0 +1,2442 @@
+{
+  "info": {
+    "_postman_id": "253811f7-4325-4b3f-a0ec-85e39fd940ad",
+    "name": "Kuwaiti Experience \u2014 Customer and Profile APIs",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Import the companion Local environment and select it. Set base_url and your phone numbers. Requests are intended to be sent individually: login branches, optional resend, photo selection, logout and deletion require manual choices. See docs/postman/README.md. No real credentials or OTPs are included. Customer token/proof values are captured into the selected environment only after successful responses. SMS request/resend returns 503 until the configured provider adapter is available. Explore v2 browsing, bookmarks and CMS movie/feature/showtime requests are in folders 07\u201309; see docs/explore-api.md."
+  },
+  "item": [
+    {
+      "name": "01 \u2014 Legal pages and public settings",
+      "description": "Read both legal pages before registration; scripts capture the selected locale and content hash. Approved pages must be published in the CMS.",
+      "item": [
+        {
+          "name": "Privacy policy",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/pages/privacy-policy?locale={{locale}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.environment.unset('privacy_content_hash');"]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "const m = pm.response.json().meta;",
+                  "pm.environment.set('privacy_content_hash', m.content_hash);",
+                  "pm.environment.set('privacy_locale', m.locale);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Terms and conditions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/pages/terms-and-conditions?locale={{locale}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.environment.unset('terms_content_hash');"]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "const m = pm.response.json().meta;",
+                  "pm.environment.set('terms_content_hash', m.content_hash);",
+                  "pm.environment.set('terms_locale', m.locale);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Site settings and WhatsApp",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/site",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 \u2014 Phone login and registration",
+      "description": "Request OTP, enter the received code in otp_code, then verify. Follow next_action: send Existing customer sign in OR Create account, not both. OTP proofs are one use. SMS is disabled until a provider adapter is configured; request/resend currently returns 503.",
+      "item": [
+        {
+          "name": "Request login OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/auth/otp",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone_e164\": \"{{phone_e164}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.unset('otp_challenge_id'); pm.environment.unset('verification_token');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", function () { pm.response.to.have.status(202); });",
+                  "if (pm.response.code === 202) {",
+                  "const d = pm.response.json().data;",
+                  "pm.environment.set('otp_challenge_id', d.id);",
+                  "pm.environment.unset('verification_token');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Resend login OTP (after cooldown)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/auth/otp/{{otp_challenge_id}}/resend",
+            "description": "Optional. Wait until resend_available_at. Enter the latest received code before verifying.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", function () { pm.response.to.have.status(202); });",
+                  "if (pm.response.code === 202) {",
+                  "const d = pm.response.json().data;",
+                  "pm.environment.set('otp_challenge_id', d.id);",
+                  "pm.environment.unset('verification_token');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Verify login OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/auth/otp/{{otp_challenge_id}}/verify",
+            "description": "Enter the 4-digit SMS code as a string in otp_code. Inspect next_action before choosing the next request.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{otp_code}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.environment.unset('verification_token');"]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "const d = pm.response.json().data; pm.environment.set('verification_token', d.verification_token); pm.environment.set('next_action', d.next_action);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Existing customer sign in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/auth/session",
+            "description": "Use only when next_action is sign_in. Captures both customer credentials.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verification_token\": \"{{verification_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "const d = pm.response.json().data;",
+                  "pm.environment.set('access_token', d.credentials.access_token);",
+                  "pm.environment.set('refresh_token', d.credentials.refresh_token);",
+                  "pm.environment.set('customer_id', String(d.customer.id));",
+                  "pm.environment.unset('verification_token');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customers",
+            "description": "Use only when next_action is create_account and the user has read/accepted both legal pages. Email is optional; replace null with an email string to supply it.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"verification_token\": \"{{verification_token}}\",\n  \"first_name\": \"{{first_name}}\",\n  \"last_name\": \"{{last_name}}\",\n  \"email\": null,\n  \"legal_acceptances\": [\n    {\n      \"slug\": \"privacy-policy\",\n      \"locale\": \"{{privacy_locale}}\",\n      \"content_hash\": \"{{privacy_content_hash}}\"\n    },\n    {\n      \"slug\": \"terms-and-conditions\",\n      \"locale\": \"{{terms_locale}}\",\n      \"content_hash\": \"{{terms_content_hash}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) {",
+                  "const d = pm.response.json().data;",
+                  "pm.environment.set('access_token', d.credentials.access_token);",
+                  "pm.environment.set('refresh_token', d.credentials.refresh_token);",
+                  "pm.environment.set('customer_id', String(d.customer.id));",
+                  "pm.environment.unset('verification_token');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Refresh customer session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/auth/refresh",
+            "description": "Rotates both credentials automatically. Never reuse the previous refresh token.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "const d = pm.response.json().data;",
+                  "pm.environment.set('access_token', d.credentials.access_token);",
+                  "pm.environment.set('refresh_token', d.credentials.refresh_token);",
+                  "pm.environment.set('customer_id', String(d.customer.id));",
+                  "pm.environment.unset('verification_token');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 \u2014 Edit Profile",
+      "description": "Customer bearer tokens are applied automatically. Profile text and photo changes save independently. Nullable Customer fields are always present.",
+      "item": [
+        {
+          "name": "Load my profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Save names and optional email",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me",
+            "description": "null clears email. Replace null with an email string, or omit the key to retain it. Omitted names retain their values.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"{{first_name}}\",\n  \"last_name\": \"{{last_name}}\",\n  \"email\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Upload or replace my profile photo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me/photo",
+            "description": "In Body \u2192 form-data, select a file for the file field. Postman sets the multipart boundary. Saves immediately, independently of text edits.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Select a local JPEG, PNG or WebP image, maximum 5 MB."
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "View my profile photo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "image/webp"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me/photo",
+            "description": "Run after upload. Returns private WebP bytes; Postman Preview displays the image. Returns 404 if no photo exists.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Remove my profile photo",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me/photo",
+            "description": "Removes the current photo immediately and returns Customer with profile_photo_id null.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 \u2014 Change phone with OTP",
+      "description": "Requires a login verified within the past 10 minutes. Use a different, unused new_phone_e164. Run all steps using the same customer session. Successful save revokes other sessions. SMS must be configured.",
+      "item": [
+        {
+          "name": "Request new phone OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me/phone/otp",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone_e164\": \"{{new_phone_e164}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.unset('phone_otp_challenge_id'); pm.environment.unset('phone_verification_token');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", function () { pm.response.to.have.status(202); });",
+                  "if (pm.response.code === 202) {",
+                  "const d = pm.response.json().data;",
+                  "pm.environment.set('phone_otp_challenge_id', d.id);",
+                  "pm.environment.unset('phone_verification_token');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Resend new phone OTP (after cooldown)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me/phone/otp/{{phone_otp_challenge_id}}/resend",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", function () { pm.response.to.have.status(202); });",
+                  "if (pm.response.code === 202) {",
+                  "const d = pm.response.json().data;",
+                  "pm.environment.set('phone_otp_challenge_id', d.id);",
+                  "pm.environment.unset('phone_verification_token');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Verify new phone OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me/phone/otp/{{phone_otp_challenge_id}}/verify",
+            "description": "Enter the SMS code in phone_otp_code. The proof is bound to this customer and session.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{phone_otp_code}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.environment.unset('phone_verification_token');"]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "pm.environment.set('phone_verification_token', pm.response.json().data.verification_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Save verified phone",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me",
+            "description": "Consumes the phone proof atomically. You can also include first_name, last_name and email.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone_e164\": \"{{new_phone_e164}}\",\n  \"phone_verification_token\": \"{{phone_verification_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "pm.environment.set('phone_e164', pm.response.json().data.phone_e164); pm.environment.unset('phone_verification_token');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 \u2014 Contact Us",
+      "description": "Guest and signed-in submission examples. Each Send creates a real inbox item. Limit: 5 submissions per IP per hour.",
+      "item": [
+        {
+          "name": "Submit contact as guest",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/contact-requests",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"{{full_name}}\",\n  \"email\": \"{{contact_email}}\",\n  \"message\": \"{{contact_message}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) {",
+                  "pm.environment.set('contact_request_id', String(pm.response.json().data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Submit contact as customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/contact-requests",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"{{full_name}}\",\n  \"email\": \"{{contact_email}}\",\n  \"message\": \"{{contact_message}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) {",
+                  "pm.environment.set('contact_request_id', String(pm.response.json().data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06 \u2014 CMS contact inbox and shared content",
+      "description": "Optional admin requests. Set admin_email/admin_password and sign in here, or paste an existing admin JWT into admin_access_token. Customer tokens do not grant CMS access.",
+      "item": [
+        {
+          "name": "Admin sign in (existing v1 auth)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/admin/auth/login",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.environment.unset('admin_access_token');"]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "pm.environment.set('admin_access_token', pm.response.json().data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List contact requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/contact-requests?page=1&status={{contact_status}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Read contact request",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/contact-requests/{{contact_request_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update contact status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/contact-requests/{{contact_request_id}}",
+            "description": "Set contact_status to new, in_progress or resolved. Saves immediately.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"{{contact_status}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Read legal page as admin",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/pages/{{page_slug}}?locale={{locale}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Read site settings as admin",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/site",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "07 \u2014 Explore public browsing",
+      "description": "Requires published CMS content. Lists capture the first visible place for later reads. Set explore_type and theater_slug for your content.",
+      "item": [
+        {
+          "name": "Explore type tiles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/explore",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Categories for selected type",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/categories?type={{explore_type}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Features for selected type",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/place-features?type={{explore_type}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List places and capture first place",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/places?type={{explore_type}}&page=1&per_page=12",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "const rows = pm.response.json().data; if (rows.length) { pm.environment.set('place_id', String(rows[0].id)); pm.environment.set('place_slug', rows[0].slug); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List only places open now",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/places?type={{explore_type}}&open_now=true&per_page=12",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Filter places by capability or highlight",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/places?type={{explore_type}}&feature={{feature_code}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Read place details as guest",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/places/{{place_slug}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Read place details with my save state",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/places/{{place_slug}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List theaters and capture first theater",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/places?type=theater&per_page=12",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "const rows = pm.response.json().data; if (rows.length) { pm.environment.set('theater_place_id', String(rows[0].id)); pm.environment.set('theater_slug', rows[0].slug); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Active movies and upcoming showtimes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/places/{{theater_slug}}/showtimes?date={{showtime_date}}&per_page=20",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "08 \u2014 Place bookmarks",
+      "description": "Customer credentials are required. Saves are idempotent and private to this account.",
+      "item": [
+        {
+          "name": "Save current place",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me/saved-places/{{place_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List my saved places",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me/saved-places?per_page=12",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Remove my saved place",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me/saved-places/{{place_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "09 \u2014 CMS Explore management",
+      "description": "Use Admin sign in in folder 06 first. These requests change actual CMS content. Set the selected place/type, upload your own poster and choose a future showtime. Send individually; deletion requests are optional.",
+      "item": [
+        {
+          "name": "Read CMS places",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/places?per_page=12",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Read selected CMS place",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/places/{{place_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Save venue phone and feature assignment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/places/{{place_id}}/explore",
+            "description": "Create a matching-type feature first. Add check_in_time/check_out_time only for hotel_resort; screen_count only for theater. place_hours accepts weekday, interval_index, opens_at, closes_at, closes_next_day, closed. Omitted fields remain unchanged.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone_e164\": \"{{venue_phone_e164}}\",\n  \"feature_ids\": [\n    {{feature_id}}\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List CMS features",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/place-features?type={{explore_type}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create feature and capture ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/place-features",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"{{explore_type}}\",\n  \"code\": \"{{feature_code}}\",\n  \"kind\": \"highlight\",\n  \"name_en\": \"Family friendly\",\n  \"name_ar\": null,\n  \"active\": true,\n  \"sort_order\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) {",
+                  "pm.environment.set('feature_id', String(pm.response.json().data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update feature definition",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/place-features/{{feature_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"{{explore_type}}\",\n  \"code\": \"{{feature_code}}\",\n  \"kind\": \"highlight\",\n  \"name_en\": \"Family friendly\",\n  \"name_ar\": null,\n  \"active\": true,\n  \"sort_order\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Delete unassigned feature (optional)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/place-features/{{feature_id}}",
+            "description": "Returns 409 while assigned. Clear feature_ids on the place first if you intend to remove the definition.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List CMS movies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/movies?per_page=12",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create movie draft and capture ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/movies",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title_en\": \"Integration test movie\",\n  \"title_ar\": null,\n  \"synopsis_en\": \"CMS-maintained screening information.\",\n  \"duration_minutes\": 120,\n  \"age_rating\": null,\n  \"status\": \"draft\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) {",
+                  "pm.environment.set('movie_id', String(pm.response.json().data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Read CMS movie",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/movies/{{movie_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Upload or replace movie poster",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/movies/{{movie_id}}/poster",
+            "description": "Select a local JPEG/PNG/WebP file in Body \u2192 form-data \u2192 file. Maximum 5 MB.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Publish movie after poster upload",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/movies/{{movie_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title_en\": \"Integration test movie\",\n  \"title_ar\": null,\n  \"synopsis_en\": \"CMS-maintained screening information.\",\n  \"duration_minutes\": 120,\n  \"age_rating\": null,\n  \"status\": \"published\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Remove poster from draft or archive (optional)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/movies/{{movie_id}}/poster",
+            "description": "Returns 422 while the movie is published; set its status to draft or archived before removing the poster.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Delete movie without showtimes (optional)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/movies/{{movie_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List CMS showtimes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/showtimes?place_id={{theater_place_id}}&per_page=20",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create showtime and capture ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/showtimes",
+            "description": "Both theater and movie must be published. Set showtime_starts_at to an ISO timestamp with timezone; update showtime_date to the matching Kuwait date.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"place_id\": {{theater_place_id}},\n  \"movie_id\": {{movie_id}},\n  \"starts_at\": \"{{showtime_starts_at}}\",\n  \"format\": \"IMAX\",\n  \"status\": \"published\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) {",
+                  "pm.environment.set('showtime_id', String(pm.response.json().data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Cancel showtime",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/showtimes/{{showtime_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"place_id\": {{theater_place_id}},\n  \"movie_id\": {{movie_id}},\n  \"starts_at\": \"{{showtime_starts_at}}\",\n  \"format\": \"IMAX\",\n  \"status\": \"cancelled\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Delete showtime (optional)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/showtimes/{{showtime_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "10 \u2014 Logout or delete account (run individually)",
+      "description": "Choose one request manually after testing. Logout revokes this session. Delete permanently removes the customer and owned data, and requires OTP authentication within the past 10 minutes. Do not run this folder as part of a bulk collection run.",
+      "item": [
+        {
+          "name": "Logout current customer session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/auth/logout",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });",
+                  "if (pm.response.code === 204) {",
+                  "['access_token', 'refresh_token', 'verification_token', 'phone_verification_token', 'phone_otp_challenge_id', 'customer_id'].forEach(function (key) { pm.environment.unset(key); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Permanently delete my account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me",
+            "description": "Permanently deletes the signed-in customer and owned data. Use a disposable test account; requires recent OTP sign-in.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });",
+                  "if (pm.response.code === 204) {",
+                  "['access_token', 'refresh_token', 'verification_token', 'phone_verification_token', 'phone_otp_challenge_id', 'customer_id'].forEach(function (key) { pm.environment.unset(key); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Validate every returned customer against the same canonical schema.",
+          "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('application/json')) {",
+          "  const d = pm.response.json().data;",
+          "  const c = d && (d.customer || (Object.prototype.hasOwnProperty.call(d, 'phone_e164') ? d : null));",
+          "  if (c) {",
+          "    pm.test('Customer uses the canonical DB keys and types', function () {",
+          "      pm.expect(c).to.have.jsonSchema({\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"id\", \"phone_e164\", \"first_name\", \"last_name\", \"email\", \"phone_verified_at\", \"created_at\", \"updated_at\", \"profile_photo_id\"], \"properties\": {\"id\": {\"type\": \"integer\", \"minimum\": 1}, \"phone_e164\": {\"type\": \"string\", \"pattern\": \"^\\\\+[1-9]\\\\d{7,14}$\"}, \"first_name\": {\"type\": \"string\", \"minLength\": 1, \"maxLength\": 120}, \"last_name\": {\"type\": \"string\", \"minLength\": 1, \"maxLength\": 120}, \"email\": {\"type\": [\"string\", \"null\"], \"format\": \"email\"}, \"phone_verified_at\": {\"type\": \"string\", \"format\": \"date-time\"}, \"created_at\": {\"type\": \"string\", \"format\": \"date-time\"}, \"updated_at\": {\"type\": [\"string\", \"null\"], \"format\": \"date-time\"}, \"profile_photo_id\": {\"type\": [\"string\", \"null\"], \"format\": \"uuid\"}}});",
+          "    });",
+          "  }",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('application/json')) {",
+          "  const schemas = {\"Place\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"id\", \"type\", \"category_id\", \"slug\", \"status\", \"cover_image_key\", \"latitude\", \"longitude\", \"price_amount\", \"price_currency\", \"price_mode\", \"website_url\", \"featured_order\", \"phone_e164\", \"check_in_time\", \"check_out_time\", \"screen_count\", \"published_at\", \"created_at\", \"updated_at\", \"place_translations\", \"place_hours\", \"place_images\", \"place_features\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"type\": {\"type\": \"string\"}, \"category_id\": {\"type\": [\"integer\", \"null\"]}, \"slug\": {\"type\": \"string\"}, \"status\": {\"type\": \"string\", \"enum\": [\"draft\", \"published\", \"archived\"]}, \"cover_image_key\": {\"type\": [\"string\", \"null\"]}, \"latitude\": {\"type\": [\"number\", \"null\"]}, \"longitude\": {\"type\": [\"number\", \"null\"]}, \"price_amount\": {\"type\": [\"string\", \"null\"], \"pattern\": \"^\\\\d+\\\\.\\\\d{3}$\"}, \"price_currency\": {\"type\": \"string\"}, \"price_mode\": {\"type\": \"string\", \"enum\": [\"unknown\", \"free\", \"from\", \"fixed\"]}, \"website_url\": {\"type\": [\"string\", \"null\"]}, \"featured_order\": {\"type\": [\"integer\", \"null\"]}, \"phone_e164\": {\"type\": [\"string\", \"null\"], \"pattern\": \"^\\\\+[1-9]\\\\d{7,14}$\"}, \"check_in_time\": {\"type\": [\"string\", \"null\"], \"pattern\": \"^([01]\\\\d|2[0-3]):[0-5]\\\\d(?::[0-5]\\\\d)?$\"}, \"check_out_time\": {\"type\": [\"string\", \"null\"], \"pattern\": \"^([01]\\\\d|2[0-3]):[0-5]\\\\d(?::[0-5]\\\\d)?$\"}, \"screen_count\": {\"type\": [\"integer\", \"null\"]}, \"published_at\": {\"type\": [\"string\", \"null\"], \"format\": \"date-time\"}, \"created_at\": {\"type\": \"string\", \"format\": \"date-time\"}, \"updated_at\": {\"type\": [\"string\", \"null\"], \"format\": \"date-time\"}, \"place_translations\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"id\", \"place_id\", \"locale\", \"title\", \"summary\", \"address\", \"body\", \"hours_note\", \"price_unit\", \"seo_title\", \"seo_description\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"place_id\": {\"type\": \"integer\"}, \"locale\": {\"type\": \"string\", \"enum\": [\"en\", \"ar\"]}, \"title\": {\"type\": \"string\"}, \"summary\": {\"type\": \"string\"}, \"address\": {\"type\": \"string\"}, \"body\": {\"type\": [\"string\", \"null\"]}, \"hours_note\": {\"type\": [\"string\", \"null\"]}, \"price_unit\": {\"type\": [\"string\", \"null\"]}, \"seo_title\": {\"type\": [\"string\", \"null\"]}, \"seo_description\": {\"type\": [\"string\", \"null\"]}}}}, \"place_hours\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"id\", \"place_id\", \"weekday\", \"interval_index\", \"opens_at\", \"closes_at\", \"closes_next_day\", \"closed\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"place_id\": {\"type\": \"integer\"}, \"weekday\": {\"type\": \"integer\", \"minimum\": 0, \"maximum\": 6}, \"interval_index\": {\"type\": \"integer\"}, \"opens_at\": {\"type\": [\"string\", \"null\"], \"pattern\": \"^([01]\\\\d|2[0-3]):[0-5]\\\\d(?::[0-5]\\\\d)?$\"}, \"closes_at\": {\"type\": [\"string\", \"null\"], \"pattern\": \"^([01]\\\\d|2[0-3]):[0-5]\\\\d(?::[0-5]\\\\d)?$\"}, \"closes_next_day\": {\"type\": \"boolean\"}, \"closed\": {\"type\": \"boolean\"}}}}, \"place_images\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"id\", \"place_id\", \"storage_key\", \"alt_en\", \"alt_ar\", \"caption_en\", \"caption_ar\", \"sort_order\", \"created_at\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"place_id\": {\"type\": \"integer\"}, \"storage_key\": {\"type\": \"string\"}, \"alt_en\": {\"type\": \"string\"}, \"alt_ar\": {\"type\": [\"string\", \"null\"]}, \"caption_en\": {\"type\": [\"string\", \"null\"]}, \"caption_ar\": {\"type\": [\"string\", \"null\"]}, \"sort_order\": {\"type\": \"integer\"}, \"created_at\": {\"type\": \"string\", \"format\": \"date-time\"}}}}, \"place_features\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"id\", \"type\", \"code\", \"kind\", \"name_en\", \"name_ar\", \"active\", \"sort_order\", \"created_at\", \"updated_at\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"type\": {\"type\": \"string\"}, \"code\": {\"type\": \"string\"}, \"kind\": {\"type\": \"string\", \"enum\": [\"highlight\", \"amenity\", \"capability\"]}, \"name_en\": {\"type\": \"string\"}, \"name_ar\": {\"type\": [\"string\", \"null\"]}, \"active\": {\"type\": \"boolean\"}, \"sort_order\": {\"type\": \"integer\"}, \"created_at\": {\"type\": \"string\", \"format\": \"date-time\"}, \"updated_at\": {\"type\": [\"string\", \"null\"], \"format\": \"date-time\"}}}}}}, \"Feature\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"id\", \"type\", \"code\", \"kind\", \"name_en\", \"name_ar\", \"active\", \"sort_order\", \"created_at\", \"updated_at\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"type\": {\"type\": \"string\"}, \"code\": {\"type\": \"string\"}, \"kind\": {\"type\": \"string\", \"enum\": [\"highlight\", \"amenity\", \"capability\"]}, \"name_en\": {\"type\": \"string\"}, \"name_ar\": {\"type\": [\"string\", \"null\"]}, \"active\": {\"type\": \"boolean\"}, \"sort_order\": {\"type\": \"integer\"}, \"created_at\": {\"type\": \"string\", \"format\": \"date-time\"}, \"updated_at\": {\"type\": [\"string\", \"null\"], \"format\": \"date-time\"}}}, \"Movie\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"id\", \"title_en\", \"title_ar\", \"synopsis_en\", \"synopsis_ar\", \"duration_minutes\", \"age_rating\", \"poster_image_key\", \"status\", \"published_at\", \"created_at\", \"updated_at\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"title_en\": {\"type\": \"string\"}, \"title_ar\": {\"type\": [\"string\", \"null\"]}, \"synopsis_en\": {\"type\": [\"string\", \"null\"]}, \"synopsis_ar\": {\"type\": [\"string\", \"null\"]}, \"duration_minutes\": {\"type\": [\"integer\", \"null\"]}, \"age_rating\": {\"type\": [\"string\", \"null\"]}, \"poster_image_key\": {\"type\": [\"string\", \"null\"]}, \"status\": {\"type\": \"string\", \"enum\": [\"draft\", \"published\", \"archived\"]}, \"published_at\": {\"type\": [\"string\", \"null\"], \"format\": \"date-time\"}, \"created_at\": {\"type\": \"string\", \"format\": \"date-time\"}, \"updated_at\": {\"type\": [\"string\", \"null\"], \"format\": \"date-time\"}}}, \"Showtime\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"id\", \"place_id\", \"movie_id\", \"starts_at\", \"format\", \"status\", \"created_at\", \"updated_at\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"place_id\": {\"type\": \"integer\"}, \"movie_id\": {\"type\": \"integer\"}, \"starts_at\": {\"type\": \"string\", \"format\": \"date-time\"}, \"format\": {\"type\": \"string\"}, \"status\": {\"type\": \"string\", \"enum\": [\"draft\", \"published\", \"cancelled\"]}, \"created_at\": {\"type\": \"string\", \"format\": \"date-time\"}, \"updated_at\": {\"type\": [\"string\", \"null\"], \"format\": \"date-time\"}}}};",
+          "  const body = pm.response.json();",
+          "  const rows = Array.isArray(body.data) ? body.data : [body.data];",
+          "  if (body.included && body.included.movies) rows.push(...body.included.movies);",
+          "  rows.filter(Boolean).forEach(function (row) {",
+          "    const type = row.place_translations ? 'Place' : row.title_en !== undefined ? 'Movie' : row.kind && row.code ? 'Feature' : row.movie_id && row.starts_at ? 'Showtime' : null;",
+          "    if (type) pm.test(type + ' uses canonical DB keys and types', function () { pm.expect(row).to.have.jsonSchema(schemas[type]); });",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ]
+}

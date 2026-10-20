@@ -4,7 +4,7 @@
   <a class="back-link" href="/admin/category-types">← Back to category types</a>
   <div class="eyebrow">{{ categoryType ? 'REFINE DISCOVERY' : 'ADD TO DISCOVERY' }}</div>
   <div class="page-head"><div><h1>{{ categoryType ? categoryType.name_en : 'Create a category type' }}</h1><p>Manage the discovery tile and place type used throughout the guide.</p></div></div>
-  @form({ action: categoryType ? `/admin/category-types/${categoryType.code}/save` : '/admin/category-types', method: 'POST', class: 'editor-grid' })
+  @form({ action: categoryType ? `/admin/category-types/${categoryType.code}/save` : '/admin/category-types', method: 'POST', enctype: 'multipart/form-data', class: 'editor-grid' })
     <div class="editor-main"><section class="panel form-panel"><span class="eyebrow">TYPE DETAILS</span><h2>Discovery information</h2><div class="form-grid two">
       @if(!categoryType)
         <label>Code<input name="code" value="{{ form.code ?? '' }}" required maxlength="32" pattern="[a-z0-9]+(_[a-z0-9]+)*" placeholder="museum"></label>
@@ -14,20 +14,28 @@
       <label>Display order<input name="sortOrder" type="number" value="{{ form.sortOrder ?? categoryType?.sort_order ?? nextOrder }}" required></label>
       <label>English name<input name="nameEn" value="{{ form.nameEn ?? categoryType?.name_en ?? '' }}" required maxlength="160" placeholder="Museums"></label>
       <label>Arabic name<input name="nameAr" dir="rtl" lang="ar" value="{{ form.nameAr ?? categoryType?.name_ar ?? '' }}" maxlength="160"></label>
-      <label class="full">Tile image<select name="imageId">
-        <option value="">No tile image</option>
-        @each(image in media)
-          <option value="{{ image.id }}"
-            @if(String(form.imageId ?? categoryType?.image_id ?? '') === String(image.id))
-              selected
-            @end
-          >{{ image.original_name }}</option>
+      <div class="full image-field">
+        <span class="field-title">Tile image <small>(optional)</small></span>
+        @if(imageUrl)
+          <img class="category-type-preview" src="{{ imageUrl }}" alt="Current tile image for {{ categoryType.name_en }}">
         @end
-      </select></label>
+        <div class="image-upload">
+          <span>{{ imageUrl ? 'Replace tile image' : 'Upload a tile image' }}</span>
+          <input type="file" name="image" accept="image/jpeg,image/png,image/webp" aria-label="Tile image" data-image-upload>
+        </div>
+        <p class="panel-help">JPEG, PNG or WebP · 5 MB maximum. Images are converted to WebP.</p>
+        @if(imageUrl)
+          <label class="checkbox-line"><input type="checkbox" name="removeImage"> Remove tile image</label>
+        @end
+      </div>
     </div></section></div>
-    <aside class="editor-aside"><section class="panel form-panel actions-panel"><span class="eyebrow">READY TO SAVE?</span><p class="panel-help">The tile image is managed in the media library and is optional.</p><button class="button primary wide" type="submit">Save {{ categoryType ? 'changes' : 'category type' }} <span>→</span></button></section></aside>
+    <aside class="editor-aside"><section class="panel form-panel actions-panel"><span class="eyebrow">READY TO SAVE?</span><p class="panel-help">The tile image is optional and appears in the homepage discovery section.</p><button class="button primary wide" type="submit">Save {{ categoryType ? 'changes' : 'category type' }} <span>→</span></button></section></aside>
   @end
   @if(categoryType)
-    <div class="danger-row">@form({ action: `/admin/category-types/${categoryType.code}/delete`, method: 'POST', 'onsubmit': "return confirm('Delete this category type?')" })<button class="text-button danger" type="submit">Delete category type</button>@end</div>
+    <div class="danger-row">
+      @form({ action: `/admin/category-types/${categoryType.code}/delete`, method: 'POST', 'onsubmit': "return confirm('Delete this category type?')" })
+        <button class="text-button danger" type="submit">Delete category type</button>
+      @end
+    </div>
   @end
 @end

@@ -7,12 +7,12 @@ import {
   deleteCategoryType,
   updateCategoryType,
 } from '../../services/category_type_service.js'
+import { cmsImageUrl, imageFiles, prepareImages } from '../../services/image_storage_service.js'
 
 function formInput(request: HttpContext['request']) {
   return {
     nameEn: request.input('nameEn'),
     nameAr: request.input('nameAr') || null,
-    imageId: request.input('imageId') ? Number(request.input('imageId')) : null,
     sortOrder: Number(request.input('sortOrder')),
   }
 }
@@ -23,32 +23,37 @@ export default class AdminCategoryTypesPageController {
   }
 
   async create({ view, admin }: HttpContext) {
-    const [media, rows] = await Promise.all([
-      db.from('media').select('id', 'original_name').orderBy('id', 'desc').limit(100),
-      categoryTypes(),
-    ])
+    const rows = await categoryTypes()
     return view.render('admin/category_types/edit', {
       admin,
       categoryType: null,
-      media,
+      imageUrl: null,
       nextOrder: rows.length,
     })
   }
 
   async edit({ params, view, response, admin }: HttpContext) {
-    const [categoryType, media] = await Promise.all([
-      db.from('category_types').where('code', params.code).first(),
-      db.from('media').select('id', 'original_name').orderBy('id', 'desc').limit(100),
-    ])
+    const categoryType = await db.from('category_types').where('code', params.code).first()
     if (!categoryType) return response.redirect('/admin/category-types')
-    return view.render('admin/category_types/edit', { admin, categoryType, media, nextOrder: 0 })
+    return view.render('admin/category_types/edit', {
+      admin,
+      categoryType,
+      imageUrl: cmsImageUrl(categoryType.image_key),
+      nextOrder: 0,
+    })
   }
 
   async save({ params, request, response, session, admin }: HttpContext) {
     try {
       if (params.code) {
         const input = await categoryTypeValidator.validate(formInput(request))
-        await updateCategoryType(params.code, input, admin.id)
+        const { image } = await prepareImages(admin.id, { image: imageFiles(request, 'image') })
+        await updateCategoryType(
+          params.code,
+          input,
+          admin.id,
+          image[0] ?? (request.input('removeImage') === 'on' ? 'remove' : undefined)
+        )
         session.flash('success', 'Category type saved.')
         return response.redirect('/admin/category-types/saved')
       }
@@ -56,15 +61,18 @@ export default class AdminCategoryTypesPageController {
         ...formInput(request),
         code: request.input('code'),
       })
-      await createCategoryType(input, admin.id)
+      const { image } = await prepareImages(admin.id, { image: imageFiles(request, 'image') })
+      await createCategoryType(input, admin.id, image[0])
       session.flash('success', 'Category type created.')
       return response.redirect('/admin/category-types/saved')
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to save category type'
+      const attached = Object.keys(request.allFiles()).length > 0
       session.flash(
         'error',
-        error instanceof Error ? error.message : 'Unable to save category type'
+        attached ? `${message.replace(/\.$/, '')}. Re-select the image you attached.` : message
       )
-      session.flash('categoryTypeForm', request.all())
+      session.flash('categoryTypeForm', request.except(['image', 'removeImage']))
       return response.redirect(
         params.code ? `/admin/category-types/${params.code}/edit` : '/admin/category-types/new'
       )
