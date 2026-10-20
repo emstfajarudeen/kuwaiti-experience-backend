@@ -15,7 +15,6 @@ frontend. Nothing else in the API changed.
 | gallery item `id` = media id | gallery item `id` = gallery row id (still present) |
 | `/api/v2/site` → `logo_media_id` (number) | `/api/v2/site` → `logo_image_url` (full URL string or null) |
 
-
 **Golden rule:** always use the URL string the API gives you. Never build an
 image URL yourself from an id. If you were doing
 `` `${API}/api/v1/media/${cover.id}` ``, stop doing that and use `cover.url`.
