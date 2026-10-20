@@ -1,5 +1,7 @@
 # Customer account and support API
 
+Start with the [mobile app API reference](app-api-reference.md) for the current screen map, endpoint inventory, integration examples and AI handoff instructions. This guide adds account/support details.
+
 Implemented base: `/api/v2`. OpenAPI: [customer-openapi.json](customer-openapi.json). These endpoints implement the first selected App 2 screens. Existing v1 responses remain a legacy contract; mobile clients should use v2 for this section. The rest of App 2 is still planned.
 
 Postman: import the [collection](postman/kuwaitiexperience.postman_collection.json) and [local environment](postman/local.postman_environment.json). See the [testing instructions](postman/README.md) for login, profile/photo, phone changes and CMS requests.
@@ -56,7 +58,7 @@ Customer credentials are opaque tokens with digests stored in the database, isol
 
 `POST /customer/auth/refresh` takes `{ "refresh_token": "<token>" }` without an Authorization header. Refresh rotates both credentials and invalidates the old access token. Reuse of an old refresh token revokes that session. API routes reject CMS cookies and admin credentials.
 
-"Continue as guest" is app-local and requires no token. Public content, contact and legal requests work without a customer session. Profile editing is documented separately above; saved addresses/items remain outside the implemented scope.
+"Continue as guest" is app-local and requires no token. Public content, contact and legal requests work without a customer session. Profile editing is documented separately above. [Place bookmarks](explore-api.md#bookmarks) are implemented; saved addresses and saved videos remain pending.
 
 ## Logout and deletion
 

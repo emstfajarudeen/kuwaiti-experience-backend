@@ -1,5 +1,7 @@
 # Explore API and CMS integration
 
+Start with the [mobile app API reference](app-api-reference.md) for the current screen map, common request rules, complete Place/showtime examples and AI handoff instructions. This guide adds Explore/CMS details.
+
 Base: `/api/v2`. Exact schemas: [explore-openapi.json](explore-openapi.json), also referenced by [openapi.yaml](openapi.yaml). The website's v1 contracts remain available. Explore v2 uses the same place, category, translation and image records, with one canonical Place serializer across public lists/details, saved lists and v2 admin reads/updates.
 
 Implemented additions: place bookmarks, venue phones, highlights/amenities/capabilities, stay check-in/out, theater screen counts, CMS-maintained movies/posters/showtimes, and computed Open Now. Schedule remains pending. These APIs do not create cab rides, hotel reservations or cinema ticket bookings.

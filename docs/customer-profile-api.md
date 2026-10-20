@@ -1,5 +1,7 @@
 # Edit Profile API
 
+Start with the [mobile app API reference](app-api-reference.md) for common authentication, response rules, examples and the complete current mobile endpoint map.
+
 Base: `/api/v2/customer`. All calls require the customer's `Authorization: Bearer <access_token>`. Names, optional email, phone and photo in the supplied Edit Profile screen are supported. Exact schemas are included in [customer-openapi.json](customer-openapi.json) and the main OpenAPI file.
 
 ## Load and save

@@ -1,127 +1,452 @@
-# App API reference and contract register
+# Mobile app API reference
 
-Home planning update (20 October 2026): the next requested section is scoped in the [Home API implementation plan](home-api-implementation-plan.md). Existing hero/featured venue data is reusable, but `/api/v2/home` and the planned Home CMS additions are **not implemented**. The user confirmed Home Explore cards open place details; search stays pending. Cab/rental are excluded, and notifications remain undefined.
+Last checked against routes, controllers, validators and serializers: **20 October 2026**. This is the starting document for app developers and AI implementing the mobile client.
 
-Explore implementation update (20 October 2026): the requested place bookmarks, venue phones, highlights/amenities/capabilities, stay check-in/out, theater screen counts, CMS-managed movies/posters/showtimes and Open Now are implemented in v2. See the [Explore integration guide](explore-api.md) and [exact OpenAPI schemas](explore-openapi.json), which supersede the discovery candidates and old media/entity examples below. The [audit and original plan](explore-api-implementation-plan.md) remain design history. The new migration and earlier image migration must be handled before enabling this code against an existing database.
+## 1. Start here
 
-> **First selected screens implemented under `/api/v2`.** Use [customer-api.md](customer-api.md) for the working integration guide and [customer-openapi.json](customer-openapi.json) for exact schemas. This includes phone OTP (delivery adapter pending configuration), customer sessions/registration/deletion, legal-page reads/acceptance snapshots, contact submission and CMS inbox. The broader route map below remains design-stage; v1 is the existing legacy contract.
+**API origin:** `http://localhost:3333` for local development. Configure the deployed origin in the app environment; no production URL is defined here. On a physical phone, localhost refers to the phone: use a reachable backend address supplied by your backend developer.
 
-Edit Profile is implemented too: [profile API reference](customer-profile-api.md). `PATCH /api/v2/customer/me` saves names/email and a verified new phone; `/customer/me/photo` supports private upload/read/removal. Every customer object includes nullable `profile_photo_id`.
+**App API base:** `<API_ORIGIN>/api/v2`. Endpoint paths below include `/api/v2` explicitly. Keep the origin separate so image paths can also resolve correctly.
 
-Status: **current implementation inventory plus App 2 design-stage route map**. Last audited 20 October 2026 against the [App 2 Figma screen audit](app2-figma-screen-audit.md). The [App 2 section plan](app2-api-implementation-plan.md) is approval-gated. Use `docs/openapi.yaml` and `start/routes.ts` for **live** routes. The current examples in `docs/frontend-api-responses.md` describe existing v1 payloads, which have known key/type inconsistencies listed below. Do not generate a typed client from any proposed route or shape until its implementation section is approved and verified.
+| Read/import                                                                                                                     | Purpose                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| This document                                                                                                                   | Supported screens, exact endpoint map, integration order and common examples                   |
+| [Customer OpenAPI](customer-openapi.json)                                                                                       | Exact account/profile/support request and response schemas, including required/nullable fields |
+| [Explore OpenAPI](explore-openapi.json)                                                                                         | Exact place/category/bookmark/movie/showtime schemas and parameters                            |
+| [Postman collection](postman/kuwaitiexperience.postman_collection.json) + [environment](postman/local.postman_environment.json) | Importable requests; [setup and execution order](postman/README.md)                            |
+| [Customer guide](customer-api.md), [profile guide](customer-profile-api.md), [Explore guide](explore-api.md)                    | More detail about the corresponding implemented flows and CMS management                       |
 
-The [standalone handoff plan](first-screens-api-handoff-plan.md) records the original design. The implemented `/api/v2` contract and examples are in [customer-api.md](customer-api.md).
+The two standalone JSON files are OpenAPI 3.1 specifications. Their paths include both mobile and admin operations: mobile clients use the non-admin paths listed here. Use `components.schemas` and each operation's request/response schema to define typed models. The root [openapi.yaml](openapi.yaml) additionally includes legacy website APIs and references these files.
 
-## App 2 integration status
+**Implemented means the route and backend behavior exist.** It does not mean all provider credentials and editorial content are configured. SMS delivery is pending configuration: OTP request/resend currently returns **503**, and the server never returns the code. Approved legal pages and venue images/copy must be supplied through the CMS.
 
-| App feature | Present today | Required for the screens |
-| --- | --- | --- |
-| Home, categories, published place lists/details, static pages, images | Yes, with inconsistent v1 entity keys | Canonical DB-key contract, additional restaurant/stay/theater detail fields and CMS editors |
-| Customer OTP auth, guest/session/profile/deletion | v2 OTP/session/registration/profile/photo/verified phone-change/logout/deletion implemented; delivery requires SMS configuration | Persisted language preference remains later work |
-| Saved addresses and saved content | No | User-owned address and bookmark APIs |
-| Cab | WhatsApp enquiry-link only | Quote, request, dispatch, live trip, payment, cancellation, receipt and rating APIs |
-| Car rental | No | Fleet/provider/availability/quote/reservation/payment APIs |
-| Booking history and reviews | No | Cab/rent history/detail and eligible review APIs |
-| Explore videos | No | Feed, media, likes, comments, save/report and CMS moderation APIs |
-| Support form | v2 contact submission, CMS inbox and status updates implemented | Configure contact settings and operational ownership |
+## 2. What the app can integrate now
 
-### Planned operation map — not implemented
+| Screen/feature                                                                       | Status                                                  | Integration                                                                                 |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Phone login, OTP, resend, registration                                               | Implemented; real delivery awaits SMS configuration     | Follow section 5; verification proof decides sign-in vs create-account                      |
+| Continue as guest                                                                    | Available                                               | No guest-login call/token; browse public APIs                                               |
+| Edit Profile, photo, verified phone change                                           | Implemented; phone OTP has the same SMS prerequisite    | Section 6                                                                                   |
+| Explore hub and category filters                                                     | Implemented                                             | Section 7                                                                                   |
+| Attractions, Dine In, Stay, Theaters list/detail                                     | Implemented                                             | Shared Place model on every endpoint                                                        |
+| Venue phone, highlights/amenities, stay check-in/out, theater screen count, Open Now | Implemented; values depend on CMS content               | Section 8                                                                                   |
+| Movies and upcoming showtimes                                                        | Implemented; CMS maintained                             | Section 9                                                                                   |
+| Save/unsave venues and saved venue list                                              | Implemented; customer authentication required           | Section 10                                                                                  |
+| Contact Us, WhatsApp, privacy/terms, logout, delete account                          | Implemented; legal/settings content prerequisites apply | Sections 5, 6 and 11                                                                        |
+| New app Home API                                                                     | **Planned; not implemented**                            | [Home implementation plan](home-api-implementation-plan.md); do not call `/api/v2/home` yet |
+| Home search, notifications, Schedule                                                 | Pending                                                 | No API contract to integrate                                                                |
+| Cab, rentals, bookings, saved addresses, videos/social features                      | Pending separate sections                               | No working mobile feature contract is supplied here                                         |
 
-The paths below are **route candidates**, not a released contract. Their version prefix, request fields, response schemas and status codes must be set in Section 1 or the owning approved section, using actual database column names for persisted attributes. Do not call these paths from the app yet.
+The website's `/api/v1/home` exists with a legacy response. It is not the planned mobile Home contract. Current Home Explore-card planning uses existing place details as its destination. A future cab flow can receive a selected place, but no cab quotation/ride-creation API is implemented in this section.
 
-| Section | Candidate operations | Screen use |
-| --- | --- | --- |
-| 2 Customer auth | `POST /customer/auth/otp`, `POST /customer/auth/otp/:id/resend`, `POST /customer/auth/otp/:id/verify`, `POST /customer/auth/session`, `POST /customers`, `POST /customer/auth/refresh`, `POST /customer/auth/logout`, `GET/DELETE /customer/me` | First selected screens: phone/OTP, create account, sign out, delete. Profile edit/language preference are later work. |
-| 3 Discovery | `GET /home`, `/search`, `/categories`, `/places`, `/places/:slug`, `/theaters/:id/showtimes` if showtime ownership is confirmed | Home and four editorial categories |
-| 4 Saved data | `GET/POST /me/addresses`, `PATCH/DELETE /me/addresses/:id`, `GET/POST /me/saved-items`, `DELETE /me/saved-items/:id` | Home/Work addresses and bookmarked places/videos |
-| 5 Cab | `POST /cab/quotes`, `POST /cab/rides`, `GET /cab/rides/:id`, `GET /cab/rides/:id/events` or polling, `POST /cab/rides/:id/cancel`, driver-side assignment/start/progress/complete actions | Quote, payment choice, dispatch, tracking, cancellation, completion |
-| 6 Rental | `GET /rental/vehicles`, `GET /rental/vehicles/:id`, `POST /rental/quotes`, `POST /rental/reservations`, `GET /rental/reservations/:id`, payment webhook | Search, detail, provider, booking fee, confirmation |
-| 7 History/reviews | `GET /me/bookings`, `GET /me/bookings/:id` or type-specific detail, `POST /reviews`, `PATCH /reviews/:id`, `GET /providers/:id/reviews` | Booking tabs/details and ratings |
-| 8 Explore | `GET /videos`, `GET /videos/:id/comments`, `POST/DELETE /videos/:id/like`, `POST /videos/:id/comments`, `POST/DELETE /comments/:id/like`, `POST /videos/:id/reports` | Feed, likes, comments, report and save |
-| 9 Support/legal | `POST /contact-requests`, `GET /pages/:slug`, `GET /site`; notification and Schedule routes pending product definition | First selected screens: contact and legal. Other controls await product definition. |
+## 3. Request and response rules
 
-Matching admin/CMS APIs are part of each section: discovery editors; customer support; fleet/driver/dispatch; rental provider/rate/availability; booking/payment/cancellation operations; video moderation; support and legal publication. Admin routes require role-based authorization and audit logs. Details are specified when their section is approved.
+### Authentication
 
-### Design-stage entity registry
+| Label in the endpoint tables | What to send                                                                                             |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Public                       | No Authorization header required                                                                         |
+| Guest/customer               | Omit Authorization for guests; send a customer bearer token for personalized data or account association |
+| Customer                     | `Authorization: Bearer <access_token>` required                                                          |
 
-Existing entities and database fields are listed later in this reference. The following entities do **not** exist in the current schema: customer account, saved address, saved item, cab quote/ride/driver/vehicle, rental provider/vehicle/rate/quote/reservation, payment record, video/comment/like/report, review and contact request. Their exact response keys remain **unassigned** until the corresponding migrations and canonical serializers are designed. This protects the database-key rule: a screen label or example value must not become an invented API field name.
+Customer tokens are opaque strings, not admin JWTs. A verification proof is also not an access token. Store access/refresh tokens in mobile OS secure storage. Do not send admin credentials or CMS cookies to customer APIs. A supplied invalid/expired token on a guest/customer endpoint is rejected; it does not downgrade to guest browsing.
 
-## Base behavior currently implemented
+For JSON requests send `Accept: application/json` and `Content-Type: application/json`. For uploads let the HTTP library set the multipart boundary. HTTP 204 has no body: do not try to decode it as JSON. Private photo reads return binary WebP.
 
-- Base path: `/api/v1`.
-- JSON successes use `{ "data": ... }`; paginated endpoints add `meta`.
-- Errors use `{ "error": { "code": string, "message": string, "requestId": string, "fields"?: unknown } }` and a non-2xx status. The `fields` key is currently conditional. Successful deletes and logout return HTTP 204 with no body.
-- Public endpoints need no bearer token. Admin JSON endpoints use `Authorization: Bearer <accessToken>`. Browser CMS paths under `/admin` use signed HttpOnly cookies and CSRF-protected forms.
-- Localized public content accepts `locale=en|ar`; missing/other values currently resolve to English, with Arabic-to-English field fallback in the public service.
-- Images belong to the record that uses them (place cover/gallery, category type tile, homepage hero, site logo, movie poster); there is no shared media library. Public images are WebP bytes at `/api/v1/images/:key`, served only while owned by visible content; admin previews (`/api/v1/admin/images/:key`, CMS `/admin/images/:key`) are authenticated. Returned image paths are relative to the API origin.
+### Models and nullability
 
-## Screen-to-endpoint map: current behavior
+Persisted entity keys retain DB spelling: `phone_e164`, `first_name`, `cover_image_key`, `price_amount`, `check_in_time`, etc. UI labels can differ. Reuse a single Customer model and a single Place model everywhere those entities appear; list/detail/saved responses do not define smaller versions of the entity.
 
-| Flow | Method and path | Query/body | Current response purpose |
-| --- | --- | --- | --- |
-| Home | `GET /api/v1/home` | `locale` | Hero, discovery title, category type tiles, featured place groups, store links |
-| Site chrome | `GET /api/v1/site` | none | Brand, contact, logo, store links |
-| Category tabs | `GET /api/v1/categories` | required `type`, optional `locale` | Active categories for type |
-| Place list | `GET /api/v1/places` | required `type`; optional `category`, `q`, `page`, `perPage`, `locale` | Published place cards and `meta` |
-| Place detail | `GET /api/v1/places/:slug` | optional `locale` | Published place, hours, gallery, price |
-| Static page | `GET /api/v1/pages/:slug` | optional `locale` | Published page |
-| Cab choices | `GET /api/v1/transport/locations` | optional `locale` | Active pickup/drop-off locations |
-| Cab enquiry | `POST /api/v1/transport/enquiry-link` | `pickupId`, `destinationId`, `dateTime` | WhatsApp URL, `confirmed: false`; no booking record |
-| Image | `GET /api/v1/images/:key` | none | WebP bytes of an image owned by visible content |
-| Health | `GET /api/v1/health` | none | HTTP availability only |
+A **nullable** property is still a required JSON key when marked required in OpenAPI. For example, use `email: string | null`, not `email?: string`. Empty relations are `[]`. Optional request fields differ: omitted profile PATCH fields retain their current values; supported explicit null clears a field. The schemas describe each operation's actual rules.
 
-Public places: `category=all` or omitted includes uncategorized places; `page` defaults to 1 and `perPage` to 12, capped at 50. `meta.total` is the filtered total. Only published content with a publication time at or before now appears. The current place search matches English title/summary. Cab date/time is interpreted in `Asia/Kuwait` and must be in the future within one year.
+| Value                                | JSON representation                                                         |
+| ------------------------------------ | --------------------------------------------------------------------------- |
+| IDs/counts                           | Integer                                                                     |
+| Flags                                | Boolean, never numeric 0/1                                                  |
+| Missing scalar                       | `null` where the schema permits it                                          |
+| Money                                | Three-decimal string such as `"95.000"`, or null; retain currency/mode/unit |
+| Coordinates                          | Number or null                                                              |
+| Timestamps                           | ISO UTC string, e.g. `2026-10-20T07:00:00.000Z`, or null where allowed      |
+| Check-in/out and opening clock times | Local clock strings such as `15:00:00`, in `Asia/Kuwait`                    |
+| OTP                                  | Four-digit string, e.g. `"0123"`; preserve leading zeros                    |
 
-## CMS/admin API: current route inventory
+`data`, `meta`, `included`, credentials and verification receipts are protocol containers, not database entities. Their shapes are defined per operation. The current SiteSettings response has a documented derived `logo_image_url` field; use that actual field. Do not invent a `logo_image_key` field in the client. Discovery image URLs instead live in `meta.images` alongside unchanged storage-key fields.
 
-| Area | Routes |
-| --- | --- |
-| Auth | `POST /admin/auth/login`, `POST /admin/auth/refresh`, `GET /admin/auth/me`, `POST /admin/auth/logout`, `PATCH /admin/auth/password` |
-| Dashboard | `GET /admin/dashboard` |
-| Places | `GET, POST /admin/places`; `GET, PUT, DELETE /admin/places/:id`; `GET /admin/places/:id/preview`; `POST /admin/places/:id/publish`, `/archive`; `PUT, DELETE /admin/places/:id/cover`; `POST /admin/places/:id/gallery`; `PATCH, DELETE /admin/places/:id/gallery/:imageId` |
-| Category types | `GET, POST /admin/category-types`; `PUT, DELETE /admin/category-types/:code`; `PUT, DELETE /admin/category-types/:code/image` |
-| Categories | `GET, POST /admin/categories`; `PUT, DELETE /admin/categories/:id` |
-| Pages | `GET, POST /admin/pages`; `GET, PUT, DELETE /admin/pages/:id`; `POST /admin/pages/:id/publish`, `/archive` |
-| Image preview | `GET /admin/images/:key` |
-| Site/home | `GET, PATCH /admin/settings`; `PUT, DELETE /admin/settings/logo`; `GET, PATCH /admin/home`; `PUT, DELETE /admin/home/hero-image?locale=` |
-| Transport | `GET, POST /admin/transport/locations`; `PUT, DELETE /admin/transport/locations/:id` |
+### Localization
 
-All paths in this table are relative to `/api/v1`. The browser CMS has parallel HTML routes under `/admin`; its data should use the same canonical entity field names after Section 1. Admin login exists; public user registration/login does not.
+Explore returns all stored translation rows. Select English/Arabic in the app, falling back **per field** to English when Arabic is missing, null or empty. Do not assume an Arabic row exists. Use the same rule for `name_en`/`name_ar` and movie title/synopsis pairs. Sending `locale` does not transform Explore entities into flat localized cards.
 
-## Proposed canonical entity types — implementation pending
+Legal-page reads accept `locale=en|ar` (default English). Use `meta.locale` to select the actual returned translation and for legal acceptance; it may be English after fallback. Render the selected legal `body` as text, not trusted HTML.
 
-These are field-name and presence rules for the first approved contract section. They are **not** examples of today's payloads. All persisted attributes use literal DB column names. A field marked nullable is still a required JSON key with a `null` value when absent.
+## 4. Quick start: browse without login
 
-| Entity | Persisted response fields | Stable type notes |
-| --- | --- | --- |
-| `User` (admin-safe projection) | `id`, `full_name`, `email`, `role`, `active`, `must_change_password`, `created_at`, `updated_at` | `password` excluded; `updated_at` nullable |
-| `CategoryType` | `code`, `name_en`, `name_ar`, `image_url`, `sort_order`, `updated_at` | `name_ar`, `image_url`, `updated_at` nullable; `image_url` derived from internal `image_key` |
-| `Category` | `id`, `type`, `slug`, `sort_order`, `active`, `created_at`, `updated_at` | `updated_at` nullable; categories have no image; localized names from `category_translations` |
-| `Place` | `id`, `type`, `category_id`, `slug`, `status`, `cover_url`, `latitude`, `longitude`, `price_amount`, `price_currency`, `price_mode`, `website_url`, `featured_order`, `published_at`, `created_at`, `updated_at` | Nullable IDs/coordinates/amount/URL/order/dates always present; `price_amount` a three-decimal string |
-| `PlaceTranslation` | `id`, `place_id`, `locale`, `title`, `summary`, `body`, `address`, `hours_note`, `price_unit`, `seo_title`, `seo_description` | Nullable editorial fields always present |
-| `PlaceHour` | `id`, `place_id`, `weekday`, `interval_index`, `opens_at`, `closes_at`, `closes_next_day`, `closed` | Boolean keys always booleans; times nullable |
-| `PlaceImage` | `id`, `place_id`, `url`, `alt_en`, `alt_ar`, `caption_en`, `caption_ar`, `sort_order`, `created_at` | `alt_ar` and captions nullable; `url` derived from internal `storage_key` |
-| `Page` | `id`, `slug`, `status`, `published_at`, `created_at`, `updated_at` | Publication/update dates nullable; localized content from `page_translations` |
-| `PageTranslation` | `id`, `page_id`, `locale`, `title`, `body`, `seo_title`, `seo_description` | SEO fields nullable |
-| `SiteSettings` | `id`, `brand_name`, `whatsapp_number`, `contact_email`, `app_store_url`, `play_store_url`, `logo_image_url`, `updated_at` | Nullable keys always present; public disclosure of `whatsapp_number` needs explicit product decision |
-| `HomeContent` | `locale`, `hero_eyebrow`, `hero_title`, `discovery_title`, `app_title`, `app_body`, `hero_image_url`, `updated_at` | App/image/update fields nullable |
-| `TransportLocation` | `id`, `code`, `pickup_enabled`, `dropoff_enabled`, `active`, `sort_order`, `latitude`, `longitude` | Coordinates nullable; flags are booleans; localized name from `transport_location_translations` |
+```bash
+curl --request GET 'http://localhost:3333/api/v2/explore' --header 'Accept: application/json'
+curl --request GET 'http://localhost:3333/api/v2/places?type=attraction&page=1&per_page=12' --header 'Accept: application/json'
+```
 
-Relationship containers and computed actions need final naming in Section 1. The default is to use table names for relation containers (`place_translations`, `place_hours`, `place_images`) and to expose image URLs instead of internal storage keys. A selected localized translation may be included as a full translation row, using the same keys as any other translation row. This avoids aliases such as `hoursNote`, `cover`, `category`, and `seo` inside a `Place` object.
+Read `data.category_types` for the Explore hub. Choose a type's `code`, fetch its categories/features, then fetch `/places?type=<code>`. Use a place's **slug** for detail/showtimes; use its numeric **id** for bookmark writes. Never substitute a category ID or transport-location ID for a Place ID.
 
-## Current v1 incompatibilities
+An empty list is a valid result. Do not hardcode sample IDs, assume a featured venue always exists, or fill missing images/hours/prices with invented values.
 
-| Route/object | Current keys or types | Contract change needed |
-| --- | --- | --- |
-| `/admin/auth/me` user | `id`, `name`, `email` | `full_name` and one complete admin-safe `User` shape |
-| Public place card vs detail vs admin place | Card omits most DB fields; detail adds nested `price`, `coordinates`, `seo`, `cabDestination`; admin show returns DB row and relations | One canonical `Place` wherever a place is returned |
-| Public category type | `type`, `name`, `image`, `order` | `code`, `name_en`/`name_ar`, `image_url`, `sort_order` |
-| Public site/home | camelCase keys and presentation groups | exact `site_settings`/`home_content` columns for entity values |
-| Public location | camelCase flags | `pickup_enabled`, `dropoff_enabled`; fixed boolean types |
-| Public hours | `closes_next_day` and `closed` may be booleans or 0/1 | fixed booleans everywhere |
-| Admin settings/home and CRUD writes | Defaults/updates/receipts have differing field sets | shared resource serializer or separately typed operation receipt |
-| Errors | `fields` present only for some errors | Decide and document `fields` as consistently optional or always `null` |
+## 5. Login and registration
 
-## Reference maintenance checklist for each approved section
+All endpoints in this table allow guest access. Omit Authorization during initial login and refresh so an expired token is not accidentally submitted.
 
-Update the screen map, route table, canonical schemas, exact request/response examples, nullability, status/error matrix, version migration notes and OpenAPI in the same change as code. Verify examples against actual HTTP responses and check all repeated entity appearances for identical key sets and JSON types. Record the section approval and verification results in the section's implementation note.
+| Method and path                              | Request body                             | Success                         |
+| -------------------------------------------- | ---------------------------------------- | ------------------------------- |
+| `POST /api/v2/customer/auth/otp`             | `{ "phone_e164": "+96590987788" }`       | 202, `data: OtpReceipt`         |
+| `POST /api/v2/customer/auth/otp/{id}/resend` | No body                                  | 202, `data: OtpReceipt`         |
+| `POST /api/v2/customer/auth/otp/{id}/verify` | `{ "code": "0123" }`                     | 200, `data: Verification`       |
+| `POST /api/v2/customer/auth/session`         | `{ "verification_token": "<proof>" }`    | 200, `data: CustomerAuthResult` |
+| `POST /api/v2/customers`                     | Registration body below                  | 201, `data: CustomerAuthResult` |
+| `POST /api/v2/customer/auth/refresh`         | `{ "refresh_token": "<refresh token>" }` | 200, `data: CustomerAuthResult` |
+
+`{id}` in OTP paths is the challenge UUID returned by request/resend. Example successful OTP receipt (available when delivery is configured):
+
+```json
+{
+  "data": {
+    "id": "123e4567-e89b-42d3-a456-426614174000",
+    "expires_at": "2026-10-20T07:05:00.000Z",
+    "resend_available_at": "2026-10-20T07:01:00.000Z"
+  }
+}
+```
+
+After verify, inspect `data.next_action`: `sign_in` means call `/customer/auth/session`; `create_account` means show the account form and call `/customers`. The `verification_token` is one use, expires in 600 seconds, and is not a logged-in session. `update_phone` belongs only to the authenticated phone-change flow.
+
+Before registration fetch both legal pages, show their current text and obtain acceptance. Submit the actual `meta.locale` and `meta.content_hash` from each page:
+
+```json
+{
+  "verification_token": "<proof from verify>",
+  "first_name": "Mariam",
+  "last_name": "Al-Khaled",
+  "email": null,
+  "legal_acceptances": [
+    { "slug": "privacy-policy", "locale": "en", "content_hash": "<privacy page hash>" },
+    { "slug": "terms-and-conditions", "locale": "en", "content_hash": "<terms page hash>" }
+  ]
+}
+```
+
+Names are trimmed, 1–120 characters. Email is optional/nullable, valid email format, maximum 254 characters. Phone must be international E.164 format. Both distinct legal acceptances are required. Hash placeholders in the example must be replaced with real 64-character lowercase hexadecimal hashes. On 409 `LEGAL_CONTENT_CHANGED`, reread the pages and obtain acceptance again.
+
+Sign-in, registration and refresh return this same shape (values below are illustrative):
+
+```json
+{
+  "data": {
+    "customer": {
+      "id": 1,
+      "phone_e164": "+96590987788",
+      "first_name": "Mariam",
+      "last_name": "Al-Khaled",
+      "email": null,
+      "profile_photo_id": null,
+      "phone_verified_at": "2026-10-20T07:00:00.000Z",
+      "created_at": "2026-10-20T07:00:00.000Z",
+      "updated_at": null
+    },
+    "credentials": {
+      "access_token": "<opaque access token>",
+      "refresh_token": "<opaque refresh token>",
+      "expires_in": 900
+    }
+  }
+}
+```
+
+Access lasts 15 minutes; sessions have a 7-day absolute lifetime. Refresh rotates both credentials and invalidates the old access token. Serialize refresh requests in the client so concurrent 401 responses share one refresh attempt. Store the new pair together; never reuse an old refresh token, since reuse revokes the session. On refresh failure, clear the session and show login. Do not blindly retry state-changing requests after an ambiguous network failure.
+
+OTP expires after 5 minutes; resend cooldown is 60 seconds. Use server `resend_available_at`, not a hardcoded countdown start. Limits: 5 sends per phone/hour, 5 guesses per challenge, plus 30 auth requests/IP/minute. Display a retry state on 429. While SMS is unconfigured, show the 503 unavailable state; there is no fixed test OTP or login bypass.
+
+## 6. Profile and account controls
+
+All operations below require Customer authentication.
+
+| Method and path                                  | Request                                         | Success                                                 |
+| ------------------------------------------------ | ----------------------------------------------- | ------------------------------------------------------- |
+| `GET /api/v2/customer/me`                        | None                                            | 200, `data: Customer`                                   |
+| `PATCH /api/v2/customer/me`                      | Any supported names/email/verified-phone fields | 200, `data: Customer`                                   |
+| `POST /api/v2/customer/me/photo`                 | Multipart `file`                                | 200, `data: Customer`                                   |
+| `GET /api/v2/customer/me/photo`                  | None                                            | 200, private `image/webp`; 404 when absent              |
+| `DELETE /api/v2/customer/me/photo`               | None                                            | **200**, `data: Customer` with `profile_photo_id: null` |
+| `POST /api/v2/customer/me/phone/otp`             | `{ "phone_e164": "+96590987222" }`              | 202, `data: OtpReceipt`                                 |
+| `POST /api/v2/customer/me/phone/otp/{id}/resend` | None                                            | 202, `data: OtpReceipt`                                 |
+| `POST /api/v2/customer/me/phone/otp/{id}/verify` | `{ "code": "0123" }`                            | 200, `data: Verification`, `next_action: update_phone`  |
+| `POST /api/v2/customer/auth/logout`              | None                                            | 204, empty body                                         |
+| `DELETE /api/v2/customer/me`                     | None                                            | 204, empty body                                         |
+
+Profile save example: `{ "first_name": "Zia", "last_name": "Ali", "email": null }`. Omitted fields remain unchanged; `email: null` clears email. An empty PATCH returns 422 `EMPTY_UPDATE`. Compose display name/initials in the app from the same Customer fields used after login.
+
+Phone change: request/verify the new phone using this table's authenticated endpoints, then PATCH `{ "phone_e164": "<verified number>", "phone_verification_token": "<proof>" }` in the **same customer session**. A normal login proof cannot change the phone. Successful phone change keeps the initiating session and revokes other sessions. See the [complete phone-change flow](customer-profile-api.md#phone-changes).
+
+Phone-change request/resend and account deletion require OTP sign-in within the preceding 10 minutes. On 403 `REAUTHENTICATION_REQUIRED`, repeat normal sign-in and restart the protected action. SMS configuration remains necessary for those verification steps.
+
+Photo uploads accept JPEG/JPG/PNG/WebP, maximum 5 MB and 20 megapixels; uploads are limited to 20/customer/hour. Fetch private photo bytes with the bearer header; a public image widget URL without authentication will not work. Render initials when `profile_photo_id` is null. Photo upload/removal saves immediately, independently of the text Save button.
+
+Logout revokes the current session. Account deletion permanently removes the customer and currently owned account data, including bookmarks; clear local credentials afterward. The app must obtain the user's delete confirmation before calling the delete endpoint.
+
+## 7. Explore hub, filters and place browsing
+
+These are Guest/customer operations. A customer token adds their bookmark state to list/detail responses.
+
+| Method and path              | Inputs                                             | Success                                                                         |
+| ---------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `GET /api/v2/explore`        | None                                               | 200, `data: { category_types: CategoryType[] }`, `meta.images`                  |
+| `GET /api/v2/categories`     | Required `type`                                    | 200, `data: Category[]`                                                         |
+| `GET /api/v2/place-features` | Required `type`                                    | 200, `data: Feature[]`                                                          |
+| `GET /api/v2/places`         | Required `type`; optional filters/pagination below | 200, `PlaceList`                                                                |
+| `GET /api/v2/places/{slug}`  | Place slug from a list item                        | 200, `PlaceResult`: one complete Place under `data`, plus viewer/image metadata |
+
+| UI section  | Actual `type` code |
+| ----------- | ------------------ |
+| Attractions | `attraction`       |
+| Dine In     | `restaurant`       |
+| Stay        | `hotel_resort`     |
+| Theaters    | `theater`          |
+
+Types are CMS-managed and may include additional codes. Read the hub rather than treating these four examples as a closed enum. CategoryType uses `code`, not `type`, for its own identifier. Selecting it supplies that code as the place query's `type` value.
+
+| Place-list query | Meaning/default                                                               |
+| ---------------- | ----------------------------------------------------------------------------- |
+| `type`           | Required valid type code                                                      |
+| `category`       | Category **slug**; omitted or `all` means all, including uncategorized places |
+| `feature`        | Feature **code**, e.g. `family-friendly`                                      |
+| `q`              | Within-type English/Arabic title/summary search; max 80 characters            |
+| `open_now`       | `true` restricts to currently open; omitted/`false` disables that restriction |
+| `page`           | Default 1, range 1–10000                                                      |
+| `per_page`       | Default 12, range 1–50                                                        |
+
+Filters combine with AND. Use server `meta.total`/`last_page` for pagination; reset to page 1 when filters change. Unknown category/feature codes produce an empty list; invalid type/pagination/filter syntax returns 422. Existing within-type `q` works; the **Home cross-type search flow remains pending**.
+
+Public results exclude drafts, archives and future publications. Category and feature labels come from their own resources; feature `kind` is `highlight`, `amenity` or `capability`. Do not make Open Now an editable feature chip record.
+
+## 8. Place response and screen mapping
+
+This complete illustrative list response shows all required Place keys. IDs/content/images are examples, not guaranteed seeded records. A detail endpoint returns the same Place object directly under `data`, with no list pagination keys.
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "type": "attraction",
+      "category_id": 1,
+      "slug": "kuwait-towers",
+      "status": "published",
+      "cover_image_key": null,
+      "latitude": null,
+      "longitude": null,
+      "price_amount": "3.000",
+      "price_currency": "KWD",
+      "price_mode": "fixed",
+      "website_url": null,
+      "featured_order": 0,
+      "phone_e164": null,
+      "check_in_time": null,
+      "check_out_time": null,
+      "screen_count": null,
+      "published_at": "2026-10-20T07:00:00.000Z",
+      "created_at": "2026-10-20T07:00:00.000Z",
+      "updated_at": null,
+      "place_translations": [
+        {
+          "id": 1,
+          "place_id": 1,
+          "locale": "en",
+          "title": "Kuwait Towers",
+          "summary": "Example summary",
+          "address": "Example address, Kuwait City",
+          "body": "Example venue description",
+          "hours_note": null,
+          "price_unit": "person",
+          "seo_title": null,
+          "seo_description": null
+        }
+      ],
+      "place_hours": [],
+      "place_images": [],
+      "place_features": []
+    }
+  ],
+  "meta": {
+    "viewer": [{ "place_id": 1, "saved": false, "open_now": null }],
+    "images": [],
+    "evaluated_at": "2026-10-20T07:00:00.000Z",
+    "page": 1,
+    "per_page": 12,
+    "total": 1,
+    "last_page": 1
+  }
+}
+```
+
+| Screen value/action                        | Where to read it / behavior                                                                                  |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Venue name, subtitle, address, description | Localized `place_translations.title`, `summary`, `address`, `body`                                           |
+| Cover                                      | `cover_image_key` matched to `meta.images[].storage_key`; resolve its `url` against API origin               |
+| Gallery                                    | Ordered `place_images`; match each `storage_key` to the same image metadata                                  |
+| Bookmark icon                              | Match `meta.viewer[].place_id` to `place.id`, then read `saved`                                              |
+| Open Now                                   | Same viewer match, then `open_now`: true=open, false=closed, null=unknown                                    |
+| Phone Call                                 | Native `tel:` action using `phone_e164`; hide/disable when null                                              |
+| Price                                      | `price_mode` (`unknown`, `free`, `from`, `fixed`), `price_amount`, `price_currency`, translated `price_unit` |
+| Opening-hours note                         | Translated `hours_note`; structured schedule is `place_hours`                                                |
+| Stay check-in/out                          | Nullable `check_in_time`/`check_out_time`, for `hotel_resort`                                                |
+| Highlights/amenities                       | Localized `place_features` labels, grouped by `kind`                                                         |
+| Theater screens                            | Nullable `screen_count`; movie sessions use section 9                                                        |
+| Cab destination                            | Future app flow can use place identity/coordinates; ride creation is not available                           |
+
+Derived viewer/image metadata is outside Place. Do not add `is_saved`, `cover`, `hoursNote` or nested `price.amount` aliases to the wire model. Presentation/view models can format these values locally.
+
+Open Now uses `Asia/Kuwait`, split/overnight hours and opening-inclusive/closing-exclusive boundaries. Unknown hours are null; do not display Closed for null. Check-in/out and text notes do not establish Open Now. The API computes the state; clients should not implement a conflicting clock calculation.
+
+For public editorial images use returned URLs such as `/api/v1/images/<key>.webp`. The v1 prefix here is intentional image delivery, not a legacy Place contract. Render a placeholder on null/missing/unavailable images. Customer photos use the separate authenticated endpoint in section 6.
+
+## 9. Theater movies and showtimes
+
+| Method and path                       | Auth/query                                                                   | Success             |
+| ------------------------------------- | ---------------------------------------------------------------------------- | ------------------- |
+| `GET /api/v2/places/{slug}/showtimes` | Guest/customer; theater slug; optional `date=YYYY-MM-DD`, `page`, `per_page` | 200, `ShowtimeList` |
+
+Date means a Kuwait calendar day; omission defaults to today in Kuwait. Pagination defaults to page 1, 12 items, maximum 50. Only published upcoming sessions on that date, for a published theater and published movie, are returned. Past/cancelled sessions are excluded; a valid empty date returns an empty list. A non-theater slug returns 404.
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "place_id": 21,
+      "movie_id": 3,
+      "starts_at": "2026-10-21T16:00:00.000Z",
+      "format": "IMAX",
+      "status": "published",
+      "created_at": "2026-10-20T07:00:00.000Z",
+      "updated_at": null
+    }
+  ],
+  "included": {
+    "movies": [
+      {
+        "id": 3,
+        "title_en": "Example movie",
+        "title_ar": null,
+        "synopsis_en": null,
+        "synopsis_ar": null,
+        "duration_minutes": 120,
+        "age_rating": null,
+        "poster_image_key": "123e4567-e89b-42d3-a456-426614174001.webp",
+        "status": "published",
+        "published_at": "2026-10-20T07:00:00.000Z",
+        "created_at": "2026-10-20T07:00:00.000Z",
+        "updated_at": null
+      }
+    ]
+  },
+  "meta": {
+    "images": [
+      {
+        "storage_key": "123e4567-e89b-42d3-a456-426614174001.webp",
+        "url": "/api/v1/images/123e4567-e89b-42d3-a456-426614174001.webp"
+      }
+    ],
+    "date": "2026-10-21",
+    "timezone": "Asia/Kuwait",
+    "page": 1,
+    "per_page": 12,
+    "total": 1,
+    "last_page": 1
+  }
+}
+```
+
+Join `data[].movie_id` to `included.movies[].id`, group sessions by movie and render each `starts_at` in Kuwait time. Movie IDs can recur on later pages: merge/deduplicate movies and append unique showtimes by their IDs. The full date's schedule can require more pages. Resolve `poster_image_key` through `meta.images`, using the same image approach as places. Movie/showtime editing is a CMS responsibility. There is no ticket reservation/purchase API.
+
+## 10. Saved places
+
+All require Customer authentication. `{id}` is the numeric Place ID. The server identifies the customer from the bearer token; do not submit a customer ID.
+
+| Method and path                                | Request/query                                                     | Success                                               |
+| ---------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------- |
+| `GET /api/v2/customer/me/saved-places`         | Optional `type`, `page`, `per_page`; standard place filters apply | 200, same `PlaceList` schema and metadata as browsing |
+| `PUT /api/v2/customer/me/saved-places/{id}`    | No body                                                           | 200, `data: SavedPlace`                               |
+| `DELETE /api/v2/customer/me/saved-places/{id}` | No body                                                           | 204, empty body                                       |
+
+Save example: `{ "data": { "customer_id": 1, "place_id": 12, "created_at": "2026-10-20T07:00:00.000Z" } }`. Save/delete are idempotent. After success synchronize bookmark state for that ID across existing screens; on failure retain/restore the previous state. Guest save controls should open login. Saved reads hide unpublished/deleted content and use the same visibility rules for totals. Save writes are limited to 120/customer/minute. Saved addresses and saved videos are separate pending resources.
+
+## 11. Legal, contact and settings
+
+| Method and path                 | Auth/request                                                          | Success                                                                      |
+| ------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `GET /api/v2/pages/{slug}`      | Public; `privacy-policy` or `terms-and-conditions`, optional `locale` | 200, `data: Page` with `page_translations`; `meta: { locale, content_hash }` |
+| `GET /api/v2/site`              | Public                                                                | 200, `data: SiteSettings`                                                    |
+| `POST /api/v2/contact-requests` | Guest/customer; JSON below                                            | 201, submission receipt                                                      |
+
+```json
+{
+  "full_name": "Mariam Al-Khaled",
+  "email": "mariam@example.com",
+  "message": "Please help with my enquiry"
+}
+```
+
+Contact fields are required: trimmed name 1–120 characters, valid email up to 254, trimmed message 1–300. Success is `{ "data": { "id": 1, "created_at": "2026-10-20T07:00:00.000Z" } }`. This is a **receipt**, not a full ContactRequest model. There is no customer/public contact inbox API. Limit: 5 submissions/IP/hour. Avoid automatic retries after a timeout because a successful submission may already have been recorded.
+
+SiteSettings keys: `id`, `brand_name`, `whatsapp_number`, `contact_email`, `app_store_url`, `play_store_url`, `logo_image_url`, `updated_at`. Optional settings are present as null. Build `https://wa.me/<digits-only number>` from `whatsapp_number`; hide the button when unavailable. Legal requests return 404 for missing/unpublished pages or 503 for recognized placeholder legal copy. A venue summary or screenshot's sample legal text is not a policy fallback.
+
+## 12. Error handling and screen states
+
+```json
+{
+  "error": {
+    "code": "INVALID_OTP",
+    "message": "Code is invalid, expired or already used",
+    "requestId": "example-request-id"
+  }
+}
+```
+
+`error.code`, `message`, `requestId` are present. `fields` is optional and can contain structured validation details; do not require a single map shape for every error. Branch on HTTP status and `code`, not English message text. Keep `requestId` available for support.
+
+| Status/code                                                                                                                                         | App behavior                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| 401 `UNAUTHENTICATED`                                                                                                                               | Protected session missing/invalid/expired; attempt one serialized refresh if eligible, otherwise show login  |
+| 401 `INVALID_REFRESH_TOKEN`, `INVALID_VERIFICATION`                                                                                                 | Restart session or verification flow respectively                                                            |
+| 403 `REAUTHENTICATION_REQUIRED`                                                                                                                     | Repeat phone sign-in before sensitive action                                                                 |
+| 409 `LEGAL_CONTENT_CHANGED`                                                                                                                         | Reload policies and request acceptance again                                                                 |
+| 409 `PHONE_IN_USE`, `CUSTOMER_EXISTS`, `REGISTRATION_REQUIRED`                                                                                      | Follow the conflict-specific account/phone flow; no blind retry                                              |
+| 422 `VALIDATION_FAILED`, `EMPTY_UPDATE`, `INVALID_OTP`, `INVALID_CHALLENGE`, `INVALID_FILTER`, `INVALID_TYPE`, `INVALID_PAGINATION`, `INVALID_DATE` | Show field/input/verification feedback as appropriate                                                        |
+| 404 `NOT_FOUND`                                                                                                                                     | Resource absent/unavailable; handle missing photo with initials and missing venue with an unavailable screen |
+| 429 `RATE_LIMITED`, `OTP_RATE_LIMITED`                                                                                                              | Show throttled/retry state; avoid immediate retry loops                                                      |
+| 503 `OTP_UNAVAILABLE`, `OTP_DELIVERY_FAILED`, `LEGAL_CONTENT_UNAVAILABLE`                                                                           | Configuration/content/delivery unavailable; show a recoverable unavailable state                             |
+| 500 `INTERNAL_ERROR`                                                                                                                                | Generic error UI; record request ID                                                                          |
+
+Every list screen should distinguish loading, valid empty data, loaded data, network failure and API error. Personalized lists/details are not shared-cache data. Respect server no-store behavior and clear account-specific local state after logout/deletion or account switching.
+
+## 13. Handoff instructions for AI implementing the app
+
+Copy this brief with this document and both JSON OpenAPI files:
+
+```text
+Implement the mobile client against the implemented non-admin /api/v2 endpoints
+listed in app-api-reference.md. Use customer-openapi.json and explore-openapi.json
+for exact request/response schemas, status codes, required fields and nullability.
+Keep persisted wire keys unchanged and reuse one model per canonical entity.
+Use each endpoint's envelope: auth wraps customer/credentials; profile returns
+Customer directly under data; lists return arrays; showtimes include related movies.
+Preserve token/proof distinctions, rotation, guest behavior, locale fallback,
+metadata joins, pagination, empty/error states and private image authentication.
+Home v2, global search, notifications, Schedule, cab/rental/bookings, saved addresses
+and video/social APIs are pending. Do not invent their routes or treat plans as live.
+SMS is not configured, so handle the documented 503 state without a bypass.
+```
+
+Suggested implementation order: shared API client/error decoding and canonical models → guest Explore/list/detail → legal/login/session handling → profile/photo → bookmarks → theater showtimes → contact/settings/account controls. Home waits for the next backend section.
+
+The CMS/admin APIs are for editors, not mobile credentials. Their current references are in the [Customer guide](customer-api.md#cmsadmin) and [Explore guide](explore-api.md#manage-place-details-in-the-cms), with exact `/api/v2/admin` operations in the corresponding OpenAPI files. Older implementation plans and [website response examples](frontend-api-responses.md) are background material, not alternate mobile response contracts.
+
+## 14. Keeping this reference current
+
+For every implemented section, update its endpoint table, shared schemas, request/response examples, screen mappings and Postman requests together. Move a feature from Planned to Implemented only when its routes and behavior exist. Keep deployment/content prerequisites explicit. Do not append contradictory historical contract proposals to this integration guide.

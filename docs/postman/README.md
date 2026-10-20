@@ -1,5 +1,7 @@
 # Postman testing
 
+Read the [mobile app API reference](../app-api-reference.md) for supported screens, request/response examples, canonical models and AI handoff instructions.
+
 Import both files using Postman's **Import** control:
 
 - `kuwaitiexperience.postman_collection.json` — 59 requests covering customer/profile/support, Explore/bookmarks and related CMS APIs.

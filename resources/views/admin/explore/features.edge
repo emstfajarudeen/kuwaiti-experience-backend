@@ -30,12 +30,15 @@
       <label>English label<input name="name_en" value="{{ form.name_en ?? editing?.name_en ?? '' }}" maxlength="120" required></label>
       <label>Arabic label<input name="name_ar" value="{{ form.name_ar ?? editing?.name_ar ?? '' }}" dir="rtl" lang="ar" maxlength="120"></label>
       <label>Display order<input name="sort_order" type="number" min="0" max="999" value="{{ form.sort_order ?? editing?.sort_order ?? 0 }}" required></label>
+    </div>
+    <div class="feature-visibility">
       <label class="checkbox-line"><input name="active" type="checkbox" 
 @if(editing ? editing.active : true)
  checked 
 @end
 > Visible to visitors</label>
-    </div><button class="button primary" type="submit">Save feature</button> 
+    </div>
+    <button class="button primary" type="submit">Save feature</button> 
 @if(editing)
 <a class="button secondary" href="/admin/place-features">Add another</a>
 @end
