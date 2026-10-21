@@ -19,7 +19,7 @@ Last checked against routes, controllers, validators and serializers: **21 Octob
 
 The three standalone JSON files are OpenAPI 3.1 specifications. Their paths include both mobile and admin operations: mobile clients use the non-admin paths listed here. Use `components.schemas` and each operation's request/response schema to define typed models. Home reuses the Explore Place/CategoryType schemas. The root [openapi.yaml](openapi.yaml) additionally includes legacy website APIs and references these files.
 
-**Implemented means the route and backend behavior exist.** It does not mean all provider credentials and editorial content are configured. SMS delivery is pending configuration: OTP request/resend returns **503** unless an isolated development environment explicitly enables `CUSTOMER_OTP_DEV_RESPONSE=true` with an OTP secret. In that mode, the response includes `data.dev_otp`. Approved legal pages and venue images/copy must be supplied through the CMS.
+**Implemented means the route and backend behavior exist.** It does not mean all provider credentials and editorial content are configured. SMS delivery is pending configuration: OTP request/resend returns **503** unless a development or staging server explicitly enables `CUSTOMER_OTP_DEV_RESPONSE=true` with an OTP secret. In that mode, use fixed OTP `2580`; the code is not returned in the response. This opt-in also works with `NODE_ENV=production`, so disable it before serving real customers. Approved legal pages and venue images/copy must be supplied through the CMS.
 
 ## 2. What the app can integrate now
 
@@ -104,7 +104,7 @@ All endpoints in this table allow guest access. Omit Authorization during initia
 | `POST /api/v2/customers`                     | Registration body below                  | 201, `data: CustomerAuthResult` |
 | `POST /api/v2/customer/auth/refresh`         | `{ "refresh_token": "<refresh token>" }` | 200, `data: CustomerAuthResult` |
 
-`{id}` in OTP paths is the challenge UUID returned by request/resend. Example successful OTP receipt (available when delivery or the development response option is configured):
+`{id}` in OTP paths is the challenge UUID returned by request/resend. Example successful OTP receipt (available when delivery or the development fixed-code option is configured):
 
 ```json
 {
@@ -116,7 +116,7 @@ All endpoints in this table allow guest access. Omit Authorization during initia
 }
 ```
 
-With `NODE_ENV=development` and `CUSTOMER_OTP_DEV_RESPONSE=true`, the same receipt also includes `"dev_otp": "0123"` under `data`. This field is absent in production. Keep it out of app logs and analytics.
+With `CUSTOMER_OTP_DEV_RESPONSE=true`, request a challenge and verify it with `"code": "2580"`. The receipt never includes the code. The normal expiry, resend cooldown, attempt limits, and one-use proof still apply.
 
 After verify, inspect `data.next_action`: `sign_in` means call `/customer/auth/session`; `create_account` means show the account form and call `/customers`. The `verification_token` is one use, expires in 600 seconds, and is not a logged-in session. `update_phone` belongs only to the authenticated phone-change flow.
 
@@ -164,7 +164,7 @@ Sign-in, registration and refresh return this same shape (values below are illus
 
 Access lasts 15 minutes; sessions have a 7-day absolute lifetime. Refresh rotates both credentials and invalidates the old access token. Serialize refresh requests in the client so concurrent 401 responses share one refresh attempt. Store the new pair together; never reuse an old refresh token, since reuse revokes the session. On refresh failure, clear the session and show login. Do not blindly retry state-changing requests after an ambiguous network failure.
 
-OTP expires after 5 minutes; resend cooldown is 60 seconds. Use server `resend_available_at`, not a hardcoded countdown start. Limits: 5 sends per phone/hour, 5 guesses per challenge, plus 30 auth requests/IP/minute. Display a retry state on 429. Without SMS or the explicit development response option, show the 503 unavailable state. There is no fixed OTP.
+OTP expires after 5 minutes; resend cooldown is 60 seconds. Use server `resend_available_at`, not a hardcoded countdown start. Limits: 5 sends per phone/hour, 5 guesses per challenge, plus 30 auth requests/IP/minute. Display a retry state on 429. Without SMS or the explicit fixed-code option, show the 503 unavailable state. Fixed OTP `2580` works whenever the temporary flag is enabled outside tests.
 
 ## 6. Profile and account controls
 
@@ -187,7 +187,7 @@ Profile save example: `{ "first_name": "Zia", "last_name": "Ali", "email": null 
 
 Phone change: request/verify the new phone using this table's authenticated endpoints, then PATCH `{ "phone_e164": "<verified number>", "phone_verification_token": "<proof>" }` in the **same customer session**. A normal login proof cannot change the phone. Successful phone change keeps the initiating session and revokes other sessions. See the [complete phone-change flow](customer-profile-api.md#phone-changes).
 
-Phone-change request/resend and account deletion require OTP sign-in within the preceding 10 minutes. On 403 `REAUTHENTICATION_REQUIRED`, repeat normal sign-in and restart the protected action. These verification steps need SMS delivery or the explicit development response option.
+Phone-change request/resend and account deletion require OTP sign-in within the preceding 10 minutes. On 403 `REAUTHENTICATION_REQUIRED`, repeat normal sign-in and restart the protected action. These verification steps need SMS delivery or the explicit development fixed-code option.
 
 Photo uploads accept JPEG/JPG/PNG/WebP, maximum 5 MB and 20 megapixels; uploads are limited to 20/customer/hour. Fetch private photo bytes with the bearer header; a public image widget URL without authentication will not work. Render initials when `profile_photo_id` is null. Photo upload/removal saves immediately, independently of the text Save button.
 

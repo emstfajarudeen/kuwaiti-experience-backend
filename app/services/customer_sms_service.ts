@@ -5,8 +5,8 @@ import { ApiError } from './api_error.js'
 type Sender = (phone: string, code: string) => Promise<void>
 let testSender: Sender | undefined
 
-export function developmentOtpResponseEnabled() {
-  return env.get('NODE_ENV') === 'development' && env.get('CUSTOMER_OTP_DEV_RESPONSE') === true
+export function fixedOtpEnabled() {
+  return env.get('NODE_ENV') !== 'test' && env.get('CUSTOMER_OTP_DEV_RESPONSE') === true
 }
 
 /** Test injection is deliberately unavailable outside NODE_ENV=test. */
@@ -24,7 +24,7 @@ export function otpSecret(): string {
 
 export function assertSmsConfigured() {
   otpSecret()
-  if (developmentOtpResponseEnabled()) return
+  if (fixedOtpEnabled()) return
   if (app.inTest && testSender) return
   if (!env.get('SMS_WEBHOOK_URL') || !env.get('SMS_WEBHOOK_TOKEN')) {
     throw new ApiError(503, 'OTP_UNAVAILABLE', 'Phone verification is not configured')
@@ -33,7 +33,7 @@ export function assertSmsConfigured() {
 
 export async function sendSms(phone: string, code: string) {
   assertSmsConfigured()
-  if (developmentOtpResponseEnabled()) return
+  if (fixedOtpEnabled()) return
   if (app.inTest && testSender) {
     try {
       return await testSender(phone, code)

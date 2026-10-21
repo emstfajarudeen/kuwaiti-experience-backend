@@ -19,11 +19,11 @@ Page translations now always include nullable `eyebrow` and `body_format` (`plai
 
 1. Fetch Privacy policy and Terms and conditions in folder 01. Successful responses store each page's `content_hash` and actual locale. Approved legal pages must already be published in the CMS; missing/unapproved pages return 404/503.
 2. Set `phone_e164`. Send Request login OTP in folder 02.
-3. Enter the received four-digit SMS code in `otp_code`, keeping any leading zeros. In isolated development with the response option enabled, copy `data.dev_otp` from the request/resend response instead. Send Verify login OTP. Resend is optional and requires the server cooldown to have elapsed.
+3. Enter the received four-digit SMS code in `otp_code`, keeping any leading zeros. In isolated development with the fixed-code option enabled, enter `2580` instead. Send Verify login OTP. Resend is optional and requires the server cooldown to have elapsed.
 4. Check the verification response's `next_action`. Send **Existing customer sign in** for `sign_in`, or **Create account** for `create_account`. For registration, set `first_name` and `last_name`, review/accept the legal pages, and optionally replace the request body's `email: null` with an email string. The proof is one use: send only the matching request.
 5. Successful login/registration automatically stores `access_token`, `refresh_token` and `customer_id` in the selected environment. Protected customer requests use that access token. Refresh customer session replaces both credentials; old refresh tokens cannot be reused.
 
-**SMS is currently disabled pending provider configuration.** For local development, set `NODE_ENV=development`, an independent 32+ character `CUSTOMER_OTP_SECRET`, and `CUSTOMER_OTP_DEV_RESPONSE=true` in `.env`. OTP request/resend then returns `data.dev_otp` without sending SMS. Otherwise requests return 503 until SMS delivery is configured. This option is unavailable in test and production, and there is no fixed code.
+**SMS is currently disabled pending provider configuration.** For development or staging, set an independent 32+ character `CUSTOMER_OTP_SECRET` and `CUSTOMER_OTP_DEV_RESPONSE=true` in the server environment. OTP request/resend then skips SMS; verify the challenge with `2580`. The code is never returned in the response. Otherwise requests return 503 until SMS delivery is configured. This temporary option also works with `NODE_ENV=production`; disable it before serving real customers. It is unavailable in tests.
 
 ## Edit Profile
 

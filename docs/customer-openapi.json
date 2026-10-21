@@ -3,7 +3,7 @@
   "info": {
     "title": "Kuwaiti Experience customer accounts and support",
     "version": "2.0.0",
-    "description": "Implemented selected App 2 screens. Phone OTP requires a configured SMS adapter or the explicit development response option. All persisted fields retain SQL names; credentials and meta are protocol objects."
+    "description": "Implemented selected App 2 screens. Phone OTP requires a configured SMS adapter or the explicit temporary fixed-code option. All persisted fields retain SQL names; credentials and meta are protocol objects."
   },
   "servers": [
     {
@@ -19,7 +19,7 @@
         ],
         "responses": {
           "202": {
-            "description": "OTP challenge receipt; includes dev_otp only when explicitly enabled in development",
+            "description": "OTP challenge receipt; never includes the code",
             "content": {
               "application/json": {
                 "schema": {
@@ -3493,11 +3493,6 @@
           "resend_available_at": {
             "type": "string",
             "format": "date-time"
-          },
-          "dev_otp": {
-            "type": "string",
-            "pattern": "^[0-9]{4}$",
-            "description": "Present only with the explicit development OTP response option; never present in production."
           }
         }
       },

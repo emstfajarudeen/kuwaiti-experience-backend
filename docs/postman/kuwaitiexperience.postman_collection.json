@@ -223,7 +223,7 @@
     },
     {
       "name": "02 — Phone login and registration",
-      "description": "Request OTP, enter the received code in otp_code, then verify. In isolated development with CUSTOMER_OTP_DEV_RESPONSE=true, copy data.dev_otp from the response. Follow next_action: send Existing customer sign in OR Create account, not both. OTP proofs are one use. Without SMS or the development response option, request/resend returns 503.",
+      "description": "Request OTP, enter the received code in otp_code, then verify. On a development or staging server with CUSTOMER_OTP_DEV_RESPONSE=true, enter fixed code 2580; the response never includes the code. The flag also works with NODE_ENV=production and must be disabled before serving real customers. Follow next_action: send Existing customer sign in OR Create account, not both. OTP proofs are one use. Without SMS or the fixed-code option, request/resend returns 503.",
       "item": [
         {
           "name": "Request login OTP",

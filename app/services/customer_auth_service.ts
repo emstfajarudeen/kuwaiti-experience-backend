@@ -10,12 +10,7 @@ import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { customer, iso } from '../serializers/customer.js'
 import { ApiError } from './api_error.js'
-import {
-  assertSmsConfigured,
-  developmentOtpResponseEnabled,
-  otpSecret,
-  sendSms,
-} from './customer_sms_service.js'
+import { assertSmsConfigured, fixedOtpEnabled, otpSecret, sendSms } from './customer_sms_service.js'
 import { canonicalPage } from './customer_content_service.js'
 import { eraseProfilePhoto } from './customer_photo_service.js'
 
@@ -41,7 +36,8 @@ export async function requestOtp(
       'Verify your current phone again before changing it'
     )
   }
-  let code = String(randomInt(0, 10000)).padStart(4, '0')
+  const fixedOtp = fixedOtpEnabled()
+  let code = fixedOtp ? '2580' : String(randomInt(0, 10000)).padStart(4, '0')
   const outcome = await db.transaction(async (trx) => {
     if (phone) {
       await trx
@@ -88,7 +84,7 @@ export async function requestOtp(
         'Wait before requesting another verification code'
       )
     }
-    while (row.code_hash === codeHash(row.id, code))
+    while (!fixedOtp && row.code_hash === codeHash(row.id, code))
       code = String(randomInt(0, 10000)).padStart(4, '0')
     const fields = {
       code_hash: codeHash(row.id, code),
@@ -123,7 +119,6 @@ export async function requestOtp(
       id: outcome.id,
       expires_at: iso(outcome.expires_at),
       resend_available_at: iso(outcome.resend_available_at),
-      ...(developmentOtpResponseEnabled() ? { dev_otp: code } : {}),
     },
   }
 }
