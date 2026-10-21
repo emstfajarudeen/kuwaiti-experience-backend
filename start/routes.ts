@@ -145,8 +145,12 @@ router
     router.get('/images/:key', [ImagesController, 'adminShow']).as('cms.images.show')
     router.get('/home', [AdminSitePageController, 'home'])
     router.post('/home', [AdminSitePageController, 'saveHome'])
-    router.post('/home/cards', [AdminSitePageController, 'saveHomeCard'])
-    router.post('/home/cards/:id/save', [AdminSitePageController, 'saveHomeCard'])
+    router
+      .post('/home/cards', [AdminSitePageController, 'saveHomeCard'])
+      .as('cms.home.cards.create')
+    router
+      .post('/home/cards/:id/save', [AdminSitePageController, 'saveHomeCard'])
+      .as('cms.home.cards.update')
     router.post('/home/cards/:id/delete', [AdminSitePageController, 'deleteHomeCard'])
     router.get('/settings', [AdminSitePageController, 'settings'])
     router.post('/settings', [AdminSitePageController, 'saveSettings'])

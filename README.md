@@ -107,6 +107,7 @@ POST /api/v1/transport/enquiry-link
 CMS JSON clients log in with `POST /api/v1/admin/auth/login`, send `Authorization: Bearer <accessToken>` to protected `/api/v1/admin/*` routes, and rotate through `/auth/refresh`. Browser CMS forms use SameSite/HttpOnly cookies and CSRF protection. API routes deliberately accept bearer authentication only; do not send CMS cookies with an API request. All JSON failures use `{ "error": { "code", "message", "requestId", "fields"? } }`. Full routes and request shapes are in [OpenAPI](docs/openapi.yaml).
 
 Example public responses for frontend integration are in [Frontend API responses](docs/frontend-api-responses.md).
+The canonical website contract for Privacy Policy and Terms and Conditions is in the [website API reference](docs/website-api-reference.md).
 
 `GET /api/v1/home` is the landing-page payload: hero, ordered category type tiles, published places marked “Feature on homepage” in the place editor, and app store links from site settings. App promotion copy and artwork are static frontend content and are not managed in the Homepage CMS.
 

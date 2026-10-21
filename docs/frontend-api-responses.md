@@ -1,6 +1,6 @@
 # Frontend integration guide for the public API
 
-> **Current v1 behavior only.** The App 2 Figma flows are mapped in the [screen audit](app2-figma-screen-audit.md) and [section plan](app2-api-implementation-plan.md); the [API reference](app-api-reference.md) tracks live versus proposed routes. Several examples below use presentation keys or different place shapes and will change after section approval. Do not use them as the target contract for new typed models.
+> **Current v1 behavior only.** For new website Privacy Policy and Terms and Conditions integration, use the canonical v2 contract in the [website API reference](website-api-reference.md). The App 2 Figma flows are mapped in the [screen audit](app2-figma-screen-audit.md) and [section plan](app2-api-implementation-plan.md); the [app API reference](app-api-reference.md) tracks live mobile routes. Several examples below use presentation keys or different place shapes. Do not use them as the target contract for new typed models.
 
 This document describes the currently implemented visitor-facing `/api/v1` responses. The examples are illustrative; IDs, text, category type codes, categories, and image URLs come from the CMS and can change. The `/api/v1/admin/*` endpoints are for the CMS and are not needed by the visitor frontend.
 
