@@ -1727,6 +1727,22 @@
                     "format": "email",
                     "maxLength": 254
                   },
+                  "phone_number": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^\\+?[1-9][0-9]{7,14}$",
+                    "maxLength": 25
+                  },
+                  "inquiry_type": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
                   "message": {
                     "type": "string",
                     "minLength": 1,
@@ -3537,6 +3553,8 @@
           "customer_id",
           "full_name",
           "email",
+          "phone_number",
+          "inquiry_type",
           "message",
           "status",
           "created_at",
@@ -3559,6 +3577,18 @@
           "email": {
             "type": "string",
             "format": "email"
+          },
+          "phone_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "inquiry_type": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "message": {
             "type": "string"
@@ -3702,8 +3732,15 @@
         "required": [
           "id",
           "brand_name",
+          "direct_phone_number",
+          "direct_phone_description",
           "whatsapp_number",
+          "whatsapp_description",
           "contact_email",
+          "headquarters_name",
+          "headquarters_address",
+          "headquarters_map_url",
+          "contact_inquiry_types",
           "app_store_url",
           "play_store_url",
           "logo_image_key",
@@ -3717,7 +3754,25 @@
           "brand_name": {
             "type": "string"
           },
+          "direct_phone_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "direct_phone_description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "whatsapp_number": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "whatsapp_description": {
             "type": [
               "string",
               "null"
@@ -3727,7 +3782,36 @@
             "type": [
               "string",
               "null"
+            ],
+            "format": "email"
+          },
+          "headquarters_name": {
+            "type": [
+              "string",
+              "null"
             ]
+          },
+          "headquarters_address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "headquarters_map_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          },
+          "contact_inquiry_types": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            }
           },
           "app_store_url": {
             "type": [

@@ -2,11 +2,34 @@ import db from '@adonisjs/lucid/services/db'
 import { contactRequest } from '../serializers/customer.js'
 import { ApiError } from './api_error.js'
 
+type NewContactRequest = {
+  full_name: string
+  email: string
+  phone_number?: string | null
+  inquiry_type?: string | null
+  message: string
+}
+
 export function contactId(value: unknown) {
   const id = Number(value)
   if (!Number.isSafeInteger(id) || id < 1)
     throw new ApiError(404, 'NOT_FOUND', 'Contact request not found')
   return id
+}
+
+export async function createContactRequest(input: NewContactRequest, customerId?: number) {
+  const createdAt = new Date()
+  const [id] = await db.table('contact_requests').insert({
+    customer_id: customerId ?? null,
+    full_name: input.full_name,
+    email: input.email.toLowerCase(),
+    phone_number: input.phone_number ?? null,
+    inquiry_type: input.inquiry_type ?? null,
+    message: input.message,
+    status: 'new',
+    created_at: createdAt,
+  })
+  return { id: Number(id), created_at: createdAt.toISOString() }
 }
 
 export async function listContacts(page: number, status?: string) {

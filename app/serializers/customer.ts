@@ -25,6 +25,8 @@ export function contactRequest(row: Row) {
     customer_id: row.customer_id === null ? null : Number(row.customer_id),
     full_name: row.full_name,
     email: row.email,
+    phone_number: row.phone_number ?? null,
+    inquiry_type: row.inquiry_type ?? null,
     message: row.message,
     status: row.status,
     created_at: iso(row.created_at),

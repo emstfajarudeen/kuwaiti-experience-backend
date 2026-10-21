@@ -73,6 +73,19 @@ export async function canonicalPage(
   }
 }
 
+export function contactInquiryTypes(value: unknown): string[] {
+  let parsed = value
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value)
+    } catch {
+      return []
+    }
+  }
+  if (!Array.isArray(parsed)) return []
+  return parsed.filter((item): item is string => typeof item === 'string' && item.length > 0)
+}
+
 export async function canonicalSettings() {
   const row = await db.from('site_settings').where('id', 1).first()
   const logoImageKey = row?.logo_image_key ?? null
@@ -80,8 +93,15 @@ export async function canonicalSettings() {
     data: {
       id: 1,
       brand_name: row?.brand_name ?? 'The Kuwaiti Experience',
+      direct_phone_number: row?.direct_phone_number ?? null,
+      direct_phone_description: row?.direct_phone_description ?? null,
       whatsapp_number: row?.whatsapp_number ?? null,
+      whatsapp_description: row?.whatsapp_description ?? null,
       contact_email: row?.contact_email ?? null,
+      headquarters_name: row?.headquarters_name ?? null,
+      headquarters_address: row?.headquarters_address ?? null,
+      headquarters_map_url: row?.headquarters_map_url ?? null,
+      contact_inquiry_types: contactInquiryTypes(row?.contact_inquiry_types),
       app_store_url: row?.app_store_url ?? null,
       play_store_url: row?.play_store_url ?? null,
       logo_image_key: logoImageKey,

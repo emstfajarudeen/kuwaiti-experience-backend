@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 import { homeValidator, settingsValidator } from '../../validators/content.js'
+import { contactInquiryTypes } from '../../services/customer_content_service.js'
 import { ApiError } from '../../services/api_error.js'
 import {
   adminApiImageUrl,
@@ -16,9 +17,31 @@ import {
 
 async function settingsData() {
   const row = await db.from('site_settings').where('id', 1).first()
-  if (!row) return { id: 1, brand_name: 'The Kuwaiti Experience', logo_image_url: null }
-  const { logo_image_key: logoImageKey, ...fields } = row
-  return { ...fields, logo_image_url: adminApiImageUrl(logoImageKey) }
+  if (!row) {
+    return {
+      id: 1,
+      brand_name: 'The Kuwaiti Experience',
+      direct_phone_number: null,
+      direct_phone_description: null,
+      whatsapp_number: null,
+      whatsapp_description: null,
+      contact_email: null,
+      headquarters_name: null,
+      headquarters_address: null,
+      headquarters_map_url: null,
+      contact_inquiry_types: [],
+      app_store_url: null,
+      play_store_url: null,
+      logo_image_url: null,
+      updated_at: null,
+    }
+  }
+  const { logo_image_key: logoImageKey, contact_inquiry_types: inquiryTypes, ...fields } = row
+  return {
+    ...fields,
+    contact_inquiry_types: contactInquiryTypes(inquiryTypes),
+    logo_image_url: adminApiImageUrl(logoImageKey),
+  }
 }
 
 async function homeData(locale: 'en' | 'ar') {

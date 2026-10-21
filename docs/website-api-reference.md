@@ -1,6 +1,6 @@
 # Website frontend API reference
 
-Last verified against routes, serializers, OpenAPI and the local development database: **21 October 2026**. This is the website integration contract for the four footer destinations. The supplied UI shows About Us and Terms & Conditions; both legal screenshots show Terms, so Privacy-specific content has not been verified. The Contact Us UI is still pending.
+Last verified against routes, serializers and OpenAPI: **21 October 2026**. This is the website integration contract for the four footer destinations. The Contact Us implementation mapping for the supplied UI is documented separately in [Contact Us frontend implementation reference](contact-us-frontend-reference.md). Screenshot values are visual examples, not approved production content.
 
 ## The four footer links
 
@@ -67,15 +67,22 @@ Errors have `{ "error": { "code": "...", "message": "...", "requestId": "..." } 
 
 ## Contact channels: `GET /api/v2/site`
 
-This returns HTTP 200 with `data: SiteSettings` and `meta.images`. Authenticated `GET /api/v2/admin/site` returns the **same shape**. The website can use `contact_email` and `whatsapp_number` when present; hide those options when null. The client can turn `whatsapp_number` into `https://wa.me/<digits-only number>`.
+This returns HTTP 200 with `data: SiteSettings` and `meta.images`. Authenticated `GET /api/v2/admin/site` returns the **same shape**. The Contact Us screen uses the direct call, WhatsApp, email, headquarters/map, and inquiry-type fields. Hide a channel when its destination is null; never substitute screenshot/example values.
 
 ```json
 {
   "data": {
     "id": 1,
     "brand_name": "The Kuwaiti Experience",
+    "direct_phone_number": null,
+    "direct_phone_description": null,
     "whatsapp_number": null,
+    "whatsapp_description": null,
     "contact_email": null,
+    "headquarters_name": null,
+    "headquarters_address": null,
+    "headquarters_map_url": null,
+    "contact_inquiry_types": [],
     "app_store_url": null,
     "play_store_url": null,
     "logo_image_key": null,
@@ -85,7 +92,7 @@ This returns HTTP 200 with `data: SiteSettings` and `meta.images`. Authenticated
 }
 ```
 
-All `SiteSettings` keys above are always present. `id` is an integer; `brand_name` is a string; the other settings are nullable strings except `updated_at` (nullable UTC ISO string). When `logo_image_key` is set, `meta.images` has one `{ "storage_key": "...", "url": "/api/v1/images/..." }` entry. Resolve its relative `url` against the API origin. Image URLs live in metadata; the stored entity key remains `logo_image_key`. If the settings row is absent, the API still returns HTTP 200 with the default brand and null settings.
+All `SiteSettings` keys above are always present. Nullable values remain null and `contact_inquiry_types` is always an array. Construct `tel:`, `mailto:`, and `https://wa.me/<digits-only number>` links in the client and use the validated map URL directly. Resolve a non-null `logo_image_key` through `meta.images` against the API origin.
 
 ## Contact form: `POST /api/v2/contact-requests`
 
@@ -95,11 +102,13 @@ Send JSON using database field names:
 {
   "full_name": "Mariam Al-Khaled",
   "email": "mariam@example.com",
+  "phone_number": "+96599998888",
+  "inquiry_type": "Corporate & Event Transport",
   "message": "Please help with my enquiry"
 }
 ```
 
-All three fields are required. `full_name` is trimmed to 1–120 characters; `email` must be valid and at most 254 characters; `message` is trimmed to 1–300 characters. The backend stores email in lowercase. A guest needs no bearer token; an authenticated customer may send a valid customer bearer token. There is no public contact inbox or enquiry status endpoint.
+`full_name`, `email`, and `message` are required. `phone_number` and `inquiry_type` are optional/null. Phone input uses 8–15 digits with an optional leading `+`; inquiry type is limited to 120 characters. The backend lowercases email. A guest needs no bearer token; an authenticated customer may send a valid customer bearer token. There is no public contact inbox or enquiry status endpoint.
 
 Success is HTTP 201 with a **submission receipt**, not a partial `ContactRequest` entity:
 
@@ -107,7 +116,7 @@ Success is HTTP 201 with a **submission receipt**, not a partial `ContactRequest
 { "data": { "id": 1, "created_at": "2026-10-21T06:00:00.000Z" } }
 ```
 
-Validation failures return 422 with the standard error envelope; the per-IP limit of five submissions per hour returns 429. An invalid supplied bearer token returns 401. The response uses `Cache-Control: no-store`. Do not automatically retry a timed-out submission because it may already have been saved. CMS staff can view and update submissions through the Contact requests inbox at `/admin/contact-requests` or the authenticated v2 admin contact APIs.
+Validation failures return 422 with the standard error envelope; the per-IP limit of five submissions per hour returns 429. An invalid supplied bearer token returns 401. The response uses `Cache-Control: no-store`. Do not automatically retry a timed-out submission because it may already have been saved. See the [Contact Us frontend implementation reference](contact-us-frontend-reference.md) for card, form, locale, accessibility, and state mapping.
 
 ## CMS readiness and integration
 
@@ -120,7 +129,7 @@ As of **21 October 2026**, the local development data does **not** yet match the
 | About Us | Draft; English title `About Us`; `eyebrow: null`; plain placeholder body | Set the approved title (`About The Kuwaiti Experience` if final), intro label and section content in Quill, then publish. |
 | Terms & Conditions | Draft; English title `Terms and Conditions`; `eyebrow: null`; plain placeholder body | Set the final title punctuation, `LEGAL & POLICIES` intro label and approved legal sections in Quill, then publish. |
 | Privacy Policy | Draft; English title `Privacy Policy`; `eyebrow: null`; plain placeholder body | Confirm its distinct UI/copy, enter approved policy content, then publish. |
-| Contact Us | Draft; English title `Contact Us`; `eyebrow: null`; plain placeholder body | Await the Contact Us UI; editorial page copy is optional for the working contact form. |
+| Contact Us | Draft; English title `Contact Us`; `eyebrow: null`; plain placeholder body | Editorial page copy remains optional. Configure approved direct call, WhatsApp, email, headquarters/map and inquiry choices in Site settings before launch. |
 
 All four public page reads currently return 404. The stored `updated_at` is **8 October 2026**, which can format as “October 2026,” but these draft pages must not be shown publicly. Approved text must replace the placeholders before publishing; CMS publication now rejects known placeholder copy. `contact_email` and `whatsapp_number` are currently null in local Site settings, so contact channel buttons have no destination yet. Contact form submissions can still be accepted. The supplied legal screenshot text is a UI example, not approved policy copy.
 

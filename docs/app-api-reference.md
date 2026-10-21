@@ -392,13 +392,15 @@ Save example: `{ "data": { "customer_id": 1, "place_id": 12, "created_at": "2026
 {
   "full_name": "Mariam Al-Khaled",
   "email": "mariam@example.com",
+  "phone_number": "+96599998888",
+  "inquiry_type": "Corporate & Event Transport",
   "message": "Please help with my enquiry"
 }
 ```
 
-Contact fields are required: trimmed name 1–120 characters, valid email up to 254, trimmed message 1–300. Success is `{ "data": { "id": 1, "created_at": "2026-10-20T07:00:00.000Z" } }`. This is a **receipt**, not a full ContactRequest model. There is no customer/public contact inbox API. Limit: 5 submissions/IP/hour. Avoid automatic retries after a timeout because a successful submission may already have been recorded.
+Required contact fields are trimmed `full_name` (1–120 characters), valid `email` (up to 254), and trimmed `message` (1–300). `phone_number` is optional/null and, when present, uses 8–15 digits with an optional leading `+`; `inquiry_type` is optional/null and 1–120 characters. Success is `{ "data": { "id": 1, "created_at": "2026-10-20T07:00:00.000Z" } }`. This is a **receipt**, not a full ContactRequest model. There is no customer/public contact inbox API. Limit: 5 submissions/IP/hour. Avoid automatic retries after a timeout because a successful submission may already have been recorded.
 
-SiteSettings keys: `id`, `brand_name`, `whatsapp_number`, `contact_email`, `app_store_url`, `play_store_url`, `logo_image_key`, `updated_at`. Optional settings are present as null. Resolve `logo_image_key` through `meta.images`. Build `https://wa.me/<digits-only number>` from `whatsapp_number`; hide the button when unavailable. Page requests return 404 for missing/unpublished content; the two legal slugs return 503 for recognized placeholder legal copy. A venue summary or screenshot's sample legal text is not a policy fallback.
+SiteSettings keys: `id`, `brand_name`, nullable `direct_phone_number`, `direct_phone_description`, `whatsapp_number`, `whatsapp_description`, `contact_email`, `headquarters_name`, `headquarters_address`, `headquarters_map_url`, array `contact_inquiry_types`, nullable `app_store_url`, `play_store_url`, `logo_image_key`, and nullable `updated_at`. Resolve `logo_image_key` through `meta.images`. Build `tel:`, `mailto:`, and `https://wa.me/<digits-only number>` client links; use `headquarters_map_url` directly. Hide unavailable cards when their destination is null. Page requests return 404 for missing/unpublished content; the two legal slugs return 503 for recognized placeholder legal copy. See [Contact Us frontend reference](contact-us-frontend-reference.md) for the supplied web UI mapping.
 
 ## 12. Home screen
 

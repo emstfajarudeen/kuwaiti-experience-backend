@@ -18,7 +18,21 @@
           <label class="checkbox-line"><input type="checkbox" name="removeLogo"> Remove logo</label>
         @end
       </div></div></section>
-      <section class="panel form-panel"><span class="eyebrow">CONTACT</span><h2>Reach the team</h2><div class="form-grid"><label>Contact email<input name="contactEmail" type="email" value="{{ settings?.contact_email || '' }}"></label><label>WhatsApp number <small>(international format)</small><input name="whatsappNumber" type="tel" placeholder="+965XXXXXXXX" value="{{ settings?.whatsapp_number || '' }}"></label></div><p class="panel-help" style="margin:15px 0 0">Cab enquiry links stay unavailable until a real number is set.</p></section>
+      <section class="panel form-panel">
+        <span class="eyebrow">CONTACT</span><h2>Reach the team</h2>
+        <div class="form-grid">
+          <label>Direct call number <small>(international format)</small><input name="directPhoneNumber" type="tel" placeholder="+965XXXXXXXX" value="{{ settings?.direct_phone_number || '' }}"></label>
+          <label>Direct call description<input name="directPhoneDescription" maxlength="160" placeholder="24/7 Dispatch & Support" value="{{ settings?.direct_phone_description || '' }}"></label>
+          <label>WhatsApp number <small>(international format)</small><input name="whatsappNumber" type="tel" placeholder="+965XXXXXXXX" value="{{ settings?.whatsapp_number || '' }}"></label>
+          <label>WhatsApp description<input name="whatsappDescription" maxlength="160" placeholder="Instant Live Assistance" value="{{ settings?.whatsapp_description || '' }}"></label>
+          <label>Contact email<input name="contactEmail" type="email" value="{{ settings?.contact_email || '' }}"></label>
+          <label>Headquarters name<input name="headquartersName" maxlength="160" placeholder="Kuwait City, Kuwait" value="{{ settings?.headquarters_name || '' }}"></label>
+          <label>Headquarters address<input name="headquartersAddress" maxlength="300" placeholder="Arabian Gulf Street, Kuwait City" value="{{ settings?.headquarters_address || '' }}"></label>
+          <label>Headquarters map URL<input name="headquartersMapUrl" type="url" value="{{ settings?.headquarters_map_url || '' }}"></label>
+        </div>
+        <label>Inquiry types <small>(one option per line; maximum 20)</small><textarea name="contactInquiryTypes" rows="5">{{ contactInquiryTypes }}</textarea></label>
+        <p class="panel-help" style="margin:15px 0 0">Empty contact channels are returned as null and should be hidden by the website.</p>
+      </section>
       <section class="panel form-panel"><span class="eyebrow">MOBILE APP</span><h2>Store links</h2><div class="form-grid"><label>App Store URL<input name="appStoreUrl" type="url" value="{{ settings?.app_store_url || '' }}"></label><label>Google Play URL<input name="playStoreUrl" type="url" value="{{ settings?.play_store_url || '' }}"></label></div></section>
     </div>
     <aside class="editor-aside"><section class="panel form-panel actions-panel"><span class="eyebrow">PUBLISH SETTINGS</span><p class="panel-help">Changes appear in the site API as soon as they are saved.</p><button class="button primary wide" type="submit">Save settings <span>→</span></button></section></aside>
@@ -26,4 +40,3 @@
 @end
 
 @end
-

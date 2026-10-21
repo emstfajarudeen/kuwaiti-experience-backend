@@ -736,11 +736,21 @@ components:
       type: object
       required: [brandName]
       properties:
-        brandName: { type: string }
-        whatsappNumber: { type: [string, 'null'] }
-        contactEmail: { type: [string, 'null'], format: email }
-        appStoreUrl: { type: [string, 'null'], format: uri }
-        playStoreUrl: { type: [string, 'null'], format: uri }
+        brandName: { type: string, minLength: 2, maxLength: 120 }
+        directPhoneNumber: { type: [string, 'null'], pattern: '^\+?[1-9]\d{7,14}$' }
+        directPhoneDescription: { type: [string, 'null'], maxLength: 160 }
+        whatsappNumber: { type: [string, 'null'], pattern: '^\+?[1-9]\d{7,14}$' }
+        whatsappDescription: { type: [string, 'null'], maxLength: 160 }
+        contactEmail: { type: [string, 'null'], format: email, maxLength: 254 }
+        headquartersName: { type: [string, 'null'], maxLength: 160 }
+        headquartersAddress: { type: [string, 'null'], maxLength: 300 }
+        headquartersMapUrl: { type: [string, 'null'], format: uri, maxLength: 500 }
+        contactInquiryTypes:
+          type: array
+          maxItems: 20
+          items: { type: string, minLength: 1, maxLength: 120 }
+        appStoreUrl: { type: [string, 'null'], format: uri, maxLength: 500 }
+        playStoreUrl: { type: [string, 'null'], format: uri, maxLength: 500 }
     Home:
       type: object
       required: [locale, heroEyebrow, heroTitle, discoveryTitle]

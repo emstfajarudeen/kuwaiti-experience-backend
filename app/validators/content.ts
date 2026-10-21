@@ -125,12 +125,26 @@ export const locationValidator = vine.compile(
 export const settingsValidator = vine.compile(
   vine.object({
     brandName: vine.string().minLength(2).maxLength(120),
+    directPhoneNumber: vine
+      .string()
+      .regex(/^\+?[1-9]\d{7,14}$/)
+      .nullable()
+      .optional(),
+    directPhoneDescription: vine.string().trim().maxLength(160).nullable().optional(),
     whatsappNumber: vine
       .string()
       .regex(/^\+?[1-9]\d{7,14}$/)
       .nullable()
       .optional(),
+    whatsappDescription: vine.string().trim().maxLength(160).nullable().optional(),
     contactEmail: vine.string().email().maxLength(254).nullable().optional(),
+    headquartersName: vine.string().trim().maxLength(160).nullable().optional(),
+    headquartersAddress: vine.string().trim().maxLength(300).nullable().optional(),
+    headquartersMapUrl: httpUrl.nullable().optional(),
+    contactInquiryTypes: vine
+      .array(vine.string().trim().minLength(1).maxLength(120))
+      .maxLength(20)
+      .optional(),
     appStoreUrl: httpUrl.nullable().optional(),
     playStoreUrl: httpUrl.nullable().optional(),
   })

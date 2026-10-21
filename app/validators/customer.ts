@@ -44,6 +44,13 @@ export const contactValidator = vine.compile(
   vine.object({
     full_name: vine.string().trim().minLength(1).maxLength(120),
     email: vine.string().trim().email().maxLength(254),
+    phone_number: vine
+      .string()
+      .trim()
+      .regex(/^\+?[1-9]\d{7,14}$/)
+      .nullable()
+      .optional(),
+    inquiry_type: vine.string().trim().minLength(1).maxLength(120).nullable().optional(),
     message: vine.string().trim().minLength(1).maxLength(300),
   })
 )

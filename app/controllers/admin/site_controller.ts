@@ -3,6 +3,7 @@ import db from '@adonisjs/lucid/services/db'
 import { locationValidator, settingsValidator } from '../../validators/content.js'
 import { cmsImageUrl, imageFiles, prepareImages } from '../../services/image_storage_service.js'
 import { saveHome, saveSettings } from '../../services/site_content_service.js'
+import { contactInquiryTypes } from '../../services/customer_content_service.js'
 import { HOME_TYPES } from '../../services/home_read_service.js'
 import { positiveId } from '../../services/explore_read_service.js'
 import { deleteHomeCard, saveHomeCard } from '../../services/home_write_service.js'
@@ -19,6 +20,13 @@ function saveError(request: HttpContext['request'], error: unknown, fallback: st
   return Object.keys(request.allFiles()).length > 0
     ? `${message.replace(/\.$/, '')}. Re-select the image you attached.`
     : message
+}
+
+function inquiryTypesInput(value: unknown) {
+  return String(value ?? '')
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean)
 }
 
 export default class AdminSitePageController {
@@ -137,6 +145,7 @@ export default class AdminSitePageController {
     return view.render('admin/settings', {
       admin,
       settings,
+      contactInquiryTypes: contactInquiryTypes(settings?.contact_inquiry_types).join('\n'),
       logoImageUrl: cmsImageUrl(settings?.logo_image_key),
     })
   }
@@ -146,8 +155,15 @@ export default class AdminSitePageController {
     try {
       const input = await settingsValidator.validate({
         brandName: request.input('brandName'),
+        directPhoneNumber: request.input('directPhoneNumber') || null,
+        directPhoneDescription: request.input('directPhoneDescription') || null,
         whatsappNumber: request.input('whatsappNumber') || null,
+        whatsappDescription: request.input('whatsappDescription') || null,
         contactEmail: request.input('contactEmail') || null,
+        headquartersName: request.input('headquartersName') || null,
+        headquartersAddress: request.input('headquartersAddress') || null,
+        headquartersMapUrl: request.input('headquartersMapUrl') || null,
+        contactInquiryTypes: inquiryTypesInput(request.input('contactInquiryTypes')),
         appStoreUrl: request.input('appStoreUrl') || null,
         playStoreUrl: request.input('playStoreUrl') || null,
       })
