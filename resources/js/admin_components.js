@@ -62,6 +62,7 @@ for (const input of document.querySelectorAll('input:not([type="hidden"]):not([t
 }
 
 for (const textarea of document.querySelectorAll('textarea')) {
+  if (textarea.matches('[data-rich-body]')) continue
   const field = document.createElement('wa-textarea')
   field.setAttribute('value', textarea.value)
   decorateField(textarea, field)

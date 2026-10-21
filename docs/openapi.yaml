@@ -713,8 +713,12 @@ components:
         slug: { type: string }
         titleEn: { type: string }
         bodyEn: { type: string }
+        eyebrowEn: { type: [string, 'null'], maxLength: 120 }
+        bodyFormatEn: { type: string, enum: [plain_text, html], default: plain_text }
         titleAr: { type: [string, 'null'] }
         bodyAr: { type: [string, 'null'] }
+        eyebrowAr: { type: [string, 'null'], maxLength: 120 }
+        bodyFormatAr: { type: string, enum: [plain_text, html], default: plain_text }
         seoTitleEn: { type: [string, 'null'] }
         seoDescriptionEn: { type: [string, 'null'] }
     Location:

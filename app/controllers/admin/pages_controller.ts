@@ -2,6 +2,12 @@ import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 import { pageValidator } from '../../validators/content.js'
 import { ApiError } from '../../services/api_error.js'
+import {
+  hasPlaceholderPageCopy,
+  normalizePageBody,
+  pageBodyFormat,
+  safePageBody,
+} from '../../services/page_content_service.js'
 
 export default class AdminPagesPageController {
   async index({ view, admin }: HttpContext) {
@@ -18,7 +24,11 @@ export default class AdminPagesPageController {
   async edit({ params, view, response, admin }: HttpContext) {
     const page = params.id ? await db.from('pages').where('id', params.id).first() : null
     if (params.id && !page) return response.redirect('/admin/pages')
-    const translations = page ? await db.from('page_translations').where('page_id', page.id) : []
+    const translationRows = page ? await db.from('page_translations').where('page_id', page.id) : []
+    const translations = translationRows.map((translation) => ({
+      ...translation,
+      body: safePageBody(translation.body, pageBodyFormat(translation.body_format)),
+    }))
     return view.render('admin/pages/edit', {
       admin,
       page,
@@ -33,8 +43,12 @@ export default class AdminPagesPageController {
         slug: request.input('slug'),
         titleEn: request.input('titleEn'),
         bodyEn: request.input('bodyEn'),
+        eyebrowEn: request.input('eyebrowEn') || null,
+        bodyFormatEn: request.input('bodyFormatEn') || 'plain_text',
         titleAr: request.input('titleAr') || null,
         bodyAr: request.input('bodyAr') || null,
+        eyebrowAr: request.input('eyebrowAr') || null,
+        bodyFormatAr: request.input('bodyFormatAr') || 'plain_text',
         seoTitleEn: request.input('seoTitleEn') || null,
         seoDescriptionEn: request.input('seoDescriptionEn') || null,
       })
@@ -61,7 +75,9 @@ export default class AdminPagesPageController {
             page_id: pageId,
             locale: 'en',
             title: input.titleEn,
-            body: input.bodyEn,
+            eyebrow: input.eyebrowEn || null,
+            body: normalizePageBody(input.bodyEn, input.bodyFormatEn ?? 'plain_text'),
+            body_format: input.bodyFormatEn ?? 'plain_text',
             seo_title: input.seoTitleEn ?? null,
             seo_description: input.seoDescriptionEn ?? null,
           })
@@ -74,7 +90,9 @@ export default class AdminPagesPageController {
               page_id: pageId,
               locale: 'ar',
               title: input.titleAr,
-              body: input.bodyAr,
+              eyebrow: input.eyebrowAr || null,
+              body: normalizePageBody(input.bodyAr, input.bodyFormatAr ?? 'plain_text'),
+              body_format: input.bodyFormatAr ?? 'plain_text',
             })
             .onConflict(['page_id', 'locale'])
             .merge()
@@ -103,15 +121,25 @@ export default class AdminPagesPageController {
 
   async publish({ params, response, session, admin }: HttpContext) {
     const id = Number(params.id)
+    const page = await db.from('pages').where('id', id).first()
+    if (!page) return response.redirect('/admin/pages')
     const en = await db.from('page_translations').where('page_id', id).where('locale', 'en').first()
     if (!en?.title || !en.body) {
       session.flash('error', 'English title and body are required.')
       return response.redirect(`/admin/pages/${id}/edit`)
     }
+    if (hasPlaceholderPageCopy(en.body)) {
+      session.flash('error', 'Replace placeholder content before publishing.')
+      return response.redirect(`/admin/pages/${id}/edit`)
+    }
     await db
       .from('pages')
       .where('id', id)
-      .update({ status: 'published', published_at: new Date(), updated_at: new Date() })
+      .update({
+        status: 'published',
+        published_at: new Date(Math.floor(Date.now() / 1000) * 1000),
+        updated_at: new Date(),
+      })
     await db.table('audit_logs').insert({
       actor_id: admin.id,
       action: 'page.published',

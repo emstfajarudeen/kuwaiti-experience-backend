@@ -3,7 +3,7 @@
   "info": {
     "title": "Kuwaiti Experience customer accounts and support",
     "version": "2.0.0",
-    "description": "Implemented selected App 2 screens. Phone OTP requires a configured SMS provider adapter. All persisted fields retain SQL names; credentials and meta are protocol objects."
+    "description": "Implemented selected App 2 screens. Phone OTP requires a configured SMS adapter or the explicit development response option. All persisted fields retain SQL names; credentials and meta are protocol objects."
   },
   "servers": [
     {
@@ -13,13 +13,13 @@
   "paths": {
     "/api/v2/customer/auth/otp": {
       "post": {
-        "summary": "Request a four-digit SMS OTP; disabled until SMS is configured",
+        "summary": "Request a four-digit phone OTP",
         "tags": [
           "Customer v2"
         ],
         "responses": {
           "202": {
-            "description": "Request a four-digit SMS OTP; disabled until SMS is configured",
+            "description": "OTP challenge receipt; includes dev_otp only when explicitly enabled in development",
             "content": {
               "application/json": {
                 "schema": {
@@ -1479,11 +1479,15 @@
                   "type": "object",
                   "additionalProperties": false,
                   "required": [
-                    "data"
+                    "data",
+                    "meta"
                   ],
                   "properties": {
                     "data": {
                       "$ref": "#/components/schemas/SiteSettings"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/SiteSettingsMeta"
                     }
                   }
                 }
@@ -2353,11 +2357,15 @@
                   "type": "object",
                   "additionalProperties": false,
                   "required": [
-                    "data"
+                    "data",
+                    "meta"
                   ],
                   "properties": {
                     "data": {
                       "$ref": "#/components/schemas/SiteSettings"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/SiteSettingsMeta"
                     }
                   }
                 }
@@ -3469,6 +3477,11 @@
           "resend_available_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "dev_otp": {
+            "type": "string",
+            "pattern": "^[0-9]{4}$",
+            "description": "Present only with the explicit development OTP response option; never present in production."
           }
         }
       },
@@ -3579,7 +3592,9 @@
           "page_id",
           "locale",
           "title",
+          "eyebrow",
           "body",
+          "body_format",
           "seo_title",
           "seo_description"
         ],
@@ -3602,9 +3617,23 @@
           "title": {
             "type": "string"
           },
+          "eyebrow": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 120
+          },
           "body": {
             "type": "string",
-            "description": "Render as escaped text, not trusted HTML."
+            "description": "Render according to body_format. HTML is sanitized on write and read; do not interpolate it into attributes or scripts."
+          },
+          "body_format": {
+            "type": "string",
+            "enum": [
+              "plain_text",
+              "html"
+            ]
           },
           "seo_title": {
             "type": [
@@ -3677,7 +3706,7 @@
           "contact_email",
           "app_store_url",
           "play_store_url",
-          "logo_image_url",
+          "logo_image_key",
           "updated_at"
         ],
         "properties": {
@@ -3712,12 +3741,12 @@
               "null"
             ]
           },
-          "logo_image_url": {
+          "logo_image_key": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Public logo path /api/v1/images/{key}, relative to the API origin, or null"
+            "description": "Stored image key; resolve its public URL through meta.images"
           },
           "updated_at": {
             "type": [
@@ -3725,6 +3754,34 @@
               "null"
             ],
             "format": "date-time"
+          }
+        }
+      },
+      "SiteSettingsMeta": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "images"
+        ],
+        "properties": {
+          "images": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "storage_key",
+                "url"
+              ],
+              "properties": {
+                "storage_key": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       },

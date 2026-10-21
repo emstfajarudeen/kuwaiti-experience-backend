@@ -2,6 +2,8 @@ import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 import { pageValidator } from '../../validators/content.js'
 import { ApiError } from '../../services/api_error.js'
+import { serializePage } from '../../services/customer_content_service.js'
+import { assertApprovedPageCopy, normalizePageBody } from '../../services/page_content_service.js'
 
 export default class AdminPagesController {
   async index() {
@@ -19,7 +21,10 @@ export default class AdminPagesController {
     const page = await db.from('pages').where('id', params.id).first()
     if (!page) throw new ApiError(404, 'NOT_FOUND', 'Page not found')
     return {
-      data: { ...page, translations: await db.from('page_translations').where('page_id', page.id) },
+      data: serializePage(
+        page,
+        await db.from('page_translations').where('page_id', page.id).orderBy('locale')
+      ),
     }
   }
 
@@ -36,7 +41,9 @@ export default class AdminPagesController {
         page_id: pageId,
         locale: 'en',
         title: input.titleEn,
-        body: input.bodyEn,
+        eyebrow: input.eyebrowEn || null,
+        body: normalizePageBody(input.bodyEn, input.bodyFormatEn ?? 'plain_text'),
+        body_format: input.bodyFormatEn ?? 'plain_text',
         seo_title: input.seoTitleEn ?? null,
         seo_description: input.seoDescriptionEn ?? null,
       })
@@ -45,7 +52,9 @@ export default class AdminPagesController {
           page_id: pageId,
           locale: 'ar',
           title: input.titleAr,
-          body: input.bodyAr,
+          eyebrow: input.eyebrowAr || null,
+          body: normalizePageBody(input.bodyAr, input.bodyFormatAr ?? 'plain_text'),
+          body_format: input.bodyFormatAr ?? 'plain_text',
         })
       await trx.table('audit_logs').insert({
         actor_id: admin.id,
@@ -74,7 +83,9 @@ export default class AdminPagesController {
           page_id: id,
           locale: 'en',
           title: input.titleEn,
-          body: input.bodyEn,
+          eyebrow: input.eyebrowEn || null,
+          body: normalizePageBody(input.bodyEn, input.bodyFormatEn ?? 'plain_text'),
+          body_format: input.bodyFormatEn ?? 'plain_text',
           seo_title: input.seoTitleEn ?? null,
           seo_description: input.seoDescriptionEn ?? null,
         })
@@ -87,7 +98,9 @@ export default class AdminPagesController {
             page_id: id,
             locale: 'ar',
             title: input.titleAr,
-            body: input.bodyAr,
+            eyebrow: input.eyebrowAr || null,
+            body: normalizePageBody(input.bodyAr, input.bodyFormatAr ?? 'plain_text'),
+            body_format: input.bodyFormatAr ?? 'plain_text',
           })
           .onConflict(['page_id', 'locale'])
           .merge()
@@ -115,10 +128,15 @@ export default class AdminPagesController {
         .first()
       if (!en?.title || !en.body)
         throw new ApiError(422, 'INCOMPLETE_PAGE', 'English content is required')
+      assertApprovedPageCopy(page.slug, en.body)
       await trx
         .from('pages')
         .where('id', id)
-        .update({ status: 'published', published_at: new Date(), updated_at: new Date() })
+        .update({
+          status: 'published',
+          published_at: new Date(Math.floor(Date.now() / 1000) * 1000),
+          updated_at: new Date(),
+        })
       await trx.table('audit_logs').insert({
         actor_id: admin.id,
         action: 'page.published',

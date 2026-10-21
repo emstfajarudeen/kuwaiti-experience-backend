@@ -1,15 +1,91 @@
 {
   "info": {
     "_postman_id": "253811f7-4325-4b3f-a0ec-85e39fd940ad",
-    "name": "Kuwaiti Experience — Mobile APIs and CMS",
+    "name": "Kuwaiti Experience — App, Website and CMS APIs",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Import the companion Local environment and select it. Set base_url and your phone numbers. Requests are intended to be sent individually: login branches, optional resend, photo selection, logout and deletion require manual choices. See docs/postman/README.md. No real credentials or OTPs are included. Customer token/proof values are captured into the selected environment only after successful responses. SMS request/resend returns 503 until the configured provider adapter is available. Explore v2 browsing, bookmarks and CMS movie/feature/showtime requests are in folders 07–09; see docs/explore-api.md. Home v2 guest/customer reads and CMS management are in folder 09A; see docs/app-api-reference.md section 12."
+    "description": "Import the companion Local environment and select it. Set base_url and your phone numbers. Requests are intended to be sent individually: login branches, optional resend, photo selection, logout and deletion require manual choices. See docs/postman/README.md. No real credentials or OTPs are included. Customer token/proof values are captured into the selected environment only after successful responses. SMS request/resend returns 503 until the configured provider adapter is available. Explore v2 browsing, bookmarks and CMS movie/feature/showtime requests are in folders 07–09; see docs/explore-api.md. Home v2 guest/customer reads and CMS management are in folder 09A; see docs/app-api-reference.md section 12. Website footer page and contact endpoints are in folders 01 and 05; see docs/website-api-reference.md."
   },
   "item": [
     {
-      "name": "01 — Legal pages and public settings",
-      "description": "Read both legal pages before registration; scripts capture the selected locale and content hash. Approved pages must be published in the CMS.",
+      "name": "01 — Footer pages and public settings",
+      "description": "Read all four footer Page resources after CMS publication. Privacy/Terms scripts capture locale and content hash for app registration. Contact submissions are in folder 05.",
       "item": [
+        {
+          "name": "About Us page",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/pages/about-us?locale={{locale}}",
+            "description": "Public CMS page; publish approved content before expecting HTTP 200.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Canonical Page and translation keys\", function () {",
+                  "    pm.expect(body.data).to.have.all.keys(\"id\", \"slug\", \"status\", \"published_at\", \"created_at\", \"updated_at\", \"page_translations\");",
+                  "    pm.expect(body.data.page_translations).to.be.an(\"array\");",
+                  "    body.data.page_translations.forEach(t => pm.expect(t).to.have.all.keys(\"id\", \"page_id\", \"locale\", \"title\", \"eyebrow\", \"body\", \"body_format\", \"seo_title\", \"seo_description\"));",
+                  "    pm.expect(body.meta).to.have.all.keys(\"locale\", \"content_hash\");",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Contact Us page copy",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/pages/contact-us?locale={{locale}}",
+            "description": "Public CMS page; publish approved content before expecting HTTP 200.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Canonical Page and translation keys\", function () {",
+                  "    pm.expect(body.data).to.have.all.keys(\"id\", \"slug\", \"status\", \"published_at\", \"created_at\", \"updated_at\", \"page_translations\");",
+                  "    pm.expect(body.data.page_translations).to.be.an(\"array\");",
+                  "    body.data.page_translations.forEach(t => pm.expect(t).to.have.all.keys(\"id\", \"page_id\", \"locale\", \"title\", \"eyebrow\", \"body\", \"body_format\", \"seo_title\", \"seo_description\"));",
+                  "    pm.expect(body.meta).to.have.all.keys(\"locale\", \"content_hash\");",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
         {
           "name": "Privacy policy",
           "request": {
@@ -46,6 +122,11 @@
                   "const m = pm.response.json().meta;",
                   "pm.environment.set('privacy_content_hash', m.content_hash);",
                   "pm.environment.set('privacy_locale', m.locale);",
+                  "const page = pm.response.json().data;",
+                  "pm.test(\"Canonical PageTranslation shape\", function () {",
+                  "  pm.expect(page).to.have.all.keys(\"id\", \"slug\", \"status\", \"published_at\", \"created_at\", \"updated_at\", \"page_translations\");",
+                  "  page.page_translations.forEach(t => pm.expect(t).to.have.all.keys(\"id\", \"page_id\", \"locale\", \"title\", \"eyebrow\", \"body\", \"body_format\", \"seo_title\", \"seo_description\"));",
+                  "});",
                   "}"
                 ]
               }
@@ -89,6 +170,11 @@
                   "const m = pm.response.json().meta;",
                   "pm.environment.set('terms_content_hash', m.content_hash);",
                   "pm.environment.set('terms_locale', m.locale);",
+                  "const page = pm.response.json().data;",
+                  "pm.test(\"Canonical PageTranslation shape\", function () {",
+                  "  pm.expect(page).to.have.all.keys(\"id\", \"slug\", \"status\", \"published_at\", \"created_at\", \"updated_at\", \"page_translations\");",
+                  "  page.page_translations.forEach(t => pm.expect(t).to.have.all.keys(\"id\", \"page_id\", \"locale\", \"title\", \"eyebrow\", \"body\", \"body_format\", \"seo_title\", \"seo_description\"));",
+                  "});",
                   "}"
                 ]
               }
@@ -118,7 +204,15 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.test(\"Canonical SiteSettings and image metadata\", function () {",
+                  "    pm.expect(body.data).to.have.all.keys(\"id\", \"brand_name\", \"whatsapp_number\", \"contact_email\", \"app_store_url\", \"play_store_url\", \"logo_image_key\", \"updated_at\");",
+                  "    pm.expect(body.meta).to.have.all.keys(\"images\");",
+                  "    pm.expect(body.meta.images).to.be.an(\"array\");",
+                  "  });",
+                  "}"
                 ]
               }
             }
@@ -129,7 +223,7 @@
     },
     {
       "name": "02 — Phone login and registration",
-      "description": "Request OTP, enter the received code in otp_code, then verify. Follow next_action: send Existing customer sign in OR Create account, not both. OTP proofs are one use. SMS is disabled until a provider adapter is configured; request/resend currently returns 503.",
+      "description": "Request OTP, enter the received code in otp_code, then verify. In isolated development with CUSTOMER_OTP_DEV_RESPONSE=true, copy data.dev_otp from the response. Follow next_action: send Existing customer sign in OR Create account, not both. OTP proofs are one use. Without SMS or the development response option, request/resend returns 503.",
       "item": [
         {
           "name": "Request login OTP",

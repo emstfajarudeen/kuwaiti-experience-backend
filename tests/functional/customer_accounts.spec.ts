@@ -386,6 +386,121 @@ test.group('Customer accounts and support', (group) => {
       .header('Authorization', `Bearer ${admin}`)
     assert.deepEqual(site.body(), settings.body())
     assert.isNull(site.body().data.whatsapp_number)
+    assert.isNull(site.body().data.logo_image_key)
+    assert.deepEqual(site.body().meta.images, [])
+  })
+
+  test('About Us and Contact Us pages reuse the complete public and CMS Page shape', async ({
+    client,
+    assert,
+  }) => {
+    const admin = await adminToken()
+    let pageKeys: string[] | undefined
+    for (const slug of ['about-us', 'contact-us']) {
+      const [id] = await db.table('pages').insert({
+        slug,
+        status: 'published',
+        published_at: new Date(Date.now() - 1000),
+        created_at: new Date(),
+      })
+      await db.table('page_translations').insert({
+        page_id: id,
+        locale: 'en',
+        title: slug,
+        body: `Approved ${slug} text`,
+      })
+      const publicPage = await client.get(`${base}/pages/${slug}?locale=ar`)
+      const cmsPage = await client
+        .get(`${base}/admin/pages/${slug}?locale=ar`)
+        .header('Authorization', `Bearer ${admin}`)
+      publicPage.assertStatus(200)
+      cmsPage.assertStatus(200)
+      assert.deepEqual(publicPage.body(), cmsPage.body())
+      assert.equal(publicPage.body().meta.locale, 'en')
+      const keys = Object.keys(publicPage.body().data).sort()
+      if (pageKeys) assert.deepEqual(keys, pageKeys)
+      pageKeys = keys
+      assert.deepEqual(Object.keys(publicPage.body().data.page_translations[0]).sort(), [
+        'body',
+        'body_format',
+        'eyebrow',
+        'id',
+        'locale',
+        'page_id',
+        'seo_description',
+        'seo_title',
+        'title',
+      ])
+    }
+    await db.from('pages').where('slug', 'contact-us').update({ status: 'draft' })
+    const draft = await client.get(`${base}/pages/contact-us`)
+    draft.assertStatus(404)
+  })
+
+  test('CMS rich page fields safely supply the website header and formatted sections', async ({
+    client,
+    assert,
+  }) => {
+    const admin = await adminToken()
+    const auth = `Bearer ${admin}`
+    const created = await client.post('/api/v1/admin/pages').header('Authorization', auth).json({
+      slug: 'about-us',
+      titleEn: 'About The Kuwaiti Experience',
+      eyebrowEn: 'ABOUT THE KUWAITI EXPERIENCE',
+      bodyEn:
+        '<h2>The Essence of Kuwaiti Hospitality</h2><p onclick="evil()">Our story.</p><script>alert(1)</script>',
+      bodyFormatEn: 'html',
+    })
+    created.assertStatus(201)
+    const id = created.body().data.id
+    const draft = await client.get(`/api/v1/admin/pages/${id}`).header('Authorization', auth)
+    draft.assertStatus(200)
+    const translation = draft.body().data.page_translations[0]
+    assert.equal(translation.eyebrow, 'ABOUT THE KUWAITI EXPERIENCE')
+    assert.equal(translation.body_format, 'html')
+    assert.include(translation.body, '<h2>The Essence of Kuwaiti Hospitality</h2>')
+    assert.notInclude(translation.body, 'onclick')
+    assert.notInclude(translation.body, '<script')
+    const hidden = await client.get(`${base}/pages/about-us`)
+    hidden.assertStatus(404)
+
+    const published = await client
+      .post(`/api/v1/admin/pages/${id}/publish`)
+      .header('Authorization', auth)
+    published.assertStatus(200)
+    const publicPage = await client.get(`${base}/pages/about-us?locale=en`)
+    const cmsPage = await client
+      .get(`${base}/admin/pages/about-us?locale=en`)
+      .header('Authorization', auth)
+    publicPage.assertStatus(200)
+    assert.deepEqual(publicPage.body(), cmsPage.body())
+    assert.equal(publicPage.body().data.page_translations[0].body, translation.body)
+    assert.isString(publicPage.body().data.updated_at)
+    await db
+      .from('page_translations')
+      .where('page_id', id)
+      .update({ body: '<p onclick="evil()">Reviewed text</p><script>alert(1)</script>' })
+    const safeV2 = await client.get(`${base}/pages/about-us`)
+    const safeV1 = await client.get('/api/v1/pages/about-us')
+    safeV2.assertStatus(200)
+    safeV1.assertStatus(200)
+    assert.equal(safeV2.body().data.page_translations[0].body, '<p>Reviewed text</p>')
+    assert.equal(safeV1.body().data.body, '<p>Reviewed text</p>')
+
+    const placeholder = await client
+      .post('/api/v1/admin/pages')
+      .header('Authorization', auth)
+      .json({
+        slug: 'terms-and-conditions',
+        titleEn: 'Terms and Conditions',
+        bodyEn: 'Draft demo content. Replace with approved copy before publishing.',
+      })
+    placeholder.assertStatus(201)
+    const refused = await client
+      .post(`/api/v1/admin/pages/${placeholder.body().data.id}/publish`)
+      .header('Authorization', auth)
+    refused.assertStatus(422)
+    assert.equal(refused.body().error.code, 'PLACEHOLDER_PAGE_CONTENT')
   })
 
   test('delivery failures invalidate code and missing configuration fails closed', async ({

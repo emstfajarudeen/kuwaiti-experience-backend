@@ -7,6 +7,7 @@
 @import '@awesome.me/webawesome/dist/styles/themes/default.css';
 @import 'filepond/dist/filepond.css';
 @import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css';
+@import 'quill/dist/quill.snow.css';
 
 :root {
     --navy: #00264b;
@@ -794,6 +795,47 @@ textarea:focus-visible {
 .form-panel textarea {
     resize: vertical;
     line-height: 1.6
+}
+
+.rich-field {
+    min-width: 0
+}
+
+.rich-field .rich-editor {
+    display: none
+}
+
+.rich-field .rich-editor.is-ready {
+    display: block
+}
+
+.rich-field .rich-source-hidden {
+    display: none
+}
+
+.rich-field .ql-toolbar.ql-snow {
+    margin-top: 7px;
+    border: 1px solid #dce3e5;
+    border-radius: 8px 8px 0 0;
+    background: #f8fafb
+}
+
+.rich-field .ql-container.ql-snow {
+    border: 1px solid #dce3e5;
+    border-top: 0;
+    border-radius: 0 0 8px 8px;
+    background: #fff;
+    font: 12px/1.65 Manrope, Arial, sans-serif
+}
+
+.rich-field .ql-editor {
+    min-height: 260px
+}
+
+.rich-field[dir="rtl"] .ql-editor {
+    min-height: 190px;
+    direction: rtl;
+    text-align: right
 }
 
 .form-panel input:focus,

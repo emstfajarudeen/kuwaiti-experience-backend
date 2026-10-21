@@ -183,7 +183,7 @@ test.group('Entity images', (group) => {
     const site = await client.get('/api/v1/site')
     assert.equal(site.body().data.logo, `/api/v1/images/${settings.logo_image_key}`)
     const canonical = await client.get('/api/v2/site')
-    assert.equal(canonical.body().data.logo_image_url, `/api/v1/images/${settings.logo_image_key}`)
+    assert.equal(canonical.body().data.logo_image_key, settings.logo_image_key)
     assert.notProperty(canonical.body().data, 'logo_media_id')
     const served = await client.get(`/api/v1/images/${settings.logo_image_key}`)
     served.assertStatus(200)
@@ -319,6 +319,14 @@ test.group('Entity images', (group) => {
     settings.assertStatus(200)
     assert.equal(settings.body().data.brand_name, 'Renamed brand')
     assert.equal(settings.body().data.logo_image_url, logo.body().data.logo_image_url)
+    const site = await client.get('/api/v2/site')
+    site.assertStatus(200)
+    const logoKey = keyOf(logo.body().data.logo_image_url)
+    assert.equal(site.body().data.logo_image_key, logoKey)
+    assert.deepEqual(site.body().meta.images, [
+      { storage_key: logoKey, url: `/api/v1/images/${logoKey}` },
+    ])
+    assert.notProperty(site.body().data, 'logo_image_url')
 
     const removedHero = await client
       .delete('/api/v1/admin/home/hero-image?locale=en')

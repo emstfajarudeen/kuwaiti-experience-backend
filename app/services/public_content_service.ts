@@ -3,6 +3,7 @@ import { DateTime } from 'luxon'
 import { ApiError } from './api_error.js'
 import { publicCategoryTypes } from './category_type_service.js'
 import { publicImageUrl } from './image_storage_service.js'
+import { pageBodyFormat, safePageBody } from './page_content_service.js'
 
 type ImageUrl = (key: string | null | undefined) => string | null
 
@@ -254,6 +255,11 @@ export async function showPage(slug: string, locale: 'en' | 'ar') {
       db.raw(locale === 'ar' ? 'COALESCE(ar.body,en.body) as body' : 'en.body as body'),
       db.raw(
         locale === 'ar'
+          ? 'COALESCE(ar.body_format,en.body_format) as body_format'
+          : 'en.body_format as body_format'
+      ),
+      db.raw(
+        locale === 'ar'
           ? 'COALESCE(ar.seo_title,en.seo_title) as seo_title'
           : 'en.seo_title as seo_title'
       ),
@@ -269,7 +275,7 @@ export async function showPage(slug: string, locale: 'en' | 'ar') {
     data: {
       slug: row.slug,
       title: row.title,
-      body: row.body,
+      body: safePageBody(row.body, pageBodyFormat(row.body_format)),
       seo: { title: row.seo_title, description: row.seo_description },
     },
   }

@@ -2,8 +2,8 @@
 
 The backend removed the shared media library. Images are now stored directly on
 the record that uses them, so **image URLs no longer contain a numeric media
-id**. This note lists every response field that changed and what to do on the
-frontend. Nothing else in the API changed.
+id**. This note covers that older v1 migration and the current v2 settings
+contract. For new website footer work, use the [website API reference](website-api-reference.md).
 
 ## TL;DR
 
@@ -13,10 +13,10 @@ frontend. Nothing else in the API changed.
 | `cover: { id, url }` | `cover: { url }` (no `id`) |
 | `hero.image`, `logo`, `categoryTypes[].image` as `/api/v1/media/{id}` | same fields, now `/api/v1/images/{key}` |
 | gallery item `id` = media id | gallery item `id` = gallery row id (still present) |
-| `/api/v2/site` → `logo_media_id` (number) | `/api/v2/site` → `logo_image_url` (full URL string or null) |
+| `/api/v2/site` → `logo_media_id` (number) | `/api/v2/site` → `logo_image_key` (stored key or null); public URL in `meta.images` |
 
-**Golden rule:** always use the URL string the API gives you. Never build an
-image URL yourself from an id. If you were doing
+**Golden rule:** use the URL string the API gives you, including v2
+`meta.images[].url`. Never build an image URL yourself from an id. If you were doing
 `` `${API}/api/v1/media/${cover.id}` ``, stop doing that and use `cover.url`.
 
 `{key}` looks like `b1b9f0c2-2c3a-4e6a-9f1e-2a1d7c4e5f90.webp`. Treat it as an
@@ -30,7 +30,7 @@ opaque string.
   and an image is served only while it belongs to visible (published) content.
   A hidden or unknown image returns `404`.
 
-You rarely call this directly: the URL already appears in the responses below.
+You rarely call this directly: the URL already appears in the responses below or in v2 image metadata.
 Prefix it with the API origin when the field is a path (the public endpoints
 return absolute paths beginning with `/api/v1/images/...`).
 
@@ -96,18 +96,19 @@ cabDestination) is unchanged.
 ### `GET /api/v2/site`
 
 - Removed: `logo_media_id` (was a number or `null`).
-- Added: `logo_image_url` (a full image URL string like
-  `/api/v1/images/<key>.webp`, or `null`).
+- Added: `logo_image_key` (the stored image key or `null`) and
+  `meta.images` (an array of `{ storage_key, url }` entries).
 
 ```jsonc
 // Before
 { "data": { "...": "...", "logo_media_id": 7 } }
 // After
-{ "data": { "...": "...", "logo_image_url": "/api/v1/images/<key>.webp" } }
+{ "data": { "...": "...", "logo_image_key": "<key>.webp" }, "meta": { "images": [{ "storage_key": "<key>.webp", "url": "/api/v1/images/<key>.webp" }] } }
 ```
 
-Build the logo from `logo_image_url` directly. Do not construct a media URL from
-an id anymore.
+Find the `meta.images` entry matching `data.logo_image_key` and use its `url`.
+The array is empty when no logo is configured. Do not construct a media URL
+from the key or an id.
 
 ## Frontend checklist
 
@@ -117,10 +118,10 @@ an id anymore.
    `cover === null` (no image).
 3. Gallery: keep reading `url`, `alt`, `caption`. If you used the item `id` as a
    media reference, stop; use it only as a React/list key if needed.
-4. Home hero, site logo, category type tile: read the field value as-is
-   (`image` / `logo`), it is a ready URL or `null`.
-5. Mobile `/api/v2/site`: rename `logo_media_id` → `logo_image_url` and treat it
-   as a URL string, not a number.
+4. v1 Home hero, site logo, category type tile: read the field value as-is
+   (`image` / `logo`), a ready URL or `null`.
+5. For current `/api/v2/site`, use `logo_image_key` and its matching
+   `meta.images[].url` entry. The v2 public and admin reads share this shape.
 6. If your HTTP layer joins relative paths to the API origin, no change is
    needed beyond the field renames: the paths still start with `/api/v1/...`.
 

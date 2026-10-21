@@ -99,8 +99,12 @@ export const pageValidator = vine.compile(
     slug,
     titleEn: vine.string().minLength(2).maxLength(200),
     bodyEn: vine.string().minLength(1).maxLength(50000),
+    eyebrowEn: vine.string().trim().maxLength(120).nullable().optional(),
+    bodyFormatEn: vine.enum(['plain_text', 'html']).optional(),
     titleAr: vine.string().maxLength(200).nullable().optional(),
     bodyAr: vine.string().maxLength(50000).nullable().optional(),
+    eyebrowAr: vine.string().trim().maxLength(120).nullable().optional(),
+    bodyFormatAr: vine.enum(['plain_text', 'html']).optional(),
     seoTitleEn: vine.string().maxLength(200).nullable().optional(),
     seoDescriptionEn: vine.string().maxLength(300).nullable().optional(),
   })

@@ -19,7 +19,7 @@ Last checked against routes, controllers, validators and serializers: **21 Octob
 
 The three standalone JSON files are OpenAPI 3.1 specifications. Their paths include both mobile and admin operations: mobile clients use the non-admin paths listed here. Use `components.schemas` and each operation's request/response schema to define typed models. Home reuses the Explore Place/CategoryType schemas. The root [openapi.yaml](openapi.yaml) additionally includes legacy website APIs and references these files.
 
-**Implemented means the route and backend behavior exist.** It does not mean all provider credentials and editorial content are configured. SMS delivery is pending configuration: OTP request/resend currently returns **503**, and the server never returns the code. Approved legal pages and venue images/copy must be supplied through the CMS.
+**Implemented means the route and backend behavior exist.** It does not mean all provider credentials and editorial content are configured. SMS delivery is pending configuration: OTP request/resend returns **503** unless an isolated development environment explicitly enables `CUSTOMER_OTP_DEV_RESPONSE=true` with an OTP secret. In that mode, the response includes `data.dev_otp`. Approved legal pages and venue images/copy must be supplied through the CMS.
 
 ## 2. What the app can integrate now
 
@@ -27,7 +27,7 @@ The three standalone JSON files are OpenAPI 3.1 specifications. Their paths incl
 | ------------------------------------------------------------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | Phone login, OTP, resend, registration                                               | Implemented; real delivery awaits SMS configuration     | Follow section 5; verification proof decides sign-in vs create-account                      |
 | Continue as guest                                                                    | Available                                               | No guest-login call/token; browse public APIs                                               |
-| Edit Profile, photo, verified phone change                                           | Implemented; phone OTP has the same SMS prerequisite    | Section 6                                                                                   |
+| Edit Profile, photo, verified phone change                                           | Implemented; phone OTP uses the same delivery or development option | Section 6                                                                                   |
 | Explore hub and category filters                                                     | Implemented                                             | Section 7                                                                                   |
 | Attractions, Dine In, Stay, Theaters list/detail                                     | Implemented                                             | Shared Place model on every endpoint                                                        |
 | Venue phone, highlights/amenities, stay check-in/out, theater screen count, Open Now | Implemented; values depend on CMS content               | Section 8                                                                                   |
@@ -71,13 +71,13 @@ A **nullable** property is still a required JSON key when marked required in Ope
 | Check-in/out and opening clock times | Local clock strings such as `15:00:00`, in `Asia/Kuwait`                    |
 | OTP                                  | Four-digit string, e.g. `"0123"`; preserve leading zeros                    |
 
-`data`, `meta`, `included`, credentials and verification receipts are protocol containers, not database entities. Their shapes are defined per operation. The current SiteSettings response has a documented derived `logo_image_url` field; use that actual field. Do not invent a `logo_image_key` field in the client. Discovery image URLs instead live in `meta.images` alongside unchanged storage-key fields.
+`data`, `meta`, `included`, credentials and verification receipts are protocol containers, not database entities. Their shapes are defined per operation. SiteSettings returns the database field `logo_image_key`; resolve its URL from `meta.images`, as with discovery images. Do not rename stored image keys to URL fields in an entity model.
 
 ### Localization
 
 Explore returns all stored translation rows. Select English/Arabic in the app, falling back **per field** to English when Arabic is missing, null or empty. Do not assume an Arabic row exists. Use the same rule for `name_en`/`name_ar` and movie title/synopsis pairs. Sending `locale` does not transform Explore entities into flat localized cards.
 
-Legal-page reads accept `locale=en|ar` (default English). Use `meta.locale` to select the actual returned translation and for legal acceptance; it may be English after fallback. Render the selected legal `body` as text, not trusted HTML.
+Legal-page reads accept `locale=en|ar` (default English). Use `meta.locale` to select the actual returned translation and for legal acceptance; it may be English after fallback. The selected `PageTranslation` includes nullable `eyebrow` and required `body_format` (`plain_text` or `html`): escape plain text, or render server-sanitized HTML in a constrained content container. Never interpolate HTML into attributes or scripts.
 
 ## 4. Quick start: browse without login
 
@@ -104,7 +104,7 @@ All endpoints in this table allow guest access. Omit Authorization during initia
 | `POST /api/v2/customers`                     | Registration body below                  | 201, `data: CustomerAuthResult` |
 | `POST /api/v2/customer/auth/refresh`         | `{ "refresh_token": "<refresh token>" }` | 200, `data: CustomerAuthResult` |
 
-`{id}` in OTP paths is the challenge UUID returned by request/resend. Example successful OTP receipt (available when delivery is configured):
+`{id}` in OTP paths is the challenge UUID returned by request/resend. Example successful OTP receipt (available when delivery or the development response option is configured):
 
 ```json
 {
@@ -115,6 +115,8 @@ All endpoints in this table allow guest access. Omit Authorization during initia
   }
 }
 ```
+
+With `NODE_ENV=development` and `CUSTOMER_OTP_DEV_RESPONSE=true`, the same receipt also includes `"dev_otp": "0123"` under `data`. This field is absent in production. Keep it out of app logs and analytics.
 
 After verify, inspect `data.next_action`: `sign_in` means call `/customer/auth/session`; `create_account` means show the account form and call `/customers`. The `verification_token` is one use, expires in 600 seconds, and is not a logged-in session. `update_phone` belongs only to the authenticated phone-change flow.
 
@@ -162,7 +164,7 @@ Sign-in, registration and refresh return this same shape (values below are illus
 
 Access lasts 15 minutes; sessions have a 7-day absolute lifetime. Refresh rotates both credentials and invalidates the old access token. Serialize refresh requests in the client so concurrent 401 responses share one refresh attempt. Store the new pair together; never reuse an old refresh token, since reuse revokes the session. On refresh failure, clear the session and show login. Do not blindly retry state-changing requests after an ambiguous network failure.
 
-OTP expires after 5 minutes; resend cooldown is 60 seconds. Use server `resend_available_at`, not a hardcoded countdown start. Limits: 5 sends per phone/hour, 5 guesses per challenge, plus 30 auth requests/IP/minute. Display a retry state on 429. While SMS is unconfigured, show the 503 unavailable state; there is no fixed test OTP or login bypass.
+OTP expires after 5 minutes; resend cooldown is 60 seconds. Use server `resend_available_at`, not a hardcoded countdown start. Limits: 5 sends per phone/hour, 5 guesses per challenge, plus 30 auth requests/IP/minute. Display a retry state on 429. Without SMS or the explicit development response option, show the 503 unavailable state. There is no fixed OTP.
 
 ## 6. Profile and account controls
 
@@ -185,7 +187,7 @@ Profile save example: `{ "first_name": "Zia", "last_name": "Ali", "email": null 
 
 Phone change: request/verify the new phone using this table's authenticated endpoints, then PATCH `{ "phone_e164": "<verified number>", "phone_verification_token": "<proof>" }` in the **same customer session**. A normal login proof cannot change the phone. Successful phone change keeps the initiating session and revokes other sessions. See the [complete phone-change flow](customer-profile-api.md#phone-changes).
 
-Phone-change request/resend and account deletion require OTP sign-in within the preceding 10 minutes. On 403 `REAUTHENTICATION_REQUIRED`, repeat normal sign-in and restart the protected action. SMS configuration remains necessary for those verification steps.
+Phone-change request/resend and account deletion require OTP sign-in within the preceding 10 minutes. On 403 `REAUTHENTICATION_REQUIRED`, repeat normal sign-in and restart the protected action. These verification steps need SMS delivery or the explicit development response option.
 
 Photo uploads accept JPEG/JPG/PNG/WebP, maximum 5 MB and 20 megapixels; uploads are limited to 20/customer/hour. Fetch private photo bytes with the bearer header; a public image widget URL without authentication will not work. Render initials when `profile_photo_id` is null. Photo upload/removal saves immediately, independently of the text Save button.
 
@@ -382,8 +384,8 @@ Save example: `{ "data": { "customer_id": 1, "place_id": 12, "created_at": "2026
 
 | Method and path                 | Auth/request                                                          | Success                                                                      |
 | ------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `GET /api/v2/pages/{slug}`      | Public; `privacy-policy` or `terms-and-conditions`, optional `locale` | 200, `data: Page` with `page_translations`; `meta: { locale, content_hash }` |
-| `GET /api/v2/site`              | Public                                                                | 200, `data: SiteSettings`                                                    |
+| `GET /api/v2/pages/{slug}`      | Public; `about-us`, `contact-us`, `privacy-policy` or `terms-and-conditions`, optional `locale` | 200, `data: Page` with `page_translations`; `meta: { locale, content_hash }` |
+| `GET /api/v2/site`              | Public                                                                | 200, `data: SiteSettings`; `meta.images` for logo URL                     |
 | `POST /api/v2/contact-requests` | Guest/customer; JSON below                                            | 201, submission receipt                                                      |
 
 ```json
@@ -396,7 +398,7 @@ Save example: `{ "data": { "customer_id": 1, "place_id": 12, "created_at": "2026
 
 Contact fields are required: trimmed name 1–120 characters, valid email up to 254, trimmed message 1–300. Success is `{ "data": { "id": 1, "created_at": "2026-10-20T07:00:00.000Z" } }`. This is a **receipt**, not a full ContactRequest model. There is no customer/public contact inbox API. Limit: 5 submissions/IP/hour. Avoid automatic retries after a timeout because a successful submission may already have been recorded.
 
-SiteSettings keys: `id`, `brand_name`, `whatsapp_number`, `contact_email`, `app_store_url`, `play_store_url`, `logo_image_url`, `updated_at`. Optional settings are present as null. Build `https://wa.me/<digits-only number>` from `whatsapp_number`; hide the button when unavailable. Legal requests return 404 for missing/unpublished pages or 503 for recognized placeholder legal copy. A venue summary or screenshot's sample legal text is not a policy fallback.
+SiteSettings keys: `id`, `brand_name`, `whatsapp_number`, `contact_email`, `app_store_url`, `play_store_url`, `logo_image_key`, `updated_at`. Optional settings are present as null. Resolve `logo_image_key` through `meta.images`. Build `https://wa.me/<digits-only number>` from `whatsapp_number`; hide the button when unavailable. Page requests return 404 for missing/unpublished content; the two legal slugs return 503 for recognized placeholder legal copy. A venue summary or screenshot's sample legal text is not a policy fallback.
 
 ## 12. Home screen
 

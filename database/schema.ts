@@ -418,6 +418,8 @@ export class MovieSchema extends BaseModel {
 export class PageTranslationSchema extends BaseModel {
   static $columns = [
     'body',
+    'bodyFormat',
+    'eyebrow',
     'id',
     'locale',
     'pageId',
@@ -428,6 +430,10 @@ export class PageTranslationSchema extends BaseModel {
   $columns = PageTranslationSchema.$columns
   @column()
   declare body: string
+  @column()
+  declare bodyFormat: string
+  @column()
+  declare eyebrow: string | null
   @column({ isPrimary: true })
   declare id: number
   @column()

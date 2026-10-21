@@ -4,22 +4,26 @@ Read the [mobile app API reference](../app-api-reference.md) for supported scree
 
 Import both files using Postman's **Import** control:
 
-- `kuwaitiexperience.postman_collection.json` — 71 requests covering customer/profile/support, Explore/bookmarks, Home and related CMS APIs.
+- `kuwaitiexperience.postman_collection.json` — 73 requests covering the four website footer pages, customer/profile/support, Explore/bookmarks, Home and related CMS APIs.
 - `local.postman_environment.json` — select **Kuwaiti Experience — Local** after importing.
 
 Set `base_url` to your running backend (default `http://localhost:3333`, without a trailing slash). Start the local server with `npm run dev` if needed. Sample phone numbers are placeholders; replace `phone_e164` and `new_phone_e164` with numbers you control. This collection does not configure the backend or SMS provider.
 
-The collection matches the currently implemented customer, profile, support, Explore and Home APIs. Folder 09A contains the app Home and matching CMS requests. The legacy website `GET /api/v1/home` is a different response contract and is not used for the mobile Home screen.
+The collection matches the currently implemented website footer, customer, profile, support, Explore and Home APIs. Folder 01 contains the four canonical v2 page reads and Site settings; Contact Us submissions are in folder 05. Folder 09A contains the app Home and matching CMS requests. The legacy website `GET /api/v1/home` is a different response contract and is not used for the mobile Home screen. See the [website API reference](../website-api-reference.md) for footer integration.
+
+The four footer pages in the local development database are still drafts with placeholder text, so their public requests return 404 until approved copy is published in CMS Pages. Local Site settings have no contact email or WhatsApp number yet. The guest contact submission request can still create an inbox item; send it individually because each successful request writes a record.
+
+Page translations now always include nullable `eyebrow` and `body_format` (`plain_text` or `html`). The CMS Pages editor uses Quill for headings and paragraphs; the API keeps the database key `body` and sanitizes HTML before saving. Page publication rejects known placeholder copy.
 
 ## Login or registration
 
 1. Fetch Privacy policy and Terms and conditions in folder 01. Successful responses store each page's `content_hash` and actual locale. Approved legal pages must already be published in the CMS; missing/unapproved pages return 404/503.
 2. Set `phone_e164`. Send Request login OTP in folder 02.
-3. Enter the received four-digit SMS code in `otp_code`, keeping any leading zeros. Send Verify login OTP. Resend is optional and requires the server cooldown to have elapsed.
+3. Enter the received four-digit SMS code in `otp_code`, keeping any leading zeros. In isolated development with the response option enabled, copy `data.dev_otp` from the request/resend response instead. Send Verify login OTP. Resend is optional and requires the server cooldown to have elapsed.
 4. Check the verification response's `next_action`. Send **Existing customer sign in** for `sign_in`, or **Create account** for `create_account`. For registration, set `first_name` and `last_name`, review/accept the legal pages, and optionally replace the request body's `email: null` with an email string. The proof is one use: send only the matching request.
 5. Successful login/registration automatically stores `access_token`, `refresh_token` and `customer_id` in the selected environment. Protected customer requests use that access token. Refresh customer session replaces both credentials; old refresh tokens cannot be reused.
 
-**SMS is currently disabled pending provider configuration.** OTP request/resend will return 503, and their success assertion will fail as expected until delivery is configured. The API never returns OTP codes. There is no fixed test code or authentication bypass. To test authenticated requests before SMS is enabled, supply an already valid customer `access_token` (and `refresh_token` for refresh) if one is available.
+**SMS is currently disabled pending provider configuration.** For local development, set `NODE_ENV=development`, an independent 32+ character `CUSTOMER_OTP_SECRET`, and `CUSTOMER_OTP_DEV_RESPONSE=true` in `.env`. OTP request/resend then returns `data.dev_otp` without sending SMS. Otherwise requests return 503 until SMS delivery is configured. This option is unavailable in test and production, and there is no fixed code.
 
 ## Edit Profile
 
