@@ -4,10 +4,12 @@ Read the [mobile app API reference](../app-api-reference.md) for supported scree
 
 Import both files using Postman's **Import** control:
 
-- `kuwaitiexperience.postman_collection.json` — 59 requests covering customer/profile/support, Explore/bookmarks and related CMS APIs.
+- `kuwaitiexperience.postman_collection.json` — 71 requests covering customer/profile/support, Explore/bookmarks, Home and related CMS APIs.
 - `local.postman_environment.json` — select **Kuwaiti Experience — Local** after importing.
 
 Set `base_url` to your running backend (default `http://localhost:3333`, without a trailing slash). Start the local server with `npm run dev` if needed. Sample phone numbers are placeholders; replace `phone_e164` and `new_phone_e164` with numbers you control. This collection does not configure the backend or SMS provider.
+
+The collection matches the currently implemented customer, profile, support, Explore and Home APIs. Folder 09A contains the app Home and matching CMS requests. The legacy website `GET /api/v1/home` is a different response contract and is not used for the mobile Home screen.
 
 ## Login or registration
 
@@ -37,7 +39,7 @@ Challenge IDs and phone verification proof are stored automatically. Successful 
 
 - Folder 05 offers guest and customer contact submissions. Each successful Send creates a real inbox record and captures `contact_request_id`. Limit: five submissions per IP per hour.
 - Folder 06 is optional. Enter your own `admin_email`/`admin_password` and use Admin sign in, or supply an existing admin JWT as `admin_access_token`. CMS credentials are separate from customer tokens. Set `contact_status` to `new`, `in_progress` or `resolved` to filter/update contacts.
-- Folders 07–09 cover Explore public browsing, customer bookmarks and CMS feature/movie/showtime management. See the flow below.
+- Folders 07–09 cover Explore public browsing, customer bookmarks and CMS feature/movie/showtime management. Folder 09A covers the app Home and CMS controls. See the flows below.
 - Folder 10 contains logout and permanent account deletion. Send these individually after testing. Logout invalidates the current session; deletion removes the customer and owned data and requires OTP sign-in within the past 10 minutes. Both clear captured customer credentials on success. Use a disposable account for deletion.
 
 ## Explore testing
@@ -50,8 +52,14 @@ For movies, create a draft, select a local poster under Body → form-data → f
 
 Removal and cancellation examples are individual actions: deleting assigned features or referenced movies returns 409; removing a published movie's poster returns 422. Unassign/archive/remove dependencies as appropriate before using those optional requests. Full collection runs cannot follow all of these alternative branches safely.
 
+## Home testing
+
+Folder 09A starts with **App Home as guest**; it needs no token. **App Home with my bookmarks** requires a valid customer access token and has the same entity shape. The Postman collection validates HomeContent, HomeExploreCard, CategoryType and nested canonical Place objects when returned. Empty card/carousel arrays are valid until an editor selects content.
+
+The CMS requests in that folder require `admin_access_token`. Read the localized Home row using `locale`, then review the JSON copy before sending **Save Home copy in CMS**. For a hero upload, select a local JPEG/PNG/WebP under **Body → form-data → file**. Removal is optional. Use an existing `place_id` from folder 07 before creating a Home Explore card; successful creation stores `home_card_id` for read/update/removal. A place may have only one Home Explore card. **Set featured venue order** uses the same `place_id`; set an integer 0–9999, or change the body value to `null` to remove the place from the carousel. The card and hero delete requests change live editorial content, so send them individually.
+
 Send requests individually. A full Collection Runner run is unsuitable: sign-in and registration are alternative branches, OTP entry and file selection are manual, and the last folder logs out or deletes an account.
 
 Tokens, proofs, OTP codes and the admin password are marked secret in the environment. Do not share populated environment exports; keep the checked-in template empty of credentials. A failing HTTP assertion shows an unmet prerequisite or API error; inspect the response's `error.code` and `error.message`.
 
-Contract details: [customer API](../customer-api.md), [Edit Profile](../customer-profile-api.md), [customer OpenAPI](../customer-openapi.json), [Explore API](../explore-api.md), [Explore OpenAPI](../explore-openapi.json).
+Contract details: [app API reference](../app-api-reference.md), [customer API](../customer-api.md), [Edit Profile](../customer-profile-api.md), [customer OpenAPI](../customer-openapi.json), [Explore API](../explore-api.md), [Explore OpenAPI](../explore-openapi.json), [Home OpenAPI](../home-openapi.json).

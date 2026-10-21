@@ -90,6 +90,7 @@ const bodyParserConfig = defineConfig({
       '/admin/movies',
       '/admin/movies/:id/save',
       '/api/v2/admin/movies/:id/poster',
+      '/api/v2/admin/home/hero-image',
     ],
 
     /**

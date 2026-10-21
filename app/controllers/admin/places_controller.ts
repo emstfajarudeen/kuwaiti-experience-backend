@@ -8,6 +8,7 @@ import {
 import { deletePlace, savePlace, setPlaceStatus } from '../../services/content_write_service.js'
 import { showPlace } from '../../services/public_content_service.js'
 import { categoryTypes } from '../../services/category_type_service.js'
+import { ApiError } from '../../services/api_error.js'
 import {
   MAX_IMAGES_PER_REQUEST,
   cmsImageUrl,
@@ -167,6 +168,8 @@ export default class AdminPlacesPageController {
         latitude: optionalNumber(request.input('latitude')),
         longitude: optionalNumber(request.input('longitude')),
         featured: request.input('featured') === 'on',
+        featured_order:
+          request.input('featured') === 'on' ? Number(request.input('featured_order', 0)) : null,
         hours,
       })
       const { items: galleryItems } = await galleryItemsValidator.validate({
@@ -219,8 +222,12 @@ export default class AdminPlacesPageController {
   }
 
   async destroy({ params, admin, response, session }: HttpContext) {
-    await deletePlace(Number(params.id), admin.id)
-    session.flash('success', 'Place deleted.')
+    try {
+      await deletePlace(Number(params.id), admin.id)
+      session.flash('success', 'Place deleted.')
+    } catch (error) {
+      session.flash('error', error instanceof ApiError ? error.message : 'Unable to delete place')
+    }
     return response.redirect('/admin/places')
   }
 }

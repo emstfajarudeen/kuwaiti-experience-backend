@@ -74,7 +74,7 @@
 @if(place && place.featured_order !== null)
  checked
 @end
-> Feature on homepage</label><label class="full">SEO description<textarea name="seoDescriptionEn" rows="2">{{ en?.seo_description || '' }}</textarea></label></div></section>
+> Feature on homepage</label><label>Home display order<input type="number" name="featured_order" min="0" max="9999" value="{{ place?.featured_order ?? 0 }}"><small>Lower numbers appear first.</small></label><label class="full">SEO description<textarea name="seoDescriptionEn" rows="2">{{ en?.seo_description || '' }}</textarea></label></div></section>
       <section class="panel form-panel"><span class="eyebrow">05 / DETAIL GALLERY</span><h2>Gallery images</h2>
         <p class="panel-help">Up to 20 images per place. Add up to {{ maxUploads }} images per save; new images go to the end of the gallery.</p>
         @if(gallery.length)

@@ -17,6 +17,8 @@ type HomeInput = {
   heroEyebrow: string
   heroTitle: string
   discoveryTitle: string
+  appTitle?: string | null
+  appBody?: string | null
 }
 
 function newImage(image: ImageChange) {
@@ -95,6 +97,8 @@ async function writeHome(
               hero_eyebrow: input.heroEyebrow,
               hero_title: input.heroTitle,
               discovery_title: input.discoveryTitle,
+              ...(input.appTitle !== undefined ? { app_title: input.appTitle } : {}),
+              ...(input.appBody !== undefined ? { app_body: input.appBody } : {}),
             }
           : {}),
         hero_image_key: heroKey,

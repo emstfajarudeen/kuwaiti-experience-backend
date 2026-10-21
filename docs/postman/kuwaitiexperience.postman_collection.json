@@ -1,13 +1,13 @@
 {
   "info": {
     "_postman_id": "253811f7-4325-4b3f-a0ec-85e39fd940ad",
-    "name": "Kuwaiti Experience \u2014 Customer and Profile APIs",
+    "name": "Kuwaiti Experience — Mobile APIs and CMS",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Import the companion Local environment and select it. Set base_url and your phone numbers. Requests are intended to be sent individually: login branches, optional resend, photo selection, logout and deletion require manual choices. See docs/postman/README.md. No real credentials or OTPs are included. Customer token/proof values are captured into the selected environment only after successful responses. SMS request/resend returns 503 until the configured provider adapter is available. Explore v2 browsing, bookmarks and CMS movie/feature/showtime requests are in folders 07\u201309; see docs/explore-api.md."
+    "description": "Import the companion Local environment and select it. Set base_url and your phone numbers. Requests are intended to be sent individually: login branches, optional resend, photo selection, logout and deletion require manual choices. See docs/postman/README.md. No real credentials or OTPs are included. Customer token/proof values are captured into the selected environment only after successful responses. SMS request/resend returns 503 until the configured provider adapter is available. Explore v2 browsing, bookmarks and CMS movie/feature/showtime requests are in folders 07–09; see docs/explore-api.md. Home v2 guest/customer reads and CMS management are in folder 09A; see docs/app-api-reference.md section 12."
   },
   "item": [
     {
-      "name": "01 \u2014 Legal pages and public settings",
+      "name": "01 — Legal pages and public settings",
       "description": "Read both legal pages before registration; scripts capture the selected locale and content hash. Approved pages must be published in the CMS.",
       "item": [
         {
@@ -31,7 +31,9 @@
               "listen": "prerequest",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.environment.unset('privacy_content_hash');"]
+                "exec": [
+                  "pm.environment.unset('privacy_content_hash');"
+                ]
               }
             },
             {
@@ -72,7 +74,9 @@
               "listen": "prerequest",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.environment.unset('terms_content_hash');"]
+                "exec": [
+                  "pm.environment.unset('terms_content_hash');"
+                ]
               }
             },
             {
@@ -113,7 +117,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -122,7 +128,7 @@
       ]
     },
     {
-      "name": "02 \u2014 Phone login and registration",
+      "name": "02 — Phone login and registration",
       "description": "Request OTP, enter the received code in otp_code, then verify. Follow next_action: send Existing customer sign in OR Create account, not both. OTP proofs are one use. SMS is disabled until a provider adapter is configured; request/resend currently returns 503.",
       "item": [
         {
@@ -249,7 +255,9 @@
               "listen": "prerequest",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.environment.unset('verification_token');"]
+                "exec": [
+                  "pm.environment.unset('verification_token');"
+                ]
               }
             },
             {
@@ -417,7 +425,7 @@
       ]
     },
     {
-      "name": "03 \u2014 Edit Profile",
+      "name": "03 — Edit Profile",
       "description": "Customer bearer tokens are applied automatically. Profile text and photo changes save independently. Nullable Customer fields are always present.",
       "item": [
         {
@@ -448,7 +456,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -495,7 +505,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -512,7 +524,7 @@
               }
             ],
             "url": "{{base_url}}/api/v2/customer/me/photo",
-            "description": "In Body \u2192 form-data, select a file for the file field. Postman sets the multipart boundary. Saves immediately, independently of text edits.",
+            "description": "In Body → form-data, select a file for the file field. Postman sets the multipart boundary. Saves immediately, independently of text edits.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -540,7 +552,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -574,7 +588,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -608,7 +624,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -617,7 +635,7 @@
       ]
     },
     {
-      "name": "04 \u2014 Change phone with OTP",
+      "name": "04 — Change phone with OTP",
       "description": "Requires a login verified within the past 10 minutes. Use a different, unused new_phone_e164. Run all steps using the same customer session. Successful save revokes other sessions. SMS must be configured.",
       "item": [
         {
@@ -765,7 +783,9 @@
               "listen": "prerequest",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.environment.unset('phone_verification_token');"]
+                "exec": [
+                  "pm.environment.unset('phone_verification_token');"
+                ]
               }
             },
             {
@@ -838,7 +858,7 @@
       ]
     },
     {
-      "name": "05 \u2014 Contact Us",
+      "name": "05 — Contact Us",
       "description": "Guest and signed-in submission examples. Each Send creates a real inbox item. Limit: 5 submissions per IP per hour.",
       "item": [
         {
@@ -941,7 +961,7 @@
       ]
     },
     {
-      "name": "06 \u2014 CMS contact inbox and shared content",
+      "name": "06 — CMS contact inbox and shared content",
       "description": "Optional admin requests. Set admin_email/admin_password and sign in here, or paste an existing admin JWT into admin_access_token. Customer tokens do not grant CMS access.",
       "item": [
         {
@@ -978,7 +998,9 @@
               "listen": "prerequest",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.environment.unset('admin_access_token');"]
+                "exec": [
+                  "pm.environment.unset('admin_access_token');"
+                ]
               }
             },
             {
@@ -1024,7 +1046,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1058,7 +1082,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1105,7 +1131,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1139,7 +1167,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1173,7 +1203,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1182,7 +1214,7 @@
       ]
     },
     {
-      "name": "07 \u2014 Explore public browsing",
+      "name": "07 — Explore public browsing",
       "description": "Requires published CMS content. Lists capture the first visible place for later reads. Set explore_type and theater_slug for your content.",
       "item": [
         {
@@ -1206,7 +1238,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1233,7 +1267,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1260,7 +1296,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1319,7 +1357,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1346,7 +1386,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1373,7 +1415,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1407,7 +1451,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1466,7 +1512,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1475,7 +1523,7 @@
       ]
     },
     {
-      "name": "08 \u2014 Place bookmarks",
+      "name": "08 — Place bookmarks",
       "description": "Customer credentials are required. Saves are idempotent and private to this account.",
       "item": [
         {
@@ -1506,7 +1554,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1540,7 +1590,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1574,7 +1626,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"]
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
+                ]
               }
             }
           ],
@@ -1583,7 +1637,7 @@
       ]
     },
     {
-      "name": "09 \u2014 CMS Explore management",
+      "name": "09 — CMS Explore management",
       "description": "Use Admin sign in in folder 06 first. These requests change actual CMS content. Set the selected place/type, upload your own poster and choose a future showtime. Send individually; deletion requests are optional.",
       "item": [
         {
@@ -1614,7 +1668,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1648,7 +1704,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1695,7 +1753,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1729,7 +1789,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1828,7 +1890,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1862,7 +1926,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"]
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
+                ]
               }
             }
           ],
@@ -1896,7 +1962,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1982,7 +2050,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -1999,7 +2069,7 @@
               }
             ],
             "url": "{{base_url}}/api/v2/admin/movies/{{movie_id}}/poster",
-            "description": "Select a local JPEG/PNG/WebP file in Body \u2192 form-data \u2192 file. Maximum 5 MB.",
+            "description": "Select a local JPEG/PNG/WebP file in Body → form-data → file. Maximum 5 MB.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2026,7 +2096,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -2073,7 +2145,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -2107,7 +2181,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -2141,7 +2217,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"]
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
+                ]
               }
             }
           ],
@@ -2175,7 +2253,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -2274,7 +2354,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
               }
             }
           ],
@@ -2308,7 +2390,9 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"]
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
+                ]
               }
             }
           ],
@@ -2317,7 +2401,501 @@
       ]
     },
     {
-      "name": "10 \u2014 Logout or delete account (run individually)",
+      "name": "09A — App Home and CMS",
+      "description": "Guest/customer Home reads and matching admin CMS operations. Choose an existing place_id from Explore before creating a card. Review all write bodies before sending; image upload and deletion are optional. Home search, notifications, cab and rental are outside this section.",
+      "item": [
+        {
+          "name": "App Home as guest",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/home",
+            "description": "Public Home. All four response containers are always present; card and carousel place IDs join to data.places.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "App Home with my bookmarks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/home",
+            "description": "Same Home shape with personal meta.viewer.saved. Requires a valid customer access token.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Read Home copy in CMS",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/home?locale={{locale}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Save Home copy in CMS",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/home",
+            "description": "Review localized copy before sending. Uses exact home_content database keys.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"locale\": \"{{locale}}\",\n  \"hero_eyebrow\": \"WELCOME TO KUWAIT\",\n  \"hero_title\": \"Explore Kuwait\",\n  \"discovery_title\": \"What would you like to do?\",\n  \"app_title\": null,\n  \"app_body\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Upload Home hero image",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/home/hero-image?locale={{locale}}",
+            "description": "Select a JPEG, PNG or WebP under Body → form-data → file. Maximum 5 MB.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Remove Home hero image",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/home/hero-image?locale={{locale}}",
+            "description": "Optional destructive editorial action; retains other Home copy.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List Home Explore cards in CMS",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/home-explore-cards?page=1&per_page=20",
+            "description": "Includes inactive selections and full canonical Place rows in included.places.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create Home Explore card",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/home-explore-cards",
+            "description": "Use a real place_id of attraction, restaurant, hotel_resort or theater. A venue may have only one Home Explore card.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"place_id\": {{place_id}},\n  \"caption_en\": null,\n  \"caption_ar\": null,\n  \"sort_order\": 0,\n  \"active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) pm.environment.set(\"home_card_id\", pm.response.json().data.id);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Read Home Explore card",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/home-explore-cards/{{home_card_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update Home Explore card",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/home-explore-cards/{{home_card_id}}",
+            "description": "Full replacement of place_id, captions, rank and active state.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"place_id\": {{place_id}},\n  \"caption_en\": null,\n  \"caption_ar\": null,\n  \"sort_order\": 0,\n  \"active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Remove Home Explore card",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/home-explore-cards/{{home_card_id}}",
+            "description": "Optional editorial deletion; does not delete the place.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Set featured venue order",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/admin/places/{{place_id}}/featured",
+            "description": "Set 0–9999. Send null to remove the venue from Home featured carousels. Returns full canonical Place.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"featured_order\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "10 — Logout or delete account (run individually)",
       "description": "Choose one request manually after testing. Logout revokes this session. Delete permanently removes the customer and owned data, and requires OTP authentication within the past 10 minutes. Do not run this folder as part of a bulk collection run.",
       "item": [
         {
@@ -2428,12 +3006,30 @@
           "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('application/json')) {",
           "  const schemas = {\"Place\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"id\", \"type\", \"category_id\", \"slug\", \"status\", \"cover_image_key\", \"latitude\", \"longitude\", \"price_amount\", \"price_currency\", \"price_mode\", \"website_url\", \"featured_order\", \"phone_e164\", \"check_in_time\", \"check_out_time\", \"screen_count\", \"published_at\", \"created_at\", \"updated_at\", \"place_translations\", \"place_hours\", \"place_images\", \"place_features\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"type\": {\"type\": \"string\"}, \"category_id\": {\"type\": [\"integer\", \"null\"]}, \"slug\": {\"type\": \"string\"}, \"status\": {\"type\": \"string\", \"enum\": [\"draft\", \"published\", \"archived\"]}, \"cover_image_key\": {\"type\": [\"string\", \"null\"]}, \"latitude\": {\"type\": [\"number\", \"null\"]}, \"longitude\": {\"type\": [\"number\", \"null\"]}, \"price_amount\": {\"type\": [\"string\", \"null\"], \"pattern\": \"^\\\\d+\\\\.\\\\d{3}$\"}, \"price_currency\": {\"type\": \"string\"}, \"price_mode\": {\"type\": \"string\", \"enum\": [\"unknown\", \"free\", \"from\", \"fixed\"]}, \"website_url\": {\"type\": [\"string\", \"null\"]}, \"featured_order\": {\"type\": [\"integer\", \"null\"]}, \"phone_e164\": {\"type\": [\"string\", \"null\"], \"pattern\": \"^\\\\+[1-9]\\\\d{7,14}$\"}, \"check_in_time\": {\"type\": [\"string\", \"null\"], \"pattern\": \"^([01]\\\\d|2[0-3]):[0-5]\\\\d(?::[0-5]\\\\d)?$\"}, \"check_out_time\": {\"type\": [\"string\", \"null\"], \"pattern\": \"^([01]\\\\d|2[0-3]):[0-5]\\\\d(?::[0-5]\\\\d)?$\"}, \"screen_count\": {\"type\": [\"integer\", \"null\"]}, \"published_at\": {\"type\": [\"string\", \"null\"], \"format\": \"date-time\"}, \"created_at\": {\"type\": \"string\", \"format\": \"date-time\"}, \"updated_at\": {\"type\": [\"string\", \"null\"], \"format\": \"date-time\"}, \"place_translations\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"id\", \"place_id\", \"locale\", \"title\", \"summary\", \"address\", \"body\", \"hours_note\", \"price_unit\", \"seo_title\", \"seo_description\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"place_id\": {\"type\": \"integer\"}, \"locale\": {\"type\": \"string\", \"enum\": [\"en\", \"ar\"]}, \"title\": {\"type\": \"string\"}, \"summary\": {\"type\": \"string\"}, \"address\": {\"type\": \"string\"}, \"body\": {\"type\": [\"string\", \"null\"]}, \"hours_note\": {\"type\": [\"string\", \"null\"]}, \"price_unit\": {\"type\": [\"string\", \"null\"]}, \"seo_title\": {\"type\": [\"string\", \"null\"]}, \"seo_description\": {\"type\": [\"string\", \"null\"]}}}}, \"place_hours\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"id\", \"place_id\", \"weekday\", \"interval_index\", \"opens_at\", \"closes_at\", \"closes_next_day\", \"closed\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"place_id\": {\"type\": \"integer\"}, \"weekday\": {\"type\": \"integer\", \"minimum\": 0, \"maximum\": 6}, \"interval_index\": {\"type\": \"integer\"}, \"opens_at\": {\"type\": [\"string\", \"null\"], \"pattern\": \"^([01]\\\\d|2[0-3]):[0-5]\\\\d(?::[0-5]\\\\d)?$\"}, \"closes_at\": {\"type\": [\"string\", \"null\"], \"pattern\": \"^([01]\\\\d|2[0-3]):[0-5]\\\\d(?::[0-5]\\\\d)?$\"}, \"closes_next_day\": {\"type\": \"boolean\"}, \"closed\": {\"type\": \"boolean\"}}}}, \"place_images\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"id\", \"place_id\", \"storage_key\", \"alt_en\", \"alt_ar\", \"caption_en\", \"caption_ar\", \"sort_order\", \"created_at\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"place_id\": {\"type\": \"integer\"}, \"storage_key\": {\"type\": \"string\"}, \"alt_en\": {\"type\": \"string\"}, \"alt_ar\": {\"type\": [\"string\", \"null\"]}, \"caption_en\": {\"type\": [\"string\", \"null\"]}, \"caption_ar\": {\"type\": [\"string\", \"null\"]}, \"sort_order\": {\"type\": \"integer\"}, \"created_at\": {\"type\": \"string\", \"format\": \"date-time\"}}}}, \"place_features\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"id\", \"type\", \"code\", \"kind\", \"name_en\", \"name_ar\", \"active\", \"sort_order\", \"created_at\", \"updated_at\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"type\": {\"type\": \"string\"}, \"code\": {\"type\": \"string\"}, \"kind\": {\"type\": \"string\", \"enum\": [\"highlight\", \"amenity\", \"capability\"]}, \"name_en\": {\"type\": \"string\"}, \"name_ar\": {\"type\": [\"string\", \"null\"]}, \"active\": {\"type\": \"boolean\"}, \"sort_order\": {\"type\": \"integer\"}, \"created_at\": {\"type\": \"string\", \"format\": \"date-time\"}, \"updated_at\": {\"type\": [\"string\", \"null\"], \"format\": \"date-time\"}}}}}}, \"Feature\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"id\", \"type\", \"code\", \"kind\", \"name_en\", \"name_ar\", \"active\", \"sort_order\", \"created_at\", \"updated_at\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"type\": {\"type\": \"string\"}, \"code\": {\"type\": \"string\"}, \"kind\": {\"type\": \"string\", \"enum\": [\"highlight\", \"amenity\", \"capability\"]}, \"name_en\": {\"type\": \"string\"}, \"name_ar\": {\"type\": [\"string\", \"null\"]}, \"active\": {\"type\": \"boolean\"}, \"sort_order\": {\"type\": \"integer\"}, \"created_at\": {\"type\": \"string\", \"format\": \"date-time\"}, \"updated_at\": {\"type\": [\"string\", \"null\"], \"format\": \"date-time\"}}}, \"Movie\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"id\", \"title_en\", \"title_ar\", \"synopsis_en\", \"synopsis_ar\", \"duration_minutes\", \"age_rating\", \"poster_image_key\", \"status\", \"published_at\", \"created_at\", \"updated_at\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"title_en\": {\"type\": \"string\"}, \"title_ar\": {\"type\": [\"string\", \"null\"]}, \"synopsis_en\": {\"type\": [\"string\", \"null\"]}, \"synopsis_ar\": {\"type\": [\"string\", \"null\"]}, \"duration_minutes\": {\"type\": [\"integer\", \"null\"]}, \"age_rating\": {\"type\": [\"string\", \"null\"]}, \"poster_image_key\": {\"type\": [\"string\", \"null\"]}, \"status\": {\"type\": \"string\", \"enum\": [\"draft\", \"published\", \"archived\"]}, \"published_at\": {\"type\": [\"string\", \"null\"], \"format\": \"date-time\"}, \"created_at\": {\"type\": \"string\", \"format\": \"date-time\"}, \"updated_at\": {\"type\": [\"string\", \"null\"], \"format\": \"date-time\"}}}, \"Showtime\": {\"type\": \"object\", \"additionalProperties\": false, \"required\": [\"id\", \"place_id\", \"movie_id\", \"starts_at\", \"format\", \"status\", \"created_at\", \"updated_at\"], \"properties\": {\"id\": {\"type\": \"integer\"}, \"place_id\": {\"type\": \"integer\"}, \"movie_id\": {\"type\": \"integer\"}, \"starts_at\": {\"type\": \"string\", \"format\": \"date-time\"}, \"format\": {\"type\": \"string\"}, \"status\": {\"type\": \"string\", \"enum\": [\"draft\", \"published\", \"cancelled\"]}, \"created_at\": {\"type\": \"string\", \"format\": \"date-time\"}, \"updated_at\": {\"type\": [\"string\", \"null\"], \"format\": \"date-time\"}}}};",
           "  const body = pm.response.json();",
-          "  const rows = Array.isArray(body.data) ? body.data : [body.data];",
+          "  const rows = Array.isArray(body.data) ? [...body.data] : [body.data]; if (body.data && body.data.places) rows.push(...body.data.places); if (body.included && body.included.places) rows.push(...body.included.places);",
           "  if (body.included && body.included.movies) rows.push(...body.included.movies);",
           "  rows.filter(Boolean).forEach(function (row) {",
           "    const type = row.place_translations ? 'Place' : row.title_en !== undefined ? 'Movie' : row.kind && row.code ? 'Feature' : row.movie_id && row.starts_at ? 'Showtime' : null;",
           "    if (type) pm.test(type + ' uses canonical DB keys and types', function () { pm.expect(row).to.have.jsonSchema(schemas[type]); });",
           "  });",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (pm.response.code >= 200 && pm.response.code < 300 && pm.response.code !== 204 && (pm.response.headers.get('Content-Type') || '').includes('application/json')) {",
+          "  const body = pm.response.json();",
+          "  const schemas = {\"HomeContent\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"locale\",\"hero_eyebrow\",\"hero_title\",\"hero_image_key\",\"discovery_title\",\"app_title\",\"app_body\",\"updated_at\"],\"properties\":{\"locale\":{\"type\":\"string\",\"enum\":[\"en\",\"ar\"]},\"hero_eyebrow\":{\"type\":\"string\"},\"hero_title\":{\"type\":\"string\"},\"hero_image_key\":{\"type\":[\"string\",\"null\"]},\"discovery_title\":{\"type\":\"string\"},\"app_title\":{\"type\":[\"string\",\"null\"]},\"app_body\":{\"type\":[\"string\",\"null\"]},\"updated_at\":{\"type\":[\"string\",\"null\"],\"format\":\"date-time\"}}},\"HomeExploreCard\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"id\",\"place_id\",\"caption_en\",\"caption_ar\",\"sort_order\",\"active\",\"created_at\",\"updated_at\"],\"properties\":{\"id\":{\"type\":\"integer\"},\"place_id\":{\"type\":\"integer\"},\"caption_en\":{\"type\":[\"string\",\"null\"]},\"caption_ar\":{\"type\":[\"string\",\"null\"]},\"sort_order\":{\"type\":\"integer\"},\"active\":{\"type\":\"boolean\"},\"created_at\":{\"type\":\"string\",\"format\":\"date-time\"},\"updated_at\":{\"type\":[\"string\",\"null\"],\"format\":\"date-time\"}}},\"CategoryType\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"code\",\"name_en\",\"name_ar\",\"image_key\",\"sort_order\",\"updated_at\"],\"properties\":{\"code\":{\"type\":\"string\"},\"name_en\":{\"type\":\"string\"},\"name_ar\":{\"type\":[\"string\",\"null\"]},\"image_key\":{\"type\":[\"string\",\"null\"]},\"sort_order\":{\"type\":\"integer\"},\"updated_at\":{\"type\":[\"string\",\"null\"],\"format\":\"date-time\"}}}};",
+          "  const content = body.data && body.data.home_content ? body.data.home_content : body.data && Object.prototype.hasOwnProperty.call(body.data, \"hero_title\") ? [body.data] : [];",
+          "  const cards = body.data && body.data.home_explore_cards ? body.data.home_explore_cards : Array.isArray(body.data) && body.data.some((row) => row && Object.prototype.hasOwnProperty.call(row, \"place_id\") && Object.prototype.hasOwnProperty.call(row, \"caption_en\")) ? body.data : body.data && Object.prototype.hasOwnProperty.call(body.data, \"caption_en\") ? [body.data] : [];",
+          "  const types = body.data && body.data.category_types ? body.data.category_types : [];",
+          "  content.forEach((row) => pm.test(\"HomeContent uses canonical DB keys and types\", () => pm.expect(row).to.have.jsonSchema(schemas.HomeContent)));",
+          "  cards.forEach((row) => pm.test(\"HomeExploreCard uses canonical DB keys and types\", () => pm.expect(row).to.have.jsonSchema(schemas.HomeExploreCard)));",
+          "  types.forEach((row) => pm.test(\"CategoryType uses canonical DB keys and types\", () => pm.expect(row).to.have.jsonSchema(schemas.CategoryType)));",
           "}"
         ]
       }

@@ -9,6 +9,7 @@ const tables = [
   'audit_logs',
   'theater_showtimes',
   'movies',
+  'home_explore_cards',
   'customer_saved_places',
   'place_feature_assignments',
   'place_features',

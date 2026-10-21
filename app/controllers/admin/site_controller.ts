@@ -1,8 +1,13 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
-import { homeValidator, locationValidator, settingsValidator } from '../../validators/content.js'
+import { locationValidator, settingsValidator } from '../../validators/content.js'
 import { cmsImageUrl, imageFiles, prepareImages } from '../../services/image_storage_service.js'
 import { saveHome, saveSettings } from '../../services/site_content_service.js'
+import { HOME_TYPES } from '../../services/home_read_service.js'
+import { positiveId } from '../../services/explore_read_service.js'
+import { deleteHomeCard, saveHomeCard } from '../../services/home_write_service.js'
+import { homeCardValidator, homeContentValidator } from '../../validators/home.js'
+import { ApiError } from '../../services/api_error.js'
 
 async function formImage(ctx: HttpContext, field: string, removeField: string) {
   const { image } = await prepareImages(ctx.admin.id, { image: imageFiles(ctx.request, field) })
@@ -19,11 +24,49 @@ function saveError(request: HttpContext['request'], error: unknown, fallback: st
 export default class AdminSitePageController {
   async home({ view, admin, request }: HttpContext) {
     const locale = request.input('locale') === 'ar' ? 'ar' : 'en'
-    const home = await db.from('home_content').where('locale', locale).first()
+    const [home, cards, places] = await Promise.all([
+      db.from('home_content').where('locale', locale).first(),
+      db
+        .from('home_explore_cards as c')
+        .join('places as p', 'p.id', 'c.place_id')
+        .leftJoin('place_translations as t', function () {
+          this.on('t.place_id', '=', 'p.id').andOnVal('t.locale', '=', 'en')
+        })
+        .select('c.*', 'p.type', 'p.status', 't.title')
+        .orderBy('c.sort_order')
+        .orderBy('c.id')
+        .limit(50),
+      db
+        .from('places as p')
+        .join('place_translations as t', function () {
+          this.on('t.place_id', '=', 'p.id').andOnVal('t.locale', '=', 'en')
+        })
+        .whereIn('p.type', [...HOME_TYPES])
+        .select('p.id', 'p.type', 'p.status', 'p.featured_order', 't.title')
+        .orderBy('p.type')
+        .orderBy('t.title')
+        .limit(500),
+    ])
+    const availablePlaces = new Map<number, (typeof places)[number]>()
+    for (const place of places) availablePlaces.set(Number(place.id), place)
+    for (const card of cards) {
+      const id = Number(card.place_id)
+      if (!availablePlaces.has(id)) {
+        availablePlaces.set(id, {
+          id,
+          type: card.type,
+          status: card.status,
+          featured_order: null,
+          title: card.title,
+        })
+      }
+    }
     return view.render('admin/home', {
       admin,
       locale,
       home,
+      cards,
+      places: [...availablePlaces.values()],
       heroImageUrl: cmsImageUrl(home?.hero_image_key),
     })
   }
@@ -32,18 +75,61 @@ export default class AdminSitePageController {
     const { request, response, session, admin } = ctx
     const locale = request.input('locale') === 'ar' ? 'ar' : 'en'
     try {
-      const input = await homeValidator.validate({
+      const input = await homeContentValidator.validate({
         locale: request.input('locale'),
-        heroEyebrow: request.input('heroEyebrow'),
-        heroTitle: request.input('heroTitle'),
-        discoveryTitle: request.input('discoveryTitle'),
+        hero_eyebrow: request.input('hero_eyebrow'),
+        hero_title: request.input('hero_title'),
+        discovery_title: request.input('discovery_title'),
+        app_title: request.input('app_title'),
+        app_body: request.input('app_body'),
       })
-      await saveHome(input, admin.id, await formImage(ctx, 'heroImage', 'removeHeroImage'))
+      await saveHome(
+        {
+          locale: input.locale,
+          heroEyebrow: input.hero_eyebrow,
+          heroTitle: input.hero_title,
+          discoveryTitle: input.discovery_title,
+          appTitle: input.app_title,
+          appBody: input.app_body,
+        },
+        admin.id,
+        await formImage(ctx, 'heroImage', 'removeHeroImage')
+      )
       session.flash('success', 'Homepage content saved.')
     } catch (error) {
       session.flash('error', saveError(request, error, 'Unable to save homepage'))
     }
     return response.redirect(`/admin/home?locale=${locale}`)
+  }
+
+  async saveHomeCard({ request, params, response, session, admin }: HttpContext) {
+    try {
+      const input = await homeCardValidator.validate({
+        place_id: Number(request.input('place_id')),
+        caption_en: request.input('caption_en') || null,
+        caption_ar: request.input('caption_ar') || null,
+        sort_order: Number(request.input('sort_order', 0)),
+        active: request.input('active') === 'on',
+      })
+      await saveHomeCard(input, admin.id, params.id ? positiveId(params.id) : undefined)
+      session.flash('success', 'Home Explore card saved.')
+    } catch (error) {
+      session.flash('error', error instanceof ApiError ? error.message : 'Unable to save Home card')
+    }
+    return response.redirect('/admin/home#home-cards')
+  }
+
+  async deleteHomeCard({ params, response, session, admin }: HttpContext) {
+    try {
+      await deleteHomeCard(positiveId(params.id), admin.id)
+      session.flash('success', 'Home Explore card removed.')
+    } catch (error) {
+      session.flash(
+        'error',
+        error instanceof ApiError ? error.message : 'Unable to remove Home card'
+      )
+    }
+    return response.redirect('/admin/home#home-cards')
   }
 
   async settings({ view, admin }: HttpContext) {

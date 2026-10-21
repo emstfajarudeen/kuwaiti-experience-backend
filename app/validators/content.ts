@@ -69,6 +69,7 @@ export const placeValidator = vine.compile(
     latitude: vine.number().range([-90, 90]).nullable().optional(),
     longitude: vine.number().range([-180, 180]).nullable().optional(),
     featured: vine.boolean().optional(),
+    featured_order: vine.number().withoutDecimals().min(0).max(9999).nullable().optional(),
     hours: vine
       .array(
         vine.object({

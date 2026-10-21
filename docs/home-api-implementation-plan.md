@@ -1,8 +1,8 @@
 # App home API implementation plan
 
-Status: **planned; awaiting approval to implement the Home section**. Audited 20 October 2026 against the supplied Home screenshot, current source, and read-only local HTTP responses. No application/schema changes are authorized by this plan alone.
+Status: **implemented 21 October 2026** after the user's explicit Home-section approval. The [app API reference Home section](app-api-reference.md#12-home-screen), [Home OpenAPI](home-openapi.json), and [Postman collection](postman/kuwaitiexperience.postman_collection.json) are the current integration contract. This document records the original audit and implementation decisions.
 
-Confirmed scope: reuse the existing venue records. Home Explore cards open **place details**, not videos. **Search stays pending. Cab and rental are excluded.** Notifications, bookings and the video feed remain separate sections. The existing Explore/category/detail APIs are implemented; this document describes the next Home section.
+Confirmed scope: reuse the existing venue records. Home Explore cards open **place details**, not videos. **Search stays pending. Cab and rental are excluded.** Notifications, bookings and the video feed remain separate sections. The existing Explore/category/detail APIs and this Home section are implemented.
 
 ## 1. Screen and existing-data audit
 
@@ -65,7 +65,7 @@ A card owns no image: render the referenced place's cover via existing image met
 
 ## 3. Proposed public API
 
-**New:** `GET /api/v2/home`, guest-accessible with the same optional customer bearer authentication used by Explore. This path does not exist yet.
+**Implemented:** `GET /api/v2/home`, guest-accessible with the same optional customer bearer authentication used by Explore.
 
 Proposed fixed response containers (protocol grouping keys are distinct from persisted entity properties):
 
@@ -107,7 +107,7 @@ Use DB field names in the updated Home form and v2 validator (`hero_title`, `her
 
 Expose `featured_order` as a nullable numeric input beside the existing featured selection, and explain lower-first ordering. Keep checkbox compatibility where necessary but reject contradictory submissions instead of silently choosing an interpretation. A dedicated v2 update accepts `{ featured_order: number | null }` and returns the existing complete canonical Place. Reuse the audited transactional write pattern; do not require an image re-upload or change publication status merely to rank an existing record.
 
-### Planned endpoint map
+### Implemented endpoint map
 
 | Method/path                                               | Behavior                                                                                                              |
 | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
@@ -117,6 +117,7 @@ Expose `featured_order` as a nullable numeric input beside the existing featured
 | `DELETE /api/v2/admin/home/hero-image?locale=en`          | Remove hero through existing service; 204                                                                             |
 | `GET /api/v2/admin/home-explore-cards?page=1&per_page=20` | Canonical selection rows, paginated, including inactive/preparation cards                                             |
 | `POST /api/v2/admin/home-explore-cards`                   | Create selection with required `place_id`, `sort_order`, `active`; optional nullable captions; 201 with canonical row |
+| `GET /api/v2/admin/home-explore-cards/:id`                | Read one canonical selection and its referenced complete Place                                                     |
 | `PUT /api/v2/admin/home-explore-cards/:id`                | Update complete selection inputs and return canonical row                                                             |
 | `DELETE /api/v2/admin/home-explore-cards/:id`             | Remove selection only; retain venue and cover; 204                                                                    |
 | `PATCH /api/v2/admin/places/:id/featured`                 | Update nullable `featured_order`; return canonical Place                                                              |
@@ -127,13 +128,13 @@ Existing category-type CMS controls already manage localized names, tile images 
 
 ## 5. Implementation sequence within the Home section
 
-Start these steps only after explicit approval for **Home API + its CMS controls**. Search, notifications and transport retain their separate approval boundaries.
+The Home section was approved and implemented. Search, notifications and transport retain their separate approval boundaries.
 
 1. **Freeze schemas and navigation.** Reuse the released Place/CategoryType schemas; define HomeContent, HomeExploreCard and HomeResponse. Carry the confirmed place-detail card target and pending search decision into the API guide. Verify the actual current columns before defining the new migration.
 2. **Add the selection schema and shared writers.** Create only `home_explore_cards` and its constraints/index. Add canonical serializers, audited transactional CRUD and place deletion/type-change protections. Before applying a required migration, report its name and exact target DB. Preserve all existing records; no reset/reseed/rollback/media conversion is required for Home.
 3. **Implement bounded Home composition.** Add a thin Home controller and service; reuse optional customer auth, `hydratePlaces` and image helpers. Select capped rows per type using a bounded partition query or four small bounded queries, then hydrate the combined unique ID set once. Do not query relations per card or run one hydration pass per carousel. Load visible selections with SQL joins so hidden places do not consume the public cap.
 4. **Implement matching admin/CMS controls.** Add the endpoint map, localized Home form with DB-key inputs, card selection/captions/order/active state, and featured ordering. Reuse private upload validation, preview and old-file cleanup for hero changes; a new image owner is unnecessary for place-linked cards.
-5. **Document integration alongside implementation.** Create `docs/home-api.md` and exact OpenAPI schemas/references; extend the existing Postman collection/environment with guest/authenticated Home, CMS copy/hero, card CRUD and featured-order requests. Use existing variables/token capture. Mark planned paths as implemented only after verification.
+5. **Document integration alongside implementation.** Extend `docs/app-api-reference.md` with the Home contract and exact OpenAPI schemas/references; extend the existing Postman collection/environment with guest/authenticated Home, CMS copy/hero, card CRUD and featured-order requests. Use existing variables/token capture. Mark planned paths as implemented only after verification.
 6. **Verify and hand off.** Use `kuwaitiexperience_test` and `storage/test-uploads` for tests, then read-only checks against existing dev content. Record content gaps separately from code failures. Run required typecheck/lint/functional/build checks for the final implementation, preserving unrelated work in this shared checkout.
 
 ## 6. Acceptance and security/performance checks
@@ -150,7 +151,7 @@ Start these steps only after explicit approval for **Home API + its CMS controls
 
 ## 7. Approval and pending items
 
-**Ready for approval:** one Home section covering `GET /api/v2/home`, the small place-linked Explore selection resource, canonical Home CMS APIs/forms and featured-order editing, with documentation/Postman and verification.
+**Approved and implemented:** one Home section covering `GET /api/v2/home`, the small place-linked Explore selection resource, canonical Home CMS APIs/forms and featured-order editing, with documentation/Postman.
 
 **Confirmed pending/excluded:** home search (user decision), notifications/unread state (no supplied behavior), rental, cab, bookings and the video/social section. The user explicitly confirmed these Home Explore cards open place details.
 

@@ -343,6 +343,36 @@ export class HomeContentSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class HomeExploreCardSchema extends BaseModel {
+  static $columns = [
+    'active',
+    'captionAr',
+    'captionEn',
+    'createdAt',
+    'id',
+    'placeId',
+    'sortOrder',
+    'updatedAt',
+  ] as const
+  $columns = HomeExploreCardSchema.$columns
+  @column()
+  declare active: boolean
+  @column()
+  declare captionAr: string | null
+  @column()
+  declare captionEn: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare placeId: number
+  @column()
+  declare sortOrder: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class MovieSchema extends BaseModel {
   static $columns = [
     'ageRating',

@@ -17,6 +17,8 @@ const AdminContactsController = () => import('#controllers/api/admin_contacts_co
 const ContactsController = () => import('#controllers/admin/contacts_controller')
 const PublicController = () => import('#controllers/api/public_controller')
 const ExploreController = () => import('#controllers/api/explore_controller')
+const HomeController = () => import('#controllers/api/home_controller')
+const AdminHomeController = () => import('#controllers/api/admin_home_controller')
 const AdminExploreController = () => import('#controllers/api/admin_explore_controller')
 const ExplorePageController = () => import('#controllers/admin/explore_controller')
 const ImagesController = () => import('#controllers/api/images_controller')
@@ -143,6 +145,9 @@ router
     router.get('/images/:key', [ImagesController, 'adminShow']).as('cms.images.show')
     router.get('/home', [AdminSitePageController, 'home'])
     router.post('/home', [AdminSitePageController, 'saveHome'])
+    router.post('/home/cards', [AdminSitePageController, 'saveHomeCard'])
+    router.post('/home/cards/:id/save', [AdminSitePageController, 'saveHomeCard'])
+    router.post('/home/cards/:id/delete', [AdminSitePageController, 'deleteHomeCard'])
     router.get('/settings', [AdminSitePageController, 'settings'])
     router.post('/settings', [AdminSitePageController, 'saveSettings'])
     router.get('/transport', [AdminSitePageController, 'transport'])
@@ -230,6 +235,7 @@ router
 // Mobile's database-key contract is versioned to preserve existing v1 clients.
 router
   .group(() => {
+    router.get('/home', [HomeController, 'show']).as('v2.home.show')
     router.get('/explore', [ExploreController, 'hub']).as('explore.ExploreController.get.explore')
     router
       .get('/categories', [ExploreController, 'categories'])
@@ -294,6 +300,28 @@ router
     router.post('/contact-requests', [CustomerSupportController, 'contact']).use(contactThrottle)
     router
       .group(() => {
+        router.get('/home', [AdminHomeController, 'home']).as('v2.admin.home.show')
+        router.patch('/home', [AdminHomeController, 'updateHome']).as('v2.admin.home.update')
+        router.put('/home/hero-image', [AdminHomeController, 'hero']).as('v2.admin.home.hero')
+        router
+          .delete('/home/hero-image', [AdminHomeController, 'removeHero'])
+          .as('v2.admin.home.hero.remove')
+        router.get('/home-explore-cards', [AdminHomeController, 'cards']).as('v2.admin.home.cards')
+        router
+          .post('/home-explore-cards', [AdminHomeController, 'saveCard'])
+          .as('v2.admin.home.cards.create')
+        router
+          .get('/home-explore-cards/:id', [AdminHomeController, 'card'])
+          .as('v2.admin.home.cards.show')
+        router
+          .put('/home-explore-cards/:id', [AdminHomeController, 'saveCard'])
+          .as('v2.admin.home.cards.update')
+        router
+          .delete('/home-explore-cards/:id', [AdminHomeController, 'deleteCard'])
+          .as('v2.admin.home.cards.delete')
+        router
+          .patch('/places/:id/featured', [AdminHomeController, 'featured'])
+          .as('v2.admin.places.featured')
         router
           .get('/places', [AdminExploreController, 'places'])
           .as('explore.AdminExploreController.get.places')

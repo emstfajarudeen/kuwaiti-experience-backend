@@ -78,7 +78,7 @@ export async function features(type?: unknown, admin = false) {
   return { data: rows.map(serialize.feature) }
 }
 
-function imageLinks(keys: Array<string | null | undefined>, admin = false) {
+export function imageLinks(keys: Array<string | null | undefined>, admin = false) {
   const url = admin ? adminApiImageUrl : publicImageUrl
   return [...new Set(keys.filter((key): key is string => Boolean(key)))].map((storage_key) => ({
     storage_key,

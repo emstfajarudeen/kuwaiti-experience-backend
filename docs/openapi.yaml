@@ -577,6 +577,18 @@ paths:
     $ref: './customer-openapi.json#/paths/~1api~1v2~1customer~1me~1phone~1otp~1{id}~1resend'
   /api/v2/customer/me/phone/otp/{id}/verify:
     $ref: './customer-openapi.json#/paths/~1api~1v2~1customer~1me~1phone~1otp~1{id}~1verify'
+  /api/v2/home:
+    $ref: './home-openapi.json#/paths/~1api~1v2~1home'
+  /api/v2/admin/home:
+    $ref: './home-openapi.json#/paths/~1api~1v2~1admin~1home'
+  /api/v2/admin/home/hero-image:
+    $ref: './home-openapi.json#/paths/~1api~1v2~1admin~1home~1hero-image'
+  /api/v2/admin/home-explore-cards:
+    $ref: './home-openapi.json#/paths/~1api~1v2~1admin~1home-explore-cards'
+  /api/v2/admin/home-explore-cards/{id}:
+    $ref: './home-openapi.json#/paths/~1api~1v2~1admin~1home-explore-cards~1{id}'
+  /api/v2/admin/places/{id}/featured:
+    $ref: './home-openapi.json#/paths/~1api~1v2~1admin~1places~1{id}~1featured'
   /api/v2/explore:
     $ref: './explore-openapi.json#/paths/~1api~1v2~1explore'
   /api/v2/categories:
@@ -616,6 +628,8 @@ paths:
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+    adminBearer: { type: http, scheme: bearer, bearerFormat: JWT }
+    customerBearer: { type: http, scheme: bearer, description: Opaque ca_ customer token }
   parameters:
     Id: { in: path, name: id, required: true, schema: { type: integer, minimum: 1 } }
     Slug: { in: path, name: slug, required: true, schema: { type: string } }

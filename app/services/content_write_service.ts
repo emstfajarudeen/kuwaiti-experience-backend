@@ -32,6 +32,7 @@ type PlaceInput = {
   latitude?: number | null
   longitude?: number | null
   featured?: boolean
+  featured_order?: number | null
   hours?: Array<{
     weekday: number
     intervalIndex: number
@@ -66,6 +67,13 @@ export type PlaceImageChanges = {
 
 async function validatePlace(input: PlaceInput) {
   await assertPlaceType(input.type)
+  if (
+    input.featured !== undefined &&
+    input.featured_order !== undefined &&
+    input.featured !== (input.featured_order !== null)
+  ) {
+    throw new ApiError(422, 'INVALID_FEATURED', 'Featured selection and order must agree')
+  }
   if (input.categoryId) {
     const category = await db.from('categories').where('id', input.categoryId).first()
     if (!category || category.type !== input.type) {
@@ -214,9 +222,12 @@ export async function savePlace(
       if (existing && existing.type !== input.type) {
         const assigned = await trx.from('place_feature_assignments').where('place_id', id!).first()
         const showtime = await trx.from('theater_showtimes').where('place_id', id!).first()
+        const homeCard = await trx.from('home_explore_cards').where('place_id', id!).first()
         if (
           assigned ||
           showtime ||
+          (homeCard &&
+            !['attraction', 'restaurant', 'hotel_resort', 'theater'].includes(input.type)) ||
           existing.check_in_time ||
           existing.check_out_time ||
           existing.screen_count
@@ -224,7 +235,7 @@ export async function savePlace(
           throw new ApiError(
             409,
             'PLACE_TYPE_IN_USE',
-            'Clear Explore features, stay/theater details and showtimes before changing the place type'
+            'Clear incompatible Explore features, home cards, stay/theater details and showtimes before changing the place type'
           )
         }
       }
@@ -249,11 +260,13 @@ export async function savePlace(
         latitude: input.latitude ?? null,
         longitude: input.longitude ?? null,
         featured_order:
-          input.featured === undefined
-            ? (existing?.featured_order ?? null)
-            : input.featured
-              ? (existing?.featured_order ?? 0)
-              : null,
+          input.featured_order !== undefined
+            ? input.featured_order
+            : input.featured === undefined
+              ? (existing?.featured_order ?? null)
+              : input.featured
+                ? (existing?.featured_order ?? 0)
+                : null,
         updated_at: new Date(),
       }
       let placeId = id
@@ -431,6 +444,13 @@ export async function deletePlace(id: number, actorId: number) {
   const released = await db.transaction(async (trx) => {
     const place = await trx.from('places').where('id', id).forUpdate().first()
     if (!place) throw new ApiError(404, 'NOT_FOUND', 'Place not found')
+    const homeCard = await trx.from('home_explore_cards').where('place_id', id).first()
+    if (homeCard)
+      throw new ApiError(
+        409,
+        'HOME_CARD_IN_USE',
+        'Remove this venue from Home Explore cards before deleting it'
+      )
     const gallery = await trx.from('place_images').where('place_id', id).select('storage_key')
     await trx.from('places').where('id', id).delete()
     await trx.table('audit_logs').insert({

@@ -1,0 +1,1091 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Kuwaiti Experience App Home API",
+    "version": "2.0.0",
+    "description": "Canonical DB-key Home content and CMS management. Place, CategoryType, Viewer and ImageLink schemas are shared with Explore. Home search, notifications, cab and rental are pending separate sections."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3333"
+    }
+  ],
+  "paths": {
+    "/api/v2/home": {
+      "get": {
+        "tags": [
+          "Home v2"
+        ],
+        "summary": "App Home: localized hero, place-linked Explore cards and four featured venue carousels",
+        "security": [
+          {},
+          {
+            "customerBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomePage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/admin/home": {
+      "get": {
+        "tags": [
+          "Home v2"
+        ],
+        "summary": "Read one localized HomeContent row; data is null before configuration",
+        "security": [
+          {
+            "adminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NullableHomeContentResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Home v2"
+        ],
+        "summary": "Create or update localized Home copy using database column names",
+        "security": [
+          {
+            "adminBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HomeContentInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeContentResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/admin/home/hero-image": {
+      "put": {
+        "tags": [
+          "Home v2"
+        ],
+        "summary": "Upload or replace the localized Home hero image",
+        "security": [
+          {
+            "adminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeContentResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Home v2"
+        ],
+        "summary": "Remove localized Home hero image",
+        "security": [
+          {
+            "adminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          },
+          "default": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/admin/home-explore-cards": {
+      "get": {
+        "tags": [
+          "Home v2"
+        ],
+        "summary": "Paginated CMS Home Explore selections, including inactive rows",
+        "security": [
+          {
+            "adminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000,
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeCardList"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Home v2"
+        ],
+        "summary": "Select an existing place for the Home Explore strip",
+        "security": [
+          {
+            "adminBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HomeExploreCardInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeCardResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/admin/home-explore-cards/{id}": {
+      "get": {
+        "tags": [
+          "Home v2"
+        ],
+        "summary": "Read one Home Explore selection and its canonical Place",
+        "security": [
+          {
+            "adminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeCardResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Home v2"
+        ],
+        "summary": "Replace one Home Explore selection",
+        "security": [
+          {
+            "adminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HomeExploreCardInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeCardResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Home v2"
+        ],
+        "summary": "Remove a Home Explore selection without deleting its place",
+        "security": [
+          {
+            "adminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          },
+          "default": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/admin/places/{id}/featured": {
+      "patch": {
+        "tags": [
+          "Home v2"
+        ],
+        "summary": "Set a place's Home carousel rank; null removes it from featured selections",
+        "security": [
+          {
+            "adminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeaturedOrderInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceResult"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "customerBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Opaque ca_ customer token."
+      },
+      "adminBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "HomeContent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "locale",
+          "hero_eyebrow",
+          "hero_title",
+          "hero_image_key",
+          "discovery_title",
+          "app_title",
+          "app_body",
+          "updated_at"
+        ],
+        "properties": {
+          "locale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "ar"
+            ]
+          },
+          "hero_eyebrow": {
+            "type": "string"
+          },
+          "hero_title": {
+            "type": "string"
+          },
+          "hero_image_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "discovery_title": {
+            "type": "string"
+          },
+          "app_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "app_body": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "HomeExploreCard": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "place_id",
+          "caption_en",
+          "caption_ar",
+          "sort_order",
+          "active",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "place_id": {
+            "type": "integer"
+          },
+          "caption_en": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "caption_ar": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sort_order": {
+            "type": "integer"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "HomeSection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "place_ids",
+          "has_more"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "attraction",
+              "restaurant",
+              "hotel_resort",
+              "theater"
+            ]
+          },
+          "place_ids": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "has_more": {
+            "type": "boolean"
+          }
+        }
+      },
+      "HomePage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "home_content",
+              "category_types",
+              "home_explore_cards",
+              "places"
+            ],
+            "properties": {
+              "home_content": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/HomeContent"
+                }
+              },
+              "category_types": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CategoryType"
+                }
+              },
+              "home_explore_cards": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/HomeExploreCard"
+                }
+              },
+              "places": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Place"
+                }
+              }
+            }
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "home_sections",
+              "viewer",
+              "images",
+              "evaluated_at"
+            ],
+            "properties": {
+              "home_sections": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/HomeSection"
+                }
+              },
+              "viewer": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Viewer"
+                }
+              },
+              "images": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ImageLink"
+                }
+              },
+              "evaluated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      },
+      "HomeContentResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/HomeContent"
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "images"
+            ],
+            "properties": {
+              "images": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ImageLink"
+                }
+              }
+            }
+          }
+        }
+      },
+      "HomeCardResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "included",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/HomeExploreCard"
+          },
+          "included": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "places"
+            ],
+            "properties": {
+              "places": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Place"
+                }
+              }
+            }
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "viewer",
+              "images",
+              "evaluated_at"
+            ],
+            "properties": {
+              "viewer": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Viewer"
+                }
+              },
+              "images": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ImageLink"
+                }
+              },
+              "evaluated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      },
+      "HomeCardList": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "included",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HomeExploreCard"
+            }
+          },
+          "included": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "places"
+            ],
+            "properties": {
+              "places": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Place"
+                }
+              }
+            }
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "viewer",
+              "images",
+              "evaluated_at",
+              "page",
+              "per_page",
+              "total",
+              "last_page"
+            ],
+            "properties": {
+              "viewer": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Viewer"
+                }
+              },
+              "images": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ImageLink"
+                }
+              },
+              "evaluated_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "page": {
+                "type": "integer"
+              },
+              "per_page": {
+                "type": "integer"
+              },
+              "total": {
+                "type": "integer"
+              },
+              "last_page": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "HomeContentInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "locale",
+          "hero_eyebrow",
+          "hero_title",
+          "discovery_title"
+        ],
+        "properties": {
+          "locale": {
+            "type": "string",
+            "enum": [
+              "en",
+              "ar"
+            ]
+          },
+          "hero_eyebrow": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "hero_title": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 200
+          },
+          "discovery_title": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 200
+          },
+          "app_title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "app_body": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 10000
+          }
+        }
+      },
+      "HomeExploreCardInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "place_id",
+          "sort_order",
+          "active"
+        ],
+        "properties": {
+          "place_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "caption_en": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "caption_ar": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "sort_order": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9999
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "FeaturedOrderInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "featured_order"
+        ],
+        "properties": {
+          "featured_order": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 9999
+          }
+        }
+      },
+      "CategoryType": {
+        "$ref": "./explore-openapi.json#/components/schemas/CategoryType"
+      },
+      "Place": {
+        "$ref": "./explore-openapi.json#/components/schemas/Place"
+      },
+      "PlaceResult": {
+        "$ref": "./explore-openapi.json#/components/schemas/PlaceResult"
+      },
+      "Viewer": {
+        "$ref": "./explore-openapi.json#/components/schemas/Viewer"
+      },
+      "ImageLink": {
+        "$ref": "./explore-openapi.json#/components/schemas/ImageLink"
+      },
+      "Error": {
+        "$ref": "./explore-openapi.json#/components/schemas/Error"
+      },
+      "NullableHomeContentResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/HomeContent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "meta": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "images"
+            ],
+            "properties": {
+              "images": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ImageLink"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
