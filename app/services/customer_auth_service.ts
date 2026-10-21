@@ -11,7 +11,6 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { customer, iso } from '../serializers/customer.js'
 import { ApiError } from './api_error.js'
 import { assertSmsConfigured, fixedOtpEnabled, otpSecret, sendSms } from './customer_sms_service.js'
-import { canonicalPage } from './customer_content_service.js'
 import { eraseProfilePhoto } from './customer_photo_service.js'
 
 const digest = (token: string) => createHash('sha256').update(token).digest('hex')
@@ -37,6 +36,8 @@ export async function requestOtp(
     )
   }
   const fixedOtp = fixedOtpEnabled()
+  const sendWindowMs = fixedOtp ? 60000 : 3600000
+  const sendLimit = fixedOtp ? 10 : 5
   let code = fixedOtp ? '2580' : String(randomInt(0, 10000)).padStart(4, '0')
   const outcome = await db.transaction(async (trx) => {
     if (phone) {
@@ -76,8 +77,8 @@ export async function requestOtp(
       const taken = await trx.from('customers').where('phone_e164', row.phone_e164).first()
       if (taken) throw new ApiError(409, 'PHONE_IN_USE', 'This phone number is already registered')
     }
-    const inWindow = Date.now() - new Date(row.send_window_at).getTime() < 3600000
-    if (!expired(row.resend_available_at) || (inWindow && row.send_count >= 5)) {
+    const inWindow = Date.now() - new Date(row.send_window_at).getTime() < sendWindowMs
+    if (!expired(row.resend_available_at) || (inWindow && row.send_count >= sendLimit)) {
       throw new ApiError(
         429,
         'OTP_RATE_LIMITED',
@@ -92,7 +93,7 @@ export async function requestOtp(
       send_count: inWindow ? Number(row.send_count) + 1 : 1,
       send_window_at: inWindow ? row.send_window_at : new Date(),
       expires_at: future(300),
-      resend_available_at: future(60),
+      resend_available_at: fixedOtp ? new Date(Date.now() - 2000) : future(60),
       verified_at: null,
       consumed_at: null,
       verification_token_hash: null,
@@ -209,7 +210,6 @@ type Registration = {
   first_name: string
   last_name: string
   email?: string | null
-  legal_acceptances: { slug: string; locale: 'en' | 'ar'; content_hash: string }[]
 }
 
 export async function exchangeVerification(token: string, registration?: Registration) {
@@ -235,33 +235,6 @@ export async function exchangeVerification(token: string, registration?: Registr
     if (!registration && !row)
       throw new ApiError(409, 'REGISTRATION_REQUIRED', 'Create an account using the verified phone')
     if (registration) {
-      if (new Set(registration.legal_acceptances.map((a) => a.slug)).size !== 2) {
-        throw new ApiError(
-          422,
-          'LEGAL_ACCEPTANCE_REQUIRED',
-          'Accept the current Privacy Policy and Terms'
-        )
-      }
-      const snapshots = []
-      for (const acceptance of registration.legal_acceptances) {
-        const page = await canonicalPage(acceptance.slug, acceptance.locale, trx)
-        if (page.meta.content_hash !== acceptance.content_hash) {
-          throw new ApiError(
-            409,
-            'LEGAL_CONTENT_CHANGED',
-            'Read and accept the latest legal documents'
-          )
-        }
-        const translation = page.data.page_translations.find((t) => t.locale === page.meta.locale)!
-        snapshots.push({
-          slug: acceptance.slug,
-          locale: page.meta.locale,
-          content_hash: page.meta.content_hash,
-          title: translation.title,
-          body: translation.body,
-          accepted_at: new Date(),
-        })
-      }
       const [id] = await trx.table('customers').insert({
         phone_e164: challenge.phone_e164,
         first_name: registration.first_name,
@@ -270,9 +243,6 @@ export async function exchangeVerification(token: string, registration?: Registr
         phone_verified_at: challenge.verified_at,
         created_at: new Date(),
       })
-      await trx
-        .table('customer_legal_acceptances')
-        .insert(snapshots.map((snapshot) => ({ ...snapshot, customer_id: id })))
       row = { id }
     }
     await trx

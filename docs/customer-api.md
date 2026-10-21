@@ -11,21 +11,17 @@ Edit Profile is also implemented: see [customer-profile-api.md](customer-profile
 ## Phone verification and login
 
 1. `POST /customer/auth/otp` with `{ "phone_e164": "+96590987788" }`. Success is HTTP 202: `{ "data": { "id": "<uuid>", "expires_at": "<UTC ISO date>", "resend_available_at": "<UTC ISO date>" } }`. No account information or OTP is returned. SMS delivery is disabled until configured.
-2. Display four numeric boxes and derive the resend timer from `resend_available_at`. `POST /customer/auth/otp/{id}/resend` after that time returns the same receipt shape. Codes expire after 5 minutes; resend cooldown is 60 seconds; each phone is limited to 5 sends per hour and each challenge to 5 guesses. Re-requesting a code does not bypass the phone budget. Authentication routes are additionally limited to 30 requests per IP per minute.
+2. Display four numeric boxes and derive the resend timer from `resend_available_at`. `POST /customer/auth/otp/{id}/resend` after that time returns the same receipt shape. Codes expire after 5 minutes. Normal SMS mode has a 60-second resend cooldown and a limit of 5 sends per phone per hour. The temporary fixed-code mode has no resend cooldown and allows 10 OTP requests per phone per minute. Both modes limit each challenge to 5 guesses. Re-requesting a code does not bypass the phone budget. Authentication routes also limit each IP-plus-phone/challenge/token combination to 30 requests per minute, with a 5-minute block when exceeded. Different users sharing an IP have separate limits.
 3. `POST /customer/auth/otp/{id}/verify` with `{ "code": "0123" }`. Keep the code as a string to preserve leading zeros. Success: `{ "data": { "next_action": "sign_in", "verification_token": "<opaque proof>", "expires_in": 600 } }`; `next_action` is `sign_in` or `create_account`. This proof is one use and must not be treated as an authenticated session.
 4. For `sign_in`, `POST /customer/auth/session` with `{ "verification_token": "<proof>" }`.
-5. For `create_account`, fetch both legal pages, display them, then `POST /customers` with the verified proof and legal hashes:
+5. For `create_account`, `POST /customers` with the verified proof and profile fields:
 
 ```json
 {
   "verification_token": "<proof>",
   "first_name": "Mariam",
   "last_name": "Al-Khaled",
-  "email": null,
-  "legal_acceptances": [
-    { "slug": "privacy-policy", "locale": "en", "content_hash": "<page meta.content_hash>" },
-    { "slug": "terms-and-conditions", "locale": "en", "content_hash": "<page meta.content_hash>" }
-  ]
+  "email": null
 }
 ```
 
@@ -64,15 +60,15 @@ Customer credentials are opaque tokens with digests stored in the database, isol
 
 `POST /customer/auth/logout` with customer bearer auth revokes the current session and returns HTTP 204 with no body. Clear local credentials afterward. Other sessions remain valid. Repeating the request with the revoked credential returns 401.
 
-`DELETE /customer/me` returns HTTP 204 after a transaction permanently erases the customer, all sessions/refresh digests, legal acceptance snapshots, matching phone OTP state, and contact requests associated with that customer. Auth must originate from an OTP verification within the past 10 minutes; otherwise HTTP 403 `REAUTHENTICATION_REQUIRED` tells the app to repeat the existing phone login flow and retry. No password is used.
+`DELETE /customer/me` returns HTTP 204 after a transaction permanently erases the customer, all sessions/refresh digests, matching phone OTP state, and contact requests associated with that customer. Auth must originate from an OTP verification within the past 10 minutes; otherwise HTTP 403 `REAUTHENTICATION_REQUIRED` tells the app to repeat the existing phone login flow and retry. No password is used.
 
 Guest contact submissions have no verified customer owner and are not deleted by matching unverified email/name text. Future booking/payment retention needs a separate policy before those tables are introduced. The current implementation has no booking/payment records to retain. The same verified phone may create a new account after deletion; old credentials remain invalid.
 
-## Legal pages and consent
+## Legal pages
 
 `GET /pages/privacy-policy?locale=en` and `GET /pages/terms-and-conditions?locale=en` return a complete persisted `pages` object with a `page_translations` array. Public and v2 admin read endpoints share one serializer. Keys retain their SQL names: `id`, `slug`, `status`, `published_at`, `created_at`, `updated_at`; translation keys are `id`, `page_id`, `locale`, `title`, nullable `eyebrow`, `body`, `body_format`, nullable `seo_title`, nullable `seo_description`. Nullable keys are always present. The array contains available translations. `meta.locale` selects the requested locale with English fallback; `meta.content_hash` identifies that exact slug/locale/title/body. If `body_format` is `plain_text`, escape and preserve line breaks. If it is `html`, render the server-sanitized rich content in a constrained content container, never in an attribute or script.
 
-Registration checks the submitted hashes under a transaction and stores immutable snapshots of the accepted text. If text changes, HTTP 409 `LEGAL_CONTENT_CHANGED` requires rereading and accepting it. Both distinct legal slugs are required. Draft/future pages are hidden. Missing legal pages return 404; recognized unrelated Figma placeholder copy returns 503 `LEGAL_CONTENT_UNAVAILABLE`.
+Registration does not require legal page hashes or record acceptance. The app handles its own acceptance UI. Draft/future pages are hidden. Missing legal pages return 404; recognized unrelated Figma placeholder copy returns 503 `LEGAL_CONTENT_UNAVAILABLE`.
 
 Use the CMS Pages Quill editor to publish approved Kuwaitiexperience English/Arabic content under these slugs. The supplied screenshot text and demo seed text are not approved legal policies. No legal copy is automatically seeded or published. Publishing is rejected while known placeholder copy remains.
 
@@ -92,7 +88,7 @@ Admin bearer endpoints under `/api/v2/admin`: `GET /contact-requests?page=1&stat
 
 ## Errors and deployment
 
-Errors use the existing `{ "error": { "code": "INVALID_OTP", "message": "...", "requestId": "...", "fields": {} } }` structure; `fields` is consistently optional for errors with field details. Common codes: 401 `UNAUTHENTICATED`, `INVALID_VERIFICATION`, `INVALID_REFRESH_TOKEN`; 422 `VALIDATION_FAILED`, `INVALID_CHALLENGE`, `INVALID_OTP`, `LEGAL_ACCEPTANCE_REQUIRED`; 409 `CUSTOMER_EXISTS`, `REGISTRATION_REQUIRED`, `LEGAL_CONTENT_CHANGED`; 429 `OTP_RATE_LIMITED`, `RATE_LIMITED`; 503 `OTP_UNAVAILABLE`, `OTP_DELIVERY_FAILED`, `LEGAL_CONTENT_UNAVAILABLE`. Missing resources are 404 `NOT_FOUND`. Clients should branch on status/code, not message wording. v2 responses use `Cache-Control: no-store`.
+Errors use the existing `{ "error": { "code": "INVALID_OTP", "message": "...", "requestId": "...", "fields": {} } }` structure; `fields` is consistently optional for errors with field details. Common codes: 401 `UNAUTHENTICATED`, `INVALID_VERIFICATION`, `INVALID_REFRESH_TOKEN`; 422 `VALIDATION_FAILED`, `INVALID_CHALLENGE`, `INVALID_OTP`; 409 `CUSTOMER_EXISTS`, `REGISTRATION_REQUIRED`; 429 `OTP_RATE_LIMITED`, `RATE_LIMITED`; 503 `OTP_UNAVAILABLE`, `OTP_DELIVERY_FAILED`, `LEGAL_CONTENT_UNAVAILABLE`. Missing resources are 404 `NOT_FOUND`. Clients should branch on status/code, not message wording. v2 responses use `Cache-Control: no-store`.
 
 Apply migration `1760000000006_create_customer_accounts` using the normal controlled migration process. This adds customer/support tables only. It does not migrate v1 payloads or seed data. Phone delivery requires `CUSTOMER_OTP_SECRET` (independent random secret, 32+ characters), `SMS_WEBHOOK_URL` (HTTPS) and `SMS_WEBHOOK_TOKEN`. The webhook adapter receives `{ "phone_e164": "...", "message": "..." }` with a bearer credential, must synchronously accept the SMS and return 2xx. Redirects are rejected and timeout is 10 seconds. Configure the eventual SMS provider behind this adapter or implement a direct sender. For a development or staging server, set `CUSTOMER_OTP_SECRET` and `CUSTOMER_OTP_DEV_RESPONSE=true` to skip SMS and use fixed code `2580` for request/resend challenges. The code is never returned in the response. The option works even with `NODE_ENV=production` and is ignored only in tests; without it or an SMS adapter, request/resend fails closed with 503. Disable this temporary option before serving real customer traffic. Resend email is not used for phone verification, per the user's decision.
 

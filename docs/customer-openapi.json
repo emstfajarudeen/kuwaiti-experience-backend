@@ -152,13 +152,13 @@
     },
     "/api/v2/customer/auth/otp/{id}/resend": {
       "post": {
-        "summary": "Resend after 60 seconds; at most 5 sends per phone per hour",
+        "summary": "Resend OTP when available; limits depend on delivery mode",
         "tags": [
           "Customer v2"
         ],
         "responses": {
           "202": {
-            "description": "Resend after 60 seconds; at most 5 sends per phone per hour",
+            "description": "Normal SMS mode: 60-second cooldown and 5 sends per phone per hour. Temporary fixed-code mode: no cooldown and 10 requests per phone per minute.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3948,8 +3948,7 @@
         "required": [
           "verification_token",
           "first_name",
-          "last_name",
-          "legal_acceptances"
+          "last_name"
         ],
         "properties": {
           "verification_token": {
@@ -3974,40 +3973,6 @@
             ],
             "format": "email",
             "maxLength": 254
-          },
-          "legal_acceptances": {
-            "type": "array",
-            "minItems": 2,
-            "maxItems": 2,
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "slug",
-                "locale",
-                "content_hash"
-              ],
-              "properties": {
-                "slug": {
-                  "type": "string",
-                  "enum": [
-                    "privacy-policy",
-                    "terms-and-conditions"
-                  ]
-                },
-                "locale": {
-                  "type": "string",
-                  "enum": [
-                    "en",
-                    "ar"
-                  ]
-                },
-                "content_hash": {
-                  "type": "string",
-                  "pattern": "^[a-f0-9]{64}$"
-                }
-              }
-            }
           }
         }
       },

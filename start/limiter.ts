@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import limiter from '@adonisjs/limiter/services/main'
 
 export const bookmarkThrottle = limiter.define('customer-bookmarks', (ctx) =>
@@ -14,13 +15,23 @@ export const customerPhotoThrottle = limiter.define('customer-profile-photo', (c
     .usingKey(`customer-photo:${ctx.customerIdentity.customer.id}`)
 )
 
-export const customerAuthThrottle = limiter.define('customer-auth', (ctx) =>
-  limiter
+export const customerAuthThrottle = limiter.define('customer-auth', (ctx) => {
+  const candidates = [
+    ['challenge', ctx.params.id],
+    ['phone', ctx.request.input('phone_e164')],
+    ['verification', ctx.request.input('verification_token')],
+    ['refresh', ctx.request.input('refresh_token')],
+  ] as const
+  const subject = candidates.find(([, value]) => typeof value === 'string' && value.length > 0)
+  const key = subject
+    ? createHash('sha256').update(`${subject[0]}:${subject[1]}`).digest('hex')
+    : 'invalid-request'
+  return limiter
     .allowRequests(30)
     .every('1 minute')
     .blockFor('5 minutes')
-    .usingKey(`customer-auth:${ctx.request.ip()}`)
-)
+    .usingKey(`customer-auth:${ctx.request.ip()}:${key}`)
+})
 export const contactThrottle = limiter.define('customer-contact', (ctx) =>
   limiter.allowRequests(5).every('1 hour').usingKey(`customer-contact:${ctx.request.ip()}`)
 )

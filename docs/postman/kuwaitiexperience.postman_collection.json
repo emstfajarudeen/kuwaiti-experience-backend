@@ -8,7 +8,7 @@
   "item": [
     {
       "name": "01 — Footer pages and public settings",
-      "description": "Read all four footer Page resources after CMS publication. Privacy/Terms scripts capture locale and content hash for app registration. Contact submissions are in folder 05.",
+      "description": "Read all four footer Page resources after CMS publication. Privacy/Terms pages are available for app display; registration does not require page hashes. Contact submissions are in folder 05.",
       "item": [
         {
           "name": "About Us page",
@@ -104,24 +104,12 @@
           },
           "event": [
             {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.environment.unset('privacy_content_hash');"
-                ]
-              }
-            },
-            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
                   "if (pm.response.code === 200) {",
-                  "const m = pm.response.json().meta;",
-                  "pm.environment.set('privacy_content_hash', m.content_hash);",
-                  "pm.environment.set('privacy_locale', m.locale);",
                   "const page = pm.response.json().data;",
                   "pm.test(\"Canonical PageTranslation shape\", function () {",
                   "  pm.expect(page).to.have.all.keys(\"id\", \"slug\", \"status\", \"published_at\", \"created_at\", \"updated_at\", \"page_translations\");",
@@ -152,24 +140,12 @@
           },
           "event": [
             {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.environment.unset('terms_content_hash');"
-                ]
-              }
-            },
-            {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
                   "if (pm.response.code === 200) {",
-                  "const m = pm.response.json().meta;",
-                  "pm.environment.set('terms_content_hash', m.content_hash);",
-                  "pm.environment.set('terms_locale', m.locale);",
                   "const page = pm.response.json().data;",
                   "pm.test(\"Canonical PageTranslation shape\", function () {",
                   "  pm.expect(page).to.have.all.keys(\"id\", \"slug\", \"status\", \"published_at\", \"created_at\", \"updated_at\", \"page_translations\");",
@@ -282,7 +258,7 @@
           "response": []
         },
         {
-          "name": "Resend login OTP (after cooldown)",
+          "name": "Resend login OTP (when available)",
           "request": {
             "method": "POST",
             "header": [
@@ -433,13 +409,13 @@
               }
             ],
             "url": "{{base_url}}/api/v2/customers",
-            "description": "Use only when next_action is create_account and the user has read/accepted both legal pages. Email is optional; replace null with an email string to supply it.",
+            "description": "Use only when next_action is create_account. The app handles legal acceptance separately. Email is optional; replace null with an email string to supply it.",
             "auth": {
               "type": "noauth"
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"verification_token\": \"{{verification_token}}\",\n  \"first_name\": \"{{first_name}}\",\n  \"last_name\": \"{{last_name}}\",\n  \"email\": null,\n  \"legal_acceptances\": [\n    {\n      \"slug\": \"privacy-policy\",\n      \"locale\": \"{{privacy_locale}}\",\n      \"content_hash\": \"{{privacy_content_hash}}\"\n    },\n    {\n      \"slug\": \"terms-and-conditions\",\n      \"locale\": \"{{terms_locale}}\",\n      \"content_hash\": \"{{terms_content_hash}}\"\n    }\n  ]\n}",
+              "raw": "{\n  \"verification_token\": \"{{verification_token}}\",\n  \"first_name\": \"{{first_name}}\",\n  \"last_name\": \"{{last_name}}\",\n  \"email\": null\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -796,7 +772,7 @@
           "response": []
         },
         {
-          "name": "Resend new phone OTP (after cooldown)",
+          "name": "Resend new phone OTP (when available)",
           "request": {
             "method": "POST",
             "header": [

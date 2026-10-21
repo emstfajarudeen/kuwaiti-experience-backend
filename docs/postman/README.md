@@ -17,11 +17,10 @@ Page translations now always include nullable `eyebrow` and `body_format` (`plai
 
 ## Login or registration
 
-1. Fetch Privacy policy and Terms and conditions in folder 01. Successful responses store each page's `content_hash` and actual locale. Approved legal pages must already be published in the CMS; missing/unapproved pages return 404/503.
-2. Set `phone_e164`. Send Request login OTP in folder 02.
-3. Enter the received four-digit SMS code in `otp_code`, keeping any leading zeros. In isolated development with the fixed-code option enabled, enter `2580` instead. Send Verify login OTP. Resend is optional and requires the server cooldown to have elapsed.
-4. Check the verification response's `next_action`. Send **Existing customer sign in** for `sign_in`, or **Create account** for `create_account`. For registration, set `first_name` and `last_name`, review/accept the legal pages, and optionally replace the request body's `email: null` with an email string. The proof is one use: send only the matching request.
-5. Successful login/registration automatically stores `access_token`, `refresh_token` and `customer_id` in the selected environment. Protected customer requests use that access token. Refresh customer session replaces both credentials; old refresh tokens cannot be reused.
+1. Set `phone_e164`. Send Request login OTP in folder 02.
+2. Enter the received four-digit SMS code in `otp_code`, keeping any leading zeros. In development or staging with the fixed-code option enabled, enter `2580` instead. Send Verify login OTP. Normal SMS mode requires the 60-second resend cooldown; fixed-code mode has no resend cooldown but allows at most 10 requests per phone per minute.
+3. Check the verification response's `next_action`. Send **Existing customer sign in** for `sign_in`, or **Create account** for `create_account`. For registration, set `first_name` and `last_name`, and optionally replace the request body's `email: null` with an email string. The app handles legal acceptance separately; no legal hashes are required by registration. The proof is one use: send only the matching request.
+4. Successful login/registration automatically stores `access_token`, `refresh_token` and `customer_id` in the selected environment. Protected customer requests use that access token. Refresh customer session replaces both credentials; old refresh tokens cannot be reused.
 
 **SMS is currently disabled pending provider configuration.** For development or staging, set an independent 32+ character `CUSTOMER_OTP_SECRET` and `CUSTOMER_OTP_DEV_RESPONSE=true` in the server environment. OTP request/resend then skips SMS; verify the challenge with `2580`. The code is never returned in the response. Otherwise requests return 503 until SMS delivery is configured. This temporary option also works with `NODE_ENV=production`; disable it before serving real customers. It is unavailable in tests.
 

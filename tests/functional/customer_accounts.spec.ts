@@ -41,13 +41,11 @@ async function legal(client: ApiClient) {
 }
 
 async function register(client: ApiClient) {
-  const legalAcceptances = await legal(client)
   const { outcome } = await verify(client)
   const result = await client.post(`${base}/customers`).json({
     verification_token: outcome.verification_token,
     first_name: 'Mariam',
     last_name: 'Al-Khaled',
-    legal_acceptances: legalAcceptances,
   })
   result.assertStatus(201)
   return result.body().data
@@ -125,8 +123,7 @@ test.group('Customer accounts and support', (group) => {
     const consent = await db
       .from('customer_legal_acceptances')
       .where('customer_id', session.customer.id)
-    assert.lengthOf(consent, 2)
-    assert.include(consent[0].body, 'Approved')
+    assert.lengthOf(consent, 0)
   })
 
   test('OTP is hidden, cooldown is enforced and old codes cannot be reused', async ({
@@ -175,6 +172,25 @@ test.group('Customer accounts and support', (group) => {
     expired.assertStatus(422)
   })
 
+  test('auth throttling for one challenge does not block another phone on the same IP', async ({
+    client,
+  }) => {
+    const sent = await client.post(`${base}/customer/auth/otp`).json({ phone_e164: phone })
+    sent.assertStatus(202)
+    const url = `${base}/customer/auth/otp/${sent.body().data.id}/verify`
+    const wrong = code === '0000' ? '0001' : '0000'
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const result = await client.post(url).json({ code: wrong })
+      result.assertStatus(422)
+    }
+    const throttled = await client.post(url).json({ code: wrong })
+    throttled.assertStatus(429)
+    const otherPhone = await client
+      .post(`${base}/customer/auth/otp`)
+      .json({ phone_e164: '+96590987789' })
+    otherPhone.assertStatus(202)
+  })
+
   test('resend rotates code and enforces the hourly phone budget', async ({ client, assert }) => {
     const sent = await client.post(`${base}/customer/auth/otp`).json({ phone_e164: phone })
     const id = sent.body().data.id
@@ -197,31 +213,20 @@ test.group('Customer accounts and support', (group) => {
     blocked.assertStatus(429)
   })
 
-  test('changed legal text and duplicate acceptances block registration without consuming proof', async ({
+  test('registration succeeds without published legal pages or acceptance hashes', async ({
     client,
     assert,
   }) => {
-    const legalAcceptances = await legal(client)
     const { outcome } = await verify(client)
-    await db
-      .from('page_translations')
-      .where('title', 'privacy-policy')
-      .update({ body: 'A revised privacy policy' })
-    const payload = {
+    const result = await client.post(`${base}/customers`).json({
       verification_token: outcome.verification_token,
       first_name: 'A',
       last_name: 'B',
-      legal_acceptances: legalAcceptances,
-    }
-    const changed = await client.post(`${base}/customers`).json(payload)
-    changed.assertStatus(409)
-    assert.equal(changed.body().error.code, 'LEGAL_CONTENT_CHANGED')
-    const duplicate = await client
-      .post(`${base}/customers`)
-      .json({ ...payload, legal_acceptances: [legalAcceptances[0], legalAcceptances[0]] })
-    duplicate.assertStatus(422)
-    const pending = await db.from('customer_otp_challenges').where('phone_e164', phone).first()
-    assert.isNull(pending.consumed_at)
+    })
+    result.assertStatus(201)
+    assert.equal(result.body().data.customer.first_name, 'A')
+    const stored = await db.from('customer_legal_acceptances')
+    assert.lengthOf(stored, 0)
   })
 
   test('existing phone signs in and verification credential is one use', async ({

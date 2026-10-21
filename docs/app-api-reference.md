@@ -77,7 +77,7 @@ A **nullable** property is still a required JSON key when marked required in Ope
 
 Explore returns all stored translation rows. Select English/Arabic in the app, falling back **per field** to English when Arabic is missing, null or empty. Do not assume an Arabic row exists. Use the same rule for `name_en`/`name_ar` and movie title/synopsis pairs. Sending `locale` does not transform Explore entities into flat localized cards.
 
-Legal-page reads accept `locale=en|ar` (default English). Use `meta.locale` to select the actual returned translation and for legal acceptance; it may be English after fallback. The selected `PageTranslation` includes nullable `eyebrow` and required `body_format` (`plain_text` or `html`): escape plain text, or render server-sanitized HTML in a constrained content container. Never interpolate HTML into attributes or scripts.
+Legal-page reads accept `locale=en|ar` (default English). Use `meta.locale` to select the actual returned translation; it may be English after fallback. The selected `PageTranslation` includes nullable `eyebrow` and required `body_format` (`plain_text` or `html`): escape plain text, or render server-sanitized HTML in a constrained content container. Never interpolate HTML into attributes or scripts.
 
 ## 4. Quick start: browse without login
 
@@ -116,26 +116,22 @@ All endpoints in this table allow guest access. Omit Authorization during initia
 }
 ```
 
-With `CUSTOMER_OTP_DEV_RESPONSE=true`, request a challenge and verify it with `"code": "2580"`. The receipt never includes the code. The normal expiry, resend cooldown, attempt limits, and one-use proof still apply.
+With `CUSTOMER_OTP_DEV_RESPONSE=true`, request a challenge and verify it with `"code": "2580"`. The receipt never includes the code. This temporary mode allows 10 OTP requests per phone per minute without a resend cooldown. Expiry, guess limits, and one-use proof still apply.
 
 After verify, inspect `data.next_action`: `sign_in` means call `/customer/auth/session`; `create_account` means show the account form and call `/customers`. The `verification_token` is one use, expires in 600 seconds, and is not a logged-in session. `update_phone` belongs only to the authenticated phone-change flow.
 
-Before registration fetch both legal pages, show their current text and obtain acceptance. Submit the actual `meta.locale` and `meta.content_hash` from each page:
+Registration requires only the verified proof and profile fields. The app handles legal acceptance separately; no policy hash is sent to this endpoint:
 
 ```json
 {
   "verification_token": "<proof from verify>",
   "first_name": "Mariam",
   "last_name": "Al-Khaled",
-  "email": null,
-  "legal_acceptances": [
-    { "slug": "privacy-policy", "locale": "en", "content_hash": "<privacy page hash>" },
-    { "slug": "terms-and-conditions", "locale": "en", "content_hash": "<terms page hash>" }
-  ]
+  "email": null
 }
 ```
 
-Names are trimmed, 1–120 characters. Email is optional/nullable, valid email format, maximum 254 characters. Phone must be international E.164 format. Both distinct legal acceptances are required. Hash placeholders in the example must be replaced with real 64-character lowercase hexadecimal hashes. On 409 `LEGAL_CONTENT_CHANGED`, reread the pages and obtain acceptance again.
+Names are trimmed, 1–120 characters. Email is optional/nullable, valid email format, maximum 254 characters. Phone must be international E.164 format.
 
 Sign-in, registration and refresh return this same shape (values below are illustrative):
 
@@ -164,7 +160,7 @@ Sign-in, registration and refresh return this same shape (values below are illus
 
 Access lasts 15 minutes; sessions have a 7-day absolute lifetime. Refresh rotates both credentials and invalidates the old access token. Serialize refresh requests in the client so concurrent 401 responses share one refresh attempt. Store the new pair together; never reuse an old refresh token, since reuse revokes the session. On refresh failure, clear the session and show login. Do not blindly retry state-changing requests after an ambiguous network failure.
 
-OTP expires after 5 minutes; resend cooldown is 60 seconds. Use server `resend_available_at`, not a hardcoded countdown start. Limits: 5 sends per phone/hour, 5 guesses per challenge, plus 30 auth requests/IP/minute. Display a retry state on 429. Without SMS or the explicit fixed-code option, show the 503 unavailable state. Fixed OTP `2580` works whenever the temporary flag is enabled outside tests.
+OTP expires after 5 minutes. Normal SMS mode has a 60-second resend cooldown and 5 sends per phone/hour. The temporary fixed-code mode allows 10 requests per phone/minute with no resend cooldown. Use server `resend_available_at`, not a hardcoded countdown start. Both modes allow 5 guesses per challenge, plus 30 auth requests/minute for each IP-plus-phone/challenge/token combination with a 5-minute block when exceeded. Different users behind one IP have separate limits. Display a retry state on 429. Without SMS or the explicit fixed-code option, show the 503 unavailable state. Fixed OTP `2580` works whenever the temporary flag is enabled outside tests.
 
 ## 6. Profile and account controls
 
@@ -500,7 +496,6 @@ Home API errors follow the shared `{ error: { code, message, requestId, fields? 
 | 401 `UNAUTHENTICATED`                                                                                                                               | Protected session missing/invalid/expired; attempt one serialized refresh if eligible, otherwise show login  |
 | 401 `INVALID_REFRESH_TOKEN`, `INVALID_VERIFICATION`                                                                                                 | Restart session or verification flow respectively                                                            |
 | 403 `REAUTHENTICATION_REQUIRED`                                                                                                                     | Repeat phone sign-in before sensitive action                                                                 |
-| 409 `LEGAL_CONTENT_CHANGED`                                                                                                                         | Reload policies and request acceptance again                                                                 |
 | 409 `PHONE_IN_USE`, `CUSTOMER_EXISTS`, `REGISTRATION_REQUIRED`                                                                                      | Follow the conflict-specific account/phone flow; no blind retry                                              |
 | 422 `VALIDATION_FAILED`, `EMPTY_UPDATE`, `INVALID_OTP`, `INVALID_CHALLENGE`, `INVALID_FILTER`, `INVALID_TYPE`, `INVALID_PAGINATION`, `INVALID_DATE` | Show field/input/verification feedback as appropriate                                                        |
 | 404 `NOT_FOUND`                                                                                                                                     | Resource absent/unavailable; handle missing photo with initials and missing venue with an unavailable screen |

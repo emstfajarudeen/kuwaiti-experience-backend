@@ -24,15 +24,6 @@ export const customerRegistrationValidator = vine.compile(
     first_name: vine.string().trim().minLength(1).maxLength(120),
     last_name: vine.string().trim().minLength(1).maxLength(120),
     email: vine.string().trim().email().maxLength(254).nullable().optional(),
-    legal_acceptances: vine
-      .array(
-        vine.object({
-          slug: vine.enum(['privacy-policy', 'terms-and-conditions']),
-          locale: vine.enum(['en', 'ar']),
-          content_hash: vine.string().regex(/^[a-f0-9]{64}$/),
-        })
-      )
-      .fixedLength(2),
   })
 )
 export const customerRefreshValidator = vine.compile(
