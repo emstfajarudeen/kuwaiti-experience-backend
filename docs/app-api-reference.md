@@ -50,6 +50,7 @@ The website's `/api/v1/home` retains its legacy response. The app's Home Explore
 | Guest/customer               | Omit Authorization for guests; send a customer bearer token for personalized data or account association |
 | Customer                     | `Authorization: Bearer <access_token>` required                                                          |
 
+
 Customer tokens are opaque strings, not admin JWTs. A verification proof is also not an access token. Store access/refresh tokens in mobile OS secure storage. Do not send admin credentials or CMS cookies to customer APIs. A supplied invalid/expired token on a guest/customer endpoint is rejected; it does not downgrade to guest browsing.
 
 For JSON requests send `Accept: application/json` and `Content-Type: application/json`. For uploads let the HTTP library set the multipart boundary. HTTP 204 has no body: do not try to decode it as JSON. Private photo reads return binary WebP.
