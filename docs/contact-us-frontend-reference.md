@@ -4,11 +4,11 @@ This document maps the supplied web Contact Us UI to the visitor-facing API. Use
 
 ## API overview
 
-| Purpose | Method and path | Authentication |
-| --- | --- | --- |
-| Contact cards and inquiry choices | `GET /api/v2/site` | Public |
-| Optional CMS-managed Contact Us heading/body | `GET /api/v2/pages/contact-us?locale=en` | Public |
-| Submit “Send Us a Message” | `POST /api/v2/contact-requests` | Guest; optional customer bearer token |
+| Purpose                                      | Method and path                          | Authentication                        |
+| -------------------------------------------- | ---------------------------------------- | ------------------------------------- |
+| Contact cards and inquiry choices            | `GET /api/v2/site`                       | Public                                |
+| Optional CMS-managed Contact Us heading/body | `GET /api/v2/pages/contact-us?locale=en` | Public                                |
+| Submit “Send Us a Message”                   | `POST /api/v2/contact-requests`          | Guest; optional customer bearer token |
 
 Set the API origin per environment. Send `Accept: application/json` for every request and `Content-Type: application/json` for submission. Contact submission is limited to five requests per client IP per hour.
 
@@ -74,12 +74,12 @@ All contact destination fields are nullable and always present. `contact_inquiry
 
 The card titles, action labels, icons, and localized presentational copy belong to the frontend. Destinations and CMS-managed descriptions come from `GET /api/v2/site`.
 
-| Supplied UI card | Display values | Action | Empty state |
-| --- | --- | --- | --- |
-| Direct Call | `direct_phone_number`, `direct_phone_description` | `href="tel:<direct_phone_number>"` | Hide when number is null |
-| WhatsApp Concierge | `whatsapp_number`, `whatsapp_description` | `https://wa.me/<digits-only-number>` | Hide when number is null |
-| Email Inquiries | `contact_email` | `href="mailto:<contact_email>"` | Hide when email is null |
-| Headquarters | `headquarters_name`, `headquarters_address` | Open `headquarters_map_url` in a new tab | Hide the action when URL is null; hide the card when name, address, and URL are all null |
+| Supplied UI card   | Display values                                    | Action                                   | Empty state                                                                              |
+| ------------------ | ------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Direct Call        | `direct_phone_number`, `direct_phone_description` | `href="tel:<direct_phone_number>"`       | Hide when number is null                                                                 |
+| WhatsApp Concierge | `whatsapp_number`, `whatsapp_description`         | `https://wa.me/<digits-only-number>`     | Hide when number is null                                                                 |
+| Email Inquiries    | `contact_email`                                   | `href="mailto:<contact_email>"`          | Hide when email is null                                                                  |
+| Headquarters       | `headquarters_name`, `headquarters_address`       | Open `headquarters_map_url` in a new tab | Hide the action when URL is null; hide the card when name, address, and URL are all null |
 
 Normalize links client-side without changing displayed values:
 
@@ -88,9 +88,7 @@ const digitsOnly = (value: string) => value.replace(/\D/g, '')
 const whatsappHref = settings.whatsapp_number
   ? `https://wa.me/${digitsOnly(settings.whatsapp_number)}`
   : null
-const phoneHref = settings.direct_phone_number
-  ? `tel:${settings.direct_phone_number}`
-  : null
+const phoneHref = settings.direct_phone_number ? `tel:${settings.direct_phone_number}` : null
 ```
 
 For links opened in a new tab, use `rel="noopener noreferrer"`. Give icon-only elements accessible labels; the visible card action should be keyboard reachable.
@@ -99,13 +97,13 @@ For links opened in a new tab, use `rel="noopener noreferrer"`. Give icon-only e
 
 Map the supplied form as follows:
 
-| UI field | JSON key | Required | Contract |
-| --- | --- | --- | --- |
-| Full Name | `full_name` | Yes | Trimmed string, 1–120 characters |
-| Email Address | `email` | Yes | Valid email, maximum 254 characters |
-| Phone Number | `phone_number` | No | `null` or 8–15 digits with optional leading `+`; remove display spaces before sending |
-| Inquiry Type | `inquiry_type` | No | `null` or trimmed string, 1–120 characters |
-| Your Message | `message` | Yes | Trimmed string, 1–300 characters |
+| UI field      | JSON key       | Required | Contract                                                                              |
+| ------------- | -------------- | -------- | ------------------------------------------------------------------------------------- |
+| Full Name     | `full_name`    | Yes      | Trimmed string, 1–120 characters                                                      |
+| Email Address | `email`        | Yes      | Valid email, maximum 254 characters                                                   |
+| Phone Number  | `phone_number` | No       | `null` or 8–15 digits with optional leading `+`; remove display spaces before sending |
+| Inquiry Type  | `inquiry_type` | No       | `null` or trimmed string, 1–120 characters                                            |
+| Your Message  | `message`      | Yes      | Trimmed string, 1–300 characters                                                      |
 
 Populate the Inquiry Type select from `contact_inquiry_types`. If the array is empty, omit/disable the select and send `inquiry_type: null`; do not invent production options in the frontend.
 
@@ -159,12 +157,12 @@ type ApiErrorResponse = {
 }
 ```
 
-| HTTP | Expected handling |
-| --- | --- |
-| 401 | Only expected when an optional customer token was sent and is invalid; refresh/login or retry once as guest after explicit user action |
-| 422 | Map `error.fields` to inputs and show `error.message` as the form summary |
-| 429 | Show a rate-limit message and keep the entered values |
-| 500 | Show a generic failure and retain `requestId` for support |
+| HTTP | Expected handling                                                                                                                      |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 401  | Only expected when an optional customer token was sent and is invalid; refresh/login or retry once as guest after explicit user action |
+| 422  | Map `error.fields` to inputs and show `error.message` as the form summary                                                              |
+| 429  | Show a rate-limit message and keep the entered values                                                                                  |
+| 500  | Show a generic failure and retain `requestId` for support                                                                              |
 
 Disable the Send Message button while one request is in flight. Do not automatically retry a timed-out POST because the submission may already have been stored. Preserve entered values on every failure.
 

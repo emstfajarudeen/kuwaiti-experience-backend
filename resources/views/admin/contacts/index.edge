@@ -1,21 +1,108 @@
-@layouts.admin({ title: 'Contact requests', active: 'contacts', adminName: admin.fullName })
-  <div class="page-head"><div><h1>Contact requests</h1><p>{{ meta.total }} messages from visitors and customers.</p></div></div>
-  <section class="panel table-panel">
-    <div class="table-scroll"><table class="data-table"><thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Received</th><th></th></tr></thead><tbody>
-    @each(contact in data)
-      <tr><td>{{ contact.full_name }}</td><td>{{ contact.email }}</td><td>{{ contact.status }}</td><td>{{ contact.created_at }}</td><td><a href="/admin/contact-requests/{{ contact.id }}">Open message</a></td></tr>
-    @else
-      <tr><td colspan="5">No contact requests yet.</td></tr>
-    @end
-    </tbody></table></div>
-    <div class="panel-heading">
-      @if(meta.page > 1)
-        <a href="/admin/contact-requests?page={{ meta.page - 1 }}">Previous</a>
-      @end
-      <span>Page {{ meta.page }} of {{ meta.last_page }}</span>
-      @if(meta.page < meta.last_page)
-        <a href="/admin/contact-requests?page={{ meta.page + 1 }}">Next</a>
-      @end
+@layouts.admin({
+  title: 'Contact requests',
+  active: 'contacts',
+  adminName: admin.fullName,
+})
+  <div class="page-head">
+    <div>
+      <h1>Contact requests</h1>
     </div>
+  </div>
+
+  <section class="panel table-panel">
+    <div class="panel-heading">
+      <h2>Messages ({{ meta.total }})</h2>
+    </div>
+    @if(data && data.length)
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Visitor</th>
+              <th scope="col">Inquiry Type</th>
+              <th scope="col">Status</th>
+              <th scope="col">Received (Kuwait)</th>
+              <th scope="col" style="text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            @each(contact in data)
+              <tr>
+                <td>
+                  <div class="place-title-wrap">
+                    <strong>{{ contact.full_name }}</strong>
+                    <small>
+                      {{ contact.email }}{{
+                        contact.phone_number
+                          ? ` · ${contact.phone_number}`
+                          : ''
+                      }}
+                    </small>
+                  </div>
+                </td>
+                <td>
+                  @if(contact.inquiry_type)
+                    <span class="type-chip" style="font-size: 11px; padding: 2px 6px;">
+                      {{ contact.inquiry_type }}
+                    </span>
+                  @else
+                    <span style="color: var(--muted); font-size: 13px;">General</span>
+                  @end
+                </td>
+                <td>
+                  <span
+                    class="status {{
+                      contact.status === 'resolved'
+                        ? 'published'
+                        : contact.status === 'in_progress'
+                          ? 'draft'
+                          : 'archived'
+                    }}"
+                  >
+                    {{ contact.status.replace('_', ' ') }}
+                  </span>
+                </td>
+                <td style="color: var(--muted); font-size: 13px;">{{ contact.created_at }}</td>
+                <td style="text-align: right;">
+                  <a
+                    class="button secondary table-action"
+                    href="/admin/contact-requests/{{ contact.id }}"
+                  >
+                    View
+                  </a>
+                </td>
+              </tr>
+            @end
+          </tbody>
+        </table>
+      </div>
+      @if(meta.lastPage > 1)
+        <div class="pagination-bar">
+          <span class="pagination-info">Page {{ meta.currentPage }} of {{ meta.lastPage }}</span>
+          <div class="pagination-nav">
+            @if(meta.currentPage > 1)
+              <a
+                class="button secondary table-action"
+                href="/admin/contact-requests?page={{ meta.currentPage - 1 }}"
+              >
+                Previous
+              </a>
+            @end
+            @if(meta.currentPage < meta.lastPage)
+              <a
+                class="button secondary table-action"
+                href="/admin/contact-requests?page={{ meta.currentPage + 1 }}"
+              >
+                Next
+              </a>
+            @end
+          </div>
+        </div>
+      @end
+    @else
+      <div class="empty-state">
+        <p>No contact inquiries received yet.</p>
+      </div>
+    @end
   </section>
 @end

@@ -1,30 +1,98 @@
-
 @layouts.admin({ title: 'Movies', active: 'movies', adminName: admin.fullName })
+  <div class="page-head">
+    <div>
+      <h1>Movies</h1>
+    </div>
+    <div class="page-head-actions">
+      <a class="button primary" href="/admin/movies/new">+ Add movie</a>
+      <a class="button secondary" href="/admin/showtimes">Showtimes</a>
+    </div>
+  </div>
 
-  <div class="page-head"><div><h1>Movies</h1><p>Publish licensed posters and movie details, then add theater showtimes.</p></div><a class="button primary" href="/admin/movies/new">Add movie</a></div>
-  <section class="panel form-panel"><div class="table-wrap"><table><thead><tr><th>Title</th><th>Status</th><th>Duration</th><th>Actions</th></tr></thead><tbody>
-    
-@each(movie in result.data)
-
-      <tr><td>{{ movie.title_en }}</td><td><span class="status {{ movie.status }}">{{ movie.status }}</span></td><td>{{ movie.duration_minutes ?? '—' }}</td><td><a href="/admin/movies/{{ movie.id }}/edit">Edit</a></td></tr>
-    
-@else
-
-      <tr><td colspan="4">No movies yet.</td></tr>
-    
-@end
-
-  </tbody></table></div><p>Page {{ result.meta.page }} of {{ result.meta.last_page }} · {{ result.meta.total }} movies</p>
-    
-@if(result.meta.page > 1)
-<a class="button secondary" href="?page={{ result.meta.page - 1 }}">Previous</a>
-@end
-
-@if(result.meta.page < result.meta.last_page)
-<a class="button secondary" href="?page={{ result.meta.page + 1 }}">Next</a>
-@end
-
+  <section class="panel table-panel">
+    <div class="panel-heading">
+      <h2>Movies ({{ result.meta.total }})</h2>
+      <a
+        class="button secondary"
+        href="/admin/movies/new"
+        style="min-height: 36px; padding: 6px 14px;"
+      >
+        + Add movie
+      </a>
+    </div>
+    @if(result && result.data && result.data.length)
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Title</th>
+              <th scope="col">Status</th>
+              <th scope="col">Duration</th>
+              <th scope="col" style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @each(movie in result.data)
+              <tr>
+                <td>
+                  <div class="place-title-wrap">
+                    <strong>{{ movie.title_en }}</strong>
+                    @if(movie.title_ar)
+                      <small dir="rtl">{{ movie.title_ar }}</small>
+                    @end
+                  </div>
+                </td>
+                <td><span class="status {{ movie.status }}">{{ movie.status }}</span></td>
+                <td>
+                  {{
+                    movie.duration_minutes
+                      ? `${movie.duration_minutes} min`
+                      : '—'
+                  }}
+                </td>
+                <td style="text-align: right;">
+                  <a class="button secondary table-action" href="/admin/movies/{{ movie.id }}/edit">
+                    Edit
+                  </a>
+                </td>
+              </tr>
+            @end
+          </tbody>
+        </table>
+      </div>
+      @if(result.meta.lastPage > 1)
+        <div class="pagination-bar">
+          <span class="pagination-info">
+            Page
+            {{ result.meta.currentPage }}
+            of
+            {{ result.meta.lastPage }}
+          </span>
+          <div class="pagination-nav">
+            @if(result.meta.currentPage > 1)
+              <a
+                class="button secondary table-action"
+                href="/admin/movies?page={{ result.meta.currentPage - 1 }}"
+              >
+                Previous
+              </a>
+            @end
+            @if(result.meta.currentPage < result.meta.lastPage)
+              <a
+                class="button secondary table-action"
+                href="/admin/movies?page={{ result.meta.currentPage + 1 }}"
+              >
+                Next
+              </a>
+            @end
+          </div>
+        </div>
+      @end
+    @else
+      <div class="empty-state">
+        <p>No movies found.</p>
+        <a href="/admin/movies/new">Create movie</a>
+      </div>
+    @end
   </section>
-
 @end
-

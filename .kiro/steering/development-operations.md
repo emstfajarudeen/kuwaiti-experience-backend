@@ -3,6 +3,7 @@ inclusion: auto
 name: Development, testing, and operations
 description: Use when installing, running, testing, building, deploying, resetting data, or updating project documentation.
 ---
+
 # Development, testing, and operations
 
 - Use Node.js 24+, npm 11+, and MySQL 8+. Install locked dependencies with `npm ci`; copy `.env.example` to `.env`, generate independent `APP_KEY` and `JWT_SECRET`, and keep development and test databases separate.

@@ -8,14 +8,14 @@ Status: **planning only — no API implementation approved**. Prepared 20 Octobe
 
 The existing `IMPLEMENTATION_PLAN.md` records six website views/sections from an earlier screenshot set. Their original image files are not available here for a fresh visual inspection. This is the confirmed scope from that record and current code:
 
-| Observed view or interaction | Required backend behavior | Existing implementation |
-| --- | --- | --- |
-| Home hero, language switch, discovery tiles | Localized home content, category types, images, settings | `GET /api/v1/home`, `GET /api/v1/site`, CMS home/settings/type editors |
-| Home featured attraction/restaurant/hotel/theater groups | Ordered, published places by type | `GET /api/v1/home`, CMS place publication/featured order |
-| Attraction list and category tabs | Active categories, filter, search, count, pagination | `GET /api/v1/categories`, `GET /api/v1/places` |
-| Attraction detail with visit panel and gallery | Place description, address, hours, price, gallery, cab entry point | `GET /api/v1/places/:slug`, image delivery (`GET /api/v1/images/:key`) |
-| Cab pickup, destination, date/time and WhatsApp action | Location choices and enquiry link | `GET /api/v1/transport/locations`, `POST /api/v1/transport/enquiry-link` |
-| About/contact/terms/privacy and app-store links | Published pages and site settings | `GET /api/v1/pages/:slug`, `GET /api/v1/site`, CMS page/settings editors |
+| Observed view or interaction                             | Required backend behavior                                          | Existing implementation                                                  |
+| -------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| Home hero, language switch, discovery tiles              | Localized home content, category types, images, settings           | `GET /api/v1/home`, `GET /api/v1/site`, CMS home/settings/type editors   |
+| Home featured attraction/restaurant/hotel/theater groups | Ordered, published places by type                                  | `GET /api/v1/home`, CMS place publication/featured order                 |
+| Attraction list and category tabs                        | Active categories, filter, search, count, pagination               | `GET /api/v1/categories`, `GET /api/v1/places`                           |
+| Attraction detail with visit panel and gallery           | Place description, address, hours, price, gallery, cab entry point | `GET /api/v1/places/:slug`, image delivery (`GET /api/v1/images/:key`)   |
+| Cab pickup, destination, date/time and WhatsApp action   | Location choices and enquiry link                                  | `GET /api/v1/transport/locations`, `POST /api/v1/transport/enquiry-link` |
+| About/contact/terms/privacy and app-store links          | Published pages and site settings                                  | `GET /api/v1/pages/:slug`, `GET /api/v1/site`, CMS page/settings editors |
 
 No current source confirms visitor registration, visitor login, favorites, booking records, payment, notifications, reviews, profiles, or a schedule workflow. The current `users` table contains administrator identities only. Any such feature visible in the new app screens must be added to the screen inventory and given its own schema, API, CMS, and security design before implementation. The word “Schedule” in the earlier screen analysis is unresolved.
 
@@ -96,16 +96,16 @@ Verify all screen-to-endpoint mappings, update OpenAPI and the app reference, ru
 
 ## 4. Current discrepancies to resolve in Section 1
 
-| Entity/endpoint | Current response | Database contract |
-| --- | --- | --- |
-| Admin `auth/me` | `name` | `users.full_name` |
-| Place cards | `category`, `cover` | `places.category_id`, `places.cover_image_key` (exposed as a derived URL) |
-| Place detail | `hoursNote`, `price.{mode,amount,currency,unit}`, `coordinates`, `seo`, `cabDestination` | `place_translations.hours_note`, `price_unit`, `seo_title`, `seo_description`; `places.price_mode`, `price_amount`, `price_currency`, `latitude`, `longitude`; computed cab action separately |
-| Category type tiles | `type`, `name`, `image`, `order` | `category_types.code`, `name_en`/`name_ar`, `image_key` (exposed as a derived URL), `sort_order` |
-| Site/home | camelCase and nested `hero`/`app` projections | `site_settings` and `home_content` snake_case columns |
-| Transport locations | `pickupEnabled`, `dropoffEnabled` | `pickup_enabled`, `dropoff_enabled` |
-| Admin/CMS resources | list, show and write responses have different field sets | one documented entity per resource; status-only write results must be typed as operation receipts, not resource objects |
-| Hours | DB snake_case with `0`/`1` or booleans depending on driver | fixed boolean type for `closed` and `closes_next_day` |
+| Entity/endpoint     | Current response                                                                         | Database contract                                                                                                                                                                             |
+| ------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Admin `auth/me`     | `name`                                                                                   | `users.full_name`                                                                                                                                                                             |
+| Place cards         | `category`, `cover`                                                                      | `places.category_id`, `places.cover_image_key` (exposed as a derived URL)                                                                                                                     |
+| Place detail        | `hoursNote`, `price.{mode,amount,currency,unit}`, `coordinates`, `seo`, `cabDestination` | `place_translations.hours_note`, `price_unit`, `seo_title`, `seo_description`; `places.price_mode`, `price_amount`, `price_currency`, `latitude`, `longitude`; computed cab action separately |
+| Category type tiles | `type`, `name`, `image`, `order`                                                         | `category_types.code`, `name_en`/`name_ar`, `image_key` (exposed as a derived URL), `sort_order`                                                                                              |
+| Site/home           | camelCase and nested `hero`/`app` projections                                            | `site_settings` and `home_content` snake_case columns                                                                                                                                         |
+| Transport locations | `pickupEnabled`, `dropoffEnabled`                                                        | `pickup_enabled`, `dropoff_enabled`                                                                                                                                                           |
+| Admin/CMS resources | list, show and write responses have different field sets                                 | one documented entity per resource; status-only write results must be typed as operation receipts, not resource objects                                                                       |
+| Hours               | DB snake_case with `0`/`1` or booleans depending on driver                               | fixed boolean type for `closed` and `closes_next_day`                                                                                                                                         |
 
 ## 5. Open decisions after the new screen review
 

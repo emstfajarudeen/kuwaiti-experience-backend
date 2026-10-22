@@ -66,7 +66,7 @@ curl.exe -I http://localhost:3333/admin/login
 The health response should be:
 
 ```json
-{"data":{"status":"ok"}}
+{ "data": { "status": "ok" } }
 ```
 
 The health endpoint confirms that HTTP is responding; it does not verify database health.

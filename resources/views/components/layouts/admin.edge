@@ -11,82 +11,130 @@
     @vite(['resources/css/admin.css', 'resources/js/app.js'])
   </head>
   <body class="cms-body">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <div class="sidebar-backdrop" aria-hidden="true"></div>
     <div class="cms-shell">
-      <aside class="cms-sidebar">
+      <aside class="cms-sidebar" id="cms-sidebar" aria-label="Main sidebar navigation">
         <a href="/admin" class="brand" aria-label="Kuwaiti Experience dashboard">
-          <span class="brand-mark">K</span>
-          <span>
-            THE KUWAITI
-            <br />
-            EXPERIENCE
-            <small>CONTENT STUDIO</small>
-          </span>
+          <span class="brand-mark" aria-hidden="true">K</span>
+          <span class="brand-text"><span class="brand-title">THE KUWAITI EXPERIENCE</span></span>
         </a>
+
         <div class="sidebar-label">WORKSPACE</div>
-        <nav aria-label="CMS navigation" class="cms-nav">
+        <nav aria-label="Core CMS navigation" class="cms-nav">
           <a class="{{ active === 'dashboard' ? 'active' : '' }}" href="/admin">
-            <span>◫</span>
+            <span class="nav-icon" aria-hidden="true">◫</span>
             Overview
           </a>
           <a class="{{ active === 'places' ? 'active' : '' }}" href="/admin/places">
-            <span>⌁</span>
+            <span class="nav-icon" aria-hidden="true">⌁</span>
             Places
           </a>
           <a class="{{ active === 'categories' ? 'active' : '' }}" href="/admin/categories">
-            <span>◈</span>
+            <span class="nav-icon" aria-hidden="true">◈</span>
             Categories
           </a>
           <a class="{{ active === 'category-types' ? 'active' : '' }}" href="/admin/category-types">
-            <span>◇</span>
+            <span class="nav-icon" aria-hidden="true">◇</span>
             Category types
           </a>
           <a class="{{ active === 'pages' ? 'active' : '' }}" href="/admin/pages">
-            <span>▤</span>
+            <span class="nav-icon" aria-hidden="true">▤</span>
             Pages
           </a>
         </nav>
-        <div class="sidebar-label second">EXPERIENCE</div>
-        <nav aria-label="Experience settings" class="cms-nav">
-          <a class="{{ active === 'place-features' ? 'active' : '' }}" href="/admin/place-features"><span>◇</span>Place features</a>
-          <a class="{{ active === 'movies' ? 'active' : '' }}" href="/admin/movies"><span>▤</span>Movies</a>
-          <a class="{{ active === 'showtimes' ? 'active' : '' }}" href="/admin/showtimes"><span>◷</span>Showtimes</a>
-          <a class="{{ active === 'contacts' ? 'active' : '' }}" href="/admin/contact-requests"><span>✉</span>Contact requests</a>
+
+        <div class="sidebar-label">EXPERIENCE</div>
+        <nav aria-label="Experience modules navigation" class="cms-nav">
+          <a class="{{ active === 'place-features' ? 'active' : '' }}" href="/admin/place-features">
+            <span class="nav-icon" aria-hidden="true">✦</span>
+            Place features
+          </a>
+          <a class="{{ active === 'movies' ? 'active' : '' }}" href="/admin/movies">
+            <span class="nav-icon" aria-hidden="true">🎬</span>
+            Movies
+          </a>
+          <a class="{{ active === 'showtimes' ? 'active' : '' }}" href="/admin/showtimes">
+            <span class="nav-icon" aria-hidden="true">◷</span>
+            Showtimes
+          </a>
+          <a class="{{ active === 'contacts' ? 'active' : '' }}" href="/admin/contact-requests">
+            <span class="nav-icon" aria-hidden="true">✉</span>
+            Contact requests
+          </a>
           <a class="{{ active === 'home' ? 'active' : '' }}" href="/admin/home">
-            <span>✧</span>
+            <span class="nav-icon" aria-hidden="true">✧</span>
             Homepage
           </a>
           <a class="{{ active === 'transport' ? 'active' : '' }}" href="/admin/transport">
-            <span>↗</span>
+            <span class="nav-icon" aria-hidden="true">🚖</span>
             Transport
           </a>
           <a class="{{ active === 'settings' ? 'active' : '' }}" href="/admin/settings">
-            <span>⚙</span>
+            <span class="nav-icon" aria-hidden="true">⚙</span>
             Site settings
           </a>
           <a class="{{ active === 'account' ? 'active' : '' }}" href="/admin/account">
-            <span>♙</span>
+            <span class="nav-icon" aria-hidden="true">🔒</span>
             My account
           </a>
         </nav>
+
         <div class="sidebar-bottom">
-          <div class="admin-avatar">{{ adminName.slice(0, 1).toUpperCase() }}</div>
-          <div><strong>{{ adminName }}</strong><small>Administrator</small></div>
-          @form({ action: '/admin/logout', method: 'POST', class: 'logout-form' })
+          <div class="admin-avatar" aria-hidden="true">
+            {{ adminName.slice(0, 1).toUpperCase() }}
+          </div>
+          <div class="admin-info">
+            <strong>{{ adminName }}</strong>
+            <small>Administrator</small>
+          </div>
+          @form({
+            action: '/admin/logout',
+            method: 'POST',
+            class: 'logout-form',
+            'data-confirm': 'Are you sure you want to log out of the admin panel?',
+            'data-confirm-title': 'Sign out',
+            'data-confirm-btn': 'Sign out'
+          })
             <button type="submit" title="Sign out" aria-label="Sign out">↪</button>
           @end
         </div>
       </aside>
+
       <div class="cms-main">
         <header class="cms-topbar">
-          <span class="topbar-path">THE KUWAITI EXPERIENCE <b>/</b> {{ title }}</span>
-          <span class="topbar-right"><span class="live-dot"></span> Content management</span>
+          <div class="topbar-left">
+            <button
+              type="button"
+              class="mobile-menu-btn"
+              data-sidebar-toggle
+              aria-label="Toggle navigation menu"
+              aria-controls="cms-sidebar"
+            >
+              ☰
+            </button>
+            <span class="topbar-path">THE KUWAITI EXPERIENCE <b>/</b> {{ title }}</span>
+          </div>
+          <div class="topbar-right">
+            <span class="live-dot" aria-hidden="true"></span>
+            <span>Admin</span>
+          </div>
         </header>
-        <main class="cms-content">
+
+        <main class="cms-content" id="main-content">
           @if(flashMessages.has('success'))
-            <div class="notice success" role="status">{{ flashMessages.get('success') }}</div>
+            <div class="notice success" role="status">
+              <span class="notice-icon" aria-hidden="true">✓</span>
+              <div class="notice-body">{{ flashMessages.get('success') }}</div>
+              <button type="button" class="notice-close" aria-label="Dismiss notice">✕</button>
+            </div>
           @end
           @if(flashMessages.has('error'))
-            <div class="notice error" role="alert">{{ flashMessages.get('error') }}</div>
+            <div class="notice error" role="alert">
+              <span class="notice-icon" aria-hidden="true">⚠</span>
+              <div class="notice-body">{{ flashMessages.get('error') }}</div>
+              <button type="button" class="notice-close" aria-label="Dismiss notice">✕</button>
+            </div>
           @end
           {{{ await $slots.main() }}}
         </main>

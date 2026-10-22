@@ -6,15 +6,15 @@ This document describes the currently implemented visitor-facing `/api/v1` respo
 
 ## Start here: page-to-API map
 
-| Frontend screen or feature | Request | What to render |
-| --- | --- | --- |
-| Landing page | `GET /api/v1/home?locale=en` | Hero, ordered category type tiles, featured place groups, and app store links. |
-| Place listing for a selected type | `GET /api/v1/categories?type={type}&locale=en` and `GET /api/v1/places?type={type}&category=all&page=1&perPage=12&locale=en` | Category filters and paginated place cards. |
-| Place detail | `GET /api/v1/places/{slug}?locale=en` | Full place content, gallery, hours, and visit details. |
-| Static content page | `GET /api/v1/pages/{slug}?locale=en` | CMS page title and body. |
-| Shared branding/contact | `GET /api/v1/site` | Brand name, logo, contact email, WhatsApp availability, and store links. |
-| Cab enquiry | `GET /api/v1/transport/locations?locale=en`, then `POST /api/v1/transport/enquiry-link` | Pickup/destination choices and a WhatsApp enquiry URL. |
-| Image | `GET /api/v1/images/{key}` | Image bytes; use the image paths returned by the other endpoints. |
+| Frontend screen or feature        | Request                                                                                                                      | What to render                                                                 |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Landing page                      | `GET /api/v1/home?locale=en`                                                                                                 | Hero, ordered category type tiles, featured place groups, and app store links. |
+| Place listing for a selected type | `GET /api/v1/categories?type={type}&locale=en` and `GET /api/v1/places?type={type}&category=all&page=1&perPage=12&locale=en` | Category filters and paginated place cards.                                    |
+| Place detail                      | `GET /api/v1/places/{slug}?locale=en`                                                                                        | Full place content, gallery, hours, and visit details.                         |
+| Static content page               | `GET /api/v1/pages/{slug}?locale=en`                                                                                         | CMS page title and body.                                                       |
+| Shared branding/contact           | `GET /api/v1/site`                                                                                                           | Brand name, logo, contact email, WhatsApp availability, and store links.       |
+| Cab enquiry                       | `GET /api/v1/transport/locations?locale=en`, then `POST /api/v1/transport/enquiry-link`                                      | Pickup/destination choices and a WhatsApp enquiry URL.                         |
+| Image                             | `GET /api/v1/images/{key}`                                                                                                   | Image bytes; use the image paths returned by the other endpoints.              |
 
 ## Integration rules
 
@@ -33,8 +33,14 @@ Example request construction:
 
 ```ts
 const apiOrigin = 'http://localhost:3333' // configure per environment
-const imageUrl = (path: string | null) => path ? new URL(path, apiOrigin).toString() : null
-const params = new URLSearchParams({ type: selectedType, category: selectedCategory ?? 'all', page: String(page), perPage: '12', locale })
+const imageUrl = (path: string | null) => (path ? new URL(path, apiOrigin).toString() : null)
+const params = new URLSearchParams({
+  type: selectedType,
+  category: selectedCategory ?? 'all',
+  page: String(page),
+  perPage: '12',
+  locale,
+})
 const response = await fetch(`${apiOrigin}/api/v1/places?${params}`)
 if (!response.ok) throw await response.json()
 const { data, meta } = await response.json()
@@ -150,7 +156,12 @@ This endpoint is only for the first landing page. It does not provide category f
       }
     ],
     "gallery": [
-      { "id": 15, "url": "/api/v1/images/2c1b0a9f-8e7d-4c6b-9a5f-4e3d2c1b0a9f.webp", "alt": "Example gallery image", "caption": null }
+      {
+        "id": 15,
+        "url": "/api/v1/images/2c1b0a9f-8e7d-4c6b-9a5f-4e3d2c1b0a9f.webp",
+        "alt": "Example gallery image",
+        "caption": null
+      }
     ],
     "seo": { "title": null, "description": null },
     "cabDestination": { "placeId": 42, "name": "Sample Park" }

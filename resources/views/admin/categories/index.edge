@@ -1,26 +1,94 @@
 @layouts.admin({ title: 'Categories', active: 'categories', adminName: admin.fullName })
-  <div class="eyebrow">ORGANIZE THE JOURNEY</div>
-  <div class="page-head"><div><h1>Categories</h1><p>Control the filters visitors use within each place type.</p></div><a class="button primary" href="/admin/categories/new">Add a category <span>↗</span></a></div>
-  <form class="places-filter" action="/admin/categories" method="GET">
-    <label for="categories-type-filter">Filter by category type</label>
-    <select id="categories-type-filter" name="type" data-native-filter onchange="this.form.submit()">
-      <option value="" {{ !selectedType ? 'selected' : '' }}>All categories</option>
-      @each(type in types)
-        <option value="{{ type.code }}" {{ selectedType === type.code ? 'selected' : '' }}>{{ type.name_en }}</option>
-      @end
-    </select>
-    <noscript><button type="submit">Apply filter</button></noscript>
-  </form>
-  <section class="panel table-panel">
-    <div class="panel-heading"><div><span class="eyebrow">YOUR FILTERS</span><h2>{{ rows.length }} categories shown</h2></div><a class="text-button" href="/admin/category-types">Manage category types ↗</a></div>
-    @if(rows.length)
-      <div class="table-scroll"><table class="data-table"><thead><tr><th>Category</th><th>Type</th><th>Visibility</th><th>Order</th><th></th></tr></thead><tbody>
-        @each(category in rows)
-          <tr><td><div><strong>{{ category.name }}</strong></div></td><td>{{ category.type_name_en }}</td><td><span class="status {{ category.active ? 'published' : 'archived' }}">{{ category.active ? 'visible' : 'hidden' }}</span></td><td>{{ category.sort_order }}</td><td><a class="round-link" href="/admin/categories/{{ category.id }}/edit" aria-label="Edit {{ category.name }}">↗</a></td></tr>
+  <div class="page-head">
+    <div>
+      <h1>Categories</h1>
+    </div>
+    <div class="page-head-actions">
+      <a class="button primary" href="/admin/categories/new">+ Add category</a>
+      <a class="button secondary" href="/admin/category-types">Category types</a>
+    </div>
+  </div>
+  <!--Filter Bar-->
+  <form class="filter-bar" action="/admin/categories" method="GET">
+    <div class="filter-group">
+      <label for="categories-type-filter">Category type:</label>
+      <select id="categories-type-filter" name="type" onchange="this.form.submit()">
+        <option value="" {{ !selectedType ? 'selected' : '' }}>All category types</option>
+        @each(type in types)
+          <option value="{{ type.code }}" {{ selectedType === type.code ? 'selected' : '' }}>
+            {{ type.name_en }}
+          </option>
         @end
-      </tbody></table></div>
+      </select>
+    </div>
+    @if(selectedType)
+      <div class="filter-actions">
+        <a href="/admin/categories" class="text-button" style="font-size: 13px;">Reset filter</a>
+      </div>
+    @end
+  </form>
+
+  <section class="panel table-panel">
+    <div class="panel-heading">
+      <h2>Categories ({{ rows.length }})</h2>
+      <a
+        class="button secondary"
+        href="/admin/categories/new"
+        style="min-height: 36px; padding: 6px 14px;"
+      >
+        + Add category
+      </a>
+    </div>
+    @if(rows && rows.length)
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Category</th>
+              <th scope="col">Arabic name</th>
+              <th scope="col">Place type</th>
+              <th scope="col">Visibility</th>
+              <th scope="col">Order</th>
+              <th scope="col" style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @each(category in rows)
+              <tr>
+                <td>
+                  <strong>{{ category.name_en }}</strong>
+                  <div style="font-size: 12px; color: var(--ink-secondary);">
+                    {{ category.slug }}
+                  </div>
+                </td>
+                <td dir="rtl" style="font-family: inherit;">{{ category.name_ar || '—' }}</td>
+                <td><span class="type-pill">{{ category.type.replace('_', ' ') }}</span></td>
+                <td>
+                  @if(category.active)
+                    <span class="status published">Active</span>
+                  @else
+                    <span class="status draft">Hidden</span>
+                  @end
+                </td>
+                <td>{{ category.sort_order }}</td>
+                <td style="text-align: right;">
+                  <a
+                    class="button secondary table-action"
+                    href="/admin/categories/{{ category.id }}/edit"
+                  >
+                    Edit
+                  </a>
+                </td>
+              </tr>
+            @end
+          </tbody>
+        </table>
+      </div>
     @else
-      <div class="empty-state">No categories in this view. <a href="/admin/categories/new">Add one now.</a></div>
+      <div class="empty-state">
+        <p>No categories found.</p>
+        <a href="/admin/categories/new">Create category</a>
+      </div>
     @end
   </section>
 @end

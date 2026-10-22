@@ -3,6 +3,7 @@ inclusion: auto
 name: Data, content, and media rules
 description: Use when changing migrations, database queries, content lifecycle, seeders, uploads, media delivery, or editorial workflows.
 ---
+
 # Data, content, and media rules
 
 - Schema changes belong in ordered Lucid migrations under `database/migrations`. Respect existing foreign keys and localized translation tables. Migrations are destructive on rollback; back up live MySQL data before production schema operations and never use rollback as a content reset.

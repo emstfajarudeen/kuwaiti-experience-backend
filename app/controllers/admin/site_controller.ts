@@ -85,11 +85,11 @@ export default class AdminSitePageController {
     try {
       const input = await homeContentValidator.validate({
         locale: request.input('locale'),
-        hero_eyebrow: request.input('hero_eyebrow'),
-        hero_title: request.input('hero_title'),
-        discovery_title: request.input('discovery_title'),
-        app_title: request.input('app_title'),
-        app_body: request.input('app_body'),
+        hero_eyebrow: request.input('hero_eyebrow') ?? request.input('heroEyebrow'),
+        hero_title: request.input('hero_title') ?? request.input('heroTitle'),
+        discovery_title: request.input('discovery_title') ?? request.input('discoveryTitle'),
+        app_title: request.input('app_title') ?? request.input('appTitle'),
+        app_body: request.input('app_body') ?? request.input('appBody'),
       })
       await saveHome(
         {
@@ -106,6 +106,7 @@ export default class AdminSitePageController {
       session.flash('success', 'Homepage content saved.')
     } catch (error) {
       session.flash('error', saveError(request, error, 'Unable to save homepage'))
+      session.flash('homeForm', request.except(['heroImage', 'removeHeroImage']))
     }
     return response.redirect(`/admin/home?locale=${locale}`)
   }
@@ -123,6 +124,7 @@ export default class AdminSitePageController {
       session.flash('success', 'Home Explore card saved.')
     } catch (error) {
       session.flash('error', error instanceof ApiError ? error.message : 'Unable to save Home card')
+      session.flash('homeCardForm', request.all())
     }
     return response.redirect('/admin/home#home-cards')
   }
@@ -171,6 +173,7 @@ export default class AdminSitePageController {
       session.flash('success', 'Site settings saved.')
     } catch (error) {
       session.flash('error', saveError(request, error, 'Unable to save settings'))
+      session.flash('settingsForm', request.except(['logoImage', 'removeLogo']))
     }
     return response.redirect('/admin/settings')
   }
@@ -256,6 +259,7 @@ export default class AdminSitePageController {
       session.flash('success', 'Transport location saved.')
     } catch (error) {
       session.flash('error', error instanceof Error ? error.message : 'Unable to save location')
+      session.flash('transportForm', request.all())
     }
     return response.redirect('/admin/transport')
   }

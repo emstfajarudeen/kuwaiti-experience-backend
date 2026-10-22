@@ -37,6 +37,7 @@ export default class AdminAuthController {
       return response.redirect('/admin')
     } catch {
       session.flash('loginError', 'Invalid email or password')
+      session.flash('email', request.input('email'))
       return response.redirect('/admin/login')
     }
   }

@@ -1,70 +1,184 @@
-
 @let(form = flashMessages.get('exploreForm') || {})
-
 @layouts.admin({ title: 'Place features', active: 'place-features', adminName: admin.fullName })
-
-  <div class="page-head"><div><h1>Place features</h1><p>Manage the highlights, amenities and capability chips used across Explore.</p></div></div>
-  
-@form({ action: editing ? `/admin/place-features/${editing.id}/save` : '/admin/place-features', method: 'POST' })
-
-    <section class="panel form-panel"><h2>{{ editing ? 'Edit feature' : 'Add feature' }}</h2><div class="form-grid two">
-      <label>Place type<select name="type" required>
-@each(type in types)
-<option value="{{ type.code }}" 
-@if((form.type ?? editing?.type ?? selectedType) === type.code)
- selected 
-@end
->{{ type.name_en }}</option>
-@end
-</select></label>
-      <label>Kind<select name="kind">
-@each(kind in ['highlight', 'amenity', 'capability'])
-<option value="{{ kind }}" 
-@if((form.kind ?? editing?.kind) === kind)
- selected 
-@end
->{{ kind }}</option>
-@end
-</select></label>
-      <label>Code<input name="code" value="{{ form.code ?? editing?.code ?? '' }}" maxlength="80" pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="sea-view" required></label>
-      <label>English label<input name="name_en" value="{{ form.name_en ?? editing?.name_en ?? '' }}" maxlength="120" required></label>
-      <label>Arabic label<input name="name_ar" value="{{ form.name_ar ?? editing?.name_ar ?? '' }}" dir="rtl" lang="ar" maxlength="120"></label>
-      <label>Display order<input name="sort_order" type="number" min="0" max="999" value="{{ form.sort_order ?? editing?.sort_order ?? 0 }}" required></label>
+  <div class="page-head">
+    <div>
+      <h1>Place features</h1>
     </div>
-    <div class="feature-visibility">
-      <label class="checkbox-line"><input name="active" type="checkbox" 
-@if(editing ? editing.active : true)
- checked 
-@end
-> Visible to visitors</label>
-    </div>
-    <button class="button primary" type="submit">Save feature</button> 
-@if(editing)
-<a class="button secondary" href="/admin/place-features">Add another</a>
-@end
-</section>
-  
-@end
+  </div>
 
-  <section class="panel form-panel"><h2>Feature library</h2><p class="panel-help">Assign features from each place's Explore editor. Inactive features are hidden publicly. Assigned features must be unassigned before deletion.</p>
-    <div class="table-wrap"><table><thead><tr><th>Feature</th><th>Type</th><th>Kind</th><th>Visible</th><th>Actions</th></tr></thead><tbody>
-      
-@each(feature in features)
+  <div class="content-grid">
+    <!-- Feature Editor Form -->
+    <section class="panel form-panel">
+      <div class="panel-heading" style="padding: 0 0 16px; border-bottom: 1px solid var(--line-subtle); margin-bottom: 16px;">
+        <h2>{{ editing ? 'Edit feature' : 'Add feature' }}</h2>
+        @if(editing)
+          <a class="text-button" href="/admin/place-features">+ Add feature</a>
+        @end
+      </div>
 
-        <tr><td>{{ feature.name_en }}<small>{{ feature.code }}</small></td><td>{{ feature.type }}</td><td>{{ feature.kind }}</td><td>{{ feature.active ? 'Yes' : 'No' }}</td><td><a href="/admin/place-features/{{ feature.id }}/edit">Edit</a> 
-@form({ action: `/admin/place-features/${feature.id}/delete`, method: 'POST' })
-<button class="text-button danger" type="submit">Delete</button>
+      @form({ action: editing ? `/admin/place-features/${editing.id}/save` : '/admin/place-features', method: 'POST' })
+        <div class="form-grid">
+          <label>
+            Place type
+            <select name="type" required>
+              @each(type in types)
+                <option
+                  value="{{ type.code }}"
+                  @if((form.type ?? editing?.type ?? selectedType) === type.code)
+                    selected
+                  @end
+                >
+                  {{ type.name_en }}
+                </option>
+              @end
+            </select>
+          </label>
+
+          <label>
+            Kind
+            <select name="kind">
+              @each(kind in ['highlight', 'amenity', 'capability'])
+                <option
+                  value="{{ kind }}"
+                  @if((form.kind ?? editing?.kind) === kind)
+                    selected
+                  @end
+                >
+                  {{ kind }}
+                </option>
+              @end
+            </select>
+          </label>
+
+          <label>
+            Code
+            <input
+              name="code"
+              value="{{ form.code ?? editing?.code ?? '' }}"
+              maxlength="80"
+              pattern="[a-z0-9]+(-[a-z0-9]+)*"
+              placeholder="sea-view"
+              required
+            />
+          </label>
+
+          <label>
+            English label
+            <input
+              name="name_en"
+              value="{{ form.name_en ?? editing?.name_en ?? '' }}"
+              maxlength="120"
+              required
+              placeholder="Sea View"
+            />
+          </label>
+
+          <label>
+            Arabic label
+            <input
+              name="name_ar"
+              value="{{ form.name_ar ?? editing?.name_ar ?? '' }}"
+              dir="rtl"
+              lang="ar"
+              maxlength="120"
+              placeholder="إطلالة بحرية"
+            />
+          </label>
+
+          <label>
+            Display order
+            <input
+              name="sort_order"
+              type="number"
+              min="0"
+              max="999"
+              value="{{ form.sort_order ?? editing?.sort_order ?? 0 }}"
+              required
+            />
+          </label>
+
+          <label class="checkbox-line" style="margin-top: 6px;">
+            <input
+              name="active"
+              type="checkbox"
+              @if(form.active !== undefined ? form.active === 'on' : (editing ? editing.active : true))
+                checked
+              @end
+            />
+            Visible to visitors
+          </label>
+
+          <div style="margin-top: 12px; display: flex; gap: 12px; align-items: center;">
+            <button class="button primary" type="submit">
+              {{ editing ? 'Update feature' : 'Save feature' }}
+            </button>
+            @if(editing)
+              <a class="button secondary" href="/admin/place-features">Cancel</a>
+            @end
+          </div>
+        </div>
+      @end
+    </section>
+
+    <!-- Features Library Table -->
+    <section class="panel table-panel">
+      <div class="panel-heading">
+        <h2>Features ({{ features.length }})</h2>
+      </div>
+
+      @if(features && features.length)
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Feature</th>
+                <th scope="col">Type</th>
+                <th scope="col">Kind</th>
+                <th scope="col">Status</th>
+                <th scope="col" style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @each(feature in features)
+                <tr>
+                  <td>
+                    <div class="place-title-wrap">
+                      <strong>{{ feature.name_en }}</strong>
+                      <small>{{ feature.code }}</small>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="type-chip" style="font-size: 11px; padding: 2px 6px;">{{ feature.type }}</span>
+                  </td>
+                  <td>
+                    <span style="font-size: 12px; color: var(--muted); text-transform: capitalize;">{{ feature.kind }}</span>
+                  </td>
+                  <td>
+                    <span class="status {{ feature.active ? 'published' : 'archived' }}">
+                      {{ feature.active ? 'Active' : 'Hidden' }}
+                    </span>
+                  </td>
+                  <td class="actions-cell">
+                    <div class="row-actions">
+                      <a class="row-action-link" href="/admin/place-features/{{ feature.id }}/edit">
+                        Edit
+                      </a>
+                      @form({ action: `/admin/place-features/${feature.id}/delete`, method: 'POST', 'data-confirm': `Delete feature "${feature.name_en}"? Ensure it is not assigned to any venue.` })
+                        <button class="text-button danger" type="submit" style="font-size: 12px; padding: 4px 8px;">Delete</button>
+                      @end
+                    </div>
+                  </td>
+                </tr>
+              @end
+            </tbody>
+          </table>
+        </div>
+      @else
+        <div class="empty-state">
+          <span class="empty-state-icon">✦</span>
+          <p>No feature definitions created yet.</p>
+        </div>
+      @end
+    </section>
+  </div>
 @end
-</td></tr>
-      
-@else
-
-        <tr><td colspan="5">No feature definitions yet.</td></tr>
-      
-@end
-
-    </tbody></table></div>
-  </section>
-
-@end
-

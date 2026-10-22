@@ -1,19 +1,53 @@
 @layouts.admin({ title: 'Pages', active: 'pages', adminName: admin.fullName })
-  <div class="eyebrow">SITE INFORMATION</div><div class="page-head"><div><h1>Pages</h1><p>Keep the supporting stories and policies current.</p></div><a class="button primary" href="/admin/pages/new">Create page <span>↗</span></a></div>
-  <section class="panel table-panel"><div class="panel-heading"><div><span class="eyebrow">EDITORIAL PAGES</span><h2>{{ rows.length }} pages</h2></div></div>
-    
-@if(rows.length)
-<div class="table-scroll"><table class="data-table"><thead><tr><th>Page</th><th>URL</th><th>Status</th><th></th></tr></thead><tbody>
-    
-@each(page in rows)
-<tr><td><strong>{{ page.title || 'Untitled' }}</strong></td><td>/{{ page.slug }}</td><td><span class="status {{ page.status }}">{{ page.status }}</span></td><td><a class="round-link" href="/admin/pages/{{ page.id }}/edit" aria-label="Edit page">↗</a></td></tr>
-@end
+  <div class="page-head">
+    <div>
+      <h1>Pages</h1>
+    </div>
+    <div class="page-head-actions">
+      <a class="button primary" href="/admin/pages/new">+ Create page</a>
+    </div>
+  </div>
 
-    </tbody></table></div>
-@else
-<div class="empty-state">No pages yet. <a href="/admin/pages/new">Create one.</a></div>
-@end
-
+  <section class="panel table-panel">
+    <div class="panel-heading">
+      <h2>Pages ({{ rows.length }})</h2>
+    </div>
+    @if(rows && rows.length)
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Page Title</th>
+              <th scope="col">Public URL</th>
+              <th scope="col">Status</th>
+              <th scope="col" style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @each(page in rows)
+              <tr>
+                <td>
+                  <div class="place-title-wrap">
+                    <strong>{{ page.title || 'Untitled page' }}</strong>
+                  </div>
+                </td>
+                <td><code>/{{ page.slug }}</code></td>
+                <td><span class="status {{ page.status }}">{{ page.status }}</span></td>
+                <td style="text-align: right;">
+                  <a class="button secondary table-action" href="/admin/pages/{{ page.id }}/edit">
+                    Edit
+                  </a>
+                </td>
+              </tr>
+            @end
+          </tbody>
+        </table>
+      </div>
+    @else
+      <div class="empty-state">
+        <p>No content pages created yet.</p>
+        <a href="/admin/pages/new">Create page</a>
+      </div>
+    @end
   </section>
 @end
-

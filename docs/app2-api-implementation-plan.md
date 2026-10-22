@@ -119,13 +119,13 @@ Run typecheck, lint, functional tests and build against the guarded test databas
 
 ## Decisions needed before dependent sections
 
-| Decision | Needed for |
-| --- | --- |
-| OTP/SMS vendor and customer identity/guest rules | Section 2 |
-| Maps/geocoding/routing vendor and service coverage | Sections 4–6 |
-| Driver dispatch source, fleet operator and live-location method | Section 5 |
-| Payment gateway, cash handling, authorization/capture, refunds | Sections 5–7 |
-| Rental inventory/provider agreement, booking-fee and cancellation terms | Section 6 |
-| Video publishing rights, storage/transcoding and moderation ownership | Section 8 |
-| Approved Kuwait app privacy/terms and retention policy | Sections 2, 9 |
-| Search, notifications and Schedule destinations | Sections 3, 9 |
+| Decision                                                                | Needed for    |
+| ----------------------------------------------------------------------- | ------------- |
+| OTP/SMS vendor and customer identity/guest rules                        | Section 2     |
+| Maps/geocoding/routing vendor and service coverage                      | Sections 4–6  |
+| Driver dispatch source, fleet operator and live-location method         | Section 5     |
+| Payment gateway, cash handling, authorization/capture, refunds          | Sections 5–7  |
+| Rental inventory/provider agreement, booking-fee and cancellation terms | Section 6     |
+| Video publishing rights, storage/transcoding and moderation ownership   | Section 8     |
+| Approved Kuwait app privacy/terms and retention policy                  | Sections 2, 9 |
+| Search, notifications and Schedule destinations                         | Sections 3, 9 |

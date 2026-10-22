@@ -40,35 +40,117 @@ function galleryItemsFrom(value: unknown) {
     }))
 }
 
+import { formatKuwaitDateTime } from '../../services/date_service.js'
+
 export default class AdminPlacesPageController {
   async index({ request, view, admin }: HttpContext) {
     const requestedType = request.input('type')
+    const requestedStatus = request.input('status')
+    const searchQuery = String(request.input('q', '')).trim()
+    const sortParam = String(request.input('sort', 'updated_desc'))
+    const page = Math.max(1, Number(request.input('page', 1)) || 1)
+    const perPage = 25
+
     const types = await categoryTypes()
     const selectedType =
       typeof requestedType === 'string' && types.some((type) => type.code === requestedType)
         ? requestedType
         : ''
-    const query = db
-      .from('places as p')
-      .join('place_translations as t', function () {
-        this.on('t.place_id', '=', 'p.id').andOnVal('t.locale', '=', 'en')
-      })
-      .leftJoin('category_types as ct', 'ct.code', 'p.type')
-      .select(
-        'p.id',
-        'p.type',
-        'p.slug',
-        'p.status',
-        'p.cover_image_key',
-        'p.updated_at',
-        't.title',
-        db.raw('COALESCE(ct.name_en, p.type) as type_name_en')
-      )
-    if (selectedType) {
-      query.where('p.type', selectedType)
+
+    const validStatuses = ['published', 'draft', 'archived']
+    const selectedStatus =
+      typeof requestedStatus === 'string' && validStatuses.includes(requestedStatus)
+        ? requestedStatus
+        : ''
+
+    const buildFilteredQuery = () => {
+      const q = db
+        .from('places as p')
+        .join('place_translations as t', function () {
+          this.on('t.place_id', '=', 'p.id').andOnVal('t.locale', '=', 'en')
+        })
+        .leftJoin('category_types as ct', 'ct.code', 'p.type')
+
+      if (selectedType) {
+        q.where('p.type', selectedType)
+      }
+      if (selectedStatus) {
+        q.where('p.status', selectedStatus)
+      }
+      if (searchQuery) {
+        q.where((builder) => {
+          builder
+            .where('t.title', 'like', `%${searchQuery}%`)
+            .orWhere('p.slug', 'like', `%${searchQuery}%`)
+            .orWhere('t.address', 'like', `%${searchQuery}%`)
+        })
+      }
+      return q
     }
-    const rows = await query.orderBy('p.id', 'desc').limit(100)
-    return view.render('admin/places/index', { admin, rows, types, selectedType })
+
+    const totalRow = await buildFilteredQuery().count('* as count').first()
+    const total = Number(totalRow?.count ?? 0)
+    const lastPage = Math.max(1, Math.ceil(total / perPage))
+    const currentPage = Math.min(page, lastPage)
+
+    const dataQuery = buildFilteredQuery().select(
+      'p.id',
+      'p.type',
+      'p.slug',
+      'p.status',
+      'p.cover_image_key',
+      'p.updated_at',
+      't.title',
+      db.raw('COALESCE(ct.name_en, p.type) as type_name_en')
+    )
+
+    if (sortParam === 'updated_asc') {
+      dataQuery.orderBy('p.updated_at', 'asc').orderBy('p.id', 'asc')
+    } else if (sortParam === 'title_asc') {
+      dataQuery.orderBy('t.title', 'asc')
+    } else if (sortParam === 'title_desc') {
+      dataQuery.orderBy('t.title', 'desc')
+    } else if (sortParam === 'status') {
+      dataQuery.orderBy('p.status', 'asc').orderBy('p.id', 'desc')
+    } else {
+      dataQuery.orderBy('p.updated_at', 'desc').orderBy('p.id', 'desc')
+    }
+
+    const rawRows = await dataQuery.offset((currentPage - 1) * perPage).limit(perPage)
+    const rows = rawRows.map((place) => ({
+      ...place,
+      updated_at_local: formatKuwaitDateTime(place.updated_at),
+    }))
+
+    const pagination = {
+      total,
+      page: currentPage,
+      perPage,
+      lastPage,
+      hasPrev: currentPage > 1,
+      hasNext: currentPage < lastPage,
+      prevPage: currentPage - 1,
+      nextPage: currentPage + 1,
+    }
+
+    const filters = {
+      q: searchQuery,
+      type: selectedType,
+      status: selectedStatus,
+      sort: sortParam,
+    }
+
+    return view.render('admin/places/index', {
+      admin,
+      rows,
+      types,
+      selectedType,
+      selectedStatus,
+      searchQuery,
+      selectedSort: sortParam,
+      pagination,
+      filters,
+    })
   }
 
   async create({ view, admin }: HttpContext) {
@@ -201,6 +283,7 @@ export default class AdminPlacesPageController {
         'error',
         attached ? `${message.replace(/\.$/, '')}. Re-select any images you attached.` : message
       )
+      session.flash('placeForm', request.except(['coverImage', 'galleryImages']))
       return response.redirect(params.id ? `/admin/places/${params.id}/edit` : '/admin/places/new')
     }
   }

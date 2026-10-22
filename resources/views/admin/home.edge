@@ -1,68 +1,214 @@
+@let(form = flashMessages.get('homeForm') || {})
+@let(cardForm = flashMessages.get('homeCardForm') || {})
 @layouts.admin({ title: 'Homepage', active: 'home', adminName: admin.fullName })
-  <div class="eyebrow">THE FIRST IMPRESSION</div><div class="page-head"><div><h1>Homepage</h1><p>Shape the discovery experience visitors see first.</p></div></div>
-  <div class="filter-pills"><a href="/admin/home?locale=en" class="{{ locale === 'en' ? 'selected' : '' }}">English</a><a href="/admin/home?locale=ar" class="{{ locale === 'ar' ? 'selected' : '' }}">Arabic</a></div>
-  
-@form({ action: '/admin/home', method: 'POST', enctype: 'multipart/form-data', class: 'editor-grid' })
-
-    <input type="hidden" name="locale" value="{{ locale }}">
-    <div class="editor-main">
-      <section class="panel form-panel"><span class="eyebrow">01 / THE ARRIVAL</span><h2>Hero</h2><div class="form-grid"><label>Eyebrow<input name="hero_eyebrow" value="{{ home?.hero_eyebrow || 'WELCOME TO KUWAIT' }}" required></label><label>Headline<input name="hero_title" value="{{ home?.hero_title || 'Explore Kuwait' }}" required></label><div class="image-field">
-        <span class="field-title">Hero image <small>({{ locale === 'ar' ? 'Arabic' : 'English' }} homepage)</small></span>
-        @if(heroImageUrl)
-          <img class="cover-preview" src="{{ heroImageUrl }}" alt="Current hero image">
-        @end
-        <div class="image-upload">
-          <span>{{ heroImageUrl ? 'Replace hero image' : 'Upload a hero image' }}</span>
-          <input type="file" name="heroImage" accept="image/jpeg,image/png,image/webp" aria-label="Hero image" data-image-upload>
-        </div>
-        <p class="panel-help">JPEG, PNG or WebP · 5 MB maximum. Images are converted to WebP.</p>
-        @if(heroImageUrl)
-          <label class="checkbox-line"><input type="checkbox" name="removeHeroImage"> Remove hero image</label>
-        @end
-      </div></div></section>
-      <section class="panel form-panel"><span class="eyebrow">02 / DISCOVERY</span><h2>Category section</h2><div class="form-grid"><label>Section headline<input name="discovery_title" value="{{ home?.discovery_title || 'What would you like to do?' }}" required></label><label>App title<input name="app_title" value="{{ home?.app_title || '' }}"></label><label class="full">App description<textarea name="app_body" rows="3">{{ home?.app_body || '' }}</textarea></label></div><p class="panel-help" style="margin:16px 0 0">Tile names, images, and order are managed in <a href="/admin/category-types">Category types ↗</a></p></section>
+  <div class="page-head">
+    <div>
+      <h1>Homepage</h1>
     </div>
-    <aside class="editor-aside"><section class="panel form-panel actions-panel"><span class="eyebrow">READY TO SAVE?</span><p class="panel-help">Content is visible on the public API immediately.</p><button class="button primary wide" type="submit">Save homepage <span>→</span></button></section></aside>
-  
-@end
+  </div>
 
-  <section class="panel form-panel" id="home-cards" style="margin-top:22px">
-    <span class="eyebrow">APP HOME / EXPLORE CARDS</span><h2>Place stories</h2>
-    <p class="panel-help">Choose existing venues. These cards open the venue detail screen and use its cover image. Optional captions override the card's display text. Only published venues appear in the app.</p>
-    @each(card in cards)
-      @form({ action: '/admin/home/cards/' + card.id + '/save', method: 'POST', class: 'form-grid two', style: 'margin-top:20px' })
-        <label class="full">Venue
+  <!-- Locale Filter Switcher -->
+  <div class="filter-pills">
+    <a href="/admin/home?locale=en" class="{{ locale === 'en' ? 'selected' : '' }}">English</a>
+    <a href="/admin/home?locale=ar" class="{{ locale === 'ar' ? 'selected' : '' }}">العربية (Arabic)</a>
+  </div>
+
+  @form({ action: '/admin/home', method: 'POST', enctype: 'multipart/form-data', class: 'editor-grid' })
+    <input type="hidden" name="locale" value="{{ locale }}" />
+
+    <div class="editor-main">
+      <!-- Hero Section -->
+      <section class="panel form-panel">
+        <h2>Hero headline &amp; image</h2>
+
+        <div class="form-grid" style="margin-top: 16px;">
+          <label>
+            Hero eyebrow
+            <input name="hero_eyebrow" value="{{ form.hero_eyebrow ?? home?.hero_eyebrow ?? 'WELCOME TO KUWAIT' }}" required />
+          </label>
+
+          <label>
+            Hero headline
+            <input name="hero_title" value="{{ form.hero_title ?? home?.hero_title ?? 'Explore Kuwait' }}" required />
+          </label>
+
+          <div class="image-field" style="margin-top: 8px;">
+            <span style="font-size: 13px; font-weight: 600; color: var(--ink-secondary);">
+              Hero image ({{ locale === 'ar' ? 'Arabic' : 'English' }})
+            </span>
+
+            @if(heroImageUrl)
+              <div style="margin: 8px 0;">
+                <img
+                  class="cover-preview"
+                  src="{{ heroImageUrl }}"
+                  alt="Current hero image"
+                  style="max-height: 220px;"
+                />
+              </div>
+            @end
+
+            <div class="image-upload">
+              <span style="display: block; font-weight: 600; margin-bottom: 6px;">
+                {{ heroImageUrl ? 'Replace hero image' : 'Upload hero image' }}
+              </span>
+              <input
+                type="file"
+                name="heroImage"
+                accept="image/jpeg,image/png,image/webp"
+                aria-label="Hero image"
+                data-image-upload
+              />
+            </div>
+
+            @if(heroImageUrl)
+              <label class="checkbox-line" style="margin-top: 8px;">
+                <input type="checkbox" name="removeHeroImage" /> Remove hero image
+              </label>
+            @end
+          </div>
+        </div>
+      </section>
+
+      <!-- Discovery Section -->
+      <section class="panel form-panel">
+        <h2>Category headline &amp; app promo</h2>
+
+        <div class="form-grid" style="margin-top: 16px;">
+          <label>
+            Discovery section headline
+            <input name="discovery_title" value="{{ form.discovery_title ?? home?.discovery_title ?? 'What would you like to do?' }}" required />
+          </label>
+
+          <label>
+            Mobile app banner title
+            <input name="app_title" value="{{ form.app_title ?? home?.app_title ?? '' }}" placeholder="Take Kuwait with you" />
+          </label>
+
+          <label class="full">
+            Mobile app banner description
+            <textarea name="app_body" rows="3" placeholder="App description...">{{ form.app_body ?? home?.app_body ?? '' }}</textarea>
+          </label>
+        </div>
+      </section>
+    </div>
+
+    <!-- Aside Save Actions -->
+    <aside class="editor-aside">
+      <section class="panel form-panel actions-panel">
+        <h2>Publishing</h2>
+        <div class="save-controls-stack" style="margin-top: 16px;">
+          <button class="button primary wide" type="submit">
+            Save homepage
+          </button>
+        </div>
+      </section>
+    </aside>
+  @end
+
+  <!-- Place Stories / Home Explore Cards Section -->
+  <section class="panel form-panel" id="home-cards" style="margin-top: 24px;">
+    <h2>Place stories</h2>
+
+    <!-- Existing Cards -->
+    @if(cards && cards.length)
+      <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 20px;">
+        @each(card in cards)
+          <div class="panel" style="margin-bottom: 0; box-shadow: none; border: 1px solid var(--line); padding: 18px; background: var(--surface-subtle);">
+            @form({ action: '/admin/home/cards/' + card.id + '/save', method: 'POST', class: 'form-grid two' })
+              <label class="full">
+                Venue
+                <select name="place_id" required>
+                  @each(place in places)
+                    <option value="{{ place.id }}" @if(place.id === card.place_id) selected @end>
+                      {{ place.title }} — {{ place.type }} ({{ place.status }})
+                    </option>
+                  @end
+                </select>
+              </label>
+
+              <label>
+                English caption
+                <input name="caption_en" maxlength="200" value="{{ card.caption_en || '' }}" placeholder="Custom caption" />
+              </label>
+
+              <label>
+                Arabic caption
+                <input name="caption_ar" maxlength="200" dir="rtl" value="{{ card.caption_ar || '' }}" placeholder="تعليق مخصص" />
+              </label>
+
+              <label>
+                Display order
+                <input name="sort_order" type="number" min="0" max="9999" value="{{ card.sort_order }}" required />
+              </label>
+
+              <div style="display: flex; align-items: center; margin-top: 14px;">
+                <label class="checkbox-line">
+                  <input type="checkbox" name="active" @if(card.active) checked @end />
+                  Visible when venue is published
+                </label>
+              </div>
+
+              <div class="full" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 8px;">
+                <button class="button secondary" type="submit">Save card</button>
+              </div>
+            @end
+
+            <div style="margin-top: 8px; text-align: right;">
+              @form({ action: '/admin/home/cards/' + card.id + '/delete', method: 'POST', 'data-confirm': 'Remove this place card from the homepage?' })
+                <button class="text-button danger" type="submit">Remove card</button>
+              @end
+            </div>
+          </div>
+        @end
+      </div>
+    @end
+
+    <!-- Add New Card Form -->
+    <div style="margin-top: 28px; border-top: 1px solid var(--line); padding-top: 20px;">
+      <h3 style="font-size: 16px; margin: 0 0 14px;">Add a place story card</h3>
+      @form({ action: '/admin/home/cards', method: 'POST', class: 'form-grid two' })
+        <label class="full">
+          Choose venue
           <select name="place_id" required>
+            <option value="">Select a place...</option>
             @each(place in places)
-              <option value="{{ place.id }}" @if(place.id === card.place_id) selected @end>{{ place.title }} — {{ place.type }} ({{ place.status }})</option>
+              <option value="{{ place.id }}" @if(String(cardForm.place_id) === String(place.id)) selected @end>
+                {{ place.title }} — {{ place.type }} ({{ place.status }})
+              </option>
             @end
           </select>
         </label>
-        <label>English caption<input name="caption_en" maxlength="200" value="{{ card.caption_en || '' }}"></label>
-        <label>Arabic caption<input name="caption_ar" maxlength="200" value="{{ card.caption_ar || '' }}"></label>
-        <label>Display order<input name="sort_order" type="number" min="0" max="9999" value="{{ card.sort_order }}" required></label>
-        <label class="checkbox-line"><input type="checkbox" name="active" @if(card.active) checked @end> Visible when venue is published</label>
-        <div class="full"><button class="button secondary" type="submit">Save card</button> <span class="panel-help">{{ card.title || card.place_id }}</span></div>
+
+        <label>
+          English caption
+          <input name="caption_en" maxlength="200" value="{{ cardForm.caption_en ?? '' }}" placeholder="Card caption" />
+        </label>
+
+        <label>
+          Arabic caption
+          <input name="caption_ar" maxlength="200" dir="rtl" value="{{ cardForm.caption_ar ?? '' }}" placeholder="تعليق بالعربية" />
+        </label>
+
+        <label>
+          Display order
+          <input name="sort_order" type="number" min="0" max="9999" value="{{ cardForm.sort_order ?? 0 }}" required />
+        </label>
+
+        @let(isCardActive = cardForm.active !== undefined ? cardForm.active === 'on' : true)
+        <div style="display: flex; align-items: center; margin-top: 14px;">
+          <label class="checkbox-line">
+            <input type="checkbox" name="active" @if(isCardActive) checked @end />
+            Visible when venue is published
+          </label>
+        </div>
+
+        <div class="full" style="margin-top: 8px;">
+          <button class="button primary" type="submit">
+            Add story card
+          </button>
+        </div>
       @end
-      @form({ action: '/admin/home/cards/' + card.id + '/delete', method: 'POST' })
-        <button class="button secondary" type="submit">Remove card</button>
-      @end
-    @end
-    @form({ action: '/admin/home/cards', method: 'POST', class: 'form-grid two', style: 'margin-top:24px' })
-      <label class="full">Add venue
-        <select name="place_id" required>
-          <option value="">Choose a place</option>
-          @each(place in places)
-            <option value="{{ place.id }}">{{ place.title }} — {{ place.type }} ({{ place.status }})</option>
-          @end
-        </select>
-      </label>
-      <label>English caption<input name="caption_en" maxlength="200"></label>
-      <label>Arabic caption<input name="caption_ar" maxlength="200"></label>
-      <label>Display order<input name="sort_order" type="number" min="0" max="9999" value="0" required></label>
-      <label class="checkbox-line"><input type="checkbox" name="active" checked> Visible when venue is published</label>
-      <div class="full"><button class="button primary" type="submit">Add card</button></div>
-    @end
+    </div>
   </section>
-  <section class="panel form-panel" style="margin-top:22px"><span class="eyebrow">FEATURED PLACES</span><h2>Landing page picks</h2><p class="panel-help">Select “Feature on homepage” and set its Home display order while editing a place. Lower numbers appear first; only published venues appear in the app.</p><a class="button secondary" href="/admin/places">Manage places ↗</a></section>
 @end

@@ -47,7 +47,11 @@ paths:
           schema: { type: string }
         - { in: query, name: q, schema: { type: string, maxLength: 80 } }
         - { in: query, name: page, schema: { type: integer, minimum: 1, default: 1 } }
-        - { in: query, name: perPage, schema: { type: integer, minimum: 1, maximum: 50, default: 12 } }
+        - {
+            in: query,
+            name: perPage,
+            schema: { type: integer, minimum: 1, maximum: 50, default: 12 },
+          }
       responses:
         '200': { $ref: '#/components/responses/PaginatedPlaces' }
         '422': { $ref: '#/components/responses/Error' }
@@ -89,7 +93,8 @@ paths:
               properties:
                 pickupId: { type: integer, minimum: 1 }
                 destinationId: { type: integer, minimum: 1 }
-                dateTime: { type: string, format: date-time, description: Interpreted in Asia/Kuwait }
+                dateTime:
+                  { type: string, format: date-time, description: Interpreted in Asia/Kuwait }
       responses:
         '200': { $ref: '#/components/responses/Success' }
         '422': { $ref: '#/components/responses/Error' }
@@ -258,7 +263,11 @@ paths:
       responses:
         '204': { description: Removed; the file is deleted after commit }
         '404': { $ref: '#/components/responses/Error' }
-        '422': { description: COVER_REQUIRED, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '422':
+          {
+            description: COVER_REQUIRED,
+            content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } },
+          }
   /api/v1/admin/places/{id}/gallery:
     parameters: [{ $ref: '#/components/parameters/Id' }]
     post:
@@ -273,17 +282,33 @@ paths:
               type: object
               required: [files]
               properties:
-                files: { type: array, minItems: 1, maxItems: 5, items: { type: string, format: binary } }
-                altEn: { type: [string, 'null'], maxLength: 255, description: Defaults to the place title }
+                files:
+                  { type: array, minItems: 1, maxItems: 5, items: { type: string, format: binary } }
+                altEn:
+                  {
+                    type: [string, 'null'],
+                    maxLength: 255,
+                    description: Defaults to the place title,
+                  }
       responses:
         '201': { $ref: '#/components/responses/PlaceImages' }
         '404': { $ref: '#/components/responses/Error' }
-        '422': { description: 'INVALID_IMAGE, TOO_MANY_FILES or GALLERY_FULL', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '422':
+          {
+            description: 'INVALID_IMAGE, TOO_MANY_FILES or GALLERY_FULL',
+            content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } },
+          }
         '429': { $ref: '#/components/responses/Error' }
   /api/v1/admin/places/{id}/gallery/{imageId}:
     parameters:
       - { $ref: '#/components/parameters/Id' }
-      - { in: path, name: imageId, required: true, schema: { type: integer, minimum: 1 }, description: place_images.id }
+      - {
+          in: path,
+          name: imageId,
+          required: true,
+          schema: { type: integer, minimum: 1 },
+          description: place_images.id,
+        }
     patch:
       tags: [Admin]
       security: [{ bearerAuth: [] }]
@@ -378,7 +403,8 @@ paths:
                     required: [code, image_url]
                     properties:
                       code: { type: string }
-                      image_url: { type: [string, 'null'], description: '/api/v1/admin/images/{key}' }
+                      image_url:
+                        { type: [string, 'null'], description: '/api/v1/admin/images/{key}' }
         '404': { $ref: '#/components/responses/Error' }
         '422': { $ref: '#/components/responses/Error' }
         '429': { $ref: '#/components/responses/Error' }
@@ -633,7 +659,8 @@ components:
   parameters:
     Id: { in: path, name: id, required: true, schema: { type: integer, minimum: 1 } }
     Slug: { in: path, name: slug, required: true, schema: { type: string } }
-    PlaceType: { in: query, name: type, required: true, schema: { $ref: '#/components/schemas/PlaceType' } }
+    PlaceType:
+      { in: query, name: type, required: true, schema: { $ref: '#/components/schemas/PlaceType' } }
     Locale: { in: query, name: locale, schema: { type: string, enum: [en, ar], default: en } }
     ImageKey:
       in: path
@@ -642,7 +669,13 @@ components:
       description: Managed storage key, `<uuid>.webp` or demo `demo-<slug>.webp`
       schema: { type: string, maxLength: 120, pattern: '^[a-z0-9-]+\.webp$' }
   schemas:
-    PlaceType: { type: string, pattern: '^[a-z0-9]+(_[a-z0-9]+)*$', maxLength: 32, description: Must match an existing category type code }
+    PlaceType:
+      {
+        type: string,
+        pattern: '^[a-z0-9]+(_[a-z0-9]+)*$',
+        maxLength: 32,
+        description: Must match an existing category type code,
+      }
     CategoryType:
       type: object
       required: [code, nameEn, sortOrder]
@@ -772,13 +805,41 @@ components:
             requestId: { type: string }
             fields: {}
   requestBodies:
-    CategoryType: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryType' } } } }
-    Place: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Place' } } } }
-    Category: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Category' } } } }
-    Page: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Page' } } } }
-    Location: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Location' } } } }
-    Settings: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Settings' } } } }
-    Home: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Home' } } } }
+    CategoryType:
+      {
+        required: true,
+        content: { application/json: { schema: { $ref: '#/components/schemas/CategoryType' } } },
+      }
+    Place:
+      {
+        required: true,
+        content: { application/json: { schema: { $ref: '#/components/schemas/Place' } } },
+      }
+    Category:
+      {
+        required: true,
+        content: { application/json: { schema: { $ref: '#/components/schemas/Category' } } },
+      }
+    Page:
+      {
+        required: true,
+        content: { application/json: { schema: { $ref: '#/components/schemas/Page' } } },
+      }
+    Location:
+      {
+        required: true,
+        content: { application/json: { schema: { $ref: '#/components/schemas/Location' } } },
+      }
+    Settings:
+      {
+        required: true,
+        content: { application/json: { schema: { $ref: '#/components/schemas/Settings' } } },
+      }
+    Home:
+      {
+        required: true,
+        content: { application/json: { schema: { $ref: '#/components/schemas/Home' } } },
+      }
     SingleImage:
       required: true
       description: >-
@@ -795,7 +856,11 @@ components:
   responses:
     Success:
       description: JSON data envelope
-      content: { application/json: { schema: { type: object, required: [data], properties: { data: {} } } } }
+      content:
+        {
+          application/json:
+            { schema: { type: object, required: [data], properties: { data: {} } } },
+        }
     Image:
       description: WebP image bytes
       content: { image/webp: { schema: { type: string, format: binary } } }

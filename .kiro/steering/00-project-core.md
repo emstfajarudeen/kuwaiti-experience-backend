@@ -1,6 +1,7 @@
 ---
 inclusion: always
 ---
+
 # Project core
 
 - This is a private AdonisJS 7 / TypeScript modular monolith backed by MySQL. It contains the Edge-rendered admin CMS at `/admin` and the visitor-facing JSON API at `/api/v1`; the public website itself is outside this repository.

@@ -115,6 +115,7 @@ export default class AdminPagesPageController {
       return response.redirect(`/admin/pages/${id}/edit`)
     } catch (error) {
       session.flash('error', error instanceof Error ? error.message : 'Unable to save page')
+      session.flash('pageForm', request.all())
       return response.redirect(params.id ? `/admin/pages/${params.id}/edit` : '/admin/pages/new')
     }
   }

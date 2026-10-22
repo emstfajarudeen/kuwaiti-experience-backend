@@ -3,6 +3,7 @@ inclusion: auto
 name: Architecture and API conventions
 description: Use when changing routes, controllers, services, validators, middleware, or JSON/API behavior.
 ---
+
 # Architecture and API conventions
 
 - Register endpoints in `start/routes.ts` and keep route groups explicit. Public routes live under `/api/v1`; admin JSON routes live under `/api/v1/admin`; browser CMS routes live under `/admin`.

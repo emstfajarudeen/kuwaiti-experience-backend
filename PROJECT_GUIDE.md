@@ -35,25 +35,25 @@ The application is a modular monolith. HTTP controllers validate input and coord
 
 ## 2. Repository map
 
-| Path | Responsibility |
-| --- | --- |
-| `app/controllers/api` | Public, authentication, image delivery, and admin JSON endpoints |
-| `app/controllers/admin` | Edge-rendered CMS pages and HTML form handlers |
-| `app/services` | JWT/session authentication, content writes, public queries, category types, API errors |
-| `app/validators` | VineJS validation for auth, content, and transport input |
-| `app/middleware` | Request bindings and the JWT/cookie admin gate |
-| `app/exceptions/handler.ts` | JSON error normalization and production HTML status pages |
-| `commands` | `content:reset` and `images:prune-orphans` Ace commands |
-| `config` | Database, Drive, session, Shield, limiter, logger, static, Vite, hashing, and encryption settings |
-| `database/migrations` | Ordered MySQL schema and category-type bootstrap |
-| `database/seeders` | Administrator and non-production demo data |
-| `resources/views` | Edge CMS, layout, form, and error templates |
-| `resources/js` | WebAwesome enhancement, FilePond upload UI, notices, and unsaved-change warning |
-| `resources/css/admin.css` | CMS design system and responsive layout |
-| `docs/openapi.yaml` | API reference contract and examples of route shapes |
-| `docs/operations.md` | Deployment, reset, migration, and operational notes |
-| `tests/functional` | MySQL-backed authentication, CMS, content lifecycle, and public API tests |
-| `IMPLEMENTATION_PLAN.md` | Historical implementation decisions and intended scope; not a substitute for current source |
+| Path                        | Responsibility                                                                                    |
+| --------------------------- | ------------------------------------------------------------------------------------------------- |
+| `app/controllers/api`       | Public, authentication, image delivery, and admin JSON endpoints                                  |
+| `app/controllers/admin`     | Edge-rendered CMS pages and HTML form handlers                                                    |
+| `app/services`              | JWT/session authentication, content writes, public queries, category types, API errors            |
+| `app/validators`            | VineJS validation for auth, content, and transport input                                          |
+| `app/middleware`            | Request bindings and the JWT/cookie admin gate                                                    |
+| `app/exceptions/handler.ts` | JSON error normalization and production HTML status pages                                         |
+| `commands`                  | `content:reset` and `images:prune-orphans` Ace commands                                           |
+| `config`                    | Database, Drive, session, Shield, limiter, logger, static, Vite, hashing, and encryption settings |
+| `database/migrations`       | Ordered MySQL schema and category-type bootstrap                                                  |
+| `database/seeders`          | Administrator and non-production demo data                                                        |
+| `resources/views`           | Edge CMS, layout, form, and error templates                                                       |
+| `resources/js`              | WebAwesome enhancement, FilePond upload UI, notices, and unsaved-change warning                   |
+| `resources/css/admin.css`   | CMS design system and responsive layout                                                           |
+| `docs/openapi.yaml`         | API reference contract and examples of route shapes                                               |
+| `docs/operations.md`        | Deployment, reset, migration, and operational notes                                               |
+| `tests/functional`          | MySQL-backed authentication, CMS, content lifecycle, and public API tests                         |
+| `IMPLEMENTATION_PLAN.md`    | Historical implementation decisions and intended scope; not a substitute for current source       |
 
 Important entry points are `bin/server.ts` (HTTP server), `bin/console.ts` (Ace commands), and `bin/test.ts` (Japa test runner). `adonisrc.ts` registers framework providers, routes, validators, test suites, view meta-files, and the Vite build hook.
 
@@ -125,22 +125,22 @@ curl http://localhost:3333/api/v1/health
 
 `start/env.ts` validates these variables during boot. `.env.example` is the complete checked-in example; `.env` is ignored by Git. `.env.test` overrides only test-specific values and inherits the remaining settings from `.env`.
 
-| Variable | Required/meaning |
-| --- | --- |
-| `NODE_ENV` | `development`, `production`, or `test` |
-| `PORT` / `HOST` | HTTP bind port and host |
-| `LOG_LEVEL` | Logger minimum level |
-| `TZ` | Example sets UTC; timestamps are stored/handled as UTC except transport input |
-| `APP_KEY` | Secret for AES-256-GCM encryption, including encrypted cookies |
-| `APP_URL` | Application URL; must be a valid URL without a required TLD |
-| `SESSION_DRIVER` | `cookie`, `memory`, or `database`; `.env.test` uses `memory` |
-| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_DATABASE` | MySQL connection; password is optional at schema level |
-| `DB_DEBUG` | Optional boolean; enabled only for development database debugging |
-| `JWT_SECRET` | Independent secret for HS256 access tokens |
-| `JWT_ISSUER` / `JWT_AUDIENCE` | JWT verification constraints |
-| `LIMITER_STORE` | `database` or `memory`; deployed instances should use database, tests use memory |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Seeder-only process environment, not part of the application env schema |
-| `ADMIN_SEED_RESET_PASSWORD` | Set to `true` only for an intentional non-production seeded password reset |
+| Variable                                                      | Required/meaning                                                                 |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `NODE_ENV`                                                    | `development`, `production`, or `test`                                           |
+| `PORT` / `HOST`                                               | HTTP bind port and host                                                          |
+| `LOG_LEVEL`                                                   | Logger minimum level                                                             |
+| `TZ`                                                          | Example sets UTC; timestamps are stored/handled as UTC except transport input    |
+| `APP_KEY`                                                     | Secret for AES-256-GCM encryption, including encrypted cookies                   |
+| `APP_URL`                                                     | Application URL; must be a valid URL without a required TLD                      |
+| `SESSION_DRIVER`                                              | `cookie`, `memory`, or `database`; `.env.test` uses `memory`                     |
+| `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_DATABASE` | MySQL connection; password is optional at schema level                           |
+| `DB_DEBUG`                                                    | Optional boolean; enabled only for development database debugging                |
+| `JWT_SECRET`                                                  | Independent secret for HS256 access tokens                                       |
+| `JWT_ISSUER` / `JWT_AUDIENCE`                                 | JWT verification constraints                                                     |
+| `LIMITER_STORE`                                               | `database` or `memory`; deployed instances should use database, tests use memory |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD`                              | Seeder-only process environment, not part of the application env schema          |
+| `ADMIN_SEED_RESET_PASSWORD`                                   | Set to `true` only for an intentional non-production seeded password reset       |
 
 The session cookie is `adonis-session`; browser admin tokens are `admin_access` and `admin_refresh`, scoped to `/admin`, HttpOnly, SameSite=Lax, and Secure in production. Access tokens last 15 minutes; refresh sessions have a seven-day absolute lifetime.
 
@@ -199,7 +199,7 @@ Migrations are reversible at schema level, but rollback drops tables and data. B
 `POST /api/v1/admin/auth/login` validates credentials, creates an auth session, stores only a SHA-256 digest of a random refresh token, and returns:
 
 ```json
-{"data":{"accessToken":"<JWT>","refreshToken":"<opaque-token>","expiresIn":900}}
+{ "data": { "accessToken": "<JWT>", "refreshToken": "<opaque-token>", "expiresIn": 900 } }
 ```
 
 Access tokens are HS256 JWTs containing subject and session ID claims and are checked for signature, issuer, audience, expiry, active admin user, and live session. Send them as:
@@ -228,18 +228,18 @@ All routes below are relative to the application origin. Full OpenAPI documentat
 
 ### Health, discovery, and content
 
-| Method/path | Behavior |
-| --- | --- |
-| `GET /api/v1/health` | Returns `{ data: { status: "ok" } }`; confirms HTTP availability, not database health |
-| `GET /api/v1/home?locale=en\|ar` | Hero, ordered dynamic category-type tiles, featured published places grouped by type, and app store links |
-| `GET /api/v1/site` | Public brand/contact/logo/store fields; exposes only `whatsappAvailable`, not the number |
-| `GET /api/v1/categories?type=<code>&locale=en\|ar` | Active categories for an existing dynamic type |
-| `GET /api/v1/places?type=<code>&category=<slug\|all>&q=<text>&page=1&perPage=12&locale=en` | Published place cards and filtered pagination |
-| `GET /api/v1/places/:slug?locale=en\|ar` | Published place detail, gallery, hours, price, coordinates, SEO, and cab destination metadata |
-| `GET /api/v1/pages/:slug?locale=en\|ar` | Published static page |
-| `GET /api/v1/transport/locations?locale=en\|ar` | Active pickup/drop-off options |
-| `POST /api/v1/transport/enquiry-link` | Validates two distinct location IDs and future Kuwait-local time, then returns a WhatsApp URL with `confirmed: false` |
-| `GET /api/v1/images/:key` | WebP bytes only while the image is owned by visible content (published place cover/gallery, category type tile, homepage hero, site logo, published movie poster) |
+| Method/path                                                                                | Behavior                                                                                                                                                          |
+| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/health`                                                                       | Returns `{ data: { status: "ok" } }`; confirms HTTP availability, not database health                                                                             |
+| `GET /api/v1/home?locale=en\|ar`                                                           | Hero, ordered dynamic category-type tiles, featured published places grouped by type, and app store links                                                         |
+| `GET /api/v1/site`                                                                         | Public brand/contact/logo/store fields; exposes only `whatsappAvailable`, not the number                                                                          |
+| `GET /api/v1/categories?type=<code>&locale=en\|ar`                                         | Active categories for an existing dynamic type                                                                                                                    |
+| `GET /api/v1/places?type=<code>&category=<slug\|all>&q=<text>&page=1&perPage=12&locale=en` | Published place cards and filtered pagination                                                                                                                     |
+| `GET /api/v1/places/:slug?locale=en\|ar`                                                   | Published place detail, gallery, hours, price, coordinates, SEO, and cab destination metadata                                                                     |
+| `GET /api/v1/pages/:slug?locale=en\|ar`                                                    | Published static page                                                                                                                                             |
+| `GET /api/v1/transport/locations?locale=en\|ar`                                            | Active pickup/drop-off options                                                                                                                                    |
+| `POST /api/v1/transport/enquiry-link`                                                      | Validates two distinct location IDs and future Kuwait-local time, then returns a WhatsApp URL with `confirmed: false`                                             |
+| `GET /api/v1/images/:key`                                                                  | WebP bytes only while the image is owned by visible content (published place cover/gallery, category type tile, homepage hero, site logo, published movie poster) |
 
 Locale accepts `en` or `ar`; other/missing values fall back to English. Arabic fields fall back independently to English where the service uses `COALESCE`. Place list search currently searches English title and summary. `category=all` or an omitted category includes uncategorized places.
 
@@ -256,7 +256,7 @@ GET /api/v1/pages/about-us?locale=en
 Transport request:
 
 ```json
-{"pickupId":7,"destinationId":8,"dateTime":"2027-01-15T14:00:00"}
+{ "pickupId": 7, "destinationId": 8, "dateTime": "2027-01-15T14:00:00" }
 ```
 
 A successful transport response contains a URL such as `https://wa.me/<configured-number>?text=...`; it is an enquiry link, not a reservation. A missing configured WhatsApp number returns `503 ENQUIRIES_UNAVAILABLE`.
@@ -266,13 +266,13 @@ A successful transport response contains a URL such as `https://wa.me/<configure
 Successful JSON content is under `data`. Place lists also return:
 
 ```json
-{"meta":{"page":1,"perPage":12,"total":42,"lastPage":4}}
+{ "meta": { "page": 1, "perPage": 12, "total": 42, "lastPage": 4 } }
 ```
 
 Failures use:
 
 ```json
-{"error":{"code":"INVALID_TYPE","message":"Choose a valid place type","requestId":"<id>"}}
+{ "error": { "code": "INVALID_TYPE", "message": "Choose a valid place type", "requestId": "<id>" } }
 ```
 
 Validation may add `fields`. Common implemented codes include `UNAUTHENTICATED`, `INVALID_CREDENTIALS`, `INVALID_TYPE`, `INVALID_PAGINATION`, `INVALID_IMAGE`, `TOO_MANY_FILES`, `GALLERY_FULL`, `COVER_REQUIRED`, `INCOMPLETE_PLACE`, `TYPE_IN_USE`, `INVALID_LOCATION`, `INVALID_TIME`, `RATE_LIMITED`, `NOT_FOUND`, `CONFLICT`, and `INTERNAL_ERROR`. Empty lists return `200`; successful deletes use `204`.
@@ -387,19 +387,19 @@ The first lists managed image files that no record owns (place covers/galleries,
 
 ## 12. Development, build, test, and lint commands
 
-| Command | Purpose |
-| --- | --- |
-| `npm ci` | Install lockfile dependencies |
-| `npm run dev` | Start Adonis development server with HMR |
-| `npm start` | Start `node bin/server.js` (built production entry point) |
-| `npm run build` | Build server and Vite assets into `build/` |
-| `npm run typecheck` | Run `tsc --noEmit` |
-| `npm run lint` | Run `eslint .` |
-| `npm run format` | Format the repository with Prettier; review changes before committing |
-| `npm test` | Run the configured test command |
-| `node ace test functional` | Run the functional suite explicitly |
-| `node ace migration:run` | Apply migrations |
-| `node ace migration:rollback` | Roll back the latest migration batch; disposable/test data only |
+| Command                       | Purpose                                                               |
+| ----------------------------- | --------------------------------------------------------------------- |
+| `npm ci`                      | Install lockfile dependencies                                         |
+| `npm run dev`                 | Start Adonis development server with HMR                              |
+| `npm start`                   | Start `node bin/server.js` (built production entry point)             |
+| `npm run build`               | Build server and Vite assets into `build/`                            |
+| `npm run typecheck`           | Run `tsc --noEmit`                                                    |
+| `npm run lint`                | Run `eslint .`                                                        |
+| `npm run format`              | Format the repository with Prettier; review changes before committing |
+| `npm test`                    | Run the configured test command                                       |
+| `node ace test functional`    | Run the functional suite explicitly                                   |
+| `node ace migration:run`      | Apply migrations                                                      |
+| `node ace migration:rollback` | Roll back the latest migration batch; disposable/test data only       |
 
 Tests set `NODE_ENV=test`, use `.env.test`, require the exact database name `kuwaitiexperience_test`, migrate the database in setup, and truncate tables between functional tests. They use Japa API/browser plugins, but the repository currently contains functional specs only; `adonisrc.ts` also defines unit and browser suites for future/absent files. The test database and `storage/test-uploads` must never contain development or production data.
 
@@ -493,4 +493,3 @@ These points are intentionally not guessed:
 - `app/services/*`, `app/controllers/*`, `app/validators/*` — behavior, validation, and response implementation.
 - `database/migrations/*`, `database/seeders/*`, `commands/*` — schema, fixtures, and operator actions.
 - `tests/functional/*` — executable behavior checks.
-

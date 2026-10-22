@@ -325,9 +325,7 @@
               "listen": "prerequest",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.environment.unset('verification_token');"
-                ]
+                "exec": ["pm.environment.unset('verification_token');"]
               }
             },
             {
@@ -526,9 +524,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -575,9 +571,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -622,9 +616,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -658,9 +650,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -694,9 +684,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -853,9 +841,7 @@
               "listen": "prerequest",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.environment.unset('phone_verification_token');"
-                ]
+                "exec": ["pm.environment.unset('phone_verification_token');"]
               }
             },
             {
@@ -1068,9 +1054,7 @@
               "listen": "prerequest",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.environment.unset('admin_access_token');"
-                ]
+                "exec": ["pm.environment.unset('admin_access_token');"]
               }
             },
             {
@@ -1116,9 +1100,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1152,9 +1134,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1201,9 +1181,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1237,9 +1215,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1273,9 +1249,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1308,9 +1282,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1337,9 +1309,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1366,9 +1336,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1427,9 +1395,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1456,9 +1422,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1485,9 +1449,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1521,9 +1483,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1582,9 +1542,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1624,9 +1582,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1660,9 +1616,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1696,9 +1650,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
-                ]
+                "exec": ["pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"]
               }
             }
           ],
@@ -1738,9 +1690,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1774,9 +1724,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1823,9 +1771,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1859,9 +1805,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1960,9 +1904,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -1996,9 +1938,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
-                ]
+                "exec": ["pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"]
               }
             }
           ],
@@ -2032,9 +1972,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -2120,9 +2058,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -2166,9 +2102,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -2215,9 +2149,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -2251,9 +2183,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -2287,9 +2217,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
-                ]
+                "exec": ["pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"]
               }
             }
           ],
@@ -2323,9 +2251,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -2424,9 +2350,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -2460,9 +2384,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
-                ]
+                "exec": ["pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"]
               }
             }
           ],
@@ -2495,9 +2417,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -2531,9 +2451,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -2567,9 +2485,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -2616,9 +2532,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -2662,9 +2576,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -2698,9 +2610,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
-                ]
+                "exec": ["pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"]
               }
             }
           ],
@@ -2734,9 +2644,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -2820,9 +2728,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -2869,9 +2775,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],
@@ -2905,9 +2809,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
-                ]
+                "exec": ["pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"]
               }
             }
           ],
@@ -2954,9 +2856,7 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
-                ]
+                "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"]
               }
             }
           ],

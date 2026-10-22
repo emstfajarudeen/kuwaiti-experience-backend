@@ -4,12 +4,12 @@ Last verified against routes, serializers and OpenAPI: **21 October 2026**. This
 
 ## The four footer links
 
-| Link | Public API | CMS owner |
-| --- | --- | --- |
-| Contact Us | `GET /api/v2/site` for contact channels; `POST /api/v2/contact-requests` for an enquiry; `GET /api/v2/pages/contact-us?locale=en` if editorial page copy is needed | Site settings, Contact requests inbox, optional Pages entry |
-| About Us | `GET /api/v2/pages/about-us?locale=en` | Pages entry `about-us` |
-| Terms & Conditions | `GET /api/v2/pages/terms-and-conditions?locale=en` | Pages entry `terms-and-conditions` |
-| Privacy Policy | `GET /api/v2/pages/privacy-policy?locale=en` | Pages entry `privacy-policy` |
+| Link               | Public API                                                                                                                                                         | CMS owner                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| Contact Us         | `GET /api/v2/site` for contact channels; `POST /api/v2/contact-requests` for an enquiry; `GET /api/v2/pages/contact-us?locale=en` if editorial page copy is needed | Site settings, Contact requests inbox, optional Pages entry |
+| About Us           | `GET /api/v2/pages/about-us?locale=en`                                                                                                                             | Pages entry `about-us`                                      |
+| Terms & Conditions | `GET /api/v2/pages/terms-and-conditions?locale=en`                                                                                                                 | Pages entry `terms-and-conditions`                          |
+| Privacy Policy     | `GET /api/v2/pages/privacy-policy?locale=en`                                                                                                                       | Pages entry `privacy-policy`                                |
 
 All reads are public. The contact form accepts a guest or an optionally authenticated customer. Configure an API origin for each environment and prepend it to these paths. Use `Accept: application/json`; send `Content-Type: application/json` for contact submission. The only page query parameter is `locale=en` or `locale=ar`; omission selects English.
 
@@ -57,11 +57,11 @@ For the supplied header, use the selected translation's `eyebrow` and `title`. F
 
 ### Page errors
 
-| HTTP | `error.code` | Meaning |
-| --- | --- | --- |
-| 404 | `NOT_FOUND` | Slug absent; page in draft/archive; future publication time; or no usable translation. |
-| 503 | `LEGAL_CONTENT_UNAVAILABLE` | Only for the Terms or Privacy slug when recognized demo/placeholder legal text was published. |
-| 500 | `INTERNAL_ERROR` | Server failure; retain `error.requestId` for diagnosis. |
+| HTTP | `error.code`                | Meaning                                                                                       |
+| ---- | --------------------------- | --------------------------------------------------------------------------------------------- |
+| 404  | `NOT_FOUND`                 | Slug absent; page in draft/archive; future publication time; or no usable translation.        |
+| 503  | `LEGAL_CONTENT_UNAVAILABLE` | Only for the Terms or Privacy slug when recognized demo/placeholder legal text was published. |
+| 500  | `INTERNAL_ERROR`            | Server failure; retain `error.requestId` for diagnosis.                                       |
 
 Errors have `{ "error": { "code": "...", "message": "...", "requestId": "..." } }`; validation errors can also have `fields`. Check HTTP status before reading `data`. The API does not return an empty Page on 404. Editorial review is required before publishing **any** page; the automatic placeholder guard applies only to the two legal slugs.
 
@@ -124,12 +124,12 @@ The existing CMS supports editing and publishing these exact slugs at `/admin/pa
 
 As of **21 October 2026**, the local development data does **not** yet match the visible copy in the supplied screenshots:
 
-| Page | Current stored values | Needed for the shown UI |
-| --- | --- | --- |
-| About Us | Draft; English title `About Us`; `eyebrow: null`; plain placeholder body | Set the approved title (`About The Kuwaiti Experience` if final), intro label and section content in Quill, then publish. |
-| Terms & Conditions | Draft; English title `Terms and Conditions`; `eyebrow: null`; plain placeholder body | Set the final title punctuation, `LEGAL & POLICIES` intro label and approved legal sections in Quill, then publish. |
-| Privacy Policy | Draft; English title `Privacy Policy`; `eyebrow: null`; plain placeholder body | Confirm its distinct UI/copy, enter approved policy content, then publish. |
-| Contact Us | Draft; English title `Contact Us`; `eyebrow: null`; plain placeholder body | Editorial page copy remains optional. Configure approved direct call, WhatsApp, email, headquarters/map and inquiry choices in Site settings before launch. |
+| Page               | Current stored values                                                                | Needed for the shown UI                                                                                                                                     |
+| ------------------ | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| About Us           | Draft; English title `About Us`; `eyebrow: null`; plain placeholder body             | Set the approved title (`About The Kuwaiti Experience` if final), intro label and section content in Quill, then publish.                                   |
+| Terms & Conditions | Draft; English title `Terms and Conditions`; `eyebrow: null`; plain placeholder body | Set the final title punctuation, `LEGAL & POLICIES` intro label and approved legal sections in Quill, then publish.                                         |
+| Privacy Policy     | Draft; English title `Privacy Policy`; `eyebrow: null`; plain placeholder body       | Confirm its distinct UI/copy, enter approved policy content, then publish.                                                                                  |
+| Contact Us         | Draft; English title `Contact Us`; `eyebrow: null`; plain placeholder body           | Editorial page copy remains optional. Configure approved direct call, WhatsApp, email, headquarters/map and inquiry choices in Site settings before launch. |
 
 All four public page reads currently return 404. The stored `updated_at` is **8 October 2026**, which can format as “October 2026,” but these draft pages must not be shown publicly. Approved text must replace the placeholders before publishing; CMS publication now rejects known placeholder copy. `contact_email` and `whatsapp_number` are currently null in local Site settings, so contact channel buttons have no destination yet. Contact form submissions can still be accepted. The supplied legal screenshot text is a UI example, not approved policy copy.
 

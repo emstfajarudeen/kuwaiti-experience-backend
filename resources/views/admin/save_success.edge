@@ -1,12 +1,20 @@
-@layouts.admin({ title: 'Save complete', active: destination.active, adminName: admin.fullName })
+@layouts.admin({
+  title: 'Saved',
+  active: destination.active,
+  adminName: admin.fullName,
+})
   <section class="save-success panel" aria-labelledby="save-success-title">
     <div class="save-success-spinner" aria-hidden="true"></div>
-    <div class="eyebrow">SAVE COMPLETE</div>
-    <h1 id="save-success-title">Your changes have been saved.</h1>
-    <p role="status">Taking you back to {{ destination.label }} in a moment.</p>
-    <a class="button primary" href="{{ destination.path }}">Go to {{ destination.label }} now <span>→</span></a>
+    <h1 id="save-success-title" style="font-size: 24px; margin: 0 0 10px;">
+      Your changes have been saved.
+    </h1>
+    <p role="status" style="color: var(--muted); font-size: 14px; margin-bottom: 24px;">
+      Returning to
+      {{ destination.label }}...
+    </p>
+    <a class="button primary" href="{{ destination.path }}">Return to {{ destination.label }}</a>
   </section>
   <script>
-    window.setTimeout(() => window.location.assign('{{ destination.path }}'), 1800)
+    window.setTimeout(() => window.location.assign('{{ destination.path }}'), 1800);
   </script>
 @end

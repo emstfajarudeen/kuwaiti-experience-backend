@@ -7,13 +7,13 @@ contract. For new website footer work, use the [website API reference](website-a
 
 ## TL;DR
 
-| Was | Now |
-| --- | --- |
-| `GET /api/v1/media/{id}` | `GET /api/v1/images/{key}` |
-| `cover: { id, url }` | `cover: { url }` (no `id`) |
-| `hero.image`, `logo`, `categoryTypes[].image` as `/api/v1/media/{id}` | same fields, now `/api/v1/images/{key}` |
-| gallery item `id` = media id | gallery item `id` = gallery row id (still present) |
-| `/api/v2/site` → `logo_media_id` (number) | `/api/v2/site` → `logo_image_key` (stored key or null); public URL in `meta.images` |
+| Was                                                                   | Now                                                                                 |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `GET /api/v1/media/{id}`                                              | `GET /api/v1/images/{key}`                                                          |
+| `cover: { id, url }`                                                  | `cover: { url }` (no `id`)                                                          |
+| `hero.image`, `logo`, `categoryTypes[].image` as `/api/v1/media/{id}` | same fields, now `/api/v1/images/{key}`                                             |
+| gallery item `id` = media id                                          | gallery item `id` = gallery row id (still present)                                  |
+| `/api/v2/site` → `logo_media_id` (number)                             | `/api/v2/site` → `logo_image_key` (stored key or null); public URL in `meta.images` |
 
 **Golden rule:** use the URL string the API gives you, including v2
 `meta.images[].url`. Never build an image URL yourself from an id. If you were doing
@@ -47,12 +47,15 @@ return absolute paths beginning with `/api/v1/images/...`).
   "data": {
     "hero": { "eyebrow": "...", "title": "...", "image": "/api/v1/images/<key>.webp" },
     "categoryTypes": [
-      { "type": "attraction", "name": "Attractions", "image": "/api/v1/images/<key>.webp", "order": 0 }
+      {
+        "type": "attraction",
+        "name": "Attractions",
+        "image": "/api/v1/images/<key>.webp",
+        "order": 0,
+      },
     ],
-    "featured": [
-      { "type": "attraction", "places": [ /* place cards, see below */ ] }
-    ]
-  }
+    "featured": [{ "type": "attraction", "places": [/* place cards, see below */] }],
+  },
 }
 ```
 

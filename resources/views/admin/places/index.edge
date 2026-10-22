@@ -1,42 +1,205 @@
 @layouts.admin({ title: 'Places', active: 'places', adminName: admin.fullName })
-  <div class="eyebrow">DISCOVER KUWAIT</div>
-  <div class="page-head"><div><h1>Places</h1><p>Curate places across your category types.</p></div><a class="button primary" href="/admin/places/new">Add a place <span>↗</span></a></div>
-  <form class="places-filter" action="/admin/places" method="GET">
-    <label for="places-type-filter">Filter by type</label>
-    <select id="places-type-filter" name="type" data-native-filter onchange="this.form.submit()">
-      <option value="" {{ !selectedType ? 'selected' : '' }}>All places</option>
-      @each(type in types)
-        <option value="{{ type.code }}" {{ selectedType === type.code ? 'selected' : '' }}>{{ type.name_en }}</option>
+  <div class="page-head">
+    <div>
+      <h1>Places</h1>
+    </div>
+    <div class="page-head-actions">
+      <a class="button primary" href="/admin/places/new">+ Add place</a>
+    </div>
+  </div>
+  <!--Search & Filter Controls-->
+  <form class="filter-bar" action="/admin/places" method="GET">
+    <div class="filter-search">
+      <input
+        type="search"
+        name="q"
+        value="{{ searchQuery }}"
+        placeholder="Search places by name, slug or address..."
+        aria-label="Search places"
+      />
+    </div>
+
+    <div class="filter-group">
+      <label for="places-type-filter">Type:</label>
+      <select id="places-type-filter" name="type" onchange="this.form.submit()">
+        <option value="" {{ !selectedType ? 'selected' : '' }}>All types</option>
+        @each(type in types)
+          <option value="{{ type.code }}" {{ selectedType === type.code ? 'selected' : '' }}>
+            {{ type.name_en }}
+          </option>
+        @end
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="places-status-filter">Status:</label>
+      <select id="places-status-filter" name="status" onchange="this.form.submit()">
+        <option value="" {{ !selectedStatus ? 'selected' : '' }}>All statuses</option>
+        <option value="published" {{ selectedStatus === 'published' ? 'selected' : '' }}>
+          Published
+        </option>
+        <option value="draft" {{ selectedStatus === 'draft' ? 'selected' : '' }}>Draft</option>
+        <option value="archived" {{ selectedStatus === 'archived' ? 'selected' : '' }}>
+          Archived
+        </option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="places-sort-filter">Sort:</label>
+      <select id="places-sort-filter" name="sort" onchange="this.form.submit()">
+        <option value="updated_desc" {{ selectedSort === 'updated_desc' ? 'selected' : '' }}>
+          Recently edited
+        </option>
+        <option value="updated_asc" {{ selectedSort === 'updated_asc' ? 'selected' : '' }}>
+          Oldest edited
+        </option>
+        <option value="title_asc" {{ selectedSort === 'title_asc' ? 'selected' : '' }}>
+          Title (A–Z)
+        </option>
+        <option value="title_desc" {{ selectedSort === 'title_desc' ? 'selected' : '' }}>
+          Title (Z–A)
+        </option>
+        <option value="status" {{ selectedSort === 'status' ? 'selected' : '' }}>Status</option>
+      </select>
+    </div>
+
+    <div class="filter-actions">
+      <button type="submit" class="button secondary" style="min-height: 38px; padding: 6px 14px;">
+        Filter
+      </button>
+      @if(searchQuery || selectedType || selectedStatus || selectedSort !== 'updated_desc')
+        <a href="/admin/places" class="text-button" style="font-size: 13px;">Reset</a>
       @end
-    </select>
-    <noscript><button type="submit">Apply filter</button></noscript>
+    </div>
   </form>
+  <!--Places Data Table-->
   <section class="panel table-panel">
-    <div class="panel-heading"><div><span class="eyebrow">YOUR COLLECTION</span><h2>{{ rows.length }} places shown</h2></div></div>
-    
-@if(rows.length)
+    <div class="panel-heading">
+      <div>
+        <h2>
+          @if(pagination.total > 0)
+            Showing
+            {{ (pagination.page - 1) * pagination.perPage + 1 }}
+            –
+            {{ Math.min(pagination.page * pagination.perPage, pagination.total) }}
+            of
+            {{ pagination.total }}
+            places
+          @else
+            0 places found
+          @end
+        </h2>
+      </div>
+      <a
+        class="button secondary"
+        href="/admin/places/new"
+        style="min-height: 36px; padding: 6px 14px;"
+      >
+        + Add place
+      </a>
+    </div>
+    @if(rows && rows.length)
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Place</th>
+              <th scope="col">Type</th>
+              <th scope="col">Status</th>
+              <th scope="col">Last Edit (Kuwait)</th>
+              <th scope="col" style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @each(place in rows)
+              <tr>
+                <td>
+                  <div class="place-cell">
+                    @if(place.cover_image_key)
+                      <img src="/admin/images/{{ place.cover_image_key }}" alt="" loading="lazy" />
+                    @else
+                      <span class="thumb-empty" aria-hidden="true">K</span>
+                    @end
 
-      <div class="table-scroll"><table class="data-table"><thead><tr><th>Place</th><th>Type</th><th>Status</th><th>Last edit</th><th></th></tr></thead><tbody>
-      
-@each(place in rows)
-
-        <tr><td><div class="place-cell">
-@if(place.cover_image_key)
-<img src="/admin/images/{{ place.cover_image_key }}" alt="">
-@else
-<span class="thumb-empty">K</span>
-@end
-<div><strong>{{ place.title }}</strong></div></div></td><td>{{ place.type_name_en }}</td><td><span class="status {{ place.status }}">{{ place.status }}</span></td><td>{{ place.updated_at || '—' }}</td><td><a class="round-link" href="/admin/places/{{ place.id }}/edit" aria-label="Edit {{ place.title }}">↗</a></td></tr>
-      
-@end
-
-      </tbody></table></div>
-    
-@else
-
-      <div class="empty-state">No places in this view. <a href="/admin/places/new">Add one now.</a></div>
-    
-@end
-
+                    <div class="place-title-wrap">
+                      <strong>{{ place.title }}</strong>
+                      <small>/places/{{ place.slug }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="type-chip" style="padding: 3px 8px; font-size: 12px;">
+                    {{ place.type_name_en }}
+                  </span>
+                </td>
+                <td><span class="status {{ place.status }}">{{ place.status }}</span></td>
+                <td style="color: var(--muted); font-size: 13px;">
+                  {{ place.updated_at_local || '—' }}
+                </td>
+                <td class="actions-cell">
+                  <div class="row-actions">
+                    <a class="row-action-link" href="/admin/places/{{ place.id }}/edit">Edit</a>
+                    <a
+                      class="row-action-link"
+                      href="/admin/places/{{ place.id }}/preview"
+                      title="Preview place"
+                    >
+                      Preview
+                    </a>
+                  </div>
+                </td>
+              </tr>
+            @end
+          </tbody>
+        </table>
+      </div>
+      <!--Pagination Controls-->
+      <div class="pagination-bar">
+        <span>
+          Page
+          {{ pagination.page }}
+          of
+          {{ pagination.lastPage }}
+          ({{ pagination.total }}
+          total places)
+        </span>
+        <div class="pagination-links">
+          @if(pagination.hasPrev)
+            <a
+              class="pagination-btn"
+              href="?page={{ pagination.prevPage }}&q={{ encodeURIComponent(searchQuery) }}&type={{ encodeURIComponent(selectedType) }}&status={{ encodeURIComponent(selectedStatus) }}&sort={{ encodeURIComponent(selectedSort) }}"
+              aria-label="Previous page"
+            >
+              ← Previous
+            </a>
+          @else
+            <button class="pagination-btn" disabled aria-disabled="true">← Previous</button>
+          @end
+          @if(pagination.hasNext)
+            <a
+              class="pagination-btn"
+              href="?page={{ pagination.nextPage }}&q={{ encodeURIComponent(searchQuery) }}&type={{ encodeURIComponent(selectedType) }}&status={{ encodeURIComponent(selectedStatus) }}&sort={{ encodeURIComponent(selectedSort) }}"
+              aria-label="Next page"
+            >
+              Next →
+            </a>
+          @else
+            <button class="pagination-btn" disabled aria-disabled="true">Next →</button>
+          @end
+        </div>
+      </div>
+    @else
+      <div class="empty-state">
+        <span class="empty-state-icon">🏛️</span>
+        @if(searchQuery || selectedType || selectedStatus)
+          <p>No places match your search or filter criteria.</p>
+          <a href="/admin/places">Clear all filters</a>
+        @else
+          <p>No places in your collection yet.</p>
+          <a href="/admin/places/new">Add the first place</a>
+        @end
+      </div>
+    @end
   </section>
 @end

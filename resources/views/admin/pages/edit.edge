@@ -1,73 +1,211 @@
-@layouts.admin({ title: page ? 'Edit page' : 'New page', active: 'pages', adminName: admin.fullName })
+@let(form = flashMessages.get('pageForm') || {})
+@layouts.admin({
+  title: page ? 'Edit page' : 'New page',
+  active: 'pages',
+  adminName: admin.fullName,
+})
   <a class="back-link" href="/admin/pages">← Back to pages</a>
-  <div class="eyebrow">WORDS THAT MATTER</div>
+
   <div class="page-head">
     <div>
-      <h1>{{ page ? en?.title : 'Create a page' }}</h1>
-      <p>Manage the title, intro label and formatted content for each language.</p>
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h1>{{ page ? en?.title || 'Edit page' : 'Create page' }}</h1>
+        @if(page)
+          <span class="status {{ page.status }}">{{ page.status }}</span>
+        @end
+      </div>
     </div>
-    @if(page)
-      <span class="status {{ page.status }}">{{ page.status }}</span>
-    @end
   </div>
-
-  @form({ action: page ? `/admin/pages/${page.id}/save` : '/admin/pages', method: 'POST', class: 'editor-grid' })
+  @form({
+    action: page ? `/admin/pages/${page.id}/save` : '/admin/pages',
+    method: 'POST',
+    class: 'editor-grid',
+  })
     <div class="editor-main">
+      <!--English Content-->
       <section class="panel form-panel">
-        <span class="eyebrow">ENGLISH CONTENT</span>
         <h2>Page details</h2>
-        <div class="form-grid">
-          <label>Page title<input name="titleEn" value="{{ en?.title || '' }}" required maxlength="200"></label>
-          <label>Intro label <small>(above the title)</small><input name="eyebrowEn" value="{{ en?.eyebrow || '' }}" maxlength="120" placeholder="LEGAL &amp; POLICIES"></label>
-          <label>URL slug<input name="slug" value="{{ page?.slug || '' }}" required pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="about-us"></label>
-          <div class="rich-field">
-            <label for="page-body-en">Body <small>Use headings and paragraphs for each section.</small></label>
-            <input type="hidden" name="bodyFormatEn" value="{{ en?.body_format || 'plain_text' }}" data-rich-format>
-            <textarea id="page-body-en" name="bodyEn" rows="13" required maxlength="50000" data-rich-body data-format="{{ en?.body_format || 'plain_text' }}">{{ en?.body || '' }}</textarea>
+
+        <div class="form-grid" style="margin-top: 16px;">
+          <label>
+            
+            
+            Page title
+
+
+            <input
+              name="titleEn"
+              value="{{ form.titleEn ?? en?.title ?? '' }}"
+              required
+              maxlength="200"
+              placeholder="About The Kuwaiti Experience"
+            />
+          </label>
+
+          <label>
+            
+            
+            Intro label
+
+
+            <input
+              name="eyebrowEn"
+              value="{{ form.eyebrowEn ?? en?.eyebrow ?? '' }}"
+              maxlength="120"
+              placeholder="LEGAL &amp; POLICIES"
+            />
+          </label>
+
+          <label>
+            
+            
+            URL slug
+
+
+            <input
+              name="slug"
+              value="{{ form.slug ?? page?.slug ?? '' }}"
+              required
+              pattern="[a-z0-9]+(-[a-z0-9]+)*"
+              placeholder="about-us"
+            />
+          </label>
+          <!--Rich Text Body English-->
+          <div class="rich-field" style="margin-top: 8px;">
+            <label for="page-body-en">Formatted body</label>
+            <input
+              type="hidden"
+              name="bodyFormatEn"
+              value="{{ form.bodyFormatEn ?? en?.body_format ?? 'plain_text' }}"
+              data-rich-format
+            />
+            <textarea
+              id="page-body-en"
+              name="bodyEn"
+              rows="10"
+              required
+              maxlength="50000"
+              data-rich-body
+              data-format="{{ form.bodyFormatEn ?? en?.body_format ?? 'plain_text' }}"
+            >{{ form.bodyEn ?? en?.body ?? '' }}</textarea>
             <div class="rich-editor" data-rich-editor aria-label="English page body editor"></div>
           </div>
-          <label>SEO title<input name="seoTitleEn" value="{{ en?.seo_title || '' }}"></label>
-          <label>SEO description<textarea name="seoDescriptionEn" rows="2">{{ en?.seo_description || '' }}</textarea></label>
+
+          <label style="margin-top: 8px;">
+            
+            
+            SEO title
+
+
+            <input
+              name="seoTitleEn"
+              value="{{ form.seoTitleEn ?? en?.seo_title ?? '' }}"
+              placeholder="About Us — The Kuwaiti Experience"
+            />
+          </label>
+
+          <label>
+            
+            
+            SEO description
+
+
+            <textarea
+              name="seoDescriptionEn"
+              rows="2"
+            >{{ form.seoDescriptionEn ?? en?.seo_description ?? '' }}</textarea>
+          </label>
         </div>
       </section>
+      <!--Arabic Content-->
       <section class="panel form-panel">
-        <span class="eyebrow">ARABIC CONTENT</span>
-        <h2>Optional translation</h2>
-        <div class="form-grid">
-          <label>Arabic title<input name="titleAr" dir="rtl" lang="ar" value="{{ ar?.title || '' }}"></label>
-          <label>Arabic intro label<input name="eyebrowAr" dir="rtl" lang="ar" value="{{ ar?.eyebrow || '' }}" maxlength="120"></label>
-          <div class="rich-field" dir="rtl" lang="ar">
-            <label for="page-body-ar">Arabic body</label>
-            <input type="hidden" name="bodyFormatAr" value="{{ ar?.body_format || 'plain_text' }}" data-rich-format>
-            <textarea id="page-body-ar" name="bodyAr" rows="8" maxlength="50000" data-rich-body data-format="{{ ar?.body_format || 'plain_text' }}">{{ ar?.body || '' }}</textarea>
+        <h2>Arabic translation</h2>
+
+        <div class="form-grid" style="margin-top: 16px;">
+          <label>
+            
+            
+            Arabic title
+
+
+            <input
+              name="titleAr"
+              dir="rtl"
+              lang="ar"
+              value="{{ form.titleAr ?? ar?.title ?? '' }}"
+              placeholder="عن تجربة الكويت"
+            />
+          </label>
+
+          <label>
+            
+            
+            Arabic intro label
+
+
+            <input
+              name="eyebrowAr"
+              dir="rtl"
+              lang="ar"
+              value="{{ form.eyebrowAr ?? ar?.eyebrow ?? '' }}"
+              maxlength="120"
+              placeholder="الشروط والسياسات"
+            />
+          </label>
+          <!--Rich Text Body Arabic-->
+          <div class="rich-field" dir="rtl" lang="ar" style="margin-top: 8px;">
+            <label for="page-body-ar">المحتوى العربي</label>
+            <input
+              type="hidden"
+              name="bodyFormatAr"
+              value="{{ form.bodyFormatAr ?? ar?.body_format ?? 'plain_text' }}"
+              data-rich-format
+            />
+            <textarea
+              id="page-body-ar"
+              name="bodyAr"
+              rows="8"
+              maxlength="50000"
+              data-rich-body
+              data-format="{{ form.bodyFormatAr ?? ar?.body_format ?? 'plain_text' }}"
+            >{{ form.bodyAr ?? ar?.body ?? '' }}</textarea>
             <div class="rich-editor" data-rich-editor aria-label="Arabic page body editor"></div>
           </div>
         </div>
       </section>
     </div>
+
     <aside class="editor-aside">
       <section class="panel form-panel actions-panel">
-        <span class="eyebrow">PAGE STATUS</span>
-        <p class="panel-help">Save your changes, review the copy, then publish. The public page date uses the page's last update timestamp.</p>
-        <button class="button primary wide" type="submit">Save page <span>→</span></button>
+        <h2>Publishing</h2>
+        <div class="save-controls-stack" style="margin-top: 16px;">
+          <button class="button primary wide" type="submit">Save page</button>
+        </div>
       </section>
     </aside>
   @end
-
   @if(page)
-    <div class="danger-row">
-      @if(page.status !== 'published')
-        @form({ action: `/admin/pages/${page.id}/publish`, method: 'POST' })
-          <button class="button secondary" type="submit">Publish page</button>
+    <section class="panel danger-zone-panel" style="max-width: 600px;">
+      <h2>Danger zone</h2>
+
+      <div class="danger-zone-actions" style="margin-top: 14px;">
+        @if(page.status !== 'published')
+          @form({ action: `/admin/pages/${page.id}/publish`, method: 'POST' })
+            <button class="button secondary" type="submit">Publish page</button>
+          @end
+        @else
+          @form({ action: `/admin/pages/${page.id}/archive`, method: 'POST' })
+            <button class="button secondary" type="submit">Archive page</button>
+          @end
         @end
-      @else
-        @form({ action: `/admin/pages/${page.id}/archive`, method: 'POST' })
-          <button class="button secondary" type="submit">Archive page</button>
+        @form({
+          action: `/admin/pages/${page.id}/delete`,
+          method: 'POST',
+          'data-confirm': 'Permanently delete this page?',
+        })
+          <button class="button danger" type="submit">Delete permanently</button>
         @end
-      @end
-      @form({ action: `/admin/pages/${page.id}/delete`, method: 'POST', 'onsubmit': "return confirm('Permanently delete page?')" })
-        <button class="text-button danger" type="submit">Delete permanently</button>
-      @end
-    </div>
+      </div>
+    </section>
   @end
 @end

@@ -15,7 +15,7 @@ Last checked against routes, controllers, validators and serializers: **21 Octob
 | [Explore OpenAPI](explore-openapi.json)                                                                                         | Exact place/category/bookmark/movie/showtime schemas and parameters                            |
 | [Home OpenAPI](home-openapi.json)                                                                                               | Exact Home, Home CMS, card-selection and featured-order schemas                                |
 | [Postman collection](postman/kuwaitiexperience.postman_collection.json) + [environment](postman/local.postman_environment.json) | Importable requests; [setup and execution order](postman/README.md)                            |
-| [Customer guide](customer-api.md), [profile guide](customer-profile-api.md), [Explore guide](explore-api.md) | More detail about the corresponding implemented flows and CMS management |
+| [Customer guide](customer-api.md), [profile guide](customer-profile-api.md), [Explore guide](explore-api.md)                    | More detail about the corresponding implemented flows and CMS management                       |
 
 The three standalone JSON files are OpenAPI 3.1 specifications. Their paths include both mobile and admin operations: mobile clients use the non-admin paths listed here. Use `components.schemas` and each operation's request/response schema to define typed models. Home reuses the Explore Place/CategoryType schemas. The root [openapi.yaml](openapi.yaml) additionally includes legacy website APIs and references these files.
 
@@ -23,20 +23,20 @@ The three standalone JSON files are OpenAPI 3.1 specifications. Their paths incl
 
 ## 2. What the app can integrate now
 
-| Screen/feature                                                                       | Status                                                  | Integration                                                                                 |
-| ------------------------------------------------------------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Phone login, OTP, resend, registration                                               | Implemented; real delivery awaits SMS configuration     | Follow section 5; verification proof decides sign-in vs create-account                      |
-| Continue as guest                                                                    | Available                                               | No guest-login call/token; browse public APIs                                               |
-| Edit Profile, photo, verified phone change                                           | Implemented; phone OTP uses the same delivery or development option | Section 6                                                                                   |
-| Explore hub and category filters                                                     | Implemented                                             | Section 7                                                                                   |
-| Attractions, Dine In, Stay, Theaters list/detail                                     | Implemented                                             | Shared Place model on every endpoint                                                        |
-| Venue phone, highlights/amenities, stay check-in/out, theater screen count, Open Now | Implemented; values depend on CMS content               | Section 8                                                                                   |
-| Movies and upcoming showtimes                                                        | Implemented; CMS maintained                             | Section 9                                                                                   |
-| Save/unsave venues and saved venue list                                              | Implemented; customer authentication required           | Section 10                                                                                  |
-| Contact Us, WhatsApp, privacy/terms, logout, delete account                          | Implemented; legal/settings content prerequisites apply | Sections 5, 6 and 11                                                                        |
-| App Home hero, Explore cards and four featured carousels                             | Implemented; artwork and card choices depend on CMS     | Section 12; `GET /api/v2/home`                                                              |
-| Home search, notifications, Schedule                                                 | Pending                                                 | No API contract to integrate                                                                |
-| Cab, rentals, bookings, saved addresses, videos/social features                      | Pending separate sections                               | No working mobile feature contract is supplied here                                         |
+| Screen/feature                                                                       | Status                                                              | Integration                                                            |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Phone login, OTP, resend, registration                                               | Implemented; real delivery awaits SMS configuration                 | Follow section 5; verification proof decides sign-in vs create-account |
+| Continue as guest                                                                    | Available                                                           | No guest-login call/token; browse public APIs                          |
+| Edit Profile, photo, verified phone change                                           | Implemented; phone OTP uses the same delivery or development option | Section 6                                                              |
+| Explore hub and category filters                                                     | Implemented                                                         | Section 7                                                              |
+| Attractions, Dine In, Stay, Theaters list/detail                                     | Implemented                                                         | Shared Place model on every endpoint                                   |
+| Venue phone, highlights/amenities, stay check-in/out, theater screen count, Open Now | Implemented; values depend on CMS content                           | Section 8                                                              |
+| Movies and upcoming showtimes                                                        | Implemented; CMS maintained                                         | Section 9                                                              |
+| Save/unsave venues and saved venue list                                              | Implemented; customer authentication required                       | Section 10                                                             |
+| Contact Us, WhatsApp, privacy/terms, logout, delete account                          | Implemented; legal/settings content prerequisites apply             | Sections 5, 6 and 11                                                   |
+| App Home hero, Explore cards and four featured carousels                             | Implemented; artwork and card choices depend on CMS                 | Section 12; `GET /api/v2/home`                                         |
+| Home search, notifications, Schedule                                                 | Pending                                                             | No API contract to integrate                                           |
+| Cab, rentals, bookings, saved addresses, videos/social features                      | Pending separate sections                                           | No working mobile feature contract is supplied here                    |
 
 The website's `/api/v1/home` retains its legacy response. The app's Home Explore cards link to existing place details. A future cab flow can receive a selected place, but no cab quotation/ride-creation API is implemented in this section.
 
@@ -378,11 +378,11 @@ Save example: `{ "data": { "customer_id": 1, "place_id": 12, "created_at": "2026
 
 ## 11. Legal, contact and settings
 
-| Method and path                 | Auth/request                                                          | Success                                                                      |
-| ------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Method and path                 | Auth/request                                                                                    | Success                                                                      |
+| ------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | `GET /api/v2/pages/{slug}`      | Public; `about-us`, `contact-us`, `privacy-policy` or `terms-and-conditions`, optional `locale` | 200, `data: Page` with `page_translations`; `meta: { locale, content_hash }` |
-| `GET /api/v2/site`              | Public                                                                | 200, `data: SiteSettings`; `meta.images` for logo URL                     |
-| `POST /api/v2/contact-requests` | Guest/customer; JSON below                                            | 201, submission receipt                                                      |
+| `GET /api/v2/site`              | Public                                                                                          | 200, `data: SiteSettings`; `meta.images` for logo URL                        |
+| `POST /api/v2/contact-requests` | Guest/customer; JSON below                                                                      | 201, submission receipt                                                      |
 
 ```json
 {
@@ -402,16 +402,16 @@ SiteSettings keys: `id`, `brand_name`, nullable `direct_phone_number`, `direct_p
 
 `GET /api/v2/home` accepts a guest request or an optional **customer** bearer token. It returns the same response shape either way. An invalid supplied token returns 401. The response uses `Cache-Control: no-store` because `meta.viewer.saved` can be personal. [Home OpenAPI](home-openapi.json) defines the exact required keys and nullability; [Explore OpenAPI](explore-openapi.json) defines the shared `Place` and `CategoryType` models.
 
-| Response path | Type and use |
-| --- | --- |
-| `data.home_content` | `HomeContent[]`: stored English/Arabic hero copy and `hero_image_key`. Select the desired locale; fall back per field to English. The array can be empty. |
-| `data.category_types` | `CategoryType[]`: configured descriptors for `attraction`, `restaurant`, `hotel_resort`, `theater`, in CMS order. Reuse the Explore `CategoryType` model. |
-| `data.home_explore_cards` | `HomeExploreCard[]`: up to eight active cards whose referenced venues are published. Sort order is already applied. Each `place_id` points into `data.places`. |
-| `data.places` | Full canonical `Place[]` for every selected card or featured section. Reuse the same model used by Explore/list/detail/bookmarks/CMS. A venue appearing twice is included once. |
-| `meta.home_sections` | Ordered `{ type, place_ids, has_more }[]` for the four configured venue types. Each `place_ids` list has at most eight IDs. Empty sections have `[]`. |
-| `meta.viewer` | `{ place_id, saved, open_now }[]` keyed by place ID. `saved` is false for guests; `open_now` can be null when hours cannot determine it. |
-| `meta.images` | `{ storage_key, url }[]`. Resolve `hero_image_key`, `image_key`, `cover_image_key`, and gallery `storage_key` here. Null/missing keys have no URL. |
-| `meta.evaluated_at` | UTC ISO timestamp used for publication and Open Now evaluation. |
+| Response path             | Type and use                                                                                                                                                                    |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data.home_content`       | `HomeContent[]`: stored English/Arabic hero copy and `hero_image_key`. Select the desired locale; fall back per field to English. The array can be empty.                       |
+| `data.category_types`     | `CategoryType[]`: configured descriptors for `attraction`, `restaurant`, `hotel_resort`, `theater`, in CMS order. Reuse the Explore `CategoryType` model.                       |
+| `data.home_explore_cards` | `HomeExploreCard[]`: up to eight active cards whose referenced venues are published. Sort order is already applied. Each `place_id` points into `data.places`.                  |
+| `data.places`             | Full canonical `Place[]` for every selected card or featured section. Reuse the same model used by Explore/list/detail/bookmarks/CMS. A venue appearing twice is included once. |
+| `meta.home_sections`      | Ordered `{ type, place_ids, has_more }[]` for the four configured venue types. Each `place_ids` list has at most eight IDs. Empty sections have `[]`.                           |
+| `meta.viewer`             | `{ place_id, saved, open_now }[]` keyed by place ID. `saved` is false for guests; `open_now` can be null when hours cannot determine it.                                        |
+| `meta.images`             | `{ storage_key, url }[]`. Resolve `hero_image_key`, `image_key`, `cover_image_key`, and gallery `storage_key` here. Null/missing keys have no URL.                              |
+| `meta.evaluated_at`       | UTC ISO timestamp used for publication and Open Now evaluation.                                                                                                                 |
 
 All table-backed entity properties use their database column names. Protocol containers and computed metadata are named separately. Never create a smaller Home-specific `Place` interface. `HomeContent`, `HomeExploreCard`, `Place`, and `CategoryType` retain their complete key sets wherever returned.
 
@@ -460,18 +460,18 @@ The skeleton shows valid empty arrays, not promised production content. When the
 
 The browser editor is `/admin/home`; it can edit localized Home copy/hero, select existing places for the Explore strip, set localized captions, reorder/activate cards, and link to the place editor for featured rank. Category type names, images and order remain in `/admin/category-types`. Browser forms use admin sessions and CSRF. The matching JSON API uses **admin JWT**, never a customer token.
 
-| Method and path | Input | Success |
-| --- | --- | --- |
-| `GET /api/v2/admin/home?locale=en` | Locale `en` or `ar`; defaults to `en` | `data` is HomeContent or null; `meta.images` |
-| `PATCH /api/v2/admin/home` | `locale`, `hero_eyebrow`, `hero_title`, `discovery_title`; optional nullable `app_title`, `app_body` | Complete `HomeContent` in `data` |
-| `PUT /api/v2/admin/home/hero-image?locale=en` | Multipart `file`: JPEG/PNG/WebP up to 5 MB | Complete `HomeContent` in `data` |
-| `DELETE /api/v2/admin/home/hero-image?locale=en` | No body | 204 |
-| `GET /api/v2/admin/home-explore-cards?page=1&per_page=20` | Pagination, max 50 per page | Complete `HomeExploreCard[]`, `included.places`, pagination metadata |
-| `GET /api/v2/admin/home-explore-cards/{id}` | Card ID | Complete card and canonical related Place |
-| `POST /api/v2/admin/home-explore-cards` | `place_id`, `sort_order`, `active`; optional nullable `caption_en`, `caption_ar` | 201, complete card and related Place |
-| `PUT /api/v2/admin/home-explore-cards/{id}` | Same full input as POST | Complete card and related Place |
-| `DELETE /api/v2/admin/home-explore-cards/{id}` | Card ID | 204; venue retained |
-| `PATCH /api/v2/admin/places/{id}/featured` | `{ "featured_order": 0 }` or `{ "featured_order": null }` | Complete canonical `Place` response |
+| Method and path                                           | Input                                                                                                | Success                                                              |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `GET /api/v2/admin/home?locale=en`                        | Locale `en` or `ar`; defaults to `en`                                                                | `data` is HomeContent or null; `meta.images`                         |
+| `PATCH /api/v2/admin/home`                                | `locale`, `hero_eyebrow`, `hero_title`, `discovery_title`; optional nullable `app_title`, `app_body` | Complete `HomeContent` in `data`                                     |
+| `PUT /api/v2/admin/home/hero-image?locale=en`             | Multipart `file`: JPEG/PNG/WebP up to 5 MB                                                           | Complete `HomeContent` in `data`                                     |
+| `DELETE /api/v2/admin/home/hero-image?locale=en`          | No body                                                                                              | 204                                                                  |
+| `GET /api/v2/admin/home-explore-cards?page=1&per_page=20` | Pagination, max 50 per page                                                                          | Complete `HomeExploreCard[]`, `included.places`, pagination metadata |
+| `GET /api/v2/admin/home-explore-cards/{id}`               | Card ID                                                                                              | Complete card and canonical related Place                            |
+| `POST /api/v2/admin/home-explore-cards`                   | `place_id`, `sort_order`, `active`; optional nullable `caption_en`, `caption_ar`                     | 201, complete card and related Place                                 |
+| `PUT /api/v2/admin/home-explore-cards/{id}`               | Same full input as POST                                                                              | Complete card and related Place                                      |
+| `DELETE /api/v2/admin/home-explore-cards/{id}`            | Card ID                                                                                              | 204; venue retained                                                  |
+| `PATCH /api/v2/admin/places/{id}/featured`                | `{ "featured_order": 0 }` or `{ "featured_order": null }`                                            | Complete canonical `Place` response                                  |
 
 Use the existing `GET /api/v2/admin/places` picker. A card can refer to a draft for editorial preparation, but public Home shows it only when active and published. One venue can have only one Explore card. At most 50 selections can be configured. Allowed venue types are `attraction`, `restaurant`, `hotel_resort`, and `theater`. `sort_order` and `featured_order` accept integers 0–9999; lower numbers appear first and ID breaks ties. Null `featured_order` removes a venue from Home carousels without changing its publication or other content. A selected venue cannot be deleted or changed to an unsupported type until its card is removed. All changes are audited.
 

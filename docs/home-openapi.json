@@ -13,9 +13,7 @@
   "paths": {
     "/api/v2/home": {
       "get": {
-        "tags": [
-          "Home v2"
-        ],
+        "tags": ["Home v2"],
         "summary": "App Home: localized hero, place-linked Explore cards and four featured venue carousels",
         "security": [
           {},
@@ -49,9 +47,7 @@
     },
     "/api/v2/admin/home": {
       "get": {
-        "tags": [
-          "Home v2"
-        ],
+        "tags": ["Home v2"],
         "summary": "Read one localized HomeContent row; data is null before configuration",
         "security": [
           {
@@ -64,10 +60,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": [
-                "en",
-                "ar"
-              ],
+              "enum": ["en", "ar"],
               "default": "en"
             }
           }
@@ -96,9 +89,7 @@
         }
       },
       "patch": {
-        "tags": [
-          "Home v2"
-        ],
+        "tags": ["Home v2"],
         "summary": "Create or update localized Home copy using database column names",
         "security": [
           {
@@ -141,9 +132,7 @@
     },
     "/api/v2/admin/home/hero-image": {
       "put": {
-        "tags": [
-          "Home v2"
-        ],
+        "tags": ["Home v2"],
         "summary": "Upload or replace the localized Home hero image",
         "security": [
           {
@@ -156,10 +145,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": [
-                "en",
-                "ar"
-              ],
+              "enum": ["en", "ar"],
               "default": "en"
             }
           }
@@ -171,9 +157,7 @@
               "schema": {
                 "type": "object",
                 "additionalProperties": false,
-                "required": [
-                  "file"
-                ],
+                "required": ["file"],
                 "properties": {
                   "file": {
                     "type": "string",
@@ -208,9 +192,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "Home v2"
-        ],
+        "tags": ["Home v2"],
         "summary": "Remove localized Home hero image",
         "security": [
           {
@@ -223,10 +205,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": [
-                "en",
-                "ar"
-              ],
+              "enum": ["en", "ar"],
               "default": "en"
             }
           }
@@ -250,9 +229,7 @@
     },
     "/api/v2/admin/home-explore-cards": {
       "get": {
-        "tags": [
-          "Home v2"
-        ],
+        "tags": ["Home v2"],
         "summary": "Paginated CMS Home Explore selections, including inactive rows",
         "security": [
           {
@@ -305,9 +282,7 @@
         }
       },
       "post": {
-        "tags": [
-          "Home v2"
-        ],
+        "tags": ["Home v2"],
         "summary": "Select an existing place for the Home Explore strip",
         "security": [
           {
@@ -350,9 +325,7 @@
     },
     "/api/v2/admin/home-explore-cards/{id}": {
       "get": {
-        "tags": [
-          "Home v2"
-        ],
+        "tags": ["Home v2"],
         "summary": "Read one Home Explore selection and its canonical Place",
         "security": [
           {
@@ -394,9 +367,7 @@
         }
       },
       "put": {
-        "tags": [
-          "Home v2"
-        ],
+        "tags": ["Home v2"],
         "summary": "Replace one Home Explore selection",
         "security": [
           {
@@ -448,9 +419,7 @@
         }
       },
       "delete": {
-        "tags": [
-          "Home v2"
-        ],
+        "tags": ["Home v2"],
         "summary": "Remove a Home Explore selection without deleting its place",
         "security": [
           {
@@ -487,9 +456,7 @@
     },
     "/api/v2/admin/places/{id}/featured": {
       "patch": {
-        "tags": [
-          "Home v2"
-        ],
+        "tags": ["Home v2"],
         "summary": "Set a place's Home carousel rank; null removes it from featured selections",
         "security": [
           {
@@ -572,10 +539,7 @@
         "properties": {
           "locale": {
             "type": "string",
-            "enum": [
-              "en",
-              "ar"
-            ]
+            "enum": ["en", "ar"]
           },
           "hero_eyebrow": {
             "type": "string"
@@ -584,31 +548,19 @@
             "type": "string"
           },
           "hero_image_key": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "discovery_title": {
             "type": "string"
           },
           "app_title": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "app_body": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "updated_at": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           }
         }
@@ -634,16 +586,10 @@
             "type": "integer"
           },
           "caption_en": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "caption_ar": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": ["string", "null"]
           },
           "sort_order": {
             "type": "integer"
@@ -656,10 +602,7 @@
             "format": "date-time"
           },
           "updated_at": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "format": "date-time"
           }
         }
@@ -667,20 +610,11 @@
       "HomeSection": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "type",
-          "place_ids",
-          "has_more"
-        ],
+        "required": ["type", "place_ids", "has_more"],
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "attraction",
-              "restaurant",
-              "hotel_resort",
-              "theater"
-            ]
+            "enum": ["attraction", "restaurant", "hotel_resort", "theater"]
           },
           "place_ids": {
             "type": "array",
@@ -696,20 +630,12 @@
       "HomePage": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "data",
-          "meta"
-        ],
+        "required": ["data", "meta"],
         "properties": {
           "data": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "home_content",
-              "category_types",
-              "home_explore_cards",
-              "places"
-            ],
+            "required": ["home_content", "category_types", "home_explore_cards", "places"],
             "properties": {
               "home_content": {
                 "type": "array",
@@ -740,12 +666,7 @@
           "meta": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "home_sections",
-              "viewer",
-              "images",
-              "evaluated_at"
-            ],
+            "required": ["home_sections", "viewer", "images", "evaluated_at"],
             "properties": {
               "home_sections": {
                 "type": "array",
@@ -776,10 +697,7 @@
       "HomeContentResult": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "data",
-          "meta"
-        ],
+        "required": ["data", "meta"],
         "properties": {
           "data": {
             "$ref": "#/components/schemas/HomeContent"
@@ -787,9 +705,7 @@
           "meta": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "images"
-            ],
+            "required": ["images"],
             "properties": {
               "images": {
                 "type": "array",
@@ -804,11 +720,7 @@
       "HomeCardResult": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "data",
-          "included",
-          "meta"
-        ],
+        "required": ["data", "included", "meta"],
         "properties": {
           "data": {
             "$ref": "#/components/schemas/HomeExploreCard"
@@ -816,9 +728,7 @@
           "included": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "places"
-            ],
+            "required": ["places"],
             "properties": {
               "places": {
                 "type": "array",
@@ -831,11 +741,7 @@
           "meta": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "viewer",
-              "images",
-              "evaluated_at"
-            ],
+            "required": ["viewer", "images", "evaluated_at"],
             "properties": {
               "viewer": {
                 "type": "array",
@@ -860,11 +766,7 @@
       "HomeCardList": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "data",
-          "included",
-          "meta"
-        ],
+        "required": ["data", "included", "meta"],
         "properties": {
           "data": {
             "type": "array",
@@ -875,9 +777,7 @@
           "included": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "places"
-            ],
+            "required": ["places"],
             "properties": {
               "places": {
                 "type": "array",
@@ -935,19 +835,11 @@
       "HomeContentInput": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "locale",
-          "hero_eyebrow",
-          "hero_title",
-          "discovery_title"
-        ],
+        "required": ["locale", "hero_eyebrow", "hero_title", "discovery_title"],
         "properties": {
           "locale": {
             "type": "string",
-            "enum": [
-              "en",
-              "ar"
-            ]
+            "enum": ["en", "ar"]
           },
           "hero_eyebrow": {
             "type": "string",
@@ -964,17 +856,11 @@
             "maxLength": 200
           },
           "app_title": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "maxLength": 200
           },
           "app_body": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "maxLength": 10000
           }
         }
@@ -982,28 +868,18 @@
       "HomeExploreCardInput": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "place_id",
-          "sort_order",
-          "active"
-        ],
+        "required": ["place_id", "sort_order", "active"],
         "properties": {
           "place_id": {
             "type": "integer",
             "minimum": 1
           },
           "caption_en": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "maxLength": 200
           },
           "caption_ar": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": ["string", "null"],
             "maxLength": 200
           },
           "sort_order": {
@@ -1019,15 +895,10 @@
       "FeaturedOrderInput": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "featured_order"
-        ],
+        "required": ["featured_order"],
         "properties": {
           "featured_order": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "minimum": 0,
             "maximum": 9999
           }
@@ -1054,10 +925,7 @@
       "NullableHomeContentResult": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "data",
-          "meta"
-        ],
+        "required": ["data", "meta"],
         "properties": {
           "data": {
             "oneOf": [
@@ -1072,9 +940,7 @@
           "meta": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "images"
-            ],
+            "required": ["images"],
             "properties": {
               "images": {
                 "type": "array",

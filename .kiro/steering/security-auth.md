@@ -3,6 +3,7 @@ inclusion: auto
 name: Authentication and security requirements
 description: Use when changing authentication, sessions, cookies, authorization, uploads, CSRF, secrets, or security-sensitive configuration.
 ---
+
 # Authentication and security requirements
 
 - Keep `APP_KEY` and `JWT_SECRET` independent and supplied through environment configuration. Never commit credentials, tokens, passwords, `.env`, or uploaded files. Required runtime variables and allowed values are defined in `start/env.ts` and `.env.example`.

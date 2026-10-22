@@ -160,4 +160,30 @@ test.group('CMS pages', (group) => {
     publicPage.assertStatus(200)
     assert.equal(publicPage.body().data.page_translations[0].eyebrow, translation.eyebrow)
   })
+
+  test('preserves entered form data in the view when validation fails', async ({ client }) => {
+    await db.table('users').insert({
+      full_name: 'Form Admin',
+      email: 'form-admin@example.com',
+      password: await hash.make('a-very-long-test-password'),
+      role: 'admin',
+      active: true,
+      created_at: new Date(),
+    })
+    const login = await loginAdmin('form-admin@example.com', 'a-very-long-test-password')
+    const token = login.accessToken
+
+    const response = await cmsPost(client, '/admin/places', token, {
+      titleEn: 'Retained Place Title',
+      slug: 'INVALID_CAPS_SLUG',
+      summaryEn: 'Retained summary text',
+      addressEn: 'Retained address text',
+      type: 'attraction',
+    })
+    response.assertStatus(200)
+    response.assertTextIncludes('Retained Place Title')
+    response.assertTextIncludes('INVALID_CAPS_SLUG')
+    response.assertTextIncludes('Retained summary text')
+    response.assertTextIncludes('Retained address text')
+  })
 })

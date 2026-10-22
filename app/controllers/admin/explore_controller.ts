@@ -13,18 +13,56 @@ const records = (v: unknown): Record<string, any>[] =>
   Array.isArray(v) ? v : v && typeof v === 'object' ? Object.values(v) : []
 
 export default class ExplorePageController {
-  async place({ params, view, admin }: HttpContext) {
+  async place({ params, view, admin, session }: HttpContext) {
     const result = await read.showPlace(read.positiveId(params.id), undefined, true)
     const features = await read.features(result.data.type, true)
-    const hours = result.data.place_hours
+    const rawHours = result.data.place_hours
+
+    // Check if there is flashed form input from a failed validation submission
+    const flashForm = session.get('exploreForm') as Record<string, any> | undefined
+    const hoursSource = flashForm?.place_hours ? records(flashForm.place_hours) : rawHours
+
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    const days = dayNames.map((name, weekday) => {
+      const dayHours = hoursSource
+        .filter((h: any) => h.weekday !== '' && h.weekday !== null && Number(h.weekday) === weekday)
+        .sort((a: any, b: any) => Number(a.interval_index || 0) - Number(b.interval_index || 0))
+
+      let state: 'unknown' | 'closed' | 'open' = 'unknown'
+      if (dayHours.length === 0) {
+        state = 'unknown'
+      } else if (
+        dayHours.some((h: any) => h.closed === true || h.closed === 'on' || h.closed === 'true')
+      ) {
+        state = 'closed'
+      } else {
+        state = 'open'
+      }
+
+      return {
+        weekday,
+        name,
+        state,
+        intervals: dayHours.map((h: any, idx: number) => ({
+          interval_index: Number(h.interval_index ?? idx),
+          opens_at: h.opens_at ? String(h.opens_at).slice(0, 5) : '',
+          closes_at: h.closes_at ? String(h.closes_at).slice(0, 5) : '',
+          closes_next_day: Boolean(
+            h.closes_next_day === true || h.closes_next_day === 'on' || h.closes_next_day === 'true'
+          ),
+        })),
+      }
+    })
+
     return view.render('admin/explore/place', {
       admin,
       place: result.data,
       features: features.data,
       selectedFeatures: result.data.place_features.map((f) => f.id),
+      days,
       hourSlots: Array.from(
-        { length: Math.min(70, Math.max(21, hours.length + 3)) },
-        (_, index) => hours[index] ?? null
+        { length: Math.min(70, Math.max(21, rawHours.length + 3)) },
+        (_, index) => rawHours[index] ?? null
       ),
     })
   }

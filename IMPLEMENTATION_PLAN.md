@@ -8,14 +8,14 @@ Superseded image design: the shared media library originally planned here was re
 
 The product appears to be a curated Kuwait discovery guide with a cab enquiry entry point. It helps visitors discover places, inspect visit information, and contact a transport provider. A complete booking business cannot be inferred from the screens.
 
-| Screen | Observed content and interactions | Backend/CMS requirements |
-| --- | --- | --- |
-| Home | White navigation; English/Arabic switch; night skyline hero; “Explore Kuwait”; pickup, destination, date and time form; transport partner branding; WhatsApp link | Editable hero text/image, transport locations, partner assets, navigation and contact configuration |
-| Home discovery | Asymmetric category tiles: Book a Cab, Attractions, Restaurants, Hotels & Resorts, Theaters | Editable category imagery, labels, ordering and destinations |
-| Home listings | Four editorial sections, each with four place cards, location labels and “View more” | Published places grouped by type; explicit featured ordering; separate card images |
-| Home lower section | App promotion with two phone mockups, store links, dark footer, About/Contact/Terms/Privacy links | App promotion assets/copy, store URLs, static pages and footer settings |
-| Attraction listing | “All attractions”; total count; All/Landmarks/Museums/Parks/Markets filters; three-column grid; 11 cards | Type/category filtering, accurate filtered totals, summaries, stable ordering, pagination support |
-| Attraction detail | Back link/breadcrumbs; large cover; title/address; visit panel with hours, KWD 3.000/person and WhatsApp “Book a cab”; description and three gallery thumbnails | Place detail, hours, price amount/currency/unit, gallery ordering and transport CTA |
+| Screen             | Observed content and interactions                                                                                                                                 | Backend/CMS requirements                                                                            |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Home               | White navigation; English/Arabic switch; night skyline hero; “Explore Kuwait”; pickup, destination, date and time form; transport partner branding; WhatsApp link | Editable hero text/image, transport locations, partner assets, navigation and contact configuration |
+| Home discovery     | Asymmetric category tiles: Book a Cab, Attractions, Restaurants, Hotels & Resorts, Theaters                                                                       | Editable category imagery, labels, ordering and destinations                                        |
+| Home listings      | Four editorial sections, each with four place cards, location labels and “View more”                                                                              | Published places grouped by type; explicit featured ordering; separate card images                  |
+| Home lower section | App promotion with two phone mockups, store links, dark footer, About/Contact/Terms/Privacy links                                                                 | App promotion assets/copy, store URLs, static pages and footer settings                             |
+| Attraction listing | “All attractions”; total count; All/Landmarks/Museums/Parks/Markets filters; three-column grid; 11 cards                                                          | Type/category filtering, accurate filtered totals, summaries, stable ordering, pagination support   |
+| Attraction detail  | Back link/breadcrumbs; large cover; title/address; visit panel with hours, KWD 3.000/person and WhatsApp “Book a cab”; description and three gallery thumbnails   | Place detail, hours, price amount/currency/unit, gallery ordering and transport CTA                 |
 
 Visible attraction examples: Kuwait Towers, The Grand Mosque, Al Shaheed Park, Souq Al-Mubarakiya, Sadu House, Green Island, Liberation Tower, Tareq Rajab Museum, Friday Market, The Mirror House and Boulevard Park. Treat names as demo references; verify factual descriptions, hours, prices and image rights before launch. Repeated stock imagery in the mockups is not evidence that an image belongs to a particular place.
 
@@ -106,23 +106,23 @@ Preview should use the public-shaped serializer but require admin authentication
 
 Use InnoDB, utf8mb4, consistent IDs and UTC audit timestamps. Local visit/transport times use `Asia/Kuwait`, independent of the server/operator timezone. Monetary values use `DECIMAL(10,3)` and serialize as decimal strings to preserve KWD precision.
 
-| Table | Important fields and constraints |
-| --- | --- |
-| `users` | Unique normalized email, name, password hash, role (`admin` initially), active, must-change-password, timestamps; never expose hash |
-| `auth_sessions` | User FK, absolute expiry, revoked_at; session ID included in access JWT for immediate revocation |
-| `refresh_tokens` | Session FK, unique token hash, expiry, consumed_at, replacement link; retain consumed records until session expiry for reuse detection |
-| `categories` | Type, unique `(type, slug)`, display order, active; no image |
-| `category_translations` | Category FK, locale, name; unique `(category_id, locale)` |
-| `places` | Type, category FK, globally unique stable slug, status, unique nullable `cover_image_key`, nullable coordinates, nullable price/currency, price mode (`unknown/free/from/fixed`), website/contact, published_at, featured order, timestamps |
-| `place_translations` | Place FK, locale, title, short description, sanitized body, address, hours note, price unit, SEO title/description; unique `(place_id, locale)` |
-| `place_hours` | Place FK, weekday, interval index, opens/closes, next-day closing flag; support split/overnight hours; explicit closed/unknown handling |
-| `place_images` | Place FK (cascade), unique `storage_key`, required English alt text, optional Arabic alt text, localized captions, order; at most 20 per place |
-| `pages` / `page_translations` | Stable unique page slug, status; locale title/body/SEO and uniqueness per page/locale |
-| `site_settings` | Singleton validated configuration for brand/contact/navigation/footer/app links; no arbitrary executable settings or secrets |
-| `home_content` | Unique locale, validated structured hero/tile/app copy and ordering; no unrestricted page-builder schema |
-| Image key columns | `category_types.image_key`, per-locale `home_content.hero_image_key` and `site_settings.logo_image_key`: unique nullable keys owned by that row, not image IDs hidden inside JSON |
-| `transport_locations` / `transport_location_translations` | Stable code, optional coordinates, pickup/drop-off flags, order, active, localized name |
-| `audit_logs` | Actor FK nullable, action, entity type/ID, timestamp, request ID and redacted changed fields |
+| Table                                                     | Important fields and constraints                                                                                                                                                                                                            |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`                                                   | Unique normalized email, name, password hash, role (`admin` initially), active, must-change-password, timestamps; never expose hash                                                                                                         |
+| `auth_sessions`                                           | User FK, absolute expiry, revoked_at; session ID included in access JWT for immediate revocation                                                                                                                                            |
+| `refresh_tokens`                                          | Session FK, unique token hash, expiry, consumed_at, replacement link; retain consumed records until session expiry for reuse detection                                                                                                      |
+| `categories`                                              | Type, unique `(type, slug)`, display order, active; no image                                                                                                                                                                                |
+| `category_translations`                                   | Category FK, locale, name; unique `(category_id, locale)`                                                                                                                                                                                   |
+| `places`                                                  | Type, category FK, globally unique stable slug, status, unique nullable `cover_image_key`, nullable coordinates, nullable price/currency, price mode (`unknown/free/from/fixed`), website/contact, published_at, featured order, timestamps |
+| `place_translations`                                      | Place FK, locale, title, short description, sanitized body, address, hours note, price unit, SEO title/description; unique `(place_id, locale)`                                                                                             |
+| `place_hours`                                             | Place FK, weekday, interval index, opens/closes, next-day closing flag; support split/overnight hours; explicit closed/unknown handling                                                                                                     |
+| `place_images`                                            | Place FK (cascade), unique `storage_key`, required English alt text, optional Arabic alt text, localized captions, order; at most 20 per place                                                                                              |
+| `pages` / `page_translations`                             | Stable unique page slug, status; locale title/body/SEO and uniqueness per page/locale                                                                                                                                                       |
+| `site_settings`                                           | Singleton validated configuration for brand/contact/navigation/footer/app links; no arbitrary executable settings or secrets                                                                                                                |
+| `home_content`                                            | Unique locale, validated structured hero/tile/app copy and ordering; no unrestricted page-builder schema                                                                                                                                    |
+| Image key columns                                         | `category_types.image_key`, per-locale `home_content.hero_image_key` and `site_settings.logo_image_key`: unique nullable keys owned by that row, not image IDs hidden inside JSON                                                           |
+| `transport_locations` / `transport_location_translations` | Stable code, optional coordinates, pickup/drop-off flags, order, active, localized name                                                                                                                                                     |
+| `audit_logs`                                              | Actor FK nullable, action, entity type/ID, timestamp, request ID and redacted changed fields                                                                                                                                                |
 
 Place type values: `attraction`, `restaurant`, `hotel_resort`, `theater`. One category per place initially; enforce category/type compatibility in the write service. Keep slugs stable on title edits. Add only confirmed type-specific fields later, such as restaurant cuisine or hotel star rating.
 
@@ -134,26 +134,26 @@ Indexes: public listing `(type, status, published_at, id)`; category filtering `
 
 Create `docs/openapi.yaml` alongside implementation, with schemas, auth/cookie/CSRF behavior, examples and errors. Use `/api/v1` for public APIs and `/api/v1/admin` for protected CMS APIs.
 
-| Routes | Purpose |
-| --- | --- |
-| `GET /api/v1/home` | Hero, category tiles, four bounded featured groups, partners and app promotion |
-| `GET /api/v1/site` | Public navigation/footer/branding/contact settings only |
-| `GET /api/v1/categories?type=attraction` | Active categories for a place type |
-| `GET /api/v1/places?type=attraction&category=parks&page=1&perPage=12&locale=en` | Card data and accurate filtered pagination totals; optional bounded `q` search |
-| `GET /api/v1/places/:slug?locale=en` | Published detail, cover, gallery, visit information, SEO and cab CTA metadata |
-| `GET /api/v1/pages/:slug?locale=en` | Published static page |
-| `GET /api/v1/transport/locations` | Active dropdown options |
-| `POST /api/v1/transport/enquiry-link` | Validate location IDs and future Kuwait-local datetime; return configured WhatsApp URL; no reservation or persisted personal data |
-| `/api/v1/admin/auth/{login,refresh,logout}` | POST authentication endpoints; separate documented browser-cookie and API-bearer modes |
-| `GET /api/v1/admin/auth/me` / `PATCH /api/v1/admin/auth/password` | Current admin and password change |
-| `GET /api/v1/admin/dashboard` | Actual content counts/recent activity |
-| `/api/v1/admin/places`, `/categories`, `/pages`, `/transport/locations` | Standard list/create/detail/update/delete routes with validated IDs |
-| `POST /api/v1/admin/places/:id/publish` / `/archive` | Explicit state transitions; publication validation |
-| `GET /api/v1/admin/places/:id/preview` | Authenticated draft preview data |
-| `PUT/DELETE /api/v1/admin/places/:id/cover`, `POST /api/v1/admin/places/:id/gallery`, `PATCH/DELETE /api/v1/admin/places/:id/gallery/:imageId` | Multipart cover/gallery upload, gallery text/order edits and removal |
-| `PUT/DELETE /api/v1/admin/category-types/:code/image`, `/settings/logo`, `/home/hero-image` | Single-image slots; public bytes at `GET /api/v1/images/:key`, admin preview at `GET /api/v1/admin/images/:key` |
-| `GET/PATCH /api/v1/admin/settings` / `/home` | Typed configuration and home content |
-| `PUT /api/v1/admin/home/featured/:type` | Validate ordered unique published place IDs; update atomically |
+| Routes                                                                                                                                         | Purpose                                                                                                                           |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/home`                                                                                                                             | Hero, category tiles, four bounded featured groups, partners and app promotion                                                    |
+| `GET /api/v1/site`                                                                                                                             | Public navigation/footer/branding/contact settings only                                                                           |
+| `GET /api/v1/categories?type=attraction`                                                                                                       | Active categories for a place type                                                                                                |
+| `GET /api/v1/places?type=attraction&category=parks&page=1&perPage=12&locale=en`                                                                | Card data and accurate filtered pagination totals; optional bounded `q` search                                                    |
+| `GET /api/v1/places/:slug?locale=en`                                                                                                           | Published detail, cover, gallery, visit information, SEO and cab CTA metadata                                                     |
+| `GET /api/v1/pages/:slug?locale=en`                                                                                                            | Published static page                                                                                                             |
+| `GET /api/v1/transport/locations`                                                                                                              | Active dropdown options                                                                                                           |
+| `POST /api/v1/transport/enquiry-link`                                                                                                          | Validate location IDs and future Kuwait-local datetime; return configured WhatsApp URL; no reservation or persisted personal data |
+| `/api/v1/admin/auth/{login,refresh,logout}`                                                                                                    | POST authentication endpoints; separate documented browser-cookie and API-bearer modes                                            |
+| `GET /api/v1/admin/auth/me` / `PATCH /api/v1/admin/auth/password`                                                                              | Current admin and password change                                                                                                 |
+| `GET /api/v1/admin/dashboard`                                                                                                                  | Actual content counts/recent activity                                                                                             |
+| `/api/v1/admin/places`, `/categories`, `/pages`, `/transport/locations`                                                                        | Standard list/create/detail/update/delete routes with validated IDs                                                               |
+| `POST /api/v1/admin/places/:id/publish` / `/archive`                                                                                           | Explicit state transitions; publication validation                                                                                |
+| `GET /api/v1/admin/places/:id/preview`                                                                                                         | Authenticated draft preview data                                                                                                  |
+| `PUT/DELETE /api/v1/admin/places/:id/cover`, `POST /api/v1/admin/places/:id/gallery`, `PATCH/DELETE /api/v1/admin/places/:id/gallery/:imageId` | Multipart cover/gallery upload, gallery text/order edits and removal                                                              |
+| `PUT/DELETE /api/v1/admin/category-types/:code/image`, `/settings/logo`, `/home/hero-image`                                                    | Single-image slots; public bytes at `GET /api/v1/images/:key`, admin preview at `GET /api/v1/admin/images/:key`                   |
+| `GET/PATCH /api/v1/admin/settings` / `/home`                                                                                                   | Typed configuration and home content                                                                                              |
+| `PUT /api/v1/admin/home/featured/:type`                                                                                                        | Validate ordered unique published place IDs; update atomically                                                                    |
 
 Use `{ data, meta? }` on success; pagination metadata includes page, perPage, total and lastPage. Default page size 12, maximum 50; deterministic secondary ID ordering. Empty lists return 200. Successful deletion may return 204 without a body.
 
@@ -207,16 +207,16 @@ Use transactional, FK-ordered `DELETE` operations; do not disable FK checks, tru
 
 Implement one phase per model turn. Each phase includes relevant tests; do not postpone all verification to the end.
 
-| Phase | Deliverables | Required acceptance gate |
-| --- | --- | --- |
-| 1 — Foundation | Verify/pin compatible stack; scaffold single app; MySQL/env setup; folders; centralized errors/logging; initial API document | App boots; environment validation works; health check reveals no secrets; typecheck/lint/build pass |
-| 2 — Schema | Models, migrations, relationships, constraints and factories | Dedicated MySQL test DB: migrate up, rollback each batch, migrate again; verify FK/unique behavior; no SQLite substitutes |
-| 3 — Authentication | JWT guard, login/refresh/logout/me/password, admin middleware, admin seeder, operator recovery | Tests for invalid/expired/wrong-issuer/wrong-audience tokens, CSRF, role checks, refresh race/reuse, logout and password revocation; repeat seeding preserves hash |
-| 4 — Media and CMS APIs | Local storage pipeline, place/category/page CRUD, publication, galleries, transport/settings/home endpoints | Invalid uploads rejected; authorization enforced; transactional failures leave no broken references; publication rules and conflict errors verified |
-| 5 — Public APIs and demo data | Home/list/detail/page/site/transport contracts, locale fallback, demo seeder | Each screenshot's content can be composed from APIs; filters/totals/order correct; drafts stay private; KWD has 3 decimals; rerun demo safely |
-| 6 — CMS interface | Reference theme, login/dashboard and all editors wired to real APIs | Browser flow: login → upload → create draft → preview → publish → public API confirms → archive; responsive/keyboard/error states reviewed against references |
-| 7 — Reset and operations | Admin-preserving command, orphan cleanup, backup/restore/rollback instructions | MySQL test with populated data: dry-run changes nothing; reset preserves exact credentials, revokes sessions, removes content/files; admin logs in; reseeding works |
-| 8 — Final verification | Complete OpenAPI, README, environment example, production checklist and handoff | Full build/typecheck/lint/relevant tests pass; API docs match routes; query count checks on realistic fixtures; no TODO endpoints, fake dashboard values or committed secrets |
+| Phase                         | Deliverables                                                                                                                 | Required acceptance gate                                                                                                                                                      |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 — Foundation                | Verify/pin compatible stack; scaffold single app; MySQL/env setup; folders; centralized errors/logging; initial API document | App boots; environment validation works; health check reveals no secrets; typecheck/lint/build pass                                                                           |
+| 2 — Schema                    | Models, migrations, relationships, constraints and factories                                                                 | Dedicated MySQL test DB: migrate up, rollback each batch, migrate again; verify FK/unique behavior; no SQLite substitutes                                                     |
+| 3 — Authentication            | JWT guard, login/refresh/logout/me/password, admin middleware, admin seeder, operator recovery                               | Tests for invalid/expired/wrong-issuer/wrong-audience tokens, CSRF, role checks, refresh race/reuse, logout and password revocation; repeat seeding preserves hash            |
+| 4 — Media and CMS APIs        | Local storage pipeline, place/category/page CRUD, publication, galleries, transport/settings/home endpoints                  | Invalid uploads rejected; authorization enforced; transactional failures leave no broken references; publication rules and conflict errors verified                           |
+| 5 — Public APIs and demo data | Home/list/detail/page/site/transport contracts, locale fallback, demo seeder                                                 | Each screenshot's content can be composed from APIs; filters/totals/order correct; drafts stay private; KWD has 3 decimals; rerun demo safely                                 |
+| 6 — CMS interface             | Reference theme, login/dashboard and all editors wired to real APIs                                                          | Browser flow: login → upload → create draft → preview → publish → public API confirms → archive; responsive/keyboard/error states reviewed against references                 |
+| 7 — Reset and operations      | Admin-preserving command, orphan cleanup, backup/restore/rollback instructions                                               | MySQL test with populated data: dry-run changes nothing; reset preserves exact credentials, revokes sessions, removes content/files; admin logs in; reseeding works           |
+| 8 — Final verification        | Complete OpenAPI, README, environment example, production checklist and handoff                                              | Full build/typecheck/lint/relevant tests pass; API docs match routes; query count checks on realistic fixtures; no TODO endpoints, fake dashboard values or committed secrets |
 
 Database integration/destructive tests must use a dedicated test database with a guard rejecting development/production database names. Never execute reset/rollback tests against a user's live database.
 

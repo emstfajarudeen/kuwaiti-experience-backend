@@ -117,7 +117,7 @@ Expose `featured_order` as a nullable numeric input beside the existing featured
 | `DELETE /api/v2/admin/home/hero-image?locale=en`          | Remove hero through existing service; 204                                                                             |
 | `GET /api/v2/admin/home-explore-cards?page=1&per_page=20` | Canonical selection rows, paginated, including inactive/preparation cards                                             |
 | `POST /api/v2/admin/home-explore-cards`                   | Create selection with required `place_id`, `sort_order`, `active`; optional nullable captions; 201 with canonical row |
-| `GET /api/v2/admin/home-explore-cards/:id`                | Read one canonical selection and its referenced complete Place                                                     |
+| `GET /api/v2/admin/home-explore-cards/:id`                | Read one canonical selection and its referenced complete Place                                                        |
 | `PUT /api/v2/admin/home-explore-cards/:id`                | Update complete selection inputs and return canonical row                                                             |
 | `DELETE /api/v2/admin/home-explore-cards/:id`             | Remove selection only; retain venue and cover; 204                                                                    |
 | `PATCH /api/v2/admin/places/:id/featured`                 | Update nullable `featured_order`; return canonical Place                                                              |
