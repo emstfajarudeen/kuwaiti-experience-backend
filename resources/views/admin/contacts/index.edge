@@ -18,16 +18,39 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th scope="col" class="th-edit" aria-label="View"></th>
               <th scope="col">Visitor</th>
               <th scope="col">Inquiry Type</th>
               <th scope="col">Status</th>
               <th scope="col">Received (Kuwait)</th>
-              <th scope="col" style="text-align: right;">Action</th>
+              <th scope="col" class="th-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
             @each(contact in data)
               <tr>
+                <td class="td-edit">
+                  <a
+                    href="/admin/contact-requests/{{ contact.id }}"
+                    class="action-pencil-btn"
+                    title="View request from {{ contact.full_name }}"
+                    aria-label="View request from {{ contact.full_name }}"
+                  >
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                      <path d="m15 5 4 4" />
+                    </svg>
+                  </a>
+                </td>
                 <td>
                   <div class="place-title-wrap">
                     <strong>{{ contact.full_name }}</strong>
@@ -63,13 +86,45 @@
                   </span>
                 </td>
                 <td style="color: var(--muted); font-size: 13px;">{{ contact.created_at }}</td>
-                <td style="text-align: right;">
-                  <a
-                    class="button secondary table-action"
-                    href="/admin/contact-requests/{{ contact.id }}"
-                  >
-                    View
-                  </a>
+                <td class="td-actions">
+                  <div class="row-menu" data-row-menu>
+                    <button
+                      type="button"
+                      class="action-dots-btn"
+                      aria-haspopup="true"
+                      aria-expanded="false"
+                      title="More actions"
+                      aria-label="More actions for request from {{ contact.full_name }}"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="5" r="1.75" />
+                        <circle cx="12" cy="12" r="1.75" />
+                        <circle cx="12" cy="19" r="1.75" />
+                      </svg>
+                    </button>
+                    <div class="row-menu-dropdown" role="menu">
+                      <a
+                        href="/admin/contact-requests/{{ contact.id }}"
+                        class="row-menu-item"
+                        role="menuitem"
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        <span>View inquiry</span>
+                      </a>
+                    </div>
+                  </div>
                 </td>
               </tr>
             @end

@@ -29,7 +29,15 @@
             <label>
               
               
+              
+              
+              
+              
               Code
+
+
+
+
 
 
               <input
@@ -45,7 +53,15 @@
             <label>
               
               
+              
+              
+              
+              
               Code
+
+
+
+
 
 
               <input
@@ -59,7 +75,15 @@
           <label>
             
             
+            
+            
+            
+            
             Display order
+
+
+
+
 
 
             <input
@@ -73,7 +97,15 @@
           <label>
             
             
+            
+            
+            
+            
             English name
+
+
+
+
 
 
             <input
@@ -88,7 +120,15 @@
           <label>
             
             
+            
+            
+            
+            
             Arabic name
+
+
+
+
 
 
             <input
@@ -106,17 +146,70 @@
               Tile image
             </span>
             @if(imageUrl)
-              <div style="margin: 8px 0;">
-                <img
-                  src="{{ imageUrl }}"
-                  alt="{{ categoryType.name_en }}"
-                  style="max-width: 240px; height: 140px; border-radius: var(--radius-sm); object-fit: cover; border: 1px solid var(--line);"
-                />
+              <div
+                id="tile-image-preview-card"
+                style="display: inline-flex; flex-direction: column; align-items: flex-start; margin: 8px 0;"
+              >
+                <div
+                  style="position: relative; width: 140px; height: 140px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: #ffffff; overflow: hidden; display: flex; align-items: center; justify-content: center;"
+                >
+                  <img
+                    src="{{ imageUrl }}"
+                    alt="{{ categoryType.name_en }}"
+                    style="max-width: 100%; max-height: 100%; object-fit: contain; padding: 6px; display: block;"
+                  />
+                  <button
+                    type="button"
+                    id="btn-remove-tile-image-overlay"
+                    title="Remove image"
+                    aria-label="Remove image"
+                    style="position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border-radius: 50%; background: rgba(220, 38, 38, 0.92); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.6); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.25); transition: transform 0.15s ease;"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path
+                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                      ></path>
+                    </svg>
+                  </button>
+                </div>
               </div>
+
+              <div
+                id="tile-image-removed-banner"
+                style="display: none; width: 140px; height: 140px; margin: 8px 0; border: 2px dashed var(--line); border-radius: var(--radius-sm); background: var(--surface-subtle); flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; padding: 12px; box-sizing: border-box;"
+              >
+                <span style="font-size: 12px; font-weight: 600; color: var(--danger-text);">
+                  Image removed
+                </span>
+                <button
+                  type="button"
+                  id="btn-undo-remove-tile-image"
+                  class="button secondary"
+                  style="min-height: 28px; padding: 2px 10px; font-size: 12px;"
+                >
+                  Undo
+                </button>
+              </div>
+
+              <input type="hidden" name="removeImage" id="input-remove-tile-image" value="" />
             @end
 
             <div class="image-upload" style="margin-top: 8px;">
-              <span style="display: block; font-weight: 600; margin-bottom: 6px;">
+              <span
+                id="tile-image-upload-title"
+                style="display: block; font-weight: 600; margin-bottom: 6px;"
+              >
                 {{ imageUrl ? 'Replace tile image' : 'Upload tile image' }}
               </span>
               <input
@@ -127,16 +220,6 @@
                 data-image-upload
               />
             </div>
-            @if(imageUrl)
-              <label class="checkbox-line" style="margin-top: 8px;">
-                <input type="checkbox" name="removeImage" />
-                
-                
-                Remove tile image
-
-
-              </label>
-            @end
           </div>
         </div>
       </section>
@@ -169,4 +252,34 @@
       </div>
     </section>
   @end
+
+  <script>
+    (function () {
+      const removeOverlayBtn = document.getElementById('btn-remove-tile-image-overlay');
+      const undoBtn = document.getElementById('btn-undo-remove-tile-image');
+      const previewCard = document.getElementById('tile-image-preview-card');
+      const removedBanner = document.getElementById('tile-image-removed-banner');
+      const removeInput = document.getElementById('input-remove-tile-image');
+      const uploadTitle = document.getElementById('tile-image-upload-title');
+
+      function triggerRemove() {
+        if (!removeInput) return;
+        removeInput.value = 'on';
+        if (previewCard) previewCard.style.display = 'none';
+        if (removedBanner) removedBanner.style.display = 'flex';
+        if (uploadTitle) uploadTitle.textContent = 'Upload tile image';
+      }
+
+      function triggerUndo() {
+        if (!removeInput) return;
+        removeInput.value = '';
+        if (previewCard) previewCard.style.display = 'inline-flex';
+        if (removedBanner) removedBanner.style.display = 'none';
+        if (uploadTitle) uploadTitle.textContent = 'Replace tile image';
+      }
+
+      if (removeOverlayBtn) removeOverlayBtn.addEventListener('click', triggerRemove);
+      if (undoBtn) undoBtn.addEventListener('click', triggerUndo);
+    })();
+  </script>
 @end

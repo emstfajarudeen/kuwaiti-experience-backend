@@ -25,7 +25,7 @@
         <label>Arabic name<input name="nameAr" dir="rtl" lang="ar" maxlength="160" /></label>
         <label>Slug<input name="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="landmarks" /></label>
         <label>Order<input name="sortOrder" type="number" value="0" /></label>
-        <label class="checkbox-line"><input name="active" type="checkbox" checked /> Visible to visitors</label>
+        <label class="checkbox-line"><input name="active" type="checkbox" checked /> Active</label>
         <button class="button primary" type="submit">Create category</button>
       @end
     </section>
@@ -56,7 +56,7 @@
                   <label>Slug<input name="slug" value="{{ item.slug }}" required /></label>
                   <label>Order<input name="sortOrder" type="number" value="{{ item.sort_order }}" /></label>
                   <div class="full" style="display: flex; gap: 16px;">
-                    <label class="checkbox-line"><input name="active" type="checkbox" @if(item.active) checked @end /> Visible to visitors</label>
+                    <label class="checkbox-line"><input name="active" type="checkbox" @if(item.active) checked @end /> Active</label>
                   </div>
                   <div class="full" style="display: flex; gap: 12px; align-items: center; margin-top: 8px;">
                     <button class="button secondary" type="submit">Save changes</button>

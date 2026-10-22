@@ -19,7 +19,12 @@ function formInput(request: HttpContext['request']) {
 
 export default class AdminCategoryTypesPageController {
   async index({ view, admin }: HttpContext) {
-    return view.render('admin/category_types/index', { admin, rows: await categoryTypes() })
+    const types = await categoryTypes()
+    const rows = types.map((row) => ({
+      ...row,
+      imageUrl: cmsImageUrl(row.image_key),
+    }))
+    return view.render('admin/category_types/index', { admin, rows })
   }
 
   async create({ view, admin }: HttpContext) {
@@ -48,11 +53,13 @@ export default class AdminCategoryTypesPageController {
       if (params.code) {
         const input = await categoryTypeValidator.validate(formInput(request))
         const { image } = await prepareImages(admin.id, { image: imageFiles(request, 'image') })
+        const removeImage = request.input('removeImage')
+        const isRemove = removeImage === 'on' || removeImage === '1' || removeImage === 'true'
         await updateCategoryType(
           params.code,
           input,
           admin.id,
-          image[0] ?? (request.input('removeImage') === 'on' ? 'remove' : undefined)
+          image[0] ?? (isRemove ? 'remove' : undefined)
         )
         session.flash('success', 'Category type saved.')
         return response.redirect('/admin/category-types/saved')

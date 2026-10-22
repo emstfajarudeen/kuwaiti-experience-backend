@@ -165,3 +165,71 @@ if (uploads.length) {
     }
   })
 }
+
+// Table Row Actions Dropdown Menu (3-dot)
+function setupRowMenus() {
+  const closeAllMenus = () => {
+    for (const menu of document.querySelectorAll('[data-row-menu].is-open')) {
+      menu.classList.remove('is-open')
+      menu.querySelector('.action-dots-btn')?.setAttribute('aria-expanded', 'false')
+      const dropdown = menu.querySelector('.row-menu-dropdown')
+      if (dropdown) {
+        dropdown.style.top = ''
+        dropdown.style.right = ''
+        dropdown.style.left = ''
+        dropdown.style.bottom = ''
+      }
+    }
+  }
+
+  document.addEventListener('click', (event) => {
+    const toggleBtn = event.target.closest('[data-row-menu] .action-dots-btn')
+    const clickedInsideDropdown = event.target.closest('.row-menu-dropdown')
+
+    if (toggleBtn) {
+      event.preventDefault()
+      event.stopPropagation()
+      const parentMenu = toggleBtn.closest('[data-row-menu]')
+      const wasOpen = parentMenu.classList.contains('is-open')
+
+      closeAllMenus()
+
+      if (!wasOpen) {
+        parentMenu.classList.add('is-open')
+        toggleBtn.setAttribute('aria-expanded', 'true')
+
+        const dropdown = parentMenu.querySelector('.row-menu-dropdown')
+        if (dropdown) {
+          const rect = toggleBtn.getBoundingClientRect()
+          const spaceBelow = window.innerHeight - rect.bottom
+          const dropdownHeight = 120
+          if (spaceBelow < dropdownHeight && rect.top > dropdownHeight) {
+            dropdown.style.top = 'auto'
+            dropdown.style.bottom = `${window.innerHeight - rect.top + 4}px`
+          } else {
+            dropdown.style.bottom = 'auto'
+            dropdown.style.top = `${rect.bottom + 4}px`
+          }
+          dropdown.style.right = `${Math.max(10, window.innerWidth - rect.right)}px`
+          dropdown.style.left = 'auto'
+        }
+      }
+      return
+    }
+
+    if (clickedInsideDropdown) {
+      setTimeout(closeAllMenus, 150)
+      return
+    }
+
+    closeAllMenus()
+  })
+
+  window.addEventListener('scroll', closeAllMenus, true)
+  window.addEventListener('resize', closeAllMenus)
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeAllMenus()
+  })
+}
+
+setupRowMenus()

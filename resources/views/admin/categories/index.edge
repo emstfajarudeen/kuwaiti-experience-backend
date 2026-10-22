@@ -44,25 +44,62 @@
         <table class="data-table">
           <thead>
             <tr>
+              <th scope="col" class="th-edit" aria-label="Edit"></th>
               <th scope="col">Category</th>
               <th scope="col">Arabic name</th>
               <th scope="col">Place type</th>
               <th scope="col">Visibility</th>
               <th scope="col">Order</th>
-              <th scope="col" style="text-align: right;">Actions</th>
+              <th scope="col" class="th-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
             @each(category in rows)
               <tr>
+                <td class="td-edit">
+                  <a
+                    href="/admin/categories/{{ category.id }}/edit"
+                    class="action-pencil-btn"
+                    title="Edit {{ category.name_en || category.name || category.slug }}"
+                    aria-label="Edit {{ category.name_en || category.name || category.slug }}"
+                  >
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                      <path d="m15 5 4 4" />
+                    </svg>
+                  </a>
+                </td>
                 <td>
-                  <strong>{{ category.name_en }}</strong>
+                  <strong>{{ category.name_en || category.name || category.slug }}</strong>
                   <div style="font-size: 12px; color: var(--ink-secondary);">
                     {{ category.slug }}
                   </div>
                 </td>
                 <td dir="rtl" style="font-family: inherit;">{{ category.name_ar || '—' }}</td>
-                <td><span class="type-pill">{{ category.type.replace('_', ' ') }}</span></td>
+                <td>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    @if(category.type_image_key)
+                      <img
+                        src="{{ '/admin/images/' + category.type_image_key }}"
+                        alt=""
+                        style="width: 28px; height: 28px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--line); flex-shrink: 0;"
+                      />
+                    @end
+
+                    <span class="type-pill">
+                      {{ category.type_name_en || category.type.replace('_', ' ') }}
+                    </span>
+                  </div>
+                </td>
                 <td>
                   @if(category.active)
                     <span class="status published">Active</span>
@@ -71,13 +108,53 @@
                   @end
                 </td>
                 <td>{{ category.sort_order }}</td>
-                <td style="text-align: right;">
-                  <a
-                    class="button secondary table-action"
-                    href="/admin/categories/{{ category.id }}/edit"
-                  >
-                    Edit
-                  </a>
+                <td class="td-actions">
+                  <div class="row-menu" data-row-menu>
+                    <button
+                      type="button"
+                      class="action-dots-btn"
+                      aria-haspopup="true"
+                      aria-expanded="false"
+                      title="More actions"
+                      aria-label="More actions for {{ category.name_en || category.name || category.slug }}"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="5" r="1.75" />
+                        <circle cx="12" cy="12" r="1.75" />
+                        <circle cx="12" cy="19" r="1.75" />
+                      </svg>
+                    </button>
+                    <div class="row-menu-dropdown" role="menu">
+                      @form({
+                        action: `/admin/categories/${category.id}/delete`,
+                        method: 'POST',
+                        'data-confirm': `Delete category "${category.name_en || category.name || category.slug}"? Places assigned to it will become uncategorized.`,
+                        'data-confirm-title': 'Delete category',
+                        'data-confirm-btn': 'Delete',
+                        'data-confirm-variant': 'danger',
+                      })
+                        <button type="submit" class="row-menu-item danger" role="menuitem">
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          >
+                            <path d="M3 6h18" />
+                            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                            <line x1="10" x2="10" y1="11" y2="17" />
+                            <line x1="14" x2="14" y1="11" y2="17" />
+                          </svg>
+                          <span>Delete</span>
+                        </button>
+                      @end
+                    </div>
+                  </div>
                 </td>
               </tr>
             @end

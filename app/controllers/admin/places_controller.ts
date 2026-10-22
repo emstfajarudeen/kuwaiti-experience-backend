@@ -155,7 +155,14 @@ export default class AdminPlacesPageController {
 
   async create({ view, admin }: HttpContext) {
     const [categories, types] = await Promise.all([
-      db.from('categories').orderBy('type').orderBy('sort_order'),
+      db
+        .from('categories as c')
+        .leftJoin('category_translations as t', function () {
+          this.on('t.category_id', '=', 'c.id').andOnVal('t.locale', '=', 'en')
+        })
+        .select('c.id', 'c.type', 'c.slug', 't.name as name_en', 't.name as name')
+        .orderBy('c.type')
+        .orderBy('c.sort_order'),
       categoryTypes(),
     ])
     return view.render('admin/places/edit', {
@@ -177,7 +184,14 @@ export default class AdminPlacesPageController {
     if (!place) return response.redirect('/admin/places')
     const [translations, categories, gallery, hours, types] = await Promise.all([
       db.from('place_translations').where('place_id', place.id),
-      db.from('categories').orderBy('type').orderBy('sort_order'),
+      db
+        .from('categories as c')
+        .leftJoin('category_translations as t', function () {
+          this.on('t.category_id', '=', 'c.id').andOnVal('t.locale', '=', 'en')
+        })
+        .select('c.id', 'c.type', 'c.slug', 't.name as name_en', 't.name as name')
+        .orderBy('c.type')
+        .orderBy('c.sort_order'),
       db.from('place_images').where('place_id', place.id).orderBy('sort_order').orderBy('id'),
       db
         .from('place_hours')

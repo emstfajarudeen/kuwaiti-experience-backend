@@ -24,7 +24,7 @@ function cmsPost(
 test.group('CMS pages', (group) => {
   group.each.setup(() => testUtils.db().truncate())
 
-  test('renders every CMS section for an admin', async ({ client }) => {
+  test('renders every CMS section for an admin', async ({ client, assert }) => {
     await db.table('users').insert({
       full_name: 'Test Admin',
       email: 'admin@example.com',
@@ -78,6 +78,20 @@ test.group('CMS pages', (group) => {
       const response = await client.get(path).cookie('admin_access', token)
       response.assertStatus(200)
     }
+    const categoriesView = await client.get('/admin/categories').cookie('admin_access', token)
+    categoriesView.assertTextIncludes('Landmarks')
+    assert.notInclude(categoriesView.text(), 'undefined')
+    categoriesView.assertTextIncludes('class="action-pencil-btn"')
+    categoriesView.assertTextIncludes('class="action-dots-btn"')
+    categoriesView.assertTextIncludes('class="row-menu-dropdown"')
+    categoriesView.assertTextIncludes(`action="/admin/categories/${categoryId}/delete"`)
+
+    const categoryTypesView = await client
+      .get('/admin/category-types')
+      .cookie('admin_access', token)
+    categoryTypesView.assertTextIncludes('class="action-pencil-btn"')
+    categoryTypesView.assertTextIncludes('class="action-dots-btn"')
+    categoryTypesView.assertTextIncludes('action="/admin/category-types/attraction/delete"')
     const editor = await client.get('/admin/places/new').cookie('admin_access', token)
     editor.assertTextIncludes('name="coverImage"')
     editor.assertTextIncludes('name="galleryImages[]"')

@@ -32,11 +32,12 @@
         <div class="form-grid two" style="margin-top: 16px;">
           <label>
             Place type
-            <select name="type" required>
+            <select name="type" id="place-type-select" required>
+              <option value="" @if(form.type !== undefined ? !form.type : !place) selected @end>Select a place type</option>
               @each(type in types)
                 <option
                   value="{{ type.code }}"
-                  @if(form.type ? form.type === type.code : ((place && place.type === type.code) || (!place && type.code === types[0]?.code)))
+                  @if(form.type !== undefined ? form.type === type.code : (place && place.type === type.code))
                     selected
                   @end
                 >
@@ -48,16 +49,17 @@
 
           <label>
             Category
-            <select name="categoryId">
+            <select name="categoryId" id="place-category-select">
               <option value="">Uncategorized</option>
               @each(category in categories)
                 <option
                   value="{{ category.id }}"
+                  data-type="{{ category.type }}"
                   @if(form.categoryId !== undefined ? String(form.categoryId) === String(category.id) : (place && place.category_id === category.id))
                     selected
                   @end
                 >
-                  {{ category.type.replace('_', ' ') }} / {{ category.slug }}
+                  {{ category.name_en || category.name || category.slug }}
                 </option>
               @end
             </select>
@@ -366,4 +368,51 @@
       </div>
     </section>
   @end
+
+  <script>
+    (function () {
+      const typeSelect = document.getElementById('place-type-select');
+      const categorySelect = document.getElementById('place-category-select');
+      if (!typeSelect || !categorySelect) return;
+
+      const allOptions = Array.from(categorySelect.options).map(function (opt) {
+        return {
+          value: opt.value,
+          text: opt.textContent.trim(),
+          type: opt.getAttribute('data-type') || '',
+        };
+      });
+
+      function syncCategories() {
+        const selectedType = typeSelect.value;
+        const currentSelectedValue = categorySelect.value;
+
+        categorySelect.innerHTML = '';
+        var matchedCurrent = false;
+
+        allOptions.forEach(function (opt) {
+          if (!opt.value || !selectedType || opt.type === selectedType) {
+            const optionEl = document.createElement('option');
+            optionEl.value = opt.value;
+            optionEl.textContent = opt.text;
+            if (opt.type) {
+              optionEl.setAttribute('data-type', opt.type);
+            }
+            if (opt.value === currentSelectedValue) {
+              optionEl.selected = true;
+              matchedCurrent = true;
+            }
+            categorySelect.appendChild(optionEl);
+          }
+        });
+
+        if (!matchedCurrent && currentSelectedValue) {
+          categorySelect.value = '';
+        }
+      }
+
+      typeSelect.addEventListener('change', syncCategories);
+      syncCategories();
+    })();
+  </script>
 @end

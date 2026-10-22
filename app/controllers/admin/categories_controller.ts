@@ -28,7 +28,9 @@ export default class AdminCategoriesPageController {
         'c.active',
         'c.sort_order',
         't.name',
+        't.name as name_en',
         'ar.name as name_ar',
+        'ct.image_key as type_image_key',
         db.raw('COALESCE(ct.name_en, c.type) as type_name_en')
       )
       .orderBy('c.type')

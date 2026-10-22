@@ -131,16 +131,30 @@
           <table class="data-table">
             <thead>
               <tr>
+                <th scope="col" class="th-edit" aria-label="Edit"></th>
                 <th scope="col">Feature</th>
                 <th scope="col">Type</th>
                 <th scope="col">Kind</th>
                 <th scope="col">Status</th>
-                <th scope="col" style="text-align: right;">Actions</th>
+                <th scope="col" class="th-actions">Actions</th>
               </tr>
             </thead>
             <tbody>
               @each(feature in features)
                 <tr>
+                  <td class="td-edit">
+                    <a
+                      href="/admin/place-features/{{ feature.id }}/edit"
+                      class="action-pencil-btn"
+                      title="Edit {{ feature.name_en }}"
+                      aria-label="Edit {{ feature.name_en }}"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                        <path d="m15 5 4 4"/>
+                      </svg>
+                    </a>
+                  </td>
                   <td>
                     <div class="place-title-wrap">
                       <strong>{{ feature.name_en }}</strong>
@@ -158,14 +172,43 @@
                       {{ feature.active ? 'Active' : 'Hidden' }}
                     </span>
                   </td>
-                  <td class="actions-cell">
-                    <div class="row-actions">
-                      <a class="row-action-link" href="/admin/place-features/{{ feature.id }}/edit">
-                        Edit
-                      </a>
-                      @form({ action: `/admin/place-features/${feature.id}/delete`, method: 'POST', 'data-confirm': `Delete feature "${feature.name_en}"? Ensure it is not assigned to any venue.` })
-                        <button class="text-button danger" type="submit" style="font-size: 12px; padding: 4px 8px;">Delete</button>
-                      @end
+                  <td class="td-actions">
+                    <div class="row-menu" data-row-menu>
+                      <button
+                        type="button"
+                        class="action-dots-btn"
+                        aria-haspopup="true"
+                        aria-expanded="false"
+                        title="More actions"
+                        aria-label="More actions for {{ feature.name_en }}"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx="12" cy="5" r="1.75"/>
+                          <circle cx="12" cy="12" r="1.75"/>
+                          <circle cx="12" cy="19" r="1.75"/>
+                        </svg>
+                      </button>
+                      <div class="row-menu-dropdown" role="menu">
+                        @form({
+                          action: `/admin/place-features/${feature.id}/delete`,
+                          method: 'POST',
+                          'data-confirm': `Delete feature "${feature.name_en}"? Ensure it is not assigned to any venue.`,
+                          'data-confirm-title': 'Delete feature',
+                          'data-confirm-btn': 'Delete',
+                          'data-confirm-variant': 'danger'
+                        })
+                          <button type="submit" class="row-menu-item danger" role="menuitem">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M3 6h18"/>
+                              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                              <line x1="10" x2="10" y1="11" y2="17"/>
+                              <line x1="14" x2="14" y1="11" y2="17"/>
+                            </svg>
+                            <span>Delete</span>
+                          </button>
+                        @end
+                      </div>
                     </div>
                   </td>
                 </tr>
