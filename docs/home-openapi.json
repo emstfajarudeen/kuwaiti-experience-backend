@@ -21,13 +21,14 @@
             "customerBearer": []
           }
         ],
+        "parameters": [{"name":"locale","in":"query","required":false,"schema":{"type":"string","enum":["en","ar"],"default":"en"}}],
         "responses": {
           "200": {
             "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HomePage"
+                  "$ref": "#/components/schemas/LocalizedHomePage"
                 }
               }
             }
@@ -523,6 +524,11 @@
       }
     },
     "schemas": {
+      "LocalizedHomePage": {"type":"object","additionalProperties":false,"required":["data","meta"],"properties":{"data":{"type":"object","additionalProperties":false,"required":["home_content","category_types","home_explore_cards","places"],"properties":{"home_content":{"type":"array","items":{"$ref":"#/components/schemas/HomeContent"},"maxItems":1},"category_types":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedCategoryType"}},"home_explore_cards":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedHomeExploreCard"}},"places":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedPlace"}}}},"meta":{"type":"object","additionalProperties":false,"required":["home_sections","viewer","images","evaluated_at"],"properties":{"home_sections":{"type":"array","items":{"$ref":"#/components/schemas/HomeSection"}},"viewer":{"type":"array","items":{"$ref":"#/components/schemas/Viewer"}},"images":{"type":"array","items":{"$ref":"#/components/schemas/ImageLink"}},"evaluated_at":{"type":"string","format":"date-time"}}}}},
+      "LocalizedHomeExploreCard": {"type":"object","additionalProperties":false,"required":["id","place_id","caption","sort_order","active","created_at","updated_at"],"properties":{"id":{"type":"integer"},"place_id":{"type":"integer"},"caption":{"type":["string","null"]},"sort_order":{"type":"integer"},"active":{"type":"boolean"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":["string","null"],"format":"date-time"}}},
+      "LocalizedCategoryType": {"$ref":"./explore-openapi.json#/components/schemas/LocalizedCategoryType"},
+      "LocalizedPlace": {"$ref":"./explore-openapi.json#/components/schemas/LocalizedPlace"},
+
       "HomeContent": {
         "type": "object",
         "additionalProperties": false,

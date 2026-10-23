@@ -3,7 +3,7 @@
   "info": {
     "title": "Kuwaiti Experience Explore API",
     "version": "2.0.0",
-    "description": "Canonical DB-key discovery, saved places and CMS-managed features/movies/showtimes. Full stored translation rows are returned; select a locale per field with English fallback in the client. Schedule and ride creation are outside this API."
+    "description": "Discovery, saved places and CMS-managed features/movies/showtimes. Public category and place lists select locale=en|ar with per-field English fallback; other reads retain stored language fields. Schedule and ride creation are outside this API."
   },
   "servers": [
     {
@@ -137,7 +137,7 @@
     },
     "/api/v2/categories": {
       "get": {
-        "summary": "Active categories with stored translation rows",
+        "summary": "Active categories with selected locale and English fallback",
         "tags": ["Explore v2"],
         "responses": {
           "200": {
@@ -152,7 +152,7 @@
                     "data": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/Category"
+                        "$ref": "#/components/schemas/LocalizedCategory"
                       }
                     }
                   }
@@ -238,6 +238,7 @@
           }
         ],
         "parameters": [
+          {"name":"locale","in":"query","required":false,"schema":{"type":"string","enum":["en","ar"],"default":"en"}},
           {
             "name": "type",
             "in": "query",
@@ -365,7 +366,7 @@
     },
     "/api/v2/places": {
       "get": {
-        "summary": "Published places, filters and viewer state",
+        "summary": "Published places with selected locale and English fallback",
         "tags": ["Explore v2"],
         "responses": {
           "200": {
@@ -373,7 +374,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlaceList"
+                  "$ref": "#/components/schemas/LocalizedPlaceList"
                 }
               }
             }
@@ -456,6 +457,7 @@
           }
         ],
         "parameters": [
+          {"name":"locale","in":"query","required":false,"schema":{"type":"string","enum":["en","ar"],"default":"en"}},
           {
             "name": "type",
             "in": "query",
@@ -3145,6 +3147,14 @@
       }
     },
     "schemas": {
+      "LocalizedPlaceImage": {"type":"object","additionalProperties":false,"required":["id","place_id","storage_key","alt","caption","sort_order","created_at"],"properties":{"id":{"type":"integer"},"place_id":{"type":"integer"},"storage_key":{"type":"string"},"alt":{"type":"string"},"caption":{"type":["string","null"]},"sort_order":{"type":"integer"},"created_at":{"type":"string","format":"date-time"}}},
+      "LocalizedFeature": {"type":"object","additionalProperties":false,"required":["id","type","code","kind","name","active","sort_order","created_at","updated_at"],"properties":{"id":{"type":"integer"},"type":{"type":"string"},"code":{"type":"string"},"kind":{"type":"string","enum":["highlight","amenity","capability"]},"name":{"type":"string"},"active":{"type":"boolean"},"sort_order":{"type":"integer"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":["string","null"],"format":"date-time"}}},
+
+      "LocalizedCategoryType": {"type":"object","additionalProperties":false,"required":["code","name","image_key","sort_order","updated_at"],"properties":{"code":{"type":"string"},"name":{"type":"string"},"image_key":{"type":["string","null"]},"sort_order":{"type":"integer"},"updated_at":{"type":["string","null"],"format":"date-time"}}},
+      "LocalizedCategory": {"type":"object","additionalProperties":false,"required":["id","type","slug","sort_order","active","created_at","updated_at","category_translations"],"properties":{"id":{"type":"integer"},"type":{"type":"string"},"slug":{"type":"string"},"sort_order":{"type":"integer"},"active":{"type":"boolean"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":["string","null"],"format":"date-time"},"category_translations":{"type":"array","items":{"$ref":"#/components/schemas/CategoryTranslation"},"maxItems":1}}},
+      "LocalizedPlace": {"type":"object","additionalProperties":false,"required":["id","type","category_id","slug","status","cover_image_key","latitude","longitude","price_amount","price_currency","price_mode","website_url","featured_order","phone_e164","check_in_time","check_out_time","screen_count","published_at","created_at","updated_at","place_translations","place_hours","place_images","place_features"],"properties":{"id":{"type":"integer"},"type":{"type":"string"},"category_id":{"type":["integer","null"]},"slug":{"type":"string"},"status":{"type":"string","enum":["draft","published","archived"]},"cover_image_key":{"type":["string","null"]},"latitude":{"type":["number","null"]},"longitude":{"type":["number","null"]},"price_amount":{"type":["string","null"],"pattern":"^\\d+\\.\\d{3}$"},"price_currency":{"type":"string"},"price_mode":{"type":"string","enum":["unknown","free","from","fixed"]},"website_url":{"type":["string","null"]},"featured_order":{"type":["integer","null"]},"phone_e164":{"type":["string","null"],"pattern":"^\\+[1-9]\\d{7,14}$"},"check_in_time":{"type":["string","null"],"pattern":"^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$"},"check_out_time":{"type":["string","null"],"pattern":"^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$"},"screen_count":{"type":["integer","null"]},"published_at":{"type":["string","null"],"format":"date-time"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":["string","null"],"format":"date-time"},"place_translations":{"type":"array","items":{"$ref":"#/components/schemas/PlaceTranslation"},"maxItems":1},"place_hours":{"type":"array","items":{"$ref":"#/components/schemas/PlaceHour"}},"place_images":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedPlaceImage"}},"place_features":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedFeature"}}}},
+      "LocalizedPlaceList": {"type":"object","additionalProperties":false,"required":["data","meta"],"properties":{"data":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedPlace"}},"meta":{"type":"object","additionalProperties":false,"required":["viewer","images","evaluated_at","page","per_page","total","last_page"],"properties":{"viewer":{"type":"array","items":{"$ref":"#/components/schemas/Viewer"}},"images":{"type":"array","items":{"$ref":"#/components/schemas/ImageLink"}},"evaluated_at":{"type":"string","format":"date-time"},"page":{"type":"integer"},"per_page":{"type":"integer"},"total":{"type":"integer"},"last_page":{"type":"integer"}}}}},
+
       "CategoryType": {
         "type": "object",
         "additionalProperties": false,

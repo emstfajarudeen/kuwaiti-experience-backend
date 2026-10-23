@@ -8,6 +8,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { DateTime } from 'luxon'
 import sharp from 'sharp'
 import { loginAdmin } from '../../app/services/auth_service.js'
+import { localizePublicData } from '../../app/services/public_localization.js'
 
 const expectStatus = (response: { assertStatus: (status: number) => void }, status: number) =>
   response.assertStatus(status)
@@ -114,10 +115,8 @@ test.group('Explore and CMS extensions', (group) => {
     detail.assertStatus(200)
     list.assertStatus(200)
     const expected = detail.body().data
-    assert.deepEqual(
-      list.body().data.find((row: { id: number }) => row.id === p.id),
-      expected
-    )
+    const listed = list.body().data.find((row: { id: number }) => row.id === p.id)
+    assert.deepEqual(listed, localizePublicData(expected, 'en'))
     assert.deepEqual(update.body().data, expected)
     assert.strictEqual(expected.price_amount, '3.000')
     assert.isNull(expected.check_in_time)

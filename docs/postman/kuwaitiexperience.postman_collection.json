@@ -1298,7 +1298,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{base_url}}/api/v2/categories?type={{explore_type}}",
+            "url": "{{base_url}}/api/v2/categories?type={{explore_type}}&locale={{locale}}",
             "description": "",
             "auth": {
               "type": "noauth"
@@ -1352,7 +1352,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{base_url}}/api/v2/places?type={{explore_type}}&page=1&per_page=12",
+            "url": "{{base_url}}/api/v2/places?type={{explore_type}}&page=1&per_page=12&locale={{locale}}",
             "description": "",
             "auth": {
               "type": "noauth"
@@ -2406,7 +2406,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{base_url}}/api/v2/home",
+            "url": "{{base_url}}/api/v2/home?locale={{locale}}",
             "description": "Public Home. All four response containers are always present; card and carousel place IDs join to data.places.",
             "auth": {
               "type": "noauth"
@@ -2433,7 +2433,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{base_url}}/api/v2/home",
+            "url": "{{base_url}}/api/v2/home?locale={{locale}}",
             "description": "Same Home shape with personal meta.viewer.saved. Requires a valid customer access token.",
             "auth": {
               "type": "bearer",
@@ -2980,7 +2980,7 @@
           "  if (body.included && body.included.movies) rows.push(...body.included.movies);",
           "  rows.filter(Boolean).forEach(function (row) {",
           "    const type = row.place_translations ? 'Place' : row.title_en !== undefined ? 'Movie' : row.kind && row.code ? 'Feature' : row.movie_id && row.starts_at ? 'Showtime' : null;",
-          "    if (type) pm.test(type + ' uses canonical DB keys and types', function () { pm.expect(row).to.have.jsonSchema(schemas[type]); });",
+          "    if (type && !(type === 'Place' && /^\\/api\\/v2\\/(home|places)$/.test('/' + pm.request.url.path.join('/')))) pm.test(type + ' uses canonical DB keys and types', function () { pm.expect(row).to.have.jsonSchema(schemas[type]); });",
           "  });",
           "}"
         ]
@@ -2998,8 +2998,8 @@
           "  const cards = body.data && body.data.home_explore_cards ? body.data.home_explore_cards : Array.isArray(body.data) && body.data.some((row) => row && Object.prototype.hasOwnProperty.call(row, \"place_id\") && Object.prototype.hasOwnProperty.call(row, \"caption_en\")) ? body.data : body.data && Object.prototype.hasOwnProperty.call(body.data, \"caption_en\") ? [body.data] : [];",
           "  const types = body.data && body.data.category_types ? body.data.category_types : [];",
           "  content.forEach((row) => pm.test(\"HomeContent uses canonical DB keys and types\", () => pm.expect(row).to.have.jsonSchema(schemas.HomeContent)));",
-          "  cards.forEach((row) => pm.test(\"HomeExploreCard uses canonical DB keys and types\", () => pm.expect(row).to.have.jsonSchema(schemas.HomeExploreCard)));",
-          "  types.forEach((row) => pm.test(\"CategoryType uses canonical DB keys and types\", () => pm.expect(row).to.have.jsonSchema(schemas.CategoryType)));",
+          "  if (!/^\\/api\\/v2\\/home$/.test('/' + pm.request.url.path.join('/'))) cards.forEach((row) => pm.test(\"HomeExploreCard uses canonical DB keys and types\", () => pm.expect(row).to.have.jsonSchema(schemas.HomeExploreCard)));",
+          "  if (!/^\\/api\\/v2\\/home$/.test('/' + pm.request.url.path.join('/'))) types.forEach((row) => pm.test(\"CategoryType uses canonical DB keys and types\", () => pm.expect(row).to.have.jsonSchema(schemas.CategoryType)));",
           "}"
         ]
       }

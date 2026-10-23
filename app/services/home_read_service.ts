@@ -5,14 +5,11 @@ import { hydratePlaces, imageLinks, pagination, positiveId } from './explore_rea
 import * as explore from '../serializers/explore.js'
 import * as home from '../serializers/home.js'
 import type { Row } from '../serializers/customer.js'
+import { publicLocale } from './public_localization.js'
 
 export const HOME_TYPES = ['attraction', 'restaurant', 'hotel_resort', 'theater'] as const
 
-export function homeLocale(value: unknown): 'en' | 'ar' {
-  if (value === undefined || value === null || value === '') return 'en'
-  if (value === 'en' || value === 'ar') return value
-  throw new ApiError(422, 'INVALID_LOCALE', 'Choose English or Arabic')
-}
+export const homeLocale = publicLocale
 
 export async function homePage(customerId?: number) {
   const at = DateTime.now()
