@@ -75,7 +75,7 @@ A **nullable** property is still a required JSON key when marked required in Ope
 
 ### Localization
 
-`GET /api/v2/home`, `/categories`, and `/places` accept `locale=en|ar` (default `en`). They return one selected row in each `home_content`, `category_translations`, or `place_translations` array. Paired fields such as `name_en`/`name_ar` return as `name`; `caption_en`/`caption_ar` return as `caption`. Missing, null, empty, or whitespace-only Arabic values fall back to English **per field**. Other public reads and admin reads retain stored translation fields and rows.
+`GET /api/v2/home`, `/categories`, and `/places` read the `Accept-Language` request header (`en` or `ar`; English by default). Send the app's selected language on every request, for example `Accept-Language: ar`. These responses return one selected row in each `home_content`, `category_translations`, or `place_translations` array. Paired fields such as `name_en`/`name_ar` return as `name`; `caption_en`/`caption_ar` return as `caption`. Missing, null, empty, or whitespace-only Arabic values fall back to English **per field**. Other public reads and admin reads retain stored translation fields and rows.
 
 Legal-page reads accept `locale=en|ar` (default English). Use `meta.locale` to select the actual returned translation; it may be English after fallback. The selected `PageTranslation` includes nullable `eyebrow` and required `body_format` (`plain_text` or `html`): escape plain text, or render server-sanitized HTML in a constrained content container. Never interpolate HTML into attributes or scripts.
 
@@ -196,9 +196,9 @@ These are Guest/customer operations. A customer token adds their bookmark state 
 | Method and path              | Inputs                                             | Success                                                                         |
 | ---------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `GET /api/v2/explore`        | None                                               | 200, `data: { category_types: CategoryType[] }`, `meta.images`                  |
-| `GET /api/v2/categories`     | Required `type`; optional `locale=en|ar`           | 200, localized `data: Category[]`                                               |
+| `GET /api/v2/categories`     | Required `type`; `Accept-Language` header           | 200, localized `data: Category[]`                                               |
 | `GET /api/v2/place-features` | Required `type`                                    | 200, `data: Feature[]`                                                          |
-| `GET /api/v2/places`         | Required `type`; optional filters/pagination and `locale=en|ar` | 200, localized `PlaceList`                                         |
+| `GET /api/v2/places`         | Required `type`; optional filters/pagination; `Accept-Language` header | 200, localized `PlaceList`                                         |
 | `GET /api/v2/places/{slug}`  | Place slug from a list item                        | 200, `PlaceResult`: one complete Place under `data`, plus viewer/image metadata |
 
 | UI section  | Actual `type` code |
@@ -400,7 +400,7 @@ SiteSettings keys: `id`, `brand_name`, nullable `direct_phone_number`, `direct_p
 
 ## 12. Home screen
 
-`GET /api/v2/home` accepts `locale=en|ar` (default `en`), a guest request or an optional **customer** bearer token. An invalid supplied token returns 401. The response uses `Cache-Control: no-store` because `meta.viewer.saved` can be personal. The public response localizes paired fields and selected translation rows.
+`GET /api/v2/home` reads `Accept-Language` (`en` or `ar`; English by default) and accepts a guest request or an optional **customer** bearer token. An invalid supplied token returns 401. The response uses `Cache-Control: no-store` because `meta.viewer.saved` can be personal. The public response localizes paired fields and selected translation rows.
 
 | Response path             | Type and use                                                                                                                                                                    |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

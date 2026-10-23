@@ -101,7 +101,7 @@ test.group('Localized public discovery responses', (group) => {
       created_at: new Date(),
     })
 
-    const home = await client.get('/api/v2/home?locale=ar')
+    const home = await client.get('/api/v2/home').header('Accept-Language', 'ar-KW, en;q=0.8')
     home.assertStatus(200)
     const attraction = home
       .body()
@@ -118,13 +118,17 @@ test.group('Localized public discovery responses', (group) => {
     assert.equal(card.caption, 'Featured landmark')
     assert.notProperty(card, 'caption_en')
 
-    const categories = await client.get('/api/v2/categories?type=attraction&locale=ar')
+    const categories = await client
+      .get('/api/v2/categories?type=attraction')
+      .header('Accept-Language', 'ar')
     categories.assertStatus(200)
     const category = categories.body().data.find((row: { id: number }) => row.id === categoryId)
     assert.lengthOf(category.category_translations, 1)
     assert.equal(category.category_translations[0].name, 'معالم')
 
-    const places = await client.get('/api/v2/places?type=attraction&category=all&locale=ar')
+    const places = await client
+      .get('/api/v2/places?type=attraction&category=all')
+      .header('Accept-Language', 'en;q=0.5, ar;q=0.9')
     places.assertStatus(200)
     const place = places.body().data.find((row: { id: number }) => row.id === placeId)
     assert.lengthOf(place.place_translations, 1)
@@ -145,8 +149,15 @@ test.group('Localized public discovery responses', (group) => {
       'Attractions'
     )
     assert.equal(english.body().data.home_content[0].hero_title, 'Explore Kuwait')
-    const invalid = await client.get('/api/v2/places?type=attraction&locale=fr')
-    invalid.assertStatus(422)
+    const unsupported = await client
+      .get('/api/v2/places?type=attraction')
+      .header('Accept-Language', 'fr')
+    unsupported.assertStatus(200)
+    assert.equal(
+      unsupported.body().data.find((row: { id: number }) => row.id === placeId)
+        .place_translations[0].title,
+      'Kuwait Towers'
+    )
   })
 
   test('uses the English row when an Arabic translation row is absent', ({ assert }) => {

@@ -1296,9 +1296,13 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
-            "url": "{{base_url}}/api/v2/categories?type={{explore_type}}&locale={{locale}}",
+            "url": "{{base_url}}/api/v2/categories?type={{explore_type}}",
             "description": "",
             "auth": {
               "type": "noauth"
@@ -1350,9 +1354,13 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
-            "url": "{{base_url}}/api/v2/places?type={{explore_type}}&page=1&per_page=12&locale={{locale}}",
+            "url": "{{base_url}}/api/v2/places?type={{explore_type}}&page=1&per_page=12",
             "description": "",
             "auth": {
               "type": "noauth"
@@ -2404,9 +2412,13 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
-            "url": "{{base_url}}/api/v2/home?locale={{locale}}",
+            "url": "{{base_url}}/api/v2/home",
             "description": "Public Home. All four response containers are always present; card and carousel place IDs join to data.places.",
             "auth": {
               "type": "noauth"
@@ -2431,9 +2443,13 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
-            "url": "{{base_url}}/api/v2/home?locale={{locale}}",
+            "url": "{{base_url}}/api/v2/home",
             "description": "Same Home shape with personal meta.viewer.saved. Requires a valid customer access token.",
             "auth": {
               "type": "bearer",

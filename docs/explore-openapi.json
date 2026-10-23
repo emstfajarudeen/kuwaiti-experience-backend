@@ -3,7 +3,7 @@
   "info": {
     "title": "Kuwaiti Experience Explore API",
     "version": "2.0.0",
-    "description": "Discovery, saved places and CMS-managed features/movies/showtimes. Public category and place lists select locale=en|ar with per-field English fallback; other reads retain stored language fields. Schedule and ride creation are outside this API."
+    "description": "Discovery, saved places and CMS-managed features/movies/showtimes. Public category and place lists select the Accept-Language request header with per-field English fallback; other reads retain stored language fields. Schedule and ride creation are outside this API."
   },
   "servers": [
     {
@@ -238,7 +238,7 @@
           }
         ],
         "parameters": [
-          {"name":"locale","in":"query","required":false,"schema":{"type":"string","enum":["en","ar"],"default":"en"}},
+          {"name":"Accept-Language","in":"header","required":false,"schema":{"type":"string","example":"ar"}},
           {
             "name": "type",
             "in": "query",
@@ -457,7 +457,7 @@
           }
         ],
         "parameters": [
-          {"name":"locale","in":"query","required":false,"schema":{"type":"string","enum":["en","ar"],"default":"en"}},
+          {"name":"Accept-Language","in":"header","required":false,"schema":{"type":"string","example":"ar"}},
           {
             "name": "type",
             "in": "query",

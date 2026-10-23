@@ -8,6 +8,26 @@ export function publicLocale(value: unknown): PublicLocale {
   throw new ApiError(422, 'INVALID_LOCALE', 'Choose English or Arabic')
 }
 
+/** Select the most preferred supported language from an Accept-Language header. */
+export function publicLanguage(header: string | undefined): PublicLocale {
+  if (!header) return 'en'
+  const preferences = header
+    .split(',')
+    .map((part, index) => {
+      const [tag, ...parameters] = part.trim().split(';')
+      const quality = parameters.find((parameter) => /^q\s*=/i.test(parameter.trim()))
+      const weight = quality ? Number(quality.split('=')[1]) : 1
+      return { language: tag.trim().toLowerCase().split('-')[0], weight, index }
+    })
+    .filter(({ weight }) => Number.isFinite(weight) && weight > 0 && weight <= 1)
+    .sort((a, b) => b.weight - a.weight || a.index - b.index)
+
+  for (const { language } of preferences) {
+    if (language === 'en' || language === 'ar') return language
+  }
+  return 'en'
+}
+
 const missing = (value: unknown) =>
   value === null || value === undefined || (typeof value === 'string' && !value.trim())
 

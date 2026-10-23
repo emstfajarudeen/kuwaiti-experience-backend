@@ -3,7 +3,7 @@ import db from '@adonisjs/lucid/services/db'
 import { optionalCustomer } from '../../middleware/customer_auth_middleware.js'
 import * as read from '../../services/explore_read_service.js'
 import * as write from '../../services/explore_write_service.js'
-import { localizePublicData, publicLocale } from '../../services/public_localization.js'
+import { localizePublicData, publicLanguage } from '../../services/public_localization.js'
 
 export default class ExploreController {
   async hub(ctx: HttpContext) {
@@ -12,7 +12,7 @@ export default class ExploreController {
   }
   async categories(ctx: HttpContext) {
     await optionalCustomer(ctx)
-    const locale = publicLocale(ctx.request.input('locale'))
+    const locale = publicLanguage(ctx.request.header('accept-language'))
     const result = await read.categories(ctx.request.input('type'))
     return { ...result, data: localizePublicData(result.data, locale) }
   }
@@ -23,7 +23,7 @@ export default class ExploreController {
   async places(ctx: HttpContext) {
     const identity = await optionalCustomer(ctx)
     ctx.response.header('Cache-Control', 'no-store')
-    const locale = publicLocale(ctx.request.input('locale'))
+    const locale = publicLanguage(ctx.request.header('accept-language'))
     const result = await read.places(ctx.request.qs(), identity?.customer.id)
     return { ...result, data: localizePublicData(result.data, locale) }
   }

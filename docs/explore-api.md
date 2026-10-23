@@ -11,9 +11,9 @@ Implemented additions: place bookmarks, venue phones, highlights/amenities/capab
 | Request                                                       | Behavior                                                                                                                                                                        |
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET /explore`                                                | `{ data: { category_types: [...] }, meta: { images: [...] } }`. Ordered type records use literal DB keys `code`, `name_en`, `name_ar`, `image_key`, `sort_order`, `updated_at`. |
-| `GET /categories?type=attraction&locale=ar`                   | Active categories with one selected `category_translations` row. `locale=en|ar`; English by default. |
+| `GET /categories?type=attraction`                              | Active categories with one selected `category_translations` row. Send `Accept-Language: en` or `ar`; English by default. |
 | `GET /place-features?type=theater`                            | Active Feature entities, with `code`, `kind`, `name_en`, `name_ar`, `type`, etc.                                                                                                |
-| `GET /places?type=attraction&category=all&page=1&per_page=12&locale=ar` | Published places with selected translations and filtered pagination. |
+| `GET /places?type=attraction&category=all&page=1&per_page=12` | Published places with selected translations and filtered pagination. Send `Accept-Language` in the request header. |
 | `GET /places/:slug`                                           | One published Place with stored translations. |
 | `GET /places/:slug/showtimes?date=2026-10-21`                 | Upcoming published sessions for the selected theater and Kuwait calendar date, with related movie records.                                                                      |
 
@@ -37,7 +37,7 @@ These are DB column names and table-named relation containers. Scalars that have
 
 IDs/counts are integers; flags are booleans; coordinates are numbers or null; `price_amount` is a string such as `"95.000"` or null. Keep `price_currency`, `price_mode` and translated `price_unit` when displaying prices. These are CMS-entered prices, not live inventory or currency conversion. Timestamps are ISO UTC; wall-clock fields are `HH:mm:ss` in Kuwait local time.
 
-On `/categories` and `/places` lists, send `locale=en|ar` (default `en`). Each `category_translations` or `place_translations` array contains only the selected row. Missing, null, empty or whitespace-only Arabic fields fall back **per field** to English; if the Arabic row is missing, the English row is returned. Paired fields such as `name_en`/`name_ar`, `alt_en`/`alt_ar`, and `caption_en`/`caption_ar` become `name`, `alt`, and `caption` in these responses. Other fields and relation containers retain their names. Detail, saved-list, `/explore`, and admin responses still expose stored language fields.
+On `/categories` and `/places` lists, send `Accept-Language: en` or `ar` (default `en`). Each `category_translations` or `place_translations` array contains only the selected row. Missing, null, empty or whitespace-only Arabic fields fall back **per field** to English; if the Arabic row is missing, the English row is returned. Paired fields such as `name_en`/`name_ar`, `alt_en`/`alt_ar`, and `caption_en`/`caption_ar` become `name`, `alt`, and `caption` in these responses. Other fields and relation containers retain their names. Detail, saved-list, `/explore`, and admin responses still expose stored language fields.
 
 List/detail metadata includes:
 

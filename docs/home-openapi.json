@@ -21,7 +21,7 @@
             "customerBearer": []
           }
         ],
-        "parameters": [{"name":"locale","in":"query","required":false,"schema":{"type":"string","enum":["en","ar"],"default":"en"}}],
+        "parameters": [{"name":"Accept-Language","in":"header","required":false,"schema":{"type":"string","example":"ar"}}],
         "responses": {
           "200": {
             "description": "Success",
