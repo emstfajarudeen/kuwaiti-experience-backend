@@ -8,7 +8,11 @@ import { localizePublicData, publicLanguage } from '../../services/public_locali
 export default class ExploreController {
   async hub(ctx: HttpContext) {
     await optionalCustomer(ctx)
-    return read.exploreHub()
+    const result = await read.exploreHub()
+    return {
+      ...result,
+      data: localizePublicData(result.data, publicLanguage(ctx.request.header('accept-language'))),
+    }
   }
   async categories(ctx: HttpContext) {
     await optionalCustomer(ctx)
@@ -18,7 +22,11 @@ export default class ExploreController {
   }
   async features(ctx: HttpContext) {
     await optionalCustomer(ctx)
-    return read.features(ctx.request.input('type'))
+    const result = await read.features(ctx.request.input('type'))
+    return {
+      ...result,
+      data: localizePublicData(result.data, publicLanguage(ctx.request.header('accept-language'))),
+    }
   }
   async places(ctx: HttpContext) {
     const identity = await optionalCustomer(ctx)
@@ -30,15 +38,30 @@ export default class ExploreController {
   async place(ctx: HttpContext) {
     const identity = await optionalCustomer(ctx)
     ctx.response.header('Cache-Control', 'no-store')
-    return read.showPlace(ctx.params.slug, identity?.customer.id)
+    const result = await read.showPlace(ctx.params.slug, identity?.customer.id)
+    return {
+      ...result,
+      data: localizePublicData(result.data, publicLanguage(ctx.request.header('accept-language'))),
+    }
   }
   async showtimes(ctx: HttpContext) {
     await optionalCustomer(ctx)
     ctx.response.header('Cache-Control', 'no-store')
-    return read.showtimes(ctx.request.qs(), ctx.params.slug)
+    const result = await read.showtimes(ctx.request.qs(), ctx.params.slug)
+    return {
+      ...result,
+      included: localizePublicData(
+        result.included,
+        publicLanguage(ctx.request.header('accept-language'))
+      ),
+    }
   }
   async saved({ request, customerIdentity }: HttpContext) {
-    return read.places(request.qs(), customerIdentity.customer.id, false, true)
+    const result = await read.places(request.qs(), customerIdentity.customer.id, false, true)
+    return {
+      ...result,
+      data: localizePublicData(result.data, publicLanguage(request.header('accept-language'))),
+    }
   }
   async save({ params, customerIdentity }: HttpContext) {
     return write.savePlaceBookmark(customerIdentity.customer.id, read.positiveId(params.id))

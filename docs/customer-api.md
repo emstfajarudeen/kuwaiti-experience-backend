@@ -66,7 +66,7 @@ Guest contact submissions have no verified customer owner and are not deleted by
 
 ## Legal pages
 
-`GET /pages/privacy-policy?locale=en` and `GET /pages/terms-and-conditions?locale=en` return a complete persisted `pages` object with a `page_translations` array. Public and v2 admin read endpoints share one serializer. Keys retain their SQL names: `id`, `slug`, `status`, `published_at`, `created_at`, `updated_at`; translation keys are `id`, `page_id`, `locale`, `title`, nullable `eyebrow`, `body`, `body_format`, nullable `seo_title`, nullable `seo_description`. Nullable keys are always present. The array contains available translations. `meta.locale` selects the requested locale with English fallback; `meta.content_hash` identifies that exact slug/locale/title/body. If `body_format` is `plain_text`, escape and preserve line breaks. If it is `html`, render the server-sanitized rich content in a constrained content container, never in an attribute or script.
+`GET /pages/privacy-policy` and `GET /pages/terms-and-conditions` use the app's `Accept-Language: en|ar` header (default English; existing `?locale=` remains a fallback). They return a complete persisted `pages` object with a `page_translations` array containing one selected row. Keys retain their SQL names: `id`, `slug`, `status`, `published_at`, `created_at`, `updated_at`; translation keys are `id`, `page_id`, `locale`, `title`, nullable `eyebrow`, `body`, `body_format`, nullable `seo_title`, nullable `seo_description`. Nullable keys are always present. Missing Arabic fields fall back to English per field, including the matching `body_format` when `body` falls back. `meta.locale` identifies the selected row; `meta.content_hash` identifies the effective slug/locale/title/body. If `body_format` is `plain_text`, escape and preserve line breaks. If it is `html`, render the server-sanitized rich content in a constrained content container, never in an attribute or script.
 
 Registration does not require legal page hashes or record acceptance. The app handles its own acceptance UI. Draft/future pages are hidden. Missing legal pages return 404; recognized unrelated Figma placeholder copy returns 503 `LEGAL_CONTENT_UNAVAILABLE`.
 
@@ -84,7 +84,7 @@ Browser inbox: `/admin/contact-requests`; detail and status form: `/admin/contac
 
 Admin bearer endpoints under `/api/v2/admin`: `GET /contact-requests?page=1&status=new`, `GET /contact-requests/{id}`, `PATCH /contact-requests/{id}` with `{ "status": "resolved" }`. List/show/update use the exact same `ContactRequest` serializer, including `id`, nullable `customer_id`, `full_name`, `email`, `phone_number`, `inquiry_type`, `message`, `status`, `created_at`, nullable `updated_at`. List metadata uses `page`, `per_page` (20), `total`, `last_page`. Status updates are audited. No public read endpoint exposes messages.
 
-`GET /admin/pages/{slug}?locale=en` and `GET /admin/site` reuse the exact v2 public serializers, with admin authentication. Existing v1 CMS APIs keep their legacy shapes for compatibility.
+`GET /admin/pages/{slug}?locale=en` and `GET /admin/site` use admin authentication and retain stored translation rows for editing. Existing v1 CMS APIs keep their legacy shapes for compatibility.
 
 ## Errors and deployment
 

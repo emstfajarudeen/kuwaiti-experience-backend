@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
 import { randomUUID } from 'node:crypto'
+import { DateTime } from 'luxon'
 import { localizePublicData } from '../../app/services/public_localization.js'
 
 test.group('Localized public discovery responses', (group) => {
@@ -48,6 +49,7 @@ test.group('Localized public discovery responses', (group) => {
         title: 'Kuwait Towers',
         summary: 'English summary',
         address: 'Kuwait City',
+        body: 'English body',
       },
       {
         place_id: placeId,
@@ -55,6 +57,7 @@ test.group('Localized public discovery responses', (group) => {
         title: 'أبراج الكويت',
         summary: '',
         address: '',
+        body: '',
       },
     ])
     const [featureId] = await db.table('place_features').insert({
@@ -141,6 +144,75 @@ test.group('Localized public discovery responses', (group) => {
     assert.equal(place.place_images[0].caption, 'منظر الغروب')
     assert.notProperty(place.place_images[0], 'alt_en')
 
+    const hub = await client.get('/api/v2/explore').header('Accept-Language', 'ar')
+    hub.assertStatus(200)
+    assert.equal(
+      hub.body().data.category_types.find((row: { code: string }) => row.code === 'attraction')
+        .name,
+      'معالم الجذب'
+    )
+    const features = await client
+      .get('/api/v2/place-features?type=attraction')
+      .header('Accept-Language', 'ar')
+    features.assertStatus(200)
+    const selectedFeature = features.body().data.find((row: { id: number }) => row.id === featureId)
+    assert.equal(selectedFeature.name, 'Family friendly')
+    assert.notProperty(selectedFeature, 'name_en')
+
+    const detail = await client.get(`/api/v2/places/${place.slug}`).header('Accept-Language', 'ar')
+    detail.assertStatus(200)
+    assert.equal(detail.body().data.place_translations[0].title, 'أبراج الكويت')
+    assert.equal(detail.body().data.place_images[0].caption, 'منظر الغروب')
+    assert.deepEqual(
+      Object.keys(detail.body().meta).sort(),
+      Object.keys(places.body().meta)
+        .filter((key: string) => !['page', 'per_page', 'total', 'last_page'].includes(key))
+        .sort()
+    )
+
+    const legacyHome = await client.get('/api/v1/home?locale=en').header('Accept-Language', 'ar')
+    legacyHome.assertStatus(200)
+    assert.equal(legacyHome.body().data.hero.title, 'اكتشف الكويت')
+    assert.equal(legacyHome.body().data.discoveryTitle, 'What to do?')
+    const legacyCategories = await client
+      .get('/api/v1/categories?type=attraction&locale=en')
+      .header('Accept-Language', 'ar')
+    legacyCategories.assertStatus(200)
+    assert.equal(
+      legacyCategories.body().data.find((row: { id: number }) => row.id === categoryId).name,
+      'معالم'
+    )
+    const legacyPlaces = await client
+      .get('/api/v1/places?type=attraction')
+      .header('Accept-Language', 'ar')
+    legacyPlaces.assertStatus(200)
+    const legacyPlace = legacyPlaces.body().data.find((row: { id: number }) => row.id === placeId)
+    assert.equal(legacyPlace.title, 'أبراج الكويت')
+    assert.equal(legacyPlace.summary, 'English summary')
+    const legacyDetail = await client
+      .get(`/api/v1/places/${place.slug}`)
+      .header('Accept-Language', 'ar')
+    legacyDetail.assertStatus(200)
+    assert.equal(legacyDetail.body().data.body, 'English body')
+    assert.equal(legacyDetail.body().data.gallery[0].alt, 'Tower at sunset')
+
+    const [locationId] = await db.table('transport_locations').insert({
+      code: `airport-${randomUUID()}`,
+      active: true,
+    })
+    await db.table('transport_location_translations').insert([
+      { location_id: locationId, locale: 'en', name: 'Airport' },
+      { location_id: locationId, locale: 'ar', name: '   ' },
+    ])
+    const locations = await client
+      .get('/api/v1/transport/locations')
+      .header('Accept-Language', 'ar')
+    locations.assertStatus(200)
+    assert.equal(
+      locations.body().data.find((row: { id: number }) => row.id === locationId).name,
+      'Airport'
+    )
+
     const english = await client.get('/api/v2/home')
     english.assertStatus(200)
     assert.equal(
@@ -171,5 +243,96 @@ test.group('Localized public discovery responses', (group) => {
     ) as { category_translations: { locale: string; name: string }[]; name: string }
     assert.deepEqual(result.category_translations, [{ locale: 'en', name: 'Markets' }])
     assert.equal(result.name, 'Markets')
+  })
+
+  test('pages and showtime movies use the header and preserve their response containers', async ({
+    client,
+    assert,
+  }) => {
+    const [pageId] = await db.table('pages').insert({
+      slug: 'about-us',
+      status: 'published',
+      published_at: new Date(Date.now() - 1000),
+      created_at: new Date(),
+    })
+    await db.table('page_translations').insert([
+      {
+        page_id: pageId,
+        locale: 'en',
+        title: 'About us',
+        body: 'English page',
+        body_format: 'plain_text',
+      },
+      { page_id: pageId, locale: 'ar', title: 'من نحن', body: '', body_format: 'html' },
+    ])
+    const page = await client.get('/api/v2/pages/about-us').header('Accept-Language', 'ar')
+    page.assertStatus(200)
+    assert.lengthOf(page.body().data.page_translations, 1)
+    assert.equal(page.body().data.page_translations[0].title, 'من نحن')
+    assert.equal(page.body().data.page_translations[0].body, 'English page')
+    assert.equal(page.body().data.page_translations[0].body_format, 'plain_text')
+    assert.property(page.body().meta, 'locale')
+    assert.property(page.body().meta, 'content_hash')
+    const legacyPage = await client.get('/api/v1/pages/about-us').header('Accept-Language', 'ar')
+    legacyPage.assertStatus(200)
+    assert.equal(legacyPage.body().data.title, 'من نحن')
+    assert.equal(legacyPage.body().data.body, 'English page')
+
+    await db
+      .table('category_types')
+      .insert({ code: 'theater', name_en: 'Theaters' })
+      .onConflict('code')
+      .ignore()
+    const [theaterId] = await db.table('places').insert({
+      type: 'theater',
+      slug: `theater-${randomUUID()}`,
+      status: 'published',
+      price_mode: 'unknown',
+      price_currency: 'KWD',
+      published_at: new Date(Date.now() - 1000),
+      created_at: new Date(),
+    })
+    await db.table('place_translations').insert({
+      place_id: theaterId,
+      locale: 'en',
+      title: 'Cinema',
+      summary: '',
+      address: '',
+    })
+    const [movieId] = await db.table('movies').insert({
+      title_en: 'Film',
+      title_ar: 'فيلم',
+      synopsis_en: 'English synopsis',
+      synopsis_ar: '',
+      status: 'published',
+      published_at: new Date(Date.now() - 1000),
+      created_at: new Date(),
+    })
+    const starts = DateTime.now()
+      .setZone('Asia/Kuwait')
+      .plus({ days: 1 })
+      .startOf('day')
+      .plus({ hours: 12 })
+    await db.table('theater_showtimes').insert({
+      place_id: theaterId,
+      movie_id: movieId,
+      starts_at: starts.toUTC().toJSDate(),
+      format: '2D',
+      status: 'published',
+      created_at: new Date(),
+    })
+    const slug = (await db.from('places').where('id', theaterId).first())!.slug
+    const showtimes = await client
+      .get(`/api/v2/places/${slug}/showtimes?date=${starts.toISODate()}`)
+      .header('Accept-Language', 'ar')
+    showtimes.assertStatus(200)
+    assert.lengthOf(showtimes.body().data, 1)
+    assert.lengthOf(showtimes.body().included.movies, 1)
+    assert.equal(showtimes.body().included.movies[0].title, 'فيلم')
+    assert.equal(showtimes.body().included.movies[0].synopsis, 'English synopsis')
+    assert.notProperty(showtimes.body().included.movies[0], 'title_en')
+    for (const key of ['date', 'page', 'per_page', 'total']) {
+      assert.property(showtimes.body().meta, key)
+    }
   })
 })

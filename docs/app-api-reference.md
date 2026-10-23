@@ -75,9 +75,9 @@ A **nullable** property is still a required JSON key when marked required in Ope
 
 ### Localization
 
-`GET /api/v2/home`, `/categories`, and `/places` read the `Accept-Language` request header (`en` or `ar`; English by default). Send the app's selected language on every request, for example `Accept-Language: ar`. These responses return one selected row in each `home_content`, `category_translations`, or `place_translations` array. Paired fields such as `name_en`/`name_ar` return as `name`; `caption_en`/`caption_ar` return as `caption`. Missing, null, empty, or whitespace-only Arabic values fall back to English **per field**. Other public reads and admin reads retain stored translation fields and rows.
+Public app reads use the `Accept-Language` request header (`en` or `ar`; English by default). Send the app's selected language on every request, for example `Accept-Language: ar`. This applies to Home, Explore, categories, features, place lists/details, saved places, showtime movies, and pages. Translation arrays retain their names but contain one selected row. Paired fields such as `name_en`/`name_ar` return as `name`; `caption_en`/`caption_ar` return as `caption`. Missing, null, empty, or whitespace-only Arabic values fall back to English **per field**. Response envelopes and unrelated fields retain their names. Admin/CMS reads retain stored language fields and rows. The v1 app reads also accept this header; their existing `?locale=` query remains a fallback when no header is sent.
 
-Legal-page reads accept `locale=en|ar` (default English). Use `meta.locale` to select the actual returned translation; it may be English after fallback. The selected `PageTranslation` includes nullable `eyebrow` and required `body_format` (`plain_text` or `html`): escape plain text, or render server-sanitized HTML in a constrained content container. Never interpolate HTML into attributes or scripts.
+Legal-page reads use `Accept-Language: en|ar` (default English), with the existing `?locale=` query accepted when the header is absent. Use `meta.locale` to identify the selected translation row; it may be English after fallback. The selected `PageTranslation` includes nullable `eyebrow` and required `body_format` (`plain_text` or `html`): escape plain text, or render server-sanitized HTML in a constrained content container. Never interpolate HTML into attributes or scripts.
 
 ## 4. Quick start: browse without login
 
@@ -195,11 +195,11 @@ These are Guest/customer operations. A customer token adds their bookmark state 
 
 | Method and path              | Inputs                                             | Success                                                                         |
 | ---------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `GET /api/v2/explore`        | None                                               | 200, `data: { category_types: CategoryType[] }`, `meta.images`                  |
+| `GET /api/v2/explore`        | `Accept-Language` header                           | 200, localized `data.category_types[].name`, `meta.images`                     |
 | `GET /api/v2/categories`     | Required `type`; `Accept-Language` header           | 200, localized `data: Category[]`                                               |
-| `GET /api/v2/place-features` | Required `type`                                    | 200, `data: Feature[]`                                                          |
+| `GET /api/v2/place-features` | Required `type`; `Accept-Language` header           | 200, localized `data: Feature[]`                                               |
 | `GET /api/v2/places`         | Required `type`; optional filters/pagination; `Accept-Language` header | 200, localized `PlaceList`                                         |
-| `GET /api/v2/places/{slug}`  | Place slug from a list item                        | 200, `PlaceResult`: one complete Place under `data`, plus viewer/image metadata |
+| `GET /api/v2/places/{slug}`  | Place slug; `Accept-Language` header                | 200, localized `PlaceResult` plus viewer/image metadata                        |
 
 | UI section  | Actual `type` code |
 | ----------- | ------------------ |
@@ -226,7 +226,7 @@ Public results exclude drafts, archives and future publications. Category and fe
 
 ## 8. Place response and screen mapping
 
-This complete illustrative English list response shows all required Place keys. IDs/content/images are examples, not guaranteed seeded records. A detail endpoint retains all stored translations and paired language fields under `data`.
+This complete illustrative English list response shows all required Place keys. IDs/content/images are examples, not guaranteed seeded records. A detail endpoint returns the same localized Place object directly under `data`, without list pagination keys.
 
 ```json
 {
@@ -331,10 +331,8 @@ Date means a Kuwait calendar day; omission defaults to today in Kuwait. Paginati
     "movies": [
       {
         "id": 3,
-        "title_en": "Example movie",
-        "title_ar": null,
-        "synopsis_en": null,
-        "synopsis_ar": null,
+        "title": "Example movie",
+        "synopsis": null,
         "duration_minutes": 120,
         "age_rating": null,
         "poster_image_key": "123e4567-e89b-42d3-a456-426614174001.webp",
@@ -370,7 +368,7 @@ All require Customer authentication. `{id}` is the numeric Place ID. The server 
 
 | Method and path                                | Request/query                                                     | Success                                               |
 | ---------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------- |
-| `GET /api/v2/customer/me/saved-places`         | Optional `type`, `page`, `per_page`; standard place filters apply | 200, stored-language `PlaceList` and viewer metadata |
+| `GET /api/v2/customer/me/saved-places`         | Optional `type`, `page`, `per_page`; standard place filters apply | 200, localized `PlaceList` and viewer metadata |
 | `PUT /api/v2/customer/me/saved-places/{id}`    | No body                                                           | 200, `data: SavedPlace`                               |
 | `DELETE /api/v2/customer/me/saved-places/{id}` | No body                                                           | 204, empty body                                       |
 
@@ -380,7 +378,7 @@ Save example: `{ "data": { "customer_id": 1, "place_id": 12, "created_at": "2026
 
 | Method and path                 | Auth/request                                                                                    | Success                                                                      |
 | ------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `GET /api/v2/pages/{slug}`      | Public; `about-us`, `contact-us`, `privacy-policy` or `terms-and-conditions`, optional `locale` | 200, `data: Page` with `page_translations`; `meta: { locale, content_hash }` |
+| `GET /api/v2/pages/{slug}`      | Public; `about-us`, `contact-us`, `privacy-policy` or `terms-and-conditions`; `Accept-Language` header | 200, `data: Page` with one selected `page_translations` row; `meta: { locale, content_hash }` |
 | `GET /api/v2/site`              | Public                                                                                          | 200, `data: SiteSettings`; `meta.images` for logo URL                        |
 | `POST /api/v2/contact-requests` | Guest/customer; JSON below                                                                      | 201, submission receipt                                                      |
 

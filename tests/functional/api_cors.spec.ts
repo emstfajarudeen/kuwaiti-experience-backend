@@ -9,6 +9,7 @@ test.group('API CORS', () => {
     const response = await client.get('/api/v1/health').header('Origin', origin)
     response.assertStatus(200)
     assert.equal(response.headers()['access-control-allow-origin'], origin)
+    assert.include(response.headers().vary, 'Accept-Language')
 
     const preflight = await client
       .options('/api/v1/transport/locations')
@@ -17,6 +18,7 @@ test.group('API CORS', () => {
     preflight.assertStatus(204)
     assert.equal(preflight.headers()['access-control-allow-origin'], origin)
     assert.include(preflight.headers()['access-control-allow-methods'], 'GET')
+    assert.include(preflight.headers()['access-control-allow-headers'], 'Accept-Language')
   })
 
   test('does not allow other origins', async ({ client, assert }) => {

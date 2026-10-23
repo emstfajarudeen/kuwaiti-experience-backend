@@ -37,14 +37,14 @@ export async function isPublicImage(key: string) {
       .from('places')
       .where('cover_image_key', key)
       .where('status', 'published')
-      .where('published_at', '<=', db.raw('CURRENT_TIMESTAMP'))
+      .where('published_at', '<=', new Date())
       .first()) ||
     (await db
       .from('place_images as pi')
       .join('places as p', 'p.id', 'pi.place_id')
       .where('pi.storage_key', key)
       .where('p.status', 'published')
-      .where('p.published_at', '<=', db.raw('CURRENT_TIMESTAMP'))
+      .where('p.published_at', '<=', new Date())
       .first()) ||
     (await db.from('category_types').where('image_key', key).first()) ||
     (await db.from('home_content').where('hero_image_key', key).first()) ||
@@ -53,7 +53,7 @@ export async function isPublicImage(key: string) {
       .from('movies')
       .where('poster_image_key', key)
       .where('status', 'published')
-      .where('published_at', '<=', db.raw('CURRENT_TIMESTAMP'))
+      .where('published_at', '<=', new Date())
       .first())
   )
 }

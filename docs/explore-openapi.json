@@ -3,7 +3,7 @@
   "info": {
     "title": "Kuwaiti Experience Explore API",
     "version": "2.0.0",
-    "description": "Discovery, saved places and CMS-managed features/movies/showtimes. Public category and place lists select the Accept-Language request header with per-field English fallback; other reads retain stored language fields. Schedule and ride creation are outside this API."
+    "description": "Discovery, saved places and CMS-managed features/movies/showtimes. Public app reads select the Accept-Language request header with per-field English fallback; admin reads retain stored language fields. Schedule and ride creation are outside this API."
   },
   "servers": [
     {
@@ -15,6 +15,7 @@
       "get": {
         "summary": "Explore hub with canonical category types",
         "tags": ["Explore v2"],
+        "parameters": [{"name":"Accept-Language","in":"header","required":false,"description":"App language; English by default","schema":{"type":"string","example":"ar"}}],
         "responses": {
           "200": {
             "description": "Success",
@@ -33,7 +34,7 @@
                         "category_types": {
                           "type": "array",
                           "items": {
-                            "$ref": "#/components/schemas/CategoryType"
+                            "$ref": "#/components/schemas/LocalizedCategoryType"
                           }
                         }
                       }
@@ -267,7 +268,7 @@
                     "data": {
                       "type": "array",
                       "items": {
-                        "$ref": "#/components/schemas/Feature"
+                        "$ref": "#/components/schemas/LocalizedFeature"
                       }
                     }
                   }
@@ -353,6 +354,7 @@
           }
         ],
         "parameters": [
+          {"name":"Accept-Language","in":"header","required":false,"description":"App language; English by default","schema":{"type":"string","example":"ar"}},
           {
             "name": "type",
             "in": "query",
@@ -534,7 +536,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlaceResult"
+                  "$ref": "#/components/schemas/LocalizedPlaceResult"
                 }
               }
             }
@@ -617,6 +619,7 @@
           }
         ],
         "parameters": [
+          {"name":"Accept-Language","in":"header","required":false,"description":"App language; English by default","schema":{"type":"string","example":"ar"}},
           {
             "name": "slug",
             "in": "path",
@@ -638,7 +641,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ShowtimeList"
+                  "$ref": "#/components/schemas/LocalizedShowtimeList"
                 }
               }
             }
@@ -721,6 +724,7 @@
           }
         ],
         "parameters": [
+          {"name":"Accept-Language","in":"header","required":false,"description":"App language; English by default","schema":{"type":"string","example":"ar"}},
           {
             "name": "date",
             "in": "query",
@@ -773,7 +777,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlaceList"
+                  "$ref": "#/components/schemas/LocalizedPlaceList"
                 }
               }
             }
@@ -855,6 +859,7 @@
           }
         ],
         "parameters": [
+          {"name":"Accept-Language","in":"header","required":false,"description":"App language; English by default","schema":{"type":"string","example":"ar"}},
           {
             "name": "type",
             "in": "query",
@@ -3147,6 +3152,10 @@
       }
     },
     "schemas": {
+      "LocalizedMovie": {"type":"object","additionalProperties":false,"required":["id","title","synopsis","duration_minutes","age_rating","poster_image_key","status","published_at","created_at","updated_at"],"properties":{"id":{"type":"integer"},"title":{"type":"string"},"synopsis":{"type":["string","null"]},"duration_minutes":{"type":["integer","null"]},"age_rating":{"type":["string","null"]},"poster_image_key":{"type":["string","null"]},"status":{"type":"string","enum":["draft","published","archived"]},"published_at":{"type":["string","null"],"format":"date-time"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":["string","null"],"format":"date-time"}}},
+      "LocalizedPlaceResult": {"type":"object","additionalProperties":false,"required":["data","meta"],"properties":{"data":{"$ref":"#/components/schemas/LocalizedPlace"},"meta":{"type":"object","additionalProperties":false,"required":["viewer","images","evaluated_at"],"properties":{"viewer":{"type":"array","items":{"$ref":"#/components/schemas/Viewer"}},"images":{"type":"array","items":{"$ref":"#/components/schemas/ImageLink"}},"evaluated_at":{"type":"string","format":"date-time"}}}}},
+      "LocalizedShowtimeList": {"type":"object","additionalProperties":false,"required":["data","included","meta"],"properties":{"data":{"type":"array","items":{"$ref":"#/components/schemas/Showtime"}},"included":{"type":"object","additionalProperties":false,"required":["movies"],"properties":{"movies":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedMovie"}}}},"meta":{"type":"object","additionalProperties":false,"required":["images","date","timezone","page","per_page","total","last_page"],"properties":{"images":{"type":"array","items":{"$ref":"#/components/schemas/ImageLink"}},"date":{"type":["string","null"],"format":"date"},"timezone":{"type":"string","const":"Asia/Kuwait"},"page":{"type":"integer"},"per_page":{"type":"integer"},"total":{"type":"integer"},"last_page":{"type":"integer"}}}}},
+
       "LocalizedPlaceImage": {"type":"object","additionalProperties":false,"required":["id","place_id","storage_key","alt","caption","sort_order","created_at"],"properties":{"id":{"type":"integer"},"place_id":{"type":"integer"},"storage_key":{"type":"string"},"alt":{"type":"string"},"caption":{"type":["string","null"]},"sort_order":{"type":"integer"},"created_at":{"type":"string","format":"date-time"}}},
       "LocalizedFeature": {"type":"object","additionalProperties":false,"required":["id","type","code","kind","name","active","sort_order","created_at","updated_at"],"properties":{"id":{"type":"integer"},"type":{"type":"string"},"code":{"type":"string"},"kind":{"type":"string","enum":["highlight","amenity","capability"]},"name":{"type":"string"},"active":{"type":"boolean"},"sort_order":{"type":"integer"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":["string","null"],"format":"date-time"}}},
 

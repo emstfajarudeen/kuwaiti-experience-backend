@@ -10,12 +10,12 @@ Implemented additions: place bookmarks, venue phones, highlights/amenities/capab
 
 | Request                                                       | Behavior                                                                                                                                                                        |
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /explore`                                                | `{ data: { category_types: [...] }, meta: { images: [...] } }`. Ordered type records use literal DB keys `code`, `name_en`, `name_ar`, `image_key`, `sort_order`, `updated_at`. |
+| `GET /explore`                                                | `{ data: { category_types: [...] }, meta: { images: [...] } }`. Type records use localized `name` plus their existing code, image, order and timestamp fields. |
 | `GET /categories?type=attraction`                              | Active categories with one selected `category_translations` row. Send `Accept-Language: en` or `ar`; English by default. |
-| `GET /place-features?type=theater`                            | Active Feature entities, with `code`, `kind`, `name_en`, `name_ar`, `type`, etc.                                                                                                |
+| `GET /place-features?type=theater`                            | Active Feature entities, with localized `name` and their existing code, kind, type and other fields. |
 | `GET /places?type=attraction&category=all&page=1&per_page=12` | Published places with selected translations and filtered pagination. Send `Accept-Language` in the request header. |
-| `GET /places/:slug`                                           | One published Place with stored translations. |
-| `GET /places/:slug/showtimes?date=2026-10-21`                 | Upcoming published sessions for the selected theater and Kuwait calendar date, with related movie records.                                                                      |
+| `GET /places/:slug`                                           | One published Place with one selected translation row and localized image/feature labels. |
+| `GET /places/:slug/showtimes?date=2026-10-21`                 | Upcoming published sessions with related movies whose `title` and `synopsis` are localized. |
 
 Types are CMS-managed codes; defaults are `attraction`, `restaurant`, `hotel_resort`, `theater`. Do not rename these to UI labels such as Dine In or Stay. `type` is required for public place/category/feature lists; saved and admin place lists may omit it.
 
@@ -37,7 +37,7 @@ These are DB column names and table-named relation containers. Scalars that have
 
 IDs/counts are integers; flags are booleans; coordinates are numbers or null; `price_amount` is a string such as `"95.000"` or null. Keep `price_currency`, `price_mode` and translated `price_unit` when displaying prices. These are CMS-entered prices, not live inventory or currency conversion. Timestamps are ISO UTC; wall-clock fields are `HH:mm:ss` in Kuwait local time.
 
-On `/categories` and `/places` lists, send `Accept-Language: en` or `ar` (default `en`). Each `category_translations` or `place_translations` array contains only the selected row. Missing, null, empty or whitespace-only Arabic fields fall back **per field** to English; if the Arabic row is missing, the English row is returned. Paired fields such as `name_en`/`name_ar`, `alt_en`/`alt_ar`, and `caption_en`/`caption_ar` become `name`, `alt`, and `caption` in these responses. Other fields and relation containers retain their names. Detail, saved-list, `/explore`, and admin responses still expose stored language fields.
+Send `Accept-Language: en` or `ar` (default `en`) on every public app read. `/explore`, `/place-features`, place lists/details, saved places, and included showtime movies use the selected language. Each translation array contains only its selected row. Missing, null, empty or whitespace-only Arabic fields fall back **per field** to English; if the Arabic row is missing, the English row is returned. Paired fields such as `name_en`/`name_ar`, `alt_en`/`alt_ar`, `caption_en`/`caption_ar`, and movie `title_en`/`title_ar` become `name`, `alt`, `caption`, and `title`. Response containers, IDs, pagination, viewer state and image metadata retain their names. Admin reads continue to expose stored language fields.
 
 List/detail metadata includes:
 
@@ -66,7 +66,7 @@ The open-only SQL filter and returned state use the same request timestamp and i
 Customer bearer authentication is required:
 
 - `PUT /customer/me/saved-places/:place_id`: returns HTTP 200 with `{ data: { customer_id, place_id, created_at } }`. Idempotent; repeats retain the original save timestamp. The place must be published and visible.
-- `GET /customer/me/saved-places?type=restaurant&page=1&per_page=12`: returns stored-language Places and viewer metadata; hidden/deleted places do not appear or affect totals.
+- `GET /customer/me/saved-places?type=restaurant&page=1&per_page=12`: returns localized Places and viewer metadata; hidden/deleted places do not appear or affect totals.
 - `DELETE /customer/me/saved-places/:place_id`: returns HTTP 204, also if this account never saved it. Does not affect another account's save.
 
 The unique customer/place key prevents duplicates. No customer ID is accepted from the app. Writes are limited to 120 per customer per minute. Customer deletion cascades saves; place deletion also removes associated saves. Guest bookmarks and saved videos/addresses are outside this section.

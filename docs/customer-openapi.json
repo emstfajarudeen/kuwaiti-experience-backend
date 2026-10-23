@@ -1290,7 +1290,7 @@
                   "required": ["data", "meta"],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/Page"
+                      "$ref": "#/components/schemas/LocalizedPage"
                     },
                     "meta": {
                       "$ref": "#/components/schemas/PageMeta"
@@ -1392,6 +1392,7 @@
           }
         },
         "parameters": [
+          {"name":"Accept-Language","in":"header","required":false,"description":"App language; English by default","schema":{"type":"string","example":"ar"}},
           {
             "in": "path",
             "name": "slug",
@@ -3237,6 +3238,8 @@
       }
     },
     "schemas": {
+      "LocalizedPage": {"type":"object","additionalProperties":false,"required":["id","slug","status","published_at","created_at","updated_at","page_translations"],"properties":{"id":{"type":"integer","minimum":1},"slug":{"type":"string"},"status":{"type":"string","const":"published"},"published_at":{"type":"string","format":"date-time"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":["string","null"],"format":"date-time"},"page_translations":{"type":"array","items":{"$ref":"#/components/schemas/PageTranslation"},"maxItems":1}}},
+
       "Customer": {
         "type": "object",
         "additionalProperties": false,

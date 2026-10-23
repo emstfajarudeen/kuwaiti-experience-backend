@@ -116,8 +116,8 @@ test.group('Explore and CMS extensions', (group) => {
     list.assertStatus(200)
     const expected = detail.body().data
     const listed = list.body().data.find((row: { id: number }) => row.id === p.id)
-    assert.deepEqual(listed, localizePublicData(expected, 'en'))
-    assert.deepEqual(update.body().data, expected)
+    assert.deepEqual(listed, expected)
+    assert.deepEqual(localizePublicData(update.body().data, 'en'), expected)
     assert.strictEqual(expected.price_amount, '3.000')
     assert.isNull(expected.check_in_time)
     assert.isNull(expected.screen_count)
@@ -392,7 +392,10 @@ test.group('Explore and CMS extensions', (group) => {
       })
     )
     assert.deepEqual(listed.body().data[0], session.body().data)
-    assert.deepEqual(listed.body().included.movies[0], published.body().data)
+    assert.deepEqual(
+      listed.body().included.movies[0],
+      localizePublicData(published.body().data, 'en')
+    )
     const invalidDate = await client.get(`${base}/places/${theater.slug}/showtimes?date=2026-02-30`)
     invalidDate.assertStatus(422)
     expectStatus(

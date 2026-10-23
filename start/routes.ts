@@ -383,7 +383,9 @@ router
         router.get('/contact-requests', [AdminContactsController, 'index'])
         router.get('/contact-requests/:id', [AdminContactsController, 'show'])
         router.patch('/contact-requests/:id', [AdminContactsController, 'update'])
-        router.get('/pages/:slug', [CustomerSupportController, 'page']).as('v2.admin.pages.show')
+        router
+          .get('/pages/:slug', [CustomerSupportController, 'adminPage'])
+          .as('v2.admin.pages.show')
         router.get('/site', [CustomerSupportController, 'site']).as('v2.admin.site.show')
       })
       .prefix('/admin')

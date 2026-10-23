@@ -44,6 +44,9 @@ function selectedTranslation(rows: RecordValue[], locale: PublicLocale): RecordV
   const english = rows.find((row) => row.locale === 'en')
   if (locale !== 'ar' || !english || selected === english) return [selected]
   const merged = { ...selected }
+  if (missing(selected.body) && !missing(english.body) && 'body_format' in english) {
+    merged.body_format = english.body_format
+  }
   for (const [key, value] of Object.entries(english)) {
     if (!['id', 'locale', 'updated_at'].includes(key) && missing(merged[key])) merged[key] = value
   }
@@ -63,7 +66,9 @@ export function localizePublicData(value: unknown, locale: PublicLocale): unknow
     } else if (key.endsWith('_ar') && Object.hasOwn(source, `${key.slice(0, -3)}_en`)) {
       continue
     } else if (
-      ['home_content', 'category_translations', 'place_translations'].includes(key) &&
+      ['home_content', 'category_translations', 'place_translations', 'page_translations'].includes(
+        key
+      ) &&
       Array.isArray(item)
     ) {
       result[key] = selectedTranslation(item as RecordValue[], locale).map((row) =>

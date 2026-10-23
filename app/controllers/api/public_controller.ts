@@ -3,10 +3,16 @@ import { ApiError } from '../../services/api_error.js'
 import { enquiryValidator } from '../../validators/public.js'
 import * as content from '../../services/public_content_service.js'
 import { assertPlaceType } from '../../services/category_type_service.js'
+import { publicLanguage } from '../../services/public_localization.js'
+
+function appLocale(request: HttpContext['request']) {
+  const header = request.header('accept-language')
+  return header ? publicLanguage(header) : content.localeFrom(request.input('locale'))
+}
 
 export default class PublicController {
   async home({ request }: HttpContext) {
-    return content.homeContent(content.localeFrom(request.input('locale')))
+    return content.homeContent(appLocale(request))
   }
 
   async site() {
@@ -14,10 +20,7 @@ export default class PublicController {
   }
 
   async categories({ request }: HttpContext) {
-    return content.listCategories(
-      await assertPlaceType(request.input('type')),
-      content.localeFrom(request.input('locale'))
-    )
+    return content.listCategories(await assertPlaceType(request.input('type')), appLocale(request))
   }
 
   async places({ request }: HttpContext) {
@@ -47,20 +50,20 @@ export default class PublicController {
       q,
       page,
       perPage,
-      locale: content.localeFrom(request.input('locale')),
+      locale: appLocale(request),
     })
   }
 
   async place({ params, request }: HttpContext) {
-    return content.showPlace(params.slug, content.localeFrom(request.input('locale')))
+    return content.showPlace(params.slug, appLocale(request))
   }
 
   async page({ params, request }: HttpContext) {
-    return content.showPage(params.slug, content.localeFrom(request.input('locale')))
+    return content.showPage(params.slug, appLocale(request))
   }
 
   async locations({ request }: HttpContext) {
-    return content.transportLocations(content.localeFrom(request.input('locale')))
+    return content.transportLocations(appLocale(request))
   }
 
   async enquiry({ request }: HttpContext) {

@@ -27,7 +27,7 @@ export async function publicCategoryTypes(locale: 'en' | 'ar') {
   const rows = await categoryTypes()
   return rows.map((row) => ({
     type: row.code,
-    name: locale === 'ar' ? row.name_ar || row.name_en : row.name_en,
+    name: locale === 'ar' && row.name_ar?.trim() ? row.name_ar : row.name_en,
     image: publicImageUrl(row.image_key),
     order: row.sort_order,
   }))
