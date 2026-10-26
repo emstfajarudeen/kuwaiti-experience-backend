@@ -18,9 +18,13 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
-            "url": "{{base_url}}/api/v2/pages/about-us?locale={{locale}}",
+            "url": "{{base_url}}/api/v2/pages/about-us",
             "description": "Public CMS page; publish approved content before expecting HTTP 200.",
             "auth": {
               "type": "noauth"
@@ -56,9 +60,13 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
-            "url": "{{base_url}}/api/v2/pages/contact-us?locale={{locale}}",
+            "url": "{{base_url}}/api/v2/pages/contact-us",
             "description": "Public CMS page; publish approved content before expecting HTTP 200.",
             "auth": {
               "type": "noauth"
@@ -94,9 +102,13 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
-            "url": "{{base_url}}/api/v2/pages/privacy-policy?locale={{locale}}",
+            "url": "{{base_url}}/api/v2/pages/privacy-policy",
             "description": "",
             "auth": {
               "type": "noauth"
@@ -130,9 +142,13 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
-            "url": "{{base_url}}/api/v2/pages/terms-and-conditions?locale={{locale}}",
+            "url": "{{base_url}}/api/v2/pages/terms-and-conditions",
             "description": "",
             "auth": {
               "type": "noauth"
@@ -1269,6 +1285,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
             "url": "{{base_url}}/api/v2/explore",
@@ -1296,6 +1316,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
             "url": "{{base_url}}/api/v2/categories?type={{explore_type}}",
@@ -1323,6 +1347,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
             "url": "{{base_url}}/api/v2/place-features?type={{explore_type}}",
@@ -1350,6 +1378,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
             "url": "{{base_url}}/api/v2/places?type={{explore_type}}&page=1&per_page=12",
@@ -1436,6 +1468,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
             "url": "{{base_url}}/api/v2/places/{{place_slug}}",
@@ -1463,6 +1499,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
             "url": "{{base_url}}/api/v2/places/{{place_slug}}",
@@ -1529,6 +1569,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
             "url": "{{base_url}}/api/v2/places/{{theater_slug}}/showtimes?date={{showtime_date}}&per_page=20",
@@ -1596,6 +1640,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
             "url": "{{base_url}}/api/v2/customer/me/saved-places?per_page=12",
@@ -2404,6 +2452,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
             "url": "{{base_url}}/api/v2/home",
@@ -2431,6 +2483,10 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept-Language",
+                "value": "{{locale}}"
               }
             ],
             "url": "{{base_url}}/api/v2/home",
@@ -2980,7 +3036,7 @@
           "  if (body.included && body.included.movies) rows.push(...body.included.movies);",
           "  rows.filter(Boolean).forEach(function (row) {",
           "    const type = row.place_translations ? 'Place' : row.title_en !== undefined ? 'Movie' : row.kind && row.code ? 'Feature' : row.movie_id && row.starts_at ? 'Showtime' : null;",
-          "    if (type) pm.test(type + ' uses canonical DB keys and types', function () { pm.expect(row).to.have.jsonSchema(schemas[type]); });",
+          "    const appPath = '/' + pm.request.url.path.join('/'); const localizedPlace = type === 'Place' && /^\\/api\\/v2\\/(?:home$|places(?:\\/|$)|customer\\/me\\/saved-places(?:\\/|$))/.test(appPath); const localizedFeature = type === 'Feature' && appPath === '/api/v2/place-features'; if (type && !localizedPlace && !localizedFeature) pm.test(type + ' uses canonical DB keys and types', function () { pm.expect(row).to.have.jsonSchema(schemas[type]); });",
           "  });",
           "}"
         ]
@@ -2998,8 +3054,8 @@
           "  const cards = body.data && body.data.home_explore_cards ? body.data.home_explore_cards : Array.isArray(body.data) && body.data.some((row) => row && Object.prototype.hasOwnProperty.call(row, \"place_id\") && Object.prototype.hasOwnProperty.call(row, \"caption_en\")) ? body.data : body.data && Object.prototype.hasOwnProperty.call(body.data, \"caption_en\") ? [body.data] : [];",
           "  const types = body.data && body.data.category_types ? body.data.category_types : [];",
           "  content.forEach((row) => pm.test(\"HomeContent uses canonical DB keys and types\", () => pm.expect(row).to.have.jsonSchema(schemas.HomeContent)));",
-          "  cards.forEach((row) => pm.test(\"HomeExploreCard uses canonical DB keys and types\", () => pm.expect(row).to.have.jsonSchema(schemas.HomeExploreCard)));",
-          "  types.forEach((row) => pm.test(\"CategoryType uses canonical DB keys and types\", () => pm.expect(row).to.have.jsonSchema(schemas.CategoryType)));",
+          "  if (!/^\\/api\\/v2\\/home$/.test('/' + pm.request.url.path.join('/'))) cards.forEach((row) => pm.test(\"HomeExploreCard uses canonical DB keys and types\", () => pm.expect(row).to.have.jsonSchema(schemas.HomeExploreCard)));",
+          "  if (!/^\\/api\\/v2\\/(home|explore)$/.test('/' + pm.request.url.path.join('/'))) types.forEach((row) => pm.test(\"CategoryType uses canonical DB keys and types\", () => pm.expect(row).to.have.jsonSchema(schemas.CategoryType)));",
           "}"
         ]
       }

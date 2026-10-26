@@ -3,9 +3,16 @@ import { canonicalPage, canonicalSettings } from '../../services/customer_conten
 import { createContactRequest } from '../../services/contact_request_service.js'
 import { contactValidator } from '../../validators/customer.js'
 import { optionalCustomer } from '../../middleware/customer_auth_middleware.js'
+import { localizePublicData, publicLanguage } from '../../services/public_localization.js'
 
 export default class CustomerSupportController {
   async page({ params, request }: HttpContext) {
+    const locale = publicLanguage(request.header('accept-language') ?? request.input('locale'))
+    const result = await canonicalPage(params.slug, locale)
+    return { ...result, data: localizePublicData(result.data, locale) }
+  }
+
+  async adminPage({ params, request }: HttpContext) {
     return canonicalPage(params.slug, request.input('locale') === 'ar' ? 'ar' : 'en')
   }
 

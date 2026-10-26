@@ -20,7 +20,7 @@ This document describes the currently implemented visitor-facing `/api/v1` respo
 
 1. Configure an API origin, such as `http://localhost:3333` in development. All paths in this document are relative to that origin. Public JSON calls do not need admin authentication.
 2. JSON success responses put content under `data`. The places list also has `meta`. Check the HTTP status before using `data`; errors use an `error` object instead.
-3. Pass `locale=en` or `locale=ar` on localized endpoints. English is the default when `locale` is missing or different. Missing Arabic text falls back to English. The `/site` endpoint does not use `locale`.
+3. Send `Accept-Language: en` or `Accept-Language: ar` from the app on localized endpoints. English is the default when the header is absent or unsupported; missing Arabic text falls back to English. Existing `?locale=` query parameters remain available for v1 clients when no header is sent. The `/site` endpoint does not use a language selection.
 4. On the landing page, use `data.categoryTypes` in its returned order. Use each tile's `type` code in the listing URL and later API calls; use `name` as visible text. Do not hardcode type codes such as `attraction`, because admins can add or remove types.
 5. Fetch category filters on the listing page, after a type is selected. The landing response deliberately has no `categories` key. Each category filter uses its `slug`, not its `id`. Categories have no image in the public response.
 6. For the “All” filter, omit `category` or send `category=all`. This includes published places without a category. For a specific filter, send its slug, for example `category=parks`. Keep `type` in every listing request. Reset `page` to `1` when the type, category, or search changes.

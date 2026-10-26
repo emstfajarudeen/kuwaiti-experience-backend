@@ -11,10 +11,22 @@ export function localeFrom(value: unknown): 'en' | 'ar' {
   return value === 'ar' ? 'ar' : 'en'
 }
 
+function localizedSql(field: string, locale: 'en' | 'ar') {
+  const english = `en.${field}`
+  const arabic = `ar.${field}`
+  return locale === 'ar'
+    ? `CASE WHEN ${arabic} IS NOT NULL AND TRIM(${arabic}) <> '' THEN ${arabic} ELSE ${english} END`
+    : english
+}
+
+function localizedText(english: string | null | undefined, arabic: string | null | undefined) {
+  return arabic?.trim() ? arabic : english
+}
+
 function placeQuery(locale: 'en' | 'ar', publishedOnly = true) {
-  const title = locale === 'ar' ? 'COALESCE(ar.title, en.title)' : 'en.title'
-  const summary = locale === 'ar' ? 'COALESCE(ar.summary, en.summary)' : 'en.summary'
-  const address = locale === 'ar' ? 'COALESCE(ar.address, en.address)' : 'en.address'
+  const title = localizedSql('title', locale)
+  const summary = localizedSql('summary', locale)
+  const address = localizedSql('address', locale)
   const query = db
     .from('places as p')
     .join('place_translations as en', function () {
@@ -106,13 +118,17 @@ export async function showPlace(
 ) {
   const card = await placeQuery(locale, !preview).where('p.slug', slug).first()
   if (!card) throw new ApiError(404, 'NOT_FOUND', 'Place not found')
-  const translation =
-    (await db
-      .from('place_translations')
-      .where('place_id', card.id)
-      .where('locale', locale)
-      .first()) ??
-    (await db.from('place_translations').where('place_id', card.id).where('locale', 'en').first())
+  const english = await db
+    .from('place_translations')
+    .where('place_id', card.id)
+    .where('locale', 'en')
+    .first()
+  const arabic =
+    locale === 'ar'
+      ? await db.from('place_translations').where('place_id', card.id).where('locale', 'ar').first()
+      : null
+  const text = (field: string) =>
+    locale === 'ar' ? localizedText(english?.[field], arabic?.[field]) : english?.[field]
   const place = await db.from('places').where('id', card.id).first()
   const gallery = await db
     .from('place_images')
@@ -130,13 +146,13 @@ export async function showPlace(
   return {
     data: {
       ...placeCard(card, imageUrl),
-      body: translation?.body ?? '',
-      hoursNote: translation?.hours_note ?? null,
+      body: text('body') ?? '',
+      hoursNote: text('hours_note') ?? null,
       price: {
         mode: place.price_mode,
         amount: place.price_amount === null ? null : Number(place.price_amount).toFixed(3),
         currency: place.price_currency,
-        unit: translation?.price_unit ?? null,
+        unit: text('price_unit') ?? null,
       },
       coordinates:
         place.latitude === null
@@ -149,12 +165,13 @@ export async function showPlace(
       gallery: gallery.map((image) => ({
         id: image.id,
         url: imageUrl(image.storage_key),
-        alt: locale === 'ar' ? image.alt_ar || image.alt_en : image.alt_en,
-        caption: locale === 'ar' ? image.caption_ar || image.caption_en : image.caption_en,
+        alt: locale === 'ar' ? localizedText(image.alt_en, image.alt_ar) : image.alt_en,
+        caption:
+          locale === 'ar' ? localizedText(image.caption_en, image.caption_ar) : image.caption_en,
       })),
       seo: {
-        title: translation?.seo_title ?? null,
-        description: translation?.seo_description ?? null,
+        title: text('seo_title') ?? null,
+        description: text('seo_description') ?? null,
       },
       cabDestination: { placeId: card.id, name: card.title },
     },
@@ -172,11 +189,7 @@ export async function listCategories(type: string, locale: 'en' | 'ar') {
     })
     .where('c.type', type)
     .where('c.active', true)
-    .select(
-      'c.id',
-      'c.slug',
-      db.raw(locale === 'ar' ? 'COALESCE(ar.name,en.name) as name' : 'en.name as name')
-    )
+    .select('c.id', 'c.slug', db.raw(`${localizedSql('name', locale)} as name`))
     .orderBy('c.sort_order')
     .orderBy('c.id')
   return {
@@ -189,9 +202,11 @@ export async function listCategories(type: string, locale: 'en' | 'ar') {
 }
 
 export async function homeContent(locale: 'en' | 'ar') {
-  const home =
-    (await db.from('home_content').where('locale', locale).first()) ??
-    (await db.from('home_content').where('locale', 'en').first())
+  const english = await db.from('home_content').where('locale', 'en').first()
+  const arabic =
+    locale === 'ar' ? await db.from('home_content').where('locale', 'ar').first() : null
+  const homeText = (field: string) =>
+    locale === 'ar' ? localizedText(english?.[field], arabic?.[field]) : english?.[field]
   const categoryTypes = await publicCategoryTypes(locale)
   const codes = categoryTypes.map((type) => type.type)
   const featured = await Promise.all(
@@ -208,11 +223,15 @@ export async function homeContent(locale: 'en' | 'ar') {
   return {
     data: {
       hero: {
-        eyebrow: home?.hero_eyebrow ?? 'WELCOME TO KUWAIT',
-        title: home?.hero_title ?? 'Explore Kuwait',
-        image: publicImageUrl(home?.hero_image_key),
+        eyebrow: homeText('hero_eyebrow') ?? 'WELCOME TO KUWAIT',
+        title: homeText('hero_title') ?? 'Explore Kuwait',
+        image: publicImageUrl(
+          locale === 'ar'
+            ? localizedText(english?.hero_image_key, arabic?.hero_image_key)
+            : english?.hero_image_key
+        ),
       },
-      discoveryTitle: home?.discovery_title ?? 'What would you like to do?',
+      discoveryTitle: homeText('discovery_title') ?? 'What would you like to do?',
       categoryTypes,
       featured,
       app: {
@@ -251,23 +270,15 @@ export async function showPage(slug: string, locale: 'en' | 'ar') {
     .where('p.published_at', '<=', db.raw('CURRENT_TIMESTAMP'))
     .select(
       'p.slug',
-      db.raw(locale === 'ar' ? 'COALESCE(ar.title,en.title) as title' : 'en.title as title'),
-      db.raw(locale === 'ar' ? 'COALESCE(ar.body,en.body) as body' : 'en.body as body'),
+      db.raw(`${localizedSql('title', locale)} as title`),
+      db.raw(`${localizedSql('body', locale)} as body`),
       db.raw(
         locale === 'ar'
-          ? 'COALESCE(ar.body_format,en.body_format) as body_format'
+          ? "CASE WHEN ar.body IS NOT NULL AND TRIM(ar.body) <> '' THEN ar.body_format ELSE en.body_format END as body_format"
           : 'en.body_format as body_format'
       ),
-      db.raw(
-        locale === 'ar'
-          ? 'COALESCE(ar.seo_title,en.seo_title) as seo_title'
-          : 'en.seo_title as seo_title'
-      ),
-      db.raw(
-        locale === 'ar'
-          ? 'COALESCE(ar.seo_description,en.seo_description) as seo_description'
-          : 'en.seo_description as seo_description'
-      )
+      db.raw(`${localizedSql('seo_title', locale)} as seo_title`),
+      db.raw(`${localizedSql('seo_description', locale)} as seo_description`)
     )
     .first()
   if (!row) throw new ApiError(404, 'NOT_FOUND', 'Page not found')
@@ -296,7 +307,7 @@ export async function transportLocations(locale: 'en' | 'ar') {
       'l.code',
       'l.pickup_enabled',
       'l.dropoff_enabled',
-      db.raw(locale === 'ar' ? 'COALESCE(ar.name,en.name) as name' : 'en.name as name')
+      db.raw(`${localizedSql('name', locale)} as name`)
     )
     .orderBy('l.sort_order')
     .orderBy('l.id')

@@ -2,7 +2,7 @@
 
 Start with the [mobile app API reference](app-api-reference.md) for the current screen map, common request rules, complete Place/showtime examples and AI handoff instructions. This guide adds Explore/CMS details.
 
-Base: `/api/v2`. Exact schemas: [explore-openapi.json](explore-openapi.json), also referenced by [openapi.yaml](openapi.yaml). The website's v1 contracts remain available. Explore v2 uses the same place, category, translation and image records, with one canonical Place serializer across public lists/details, saved lists and v2 admin reads/updates.
+Base: `/api/v2`. Exact schemas: [explore-openapi.json](explore-openapi.json), also referenced by [openapi.yaml](openapi.yaml). The website's v1 contracts remain available. Explore v2 uses the same place, category, translation and image records. Public category and place lists localize the response; detail, saved-list and admin reads retain stored language fields.
 
 Implemented additions: place bookmarks, venue phones, highlights/amenities/capabilities, stay check-in/out, theater screen counts, CMS-maintained movies/posters/showtimes, and computed Open Now. Schedule remains pending. These APIs do not create cab rides, hotel reservations or cinema ticket bookings.
 
@@ -10,12 +10,12 @@ Implemented additions: place bookmarks, venue phones, highlights/amenities/capab
 
 | Request                                                       | Behavior                                                                                                                                                                        |
 | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /explore`                                                | `{ data: { category_types: [...] }, meta: { images: [...] } }`. Ordered type records use literal DB keys `code`, `name_en`, `name_ar`, `image_key`, `sort_order`, `updated_at`. |
-| `GET /categories?type=attraction`                             | Active Category entities including full `category_translations` rows.                                                                                                           |
-| `GET /place-features?type=theater`                            | Active Feature entities, with `code`, `kind`, `name_en`, `name_ar`, `type`, etc.                                                                                                |
-| `GET /places?type=attraction&category=all&page=1&per_page=12` | Published places and filtered pagination.                                                                                                                                       |
-| `GET /places/:slug`                                           | One published Place, in precisely the same shape as a list element.                                                                                                             |
-| `GET /places/:slug/showtimes?date=2026-10-21`                 | Upcoming published sessions for the selected theater and Kuwait calendar date, with related movie records.                                                                      |
+| `GET /explore`                                                | `{ data: { category_types: [...] }, meta: { images: [...] } }`. Type records use localized `name` plus their existing code, image, order and timestamp fields. |
+| `GET /categories?type=attraction`                              | Active categories with one selected `category_translations` row. Send `Accept-Language: en` or `ar`; English by default. |
+| `GET /place-features?type=theater`                            | Active Feature entities, with localized `name` and their existing code, kind, type and other fields. |
+| `GET /places?type=attraction&category=all&page=1&per_page=12` | Published places with selected translations and filtered pagination. Send `Accept-Language` in the request header. |
+| `GET /places/:slug`                                           | One published Place with one selected translation row and localized image/feature labels. |
+| `GET /places/:slug/showtimes?date=2026-10-21`                 | Upcoming published sessions with related movies whose `title` and `synopsis` are localized. |
 
 Types are CMS-managed codes; defaults are `attraction`, `restaurant`, `hotel_resort`, `theater`. Do not rename these to UI labels such as Dine In or Stay. `type` is required for public place/category/feature lists; saved and admin place lists may omit it.
 
@@ -33,11 +33,11 @@ published_at, created_at, updated_at,
 place_translations, place_hours, place_images, place_features
 ```
 
-These are DB column names and table-named relation containers. Scalars that have no value are present as `null`; collections are always arrays. There are no `cover`, `hoursNote`, `price.amount` or localized `name` aliases. Relations are batch-loaded per page, including the bounded gallery, rather than queried separately for each card.
+These are DB column names and table-named relation containers. Scalars that have no value are present as `null`; collections are always arrays. There are no `cover`, `hoursNote` or `price.amount` aliases. Relations are batch-loaded per page, including the bounded gallery, rather than queried separately for each card.
 
 IDs/counts are integers; flags are booleans; coordinates are numbers or null; `price_amount` is a string such as `"95.000"` or null. Keep `price_currency`, `price_mode` and translated `price_unit` when displaying prices. These are CMS-entered prices, not live inventory or currency conversion. Timestamps are ISO UTC; wall-clock fields are `HH:mm:ss` in Kuwait local time.
 
-All stored translation rows are returned, retaining `locale` and DB field names. The app selects its locale and falls back **per field** to English for missing/null/empty Arabic content. `locale` need not be sent to these v2 discovery endpoints because their entity data is locale-independent. No extra Arabic translation row is fabricated. `name_en`/`name_ar` and movie title/synopsis pairs follow the same client fallback rule.
+Send `Accept-Language: en` or `ar` (default `en`) on every public app read. `/explore`, `/place-features`, place lists/details, saved places, and included showtime movies use the selected language. Each translation array contains only its selected row. Missing, null, empty or whitespace-only Arabic fields fall back **per field** to English; if the Arabic row is missing, the English row is returned. Paired fields such as `name_en`/`name_ar`, `alt_en`/`alt_ar`, `caption_en`/`caption_ar`, and movie `title_en`/`title_ar` become `name`, `alt`, `caption`, and `title`. Response containers, IDs, pagination, viewer state and image metadata retain their names. Admin reads continue to expose stored language fields.
 
 List/detail metadata includes:
 
@@ -51,7 +51,7 @@ List/detail metadata includes:
 }
 ```
 
-Lists additionally have `page`, `per_page`, `total`, `last_page`. Image URLs are derived protocol data, not aliases replacing DB keys. Join relative URLs to the API origin. Admin metadata uses authenticated image routes. Canonical entity fields remain identical.
+Lists additionally have `page`, `per_page`, `total`, `last_page`. Image URLs are derived protocol data, not aliases replacing DB keys. Join relative URLs to the API origin. Admin metadata uses authenticated image routes.
 
 Browse as a guest without Authorization; send a customer access bearer token to receive that customer's save state. Invalid supplied tokens are rejected. Guests receive `saved: false`. v2 responses use `Cache-Control: no-store`, including personalized and time-dependent results.
 
@@ -66,7 +66,7 @@ The open-only SQL filter and returned state use the same request timestamp and i
 Customer bearer authentication is required:
 
 - `PUT /customer/me/saved-places/:place_id`: returns HTTP 200 with `{ data: { customer_id, place_id, created_at } }`. Idempotent; repeats retain the original save timestamp. The place must be published and visible.
-- `GET /customer/me/saved-places?type=restaurant&page=1&per_page=12`: returns the same canonical Places and viewer metadata as browsing; hidden/deleted places do not appear or affect totals.
+- `GET /customer/me/saved-places?type=restaurant&page=1&per_page=12`: returns localized Places and viewer metadata; hidden/deleted places do not appear or affect totals.
 - `DELETE /customer/me/saved-places/:place_id`: returns HTTP 204, also if this account never saved it. Does not affect another account's save.
 
 The unique customer/place key prevents duplicates. No customer ID is accepted from the app. Writes are limited to 120 per customer per minute. Customer deletion cascades saves; place deletion also removes associated saves. Guest bookmarks and saved videos/addresses are outside this section.

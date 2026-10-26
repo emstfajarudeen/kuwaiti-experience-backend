@@ -14,7 +14,7 @@ export default class ApiCorsMiddleware {
     if (!/^\/api\/v[12]\//.test(ctx.request.url())) return next()
     if (ctx.request.url().startsWith('/api/v2/')) ctx.response.header('Cache-Control', 'no-store')
 
-    ctx.response.header('Vary', 'Origin')
+    ctx.response.header('Vary', 'Origin, Accept-Language')
     const origin = ctx.request.header('origin')
     if (!origin || !allowedOrigins.has(origin)) return next()
 
@@ -24,7 +24,10 @@ export default class ApiCorsMiddleware {
         'Access-Control-Allow-Methods',
         'GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS'
       )
-      ctx.response.header('Access-Control-Allow-Headers', 'Accept, Authorization, Content-Type')
+      ctx.response.header(
+        'Access-Control-Allow-Headers',
+        'Accept, Accept-Language, Authorization, Content-Type'
+      )
       ctx.response.header('Access-Control-Max-Age', '600')
       return ctx.response.noContent()
     }

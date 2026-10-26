@@ -76,9 +76,9 @@ A **nullable** property is still a required JSON key when marked required in Ope
 
 ### Localization
 
-Explore returns all stored translation rows. Select English/Arabic in the app, falling back **per field** to English when Arabic is missing, null or empty. Do not assume an Arabic row exists. Use the same rule for `name_en`/`name_ar` and movie title/synopsis pairs. Sending `locale` does not transform Explore entities into flat localized cards.
+Public app reads use the `Accept-Language` request header (`en` or `ar`; English by default). Send the app's selected language on every request, for example `Accept-Language: ar`. This applies to Home, Explore, categories, features, place lists/details, saved places, showtime movies, and pages. Translation arrays retain their names but contain one selected row. Paired fields such as `name_en`/`name_ar` return as `name`; `caption_en`/`caption_ar` return as `caption`. Missing, null, empty, or whitespace-only Arabic values fall back to English **per field**. Response envelopes and unrelated fields retain their names. Admin/CMS reads retain stored language fields and rows. The v1 app reads also accept this header; their existing `?locale=` query remains a fallback when no header is sent.
 
-Legal-page reads accept `locale=en|ar` (default English). Use `meta.locale` to select the actual returned translation; it may be English after fallback. The selected `PageTranslation` includes nullable `eyebrow` and required `body_format` (`plain_text` or `html`): escape plain text, or render server-sanitized HTML in a constrained content container. Never interpolate HTML into attributes or scripts.
+Legal-page reads use `Accept-Language: en|ar` (default English), with the existing `?locale=` query accepted when the header is absent. Use `meta.locale` to identify the selected translation row; it may be English after fallback. The selected `PageTranslation` includes nullable `eyebrow` and required `body_format` (`plain_text` or `html`): escape plain text, or render server-sanitized HTML in a constrained content container. Never interpolate HTML into attributes or scripts.
 
 ## 4. Quick start: browse without login
 
@@ -196,11 +196,11 @@ These are Guest/customer operations. A customer token adds their bookmark state 
 
 | Method and path              | Inputs                                             | Success                                                                         |
 | ---------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `GET /api/v2/explore`        | None                                               | 200, `data: { category_types: CategoryType[] }`, `meta.images`                  |
-| `GET /api/v2/categories`     | Required `type`                                    | 200, `data: Category[]`                                                         |
-| `GET /api/v2/place-features` | Required `type`                                    | 200, `data: Feature[]`                                                          |
-| `GET /api/v2/places`         | Required `type`; optional filters/pagination below | 200, `PlaceList`                                                                |
-| `GET /api/v2/places/{slug}`  | Place slug from a list item                        | 200, `PlaceResult`: one complete Place under `data`, plus viewer/image metadata |
+| `GET /api/v2/explore`        | `Accept-Language` header                           | 200, localized `data.category_types[].name`, `meta.images`                     |
+| `GET /api/v2/categories`     | Required `type`; `Accept-Language` header           | 200, localized `data: Category[]`                                               |
+| `GET /api/v2/place-features` | Required `type`; `Accept-Language` header           | 200, localized `data: Feature[]`                                               |
+| `GET /api/v2/places`         | Required `type`; optional filters/pagination; `Accept-Language` header | 200, localized `PlaceList`                                         |
+| `GET /api/v2/places/{slug}`  | Place slug; `Accept-Language` header                | 200, localized `PlaceResult` plus viewer/image metadata                        |
 
 | UI section  | Actual `type` code |
 | ----------- | ------------------ |
@@ -227,7 +227,7 @@ Public results exclude drafts, archives and future publications. Category and fe
 
 ## 8. Place response and screen mapping
 
-This complete illustrative list response shows all required Place keys. IDs/content/images are examples, not guaranteed seeded records. A detail endpoint returns the same Place object directly under `data`, with no list pagination keys.
+This complete illustrative English list response shows all required Place keys. IDs/content/images are examples, not guaranteed seeded records. A detail endpoint returns the same localized Place object directly under `data`, without list pagination keys.
 
 ```json
 {
@@ -332,10 +332,8 @@ Date means a Kuwait calendar day; omission defaults to today in Kuwait. Paginati
     "movies": [
       {
         "id": 3,
-        "title_en": "Example movie",
-        "title_ar": null,
-        "synopsis_en": null,
-        "synopsis_ar": null,
+        "title": "Example movie",
+        "synopsis": null,
         "duration_minutes": 120,
         "age_rating": null,
         "poster_image_key": "123e4567-e89b-42d3-a456-426614174001.webp",
@@ -371,7 +369,7 @@ All require Customer authentication. `{id}` is the numeric Place ID. The server 
 
 | Method and path                                | Request/query                                                     | Success                                               |
 | ---------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------- |
-| `GET /api/v2/customer/me/saved-places`         | Optional `type`, `page`, `per_page`; standard place filters apply | 200, same `PlaceList` schema and metadata as browsing |
+| `GET /api/v2/customer/me/saved-places`         | Optional `type`, `page`, `per_page`; standard place filters apply | 200, localized `PlaceList` and viewer metadata |
 | `PUT /api/v2/customer/me/saved-places/{id}`    | No body                                                           | 200, `data: SavedPlace`                               |
 | `DELETE /api/v2/customer/me/saved-places/{id}` | No body                                                           | 204, empty body                                       |
 
@@ -381,7 +379,7 @@ Save example: `{ "data": { "customer_id": 1, "place_id": 12, "created_at": "2026
 
 | Method and path                 | Auth/request                                                                                    | Success                                                                      |
 | ------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `GET /api/v2/pages/{slug}`      | Public; `about-us`, `contact-us`, `privacy-policy` or `terms-and-conditions`, optional `locale` | 200, `data: Page` with `page_translations`; `meta: { locale, content_hash }` |
+| `GET /api/v2/pages/{slug}`      | Public; `about-us`, `contact-us`, `privacy-policy` or `terms-and-conditions`; `Accept-Language` header | 200, `data: Page` with one selected `page_translations` row; `meta: { locale, content_hash }` |
 | `GET /api/v2/site`              | Public                                                                                          | 200, `data: SiteSettings`; `meta.images` for logo URL                        |
 | `POST /api/v2/contact-requests` | Guest/customer; JSON below                                                                      | 201, submission receipt                                                      |
 
@@ -401,20 +399,20 @@ SiteSettings keys: `id`, `brand_name`, nullable `direct_phone_number`, `direct_p
 
 ## 12. Home screen
 
-`GET /api/v2/home` accepts a guest request or an optional **customer** bearer token. It returns the same response shape either way. An invalid supplied token returns 401. The response uses `Cache-Control: no-store` because `meta.viewer.saved` can be personal. [Home OpenAPI](home-openapi.json) defines the exact required keys and nullability; [Explore OpenAPI](explore-openapi.json) defines the shared `Place` and `CategoryType` models.
+`GET /api/v2/home` reads `Accept-Language` (`en` or `ar`; English by default) and accepts a guest request or an optional **customer** bearer token. An invalid supplied token returns 401. The response uses `Cache-Control: no-store` because `meta.viewer.saved` can be personal. The public response localizes paired fields and selected translation rows.
 
 | Response path             | Type and use                                                                                                                                                                    |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `data.home_content`       | `HomeContent[]`: stored English/Arabic hero copy and `hero_image_key`. Select the desired locale; fall back per field to English. The array can be empty.                       |
-| `data.category_types`     | `CategoryType[]`: configured descriptors for `attraction`, `restaurant`, `hotel_resort`, `theater`, in CMS order. Reuse the Explore `CategoryType` model.                       |
-| `data.home_explore_cards` | `HomeExploreCard[]`: up to eight active cards whose referenced venues are published. Sort order is already applied. Each `place_id` points into `data.places`.                  |
-| `data.places`             | Full canonical `Place[]` for every selected card or featured section. Reuse the same model used by Explore/list/detail/bookmarks/CMS. A venue appearing twice is included once. |
+| `data.home_content`       | Up to one selected hero-copy row with `hero_image_key`; missing Arabic fields use English. The array can be empty. |
+| `data.category_types`     | Configured type descriptors in CMS order, with localized `name`. |
+| `data.home_explore_cards` | Up to eight active cards with localized `caption`. Each `place_id` points into `data.places`. |
+| `data.places`             | Places for selected cards and featured sections, with one selected translation row and localized paired fields. |
 | `meta.home_sections`      | Ordered `{ type, place_ids, has_more }[]` for the four configured venue types. Each `place_ids` list has at most eight IDs. Empty sections have `[]`.                           |
 | `meta.viewer`             | `{ place_id, saved, open_now }[]` keyed by place ID. `saved` is false for guests; `open_now` can be null when hours cannot determine it.                                        |
 | `meta.images`             | `{ storage_key, url }[]`. Resolve `hero_image_key`, `image_key`, `cover_image_key`, and gallery `storage_key` here. Null/missing keys have no URL.                              |
 | `meta.evaluated_at`       | UTC ISO timestamp used for publication and Open Now evaluation.                                                                                                                 |
 
-All table-backed entity properties use their database column names. Protocol containers and computed metadata are named separately. Never create a smaller Home-specific `Place` interface. `HomeContent`, `HomeExploreCard`, `Place`, and `CategoryType` retain their complete key sets wherever returned.
+Other table-backed entity properties use their database column names. Protocol containers and computed metadata are named separately.
 
 Example response skeleton (illustrative content):
 
@@ -451,7 +449,7 @@ The skeleton shows valid empty arrays, not promised production content. When the
 ### Render and navigate
 
 1. Use `home_content` for hero text/art. The wide **Explore Kuwait** tile and its heading arrow open the existing `/api/v2/explore` hub.
-2. For each `home_explore_cards` row, find the matching `Place` by `place_id`. Use localized `caption_en`/`caption_ar` if present; otherwise use the place's localized title. Render the place's cover from `meta.images`. Tap opens `/api/v2/places/{slug}`.
+2. For each `home_explore_cards` row, find the matching `Place` by `place_id`. Use `caption` if present; otherwise use the selected `place_translations[0].title`. Render the place's cover from `meta.images`. Tap opens `/api/v2/places/{slug}`.
 3. For a carousel, walk its `place_ids` in order and look up the full `Place` in `data.places`. Use `meta.viewer` for bookmark/Open Now state. The section arrow opens `/api/v2/places?type=<type>`; `restaurant` is the stored code for the Dine In label, and `hotel_resort` for Stay.
 4. Missing copy or image is an empty/null content state. Saved state is customer-specific.
 

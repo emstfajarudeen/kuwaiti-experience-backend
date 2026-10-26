@@ -48,12 +48,25 @@ export async function canonicalPage(
     .orderBy('locale')
   if (trx) translationsQuery.forUpdate()
   const translations = await translationsQuery
-  const selected =
-    translations.find((t) => t.locale === locale) ?? translations.find((t) => t.locale === 'en')
+  const english = translations.find((t) => t.locale === 'en')
+  const selected = translations.find((t) => t.locale === locale) ?? english
   if (!selected) throw new ApiError(404, 'NOT_FOUND', 'Page translation not found')
+  const selectedField = (field: string) => {
+    const value = selected[field]
+    return selected.locale === 'ar' &&
+      (value === null || value === undefined || !String(value).trim())
+      ? english?.[field]
+      : value
+  }
+  const title = selectedField('title')
+  const body = selectedField('body')
+  const bodyFormat =
+    selected.locale === 'ar' && !String(selected.body ?? '').trim()
+      ? english?.body_format
+      : selected.body_format
   if (
     ['privacy-policy', 'terms-and-conditions'].includes(slug) &&
-    /Gheyar Seller App|demo placeholder|placeholder content|Draft demo content/i.test(selected.body)
+    /Gheyar Seller App|demo placeholder|placeholder content|Draft demo content/i.test(body)
   ) {
     throw new ApiError(503, 'LEGAL_CONTENT_UNAVAILABLE', 'Approved legal content is not published')
   }
@@ -62,8 +75,8 @@ export async function canonicalPage(
       JSON.stringify([
         page.slug,
         selected.locale,
-        selected.title,
-        safePageBody(selected.body, pageBodyFormat(selected.body_format)),
+        title,
+        safePageBody(body, pageBodyFormat(bodyFormat)),
       ])
     )
     .digest('hex')
