@@ -11,7 +11,13 @@ const issuer = env.get('JWT_ISSUER')
 const audience = env.get('JWT_AUDIENCE')
 const secret = env.get('JWT_SECRET').release()
 
-export type AdminIdentity = { id: number; fullName: string; email: string; sessionId: string }
+export type AdminIdentity = {
+  id: number
+  fullName: string
+  email: string
+  sessionId: string
+  mustChangePassword: boolean
+}
 type TokenPair = { accessToken: string; refreshToken: string; expiresIn: number }
 
 function digest(token: string) {
@@ -84,7 +90,7 @@ export async function authenticateAdmin(token: string): Promise<AdminIdentity> {
   const row = await db
     .from('auth_sessions as s')
     .join('users as u', 'u.id', 's.user_id')
-    .select('u.id', 'u.full_name', 'u.email', 'u.role', 'u.active')
+    .select('u.id', 'u.full_name', 'u.email', 'u.role', 'u.active', 'u.must_change_password')
     .where('s.id', payload.sid)
     .where('u.id', Number(payload.sub))
     .whereNull('s.revoked_at')
@@ -93,7 +99,13 @@ export async function authenticateAdmin(token: string): Promise<AdminIdentity> {
   if (!row || !row.active || row.role !== 'admin') {
     throw new ApiError(401, 'UNAUTHENTICATED', 'Authentication required')
   }
-  return { id: row.id, fullName: row.full_name, email: row.email, sessionId: payload.sid }
+  return {
+    id: row.id,
+    fullName: row.full_name,
+    email: row.email,
+    sessionId: payload.sid,
+    mustChangePassword: Boolean(row.must_change_password),
+  }
 }
 
 export async function rotateRefreshToken(token: string): Promise<TokenPair> {

@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
 import { categoryTypes } from '../../services/category_type_service.js'
 import { formatKuwaitDateTime } from '../../services/date_service.js'
+import { can } from '../../services/authorization_service.js'
 
 function formatActionLabel(action: string): string {
   const map: Record<string, string> = {
@@ -40,7 +41,11 @@ function formatActionLabel(action: string): string {
 }
 
 export default class AdminDashboardController {
-  async index({ view, admin }: HttpContext) {
+  async index({ inertia, request, admin, authorization }: HttpContext) {
+    const showPlaces = can(authorization, 'places.view')
+    const showContacts = can(authorization, 'contact_requests.view')
+    const showTypes = showPlaces && can(authorization, 'category_types.view')
+    const showAudit = can(authorization, 'audit_logs.view')
     const [
       totalPlacesRes,
       publishedPlacesRes,
@@ -51,19 +56,64 @@ export default class AdminDashboardController {
       types,
       rawAuditLogs,
     ] = await Promise.all([
-      db.from('places').count('* as count').first(),
-      db.from('places').where('status', 'published').count('* as count').first(),
-      db.from('places').where('status', 'draft').count('* as count').first(),
-      db.from('places').where('status', 'archived').count('* as count').first(),
-      db.from('contact_requests').where('status', 'new').count('* as count').first(),
-      db.from('places').select('type').count('* as count').groupBy('type'),
-      categoryTypes(),
-      db
-        .from('audit_logs')
-        .select('id', 'action', 'entity_type', 'entity_id', 'created_at')
-        .orderBy('id', 'desc')
-        .limit(10),
+      showPlaces ? db.from('places').count('* as count').first() : null,
+      showPlaces
+        ? db.from('places').where('status', 'published').count('* as count').first()
+        : null,
+      showPlaces ? db.from('places').where('status', 'draft').count('* as count').first() : null,
+      showPlaces ? db.from('places').where('status', 'archived').count('* as count').first() : null,
+      showContacts
+        ? db.from('contact_requests').where('status', 'new').count('* as count').first()
+        : null,
+      showTypes ? db.from('places').select('type').count('* as count').groupBy('type') : [],
+      showTypes ? categoryTypes() : [],
+      showAudit
+        ? db
+            .from('audit_logs')
+            .select('id', 'action', 'entity_type', 'entity_id', 'created_at')
+            .orderBy('id', 'desc')
+            .limit(30)
+        : [],
     ])
+
+    const permissionForEntity: Record<string, string> = {
+      place: 'places.view',
+      category: 'categories.view',
+      category_type: 'category_types.view',
+      movie: 'movies.view',
+      showtime: 'showtimes.view',
+      theater_showtime: 'showtimes.view',
+      page: 'pages.view',
+      contact: 'contact_requests.view',
+      staff: 'staff.view',
+      user: 'staff.view',
+      contact_request: 'contact_requests.view',
+      role: 'roles.view',
+      permission: 'roles.view',
+      permission_catalog: 'roles.view',
+      rbac: 'roles.view',
+      home_content: 'home.view',
+      home_explore_card: 'home.view',
+      site_settings: 'settings.view',
+      transport_location: 'transport.view',
+    }
+    const editPermissionForEntity: Record<string, string> = {
+      place: 'places.update',
+      category: 'categories.update',
+      category_type: 'category_types.update',
+      movie: 'movies.update',
+      showtime: 'showtimes.update',
+      theater_showtime: 'showtimes.update',
+      page: 'pages.update',
+      contact: 'contact_requests.view',
+      contact_request: 'contact_requests.view',
+    }
+    const visibleAuditLogs = rawAuditLogs
+      .filter((log) => {
+        const entityPermission = permissionForEntity[String(log.entity_type)]
+        return showAudit && Boolean(entityPermission) && can(authorization, entityPermission)
+      })
+      .slice(0, 10)
 
     const totalPlaces = Number(totalPlacesRes?.count ?? 0)
     const publishedCount = Number(publishedPlacesRes?.count ?? 0)
@@ -87,7 +137,7 @@ export default class AdminDashboardController {
     const pageIds: number[] = []
     const categoryTypeCodes: string[] = []
 
-    for (const log of rawAuditLogs) {
+    for (const log of visibleAuditLogs) {
       const idNum = Number(log.entity_id)
       if (log.entity_type === 'place' && Number.isSafeInteger(idNum)) placeIds.push(idNum)
       else if (log.entity_type === 'category' && Number.isSafeInteger(idNum))
@@ -162,7 +212,7 @@ export default class AdminDashboardController {
         : new Map(),
     ])
 
-    const recent = rawAuditLogs.map((log) => {
+    const recent = visibleAuditLogs.map((log) => {
       const idNum = Number(log.entity_id)
       let entityName = ''
       let editUrl: string | null = null
@@ -236,24 +286,38 @@ export default class AdminDashboardController {
       }
     })
 
-    // Legacy stats array for backward compatibility
-    const stats = [
-      { label: 'TOTAL PLACES', count: totalPlaces, note: 'All places in collection' },
-      { label: 'PUBLISHED', count: publishedCount, note: 'Visible to public visitors' },
-      { label: 'DRAFTS', count: draftCount, note: 'Awaiting review or publication' },
-      { label: 'ARCHIVED', count: archivedCount, note: 'Removed from public view' },
-    ]
-
-    return view.render('admin/dashboard', {
-      admin,
-      stats,
-      recent,
-      totalPlaces,
-      publishedCount,
-      draftCount,
-      archivedCount,
-      newContactsCount,
-      typeBreakdown,
-    })
+    return inertia.render(
+      'dashboard/overview',
+      {
+        adminName: admin.fullName,
+        csrfToken: request.csrfToken,
+        recent: recent.map((event) => ({
+          id: event.id,
+          actionLabel: event.actionLabel,
+          entityName: event.entityName,
+          editUrl:
+            event.editUrl &&
+            can(authorization, editPermissionForEntity[String(event.entity_type)] ?? '')
+              ? event.editUrl
+              : null,
+          isDeleted: event.isDeleted,
+          created_at: event.created_at,
+        })),
+        totalPlaces,
+        publishedCount,
+        draftCount,
+        archivedCount,
+        newContactsCount,
+        typeBreakdown,
+        visibility: {
+          places: showPlaces,
+          contacts: showContacts,
+          types: showTypes,
+          audit: showAudit,
+        },
+        permissions: [...authorization.permissions],
+      },
+      { bodyClass: 'cms-body' }
+    )
   }
 }

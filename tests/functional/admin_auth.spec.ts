@@ -100,7 +100,14 @@ test.group('Admin JWT authentication', (group) => {
       .cookie('admin_access', expiredAccess)
       .cookie('admin_refresh', tokens.refreshToken)
     editor.assertStatus(200)
-    editor.assertTextIncludes('Create a new place')
+    assert.equal(
+      JSON.parse(
+        editor
+          .text()
+          .match(/<script data-page="[^"]+" type="application\/json">([^<]+)<\/script>/)![1]
+      ).component,
+      'places/edit'
+    )
     assert.isString(editor.cookie('admin_access')?.value)
     assert.isString(editor.cookie('admin_refresh')?.value)
     await authenticateAdmin(editor.cookie('admin_access')!.value)
@@ -144,6 +151,6 @@ test.group('Admin JWT authentication', (group) => {
     assert.isNotNull(await db.from('places').where('slug', 'long-form-place').first())
     const saved = await client.get('/admin/places/saved').cookie('admin_access', renewedAccess!)
     saved.assertStatus(200)
-    saved.assertTextIncludes('Your changes have been saved.')
+    saved.assertTextIncludes('data-page="app"')
   })
 })

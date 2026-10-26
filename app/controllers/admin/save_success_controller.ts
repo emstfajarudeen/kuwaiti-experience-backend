@@ -11,10 +11,19 @@ const destinations = {
 } as const
 
 export default class AdminSaveSuccessController {
-  async show({ params, response, view, admin }: HttpContext) {
+  async show({ params, request, response, inertia, session, admin }: HttpContext) {
     const destination = destinations[params.resource as keyof typeof destinations]
     if (!destination) return response.redirect('/admin')
 
-    return view.render('admin/save_success', { admin, destination })
+    return inertia.render(
+      'save_success/show',
+      {
+        adminName: admin.fullName,
+        csrfToken: request.csrfToken,
+        success: (session.flashMessages.get('success') as string | undefined) ?? null,
+        destination,
+      },
+      { bodyClass: 'cms-body' }
+    )
   }
 }

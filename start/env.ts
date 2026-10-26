@@ -23,4 +23,10 @@ export default await Env.create(new URL('../', import.meta.url), {
   CUSTOMER_OTP_DEV_RESPONSE: Env.schema.boolean.optional(),
   SMS_WEBHOOK_URL: Env.schema.string.optional({ format: 'url' }),
   SMS_WEBHOOK_TOKEN: Env.schema.secret.optional(),
+  SMTP_HOST: Env.schema.string.optional(),
+  SMTP_PORT: Env.schema.number.optional(),
+  SMTP_SECURE: Env.schema.boolean.optional(),
+  SMTP_USERNAME: Env.schema.string.optional(),
+  SMTP_PASSWORD: Env.schema.secret.optional(),
+  ADMIN_PASSWORD_RESET_FROM: Env.schema.string.optional(),
 })

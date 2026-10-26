@@ -6,6 +6,14 @@ import hash from '@adonisjs/core/services/hash'
 import Tokens from 'csrf'
 import { loginAdmin } from '../../app/services/auth_service.js'
 
+function inertiaPage(response: { text(): string }) {
+  const match = response
+    .text()
+    .match(/<script data-page="[^"]+" type="application\/json">([^<]+)<\/script>/)
+  if (!match) throw new Error('Expected an Inertia page object')
+  return JSON.parse(match[1]) as { component: string; props: Record<string, unknown> }
+}
+
 function cmsPost(
   client: ApiClient,
   path: string,
@@ -73,6 +81,9 @@ test.group('CMS pages', (group) => {
       '/admin/transport',
       '/admin/settings',
       '/admin/account',
+      '/admin/places/saved',
+      '/admin/categories/saved',
+      '/admin/category-types/saved',
     ]
     for (const path of pages) {
       const response = await client.get(path).cookie('admin_access', token)
@@ -81,37 +92,41 @@ test.group('CMS pages', (group) => {
     const categoriesView = await client.get('/admin/categories').cookie('admin_access', token)
     categoriesView.assertTextIncludes('Landmarks')
     assert.notInclude(categoriesView.text(), 'undefined')
-    categoriesView.assertTextIncludes('class="action-pencil-btn"')
-    categoriesView.assertTextIncludes('class="action-dots-btn"')
-    categoriesView.assertTextIncludes('class="row-menu-dropdown"')
-    categoriesView.assertTextIncludes(`action="/admin/categories/${categoryId}/delete"`)
+    assert.equal(inertiaPage(categoriesView).component, 'categories/index')
+    const categoryRow = (
+      inertiaPage(categoriesView).props.rows as Array<Record<string, unknown>>
+    ).find((row) => row.id === categoryId)
+    assert.equal(categoryRow?.name_en, 'Landmarks')
 
     const categoryTypesView = await client
       .get('/admin/category-types')
       .cookie('admin_access', token)
-    categoryTypesView.assertTextIncludes('class="action-pencil-btn"')
-    categoryTypesView.assertTextIncludes('class="action-dots-btn"')
-    categoryTypesView.assertTextIncludes('action="/admin/category-types/attraction/delete"')
+    assert.equal(inertiaPage(categoryTypesView).component, 'category_types/index')
+    assert.equal(
+      (inertiaPage(categoryTypesView).props.rows as Array<{ code: string }>).find(
+        (row) => row.code === 'attraction'
+      )?.code,
+      'attraction'
+    )
     const editor = await client.get('/admin/places/new').cookie('admin_access', token)
-    editor.assertTextIncludes('name="coverImage"')
-    editor.assertTextIncludes('name="galleryImages[]"')
-    editor.assertTextIncludes('enctype="multipart/form-data"')
+    assert.equal(inertiaPage(editor).component, 'places/edit')
+    assert.isNull(inertiaPage(editor).props.place)
+    assert.isAbove(inertiaPage(editor).props.maxUploads as number, 0)
     const pageEditor = await client.get('/admin/pages/new').cookie('admin_access', token)
-    pageEditor.assertTextIncludes('name="eyebrowEn"')
-    pageEditor.assertTextIncludes('name="bodyFormatEn"')
-    pageEditor.assertTextIncludes('data-rich-body')
+    assert.equal(inertiaPage(pageEditor).component, 'pages/edit')
+    assert.isNull(inertiaPage(pageEditor).props.page)
     const library = await client.get('/admin/media').cookie('admin_access', token)
     library.assertStatus(404)
     const missingCategory = await client
       .get('/admin/categories/not-a-category/edit')
       .cookie('admin_access', token)
     missingCategory.assertStatus(200)
-    missingCategory.assertTextIncludes('Categories')
+    assert.equal(inertiaPage(missingCategory).component, 'categories/index')
     const missingCategoryType = await client
       .get('/admin/category-types/not-a-category-type/edit')
       .cookie('admin_access', token)
     missingCategoryType.assertStatus(200)
-    missingCategoryType.assertTextIncludes('Category types')
+    assert.equal(inertiaPage(missingCategoryType).component, 'category_types/index')
   })
 
   test('does not create content without a CSRF token', async ({ client, assert }) => {

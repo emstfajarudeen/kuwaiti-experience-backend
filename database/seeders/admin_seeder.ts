@@ -15,6 +15,10 @@ export default class AdminSeeder extends BaseSeeder {
         throw new Error('The configured admin email belongs to a non-admin account')
       if (!resetPassword) return // Ordinary seeding never changes an existing credential.
     }
+    const rbac = await db.from('rbac_state').where('id', 1).first()
+    if (!existing && rbac?.initialized_at) {
+      throw new Error('RBAC is initialized; create staff through the CMS Staff Management screen')
+    }
     if (resetPassword && env.get('NODE_ENV') === 'production') {
       throw new Error('Password reset through AdminSeeder is disabled in production')
     }

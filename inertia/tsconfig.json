@@ -1,0 +1,9 @@
+{
+  "extends": "@adonisjs/tsconfig/tsconfig.client.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "noEmit": true
+  },
+  "include": ["./**/*.ts", "./**/*.tsx", "../.adonisjs/server/**/*.d.ts"]
+}

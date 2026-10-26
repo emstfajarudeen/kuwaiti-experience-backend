@@ -27,6 +27,7 @@ server.use([
   () => import('#middleware/container_bindings_middleware'),
   () => import('@adonisjs/static/static_middleware'),
   () => import('@adonisjs/vite/vite_middleware'),
+  () => import('#middleware/inertia_middleware'),
 ])
 
 /**
@@ -45,5 +46,6 @@ router.use([
  */
 export const middleware = router.named({
   jwtAdmin: () => import('#middleware/jwt_admin_middleware'),
+  adminAuthorization: () => import('#middleware/admin_authorization_middleware'),
   customerAuth: () => import('#middleware/customer_auth_middleware'),
 })

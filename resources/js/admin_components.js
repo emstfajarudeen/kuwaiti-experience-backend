@@ -138,34 +138,6 @@ document.querySelectorAll('[data-password-toggle]').forEach((toggle) => {
   })
 })
 
-// FilePond image uploads initialization
-const uploads = [...document.querySelectorAll('input[type="file"][data-image-upload]')]
-if (uploads.length) {
-  Promise.all([
-    import('filepond'),
-    import('filepond-plugin-image-preview'),
-    import('filepond-plugin-file-validate-type'),
-    import('filepond-plugin-file-validate-size'),
-  ]).then(([FilePond, preview, type, size]) => {
-    FilePond.registerPlugin(preview.default, type.default, size.default)
-    for (const upload of uploads) {
-      const multiple = upload.multiple
-      FilePond.create(upload, {
-        storeAsFile: true,
-        allowProcess: false,
-        allowMultiple: multiple,
-        maxFiles: multiple ? Number(upload.dataset.maxFiles) || null : 1,
-        acceptedFileTypes: ['image/jpeg', 'image/png', 'image/webp'],
-        maxFileSize: '5MB',
-        credits: false,
-        labelIdle: multiple
-          ? 'Drop images or <span class="filepond--label-action">browse</span>'
-          : 'Drop an image or <span class="filepond--label-action">browse</span>',
-      })
-    }
-  })
-}
-
 // Table Row Actions Dropdown Menu (3-dot)
 function setupRowMenus() {
   const closeAllMenus = () => {

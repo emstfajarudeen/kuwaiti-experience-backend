@@ -2,6 +2,7 @@ import { assert } from '@japa/assert'
 import app from '@adonisjs/core/services/app'
 import type { Config } from '@japa/runner/types'
 import { browserClient } from '@japa/browser-client'
+import { chromium } from 'playwright'
 import { pluginAdonisJS } from '@japa/plugin-adonisjs'
 import { dbAssertions } from '@adonisjs/lucid/plugins/db'
 import testUtils from '@adonisjs/core/services/test_utils'
@@ -18,11 +19,20 @@ import { shieldApiClient } from '@adonisjs/shield/plugins/api_client'
  * Configure Japa plugins in the plugins array.
  * Learn more - https://japa.dev/docs/runner-config#plugins-optional
  */
+const browserExecutable = process.env.CMS_BROWSER_EXECUTABLE
+
 export const plugins: Config['plugins'] = [
   assert(),
   pluginAdonisJS(app),
   dbAssertions(app),
-  browserClient({ runInSuites: ['browser'] }),
+  browserClient({
+    runInSuites: ['browser'],
+    ...(browserExecutable
+      ? {
+          launcher: (options) => chromium.launch({ ...options, executablePath: browserExecutable }),
+        }
+      : {}),
+  }),
   sessionBrowserClient(app),
   apiClient(),
   sessionApiClient(app),

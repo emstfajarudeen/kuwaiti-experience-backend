@@ -1,0 +1,11 @@
+{
+  "extends": "./inertia/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "./inertia",
+    "composite": true,
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "outDir": "./build/inertia-types"
+  },
+  "include": ["./inertia/**/*.ts", "./inertia/**/*.tsx"]
+}

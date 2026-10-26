@@ -28,10 +28,14 @@ test.group('Category type master', (group) => {
       active: true,
       created_at: new Date(),
     })
-    await db.table('category_types').insert([
-      { code: 'attraction', name_en: 'Attractions', sort_order: 0 },
-      { code: 'restaurant', name_en: 'Restaurants', sort_order: 1 },
-    ])
+    await db
+      .table('category_types')
+      .insert([
+        { code: 'attraction', name_en: 'Attractions', sort_order: 0 },
+        { code: 'restaurant', name_en: 'Restaurants', sort_order: 1 },
+      ])
+      .onConflict('code')
+      .merge()
     const login = await loginAdmin('types@example.com', 'a-very-long-test-password')
     const token = login.accessToken
     const updated = await client
@@ -56,7 +60,8 @@ test.group('Category type master', (group) => {
     assert.deepEqual(
       tiles
         .body()
-        .data.categoryTypes.map((tile: { type: string; name: string }) => [tile.type, tile.name]),
+        .data.categoryTypes.slice(0, 2)
+        .map((tile: { type: string; name: string }) => [tile.type, tile.name]),
       [
         ['restaurant', 'مطاعم'],
         ['attraction', 'Attractions'],

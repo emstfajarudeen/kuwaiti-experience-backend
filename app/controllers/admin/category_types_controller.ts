@@ -8,6 +8,7 @@ import {
   updateCategoryType,
 } from '../../services/category_type_service.js'
 import { cmsImageUrl, imageFiles, prepareImages } from '../../services/image_storage_service.js'
+import { validationErrorBag } from '../../services/validation_error_bag.js'
 
 function formInput(request: HttpContext['request']) {
   return {
@@ -18,34 +19,78 @@ function formInput(request: HttpContext['request']) {
 }
 
 export default class AdminCategoryTypesPageController {
-  async index({ view, admin }: HttpContext) {
+  async index({ inertia, request, session, admin }: HttpContext) {
     const types = await categoryTypes()
     const rows = types.map((row) => ({
-      ...row,
+      code: row.code,
+      name_en: row.name_en,
+      name_ar: row.name_ar,
+      sort_order: Number(row.sort_order),
       imageUrl: cmsImageUrl(row.image_key),
     }))
-    return view.render('admin/category_types/index', { admin, rows })
+    return inertia.render(
+      'category_types/index',
+      {
+        adminName: admin.fullName,
+        csrfToken: request.csrfToken,
+        success: (session.flashMessages.get('success') as string | undefined) ?? null,
+        error: (session.flashMessages.get('error') as string | undefined) ?? null,
+        rows,
+      },
+      { bodyClass: 'cms-body' }
+    )
   }
 
-  async create({ view, admin }: HttpContext) {
+  async create({ inertia, request, session, admin }: HttpContext) {
     const rows = await categoryTypes()
-    return view.render('admin/category_types/edit', {
-      admin,
-      categoryType: null,
-      imageUrl: null,
-      nextOrder: rows.length,
-    })
+    return inertia.render(
+      'category_types/edit',
+      {
+        adminName: admin.fullName,
+        csrfToken: request.csrfToken,
+        error: (session.flashMessages.get('error') as string | undefined) ?? null,
+        form: this.formValues(session.flashMessages.get('categoryTypeForm')),
+        categoryType: null,
+        imageUrl: null,
+        nextOrder: rows.length,
+      },
+      { bodyClass: 'cms-body' }
+    )
   }
 
-  async edit({ params, view, response, admin }: HttpContext) {
+  async edit({ params, inertia, request, session, response, admin }: HttpContext) {
     const categoryType = await db.from('category_types').where('code', params.code).first()
     if (!categoryType) return response.redirect('/admin/category-types')
-    return view.render('admin/category_types/edit', {
-      admin,
-      categoryType,
-      imageUrl: cmsImageUrl(categoryType.image_key),
-      nextOrder: 0,
-    })
+    return inertia.render(
+      'category_types/edit',
+      {
+        adminName: admin.fullName,
+        csrfToken: request.csrfToken,
+        error: (session.flashMessages.get('error') as string | undefined) ?? null,
+        form: this.formValues(session.flashMessages.get('categoryTypeForm')),
+        categoryType: {
+          code: categoryType.code,
+          name_en: categoryType.name_en,
+          name_ar: categoryType.name_ar,
+          sort_order: Number(categoryType.sort_order),
+        },
+        imageUrl: cmsImageUrl(categoryType.image_key),
+        nextOrder: 0,
+      },
+      { bodyClass: 'cms-body' }
+    )
+  }
+
+  private formValues(value: unknown) {
+    if (!value || typeof value !== 'object') return null
+    const form = value as Record<string, unknown>
+    const field = (key: string) => (typeof form[key] === 'string' ? form[key] : null)
+    return {
+      code: field('code'),
+      nameEn: field('nameEn'),
+      nameAr: field('nameAr'),
+      sortOrder: field('sortOrder'),
+    }
   }
 
   async save({ params, request, response, session, admin }: HttpContext) {
@@ -73,6 +118,8 @@ export default class AdminCategoryTypesPageController {
       session.flash('success', 'Category type created.')
       return response.redirect('/admin/category-types/saved')
     } catch (error) {
+      const fieldErrors = validationErrorBag(error)
+      if (fieldErrors) session.flash('inputErrorsBag', fieldErrors)
       const message = error instanceof Error ? error.message : 'Unable to save category type'
       const attached = Object.keys(request.allFiles()).length > 0
       session.flash(

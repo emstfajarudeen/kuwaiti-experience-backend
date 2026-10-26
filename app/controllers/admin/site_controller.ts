@@ -9,6 +9,7 @@ import { positiveId } from '../../services/explore_read_service.js'
 import { deleteHomeCard, saveHomeCard } from '../../services/home_write_service.js'
 import { homeCardValidator, homeContentValidator } from '../../validators/home.js'
 import { ApiError } from '../../services/api_error.js'
+import { validationErrorBag } from '../../services/validation_error_bag.js'
 
 async function formImage(ctx: HttpContext, field: string, removeField: string) {
   const { image } = await prepareImages(ctx.admin.id, { image: imageFiles(ctx.request, field) })
@@ -30,7 +31,7 @@ function inquiryTypesInput(value: unknown) {
 }
 
 export default class AdminSitePageController {
-  async home({ view, admin, request }: HttpContext) {
+  async home({ inertia, session, admin, request }: HttpContext) {
     const locale = request.input('locale') === 'ar' ? 'ar' : 'en'
     const [home, cards, places] = await Promise.all([
       db.from('home_content').where('locale', locale).first(),
@@ -69,14 +70,63 @@ export default class AdminSitePageController {
         })
       }
     }
-    return view.render('admin/home', {
-      admin,
-      locale,
-      home,
-      cards,
-      places: [...availablePlaces.values()],
-      heroImageUrl: cmsImageUrl(home?.hero_image_key),
-    })
+    return inertia.render(
+      'site/home',
+      {
+        adminName: admin.fullName,
+        csrfToken: request.csrfToken,
+        success: (session.flashMessages.get('success') as string | undefined) ?? null,
+        error: (session.flashMessages.get('error') as string | undefined) ?? null,
+        form: this.formValues(session.flashMessages.get('homeForm'), [
+          'hero_eyebrow',
+          'hero_title',
+          'discovery_title',
+          'app_title',
+          'app_body',
+        ]),
+        cardForm: this.formValues(session.flashMessages.get('homeCardForm'), [
+          'place_id',
+          'caption_en',
+          'caption_ar',
+          'sort_order',
+          'active',
+        ]),
+        locale,
+        home: home
+          ? {
+              hero_eyebrow: home.hero_eyebrow,
+              hero_title: home.hero_title,
+              discovery_title: home.discovery_title,
+              app_title: home.app_title,
+              app_body: home.app_body,
+            }
+          : null,
+        cards: cards.map(({ id, place_id, caption_en, caption_ar, sort_order, active }) => ({
+          id: Number(id),
+          place_id: Number(place_id),
+          caption_en,
+          caption_ar,
+          sort_order: Number(sort_order),
+          active: Boolean(active),
+        })),
+        places: [...availablePlaces.values()].map(({ id, type, status, title }) => ({
+          id: Number(id),
+          type,
+          status,
+          title,
+        })),
+        heroImageUrl: cmsImageUrl(home?.hero_image_key),
+      },
+      { bodyClass: 'cms-body' }
+    )
+  }
+
+  private formValues(value: unknown, keys: string[]) {
+    if (!value || typeof value !== 'object') return null
+    const form = value as Record<string, unknown>
+    return Object.fromEntries(
+      keys.map((key) => [key, typeof form[key] === 'string' ? form[key] : null])
+    )
   }
 
   async saveHome(ctx: HttpContext) {
@@ -105,6 +155,8 @@ export default class AdminSitePageController {
       )
       session.flash('success', 'Homepage content saved.')
     } catch (error) {
+      const fieldErrors = validationErrorBag(error)
+      if (fieldErrors) session.flash('inputErrorsBag', fieldErrors)
       session.flash('error', saveError(request, error, 'Unable to save homepage'))
       session.flash('homeForm', request.except(['heroImage', 'removeHeroImage']))
     }
@@ -123,6 +175,8 @@ export default class AdminSitePageController {
       await saveHomeCard(input, admin.id, params.id ? positiveId(params.id) : undefined)
       session.flash('success', 'Home Explore card saved.')
     } catch (error) {
+      const fieldErrors = validationErrorBag(error)
+      if (fieldErrors) session.flash('inputErrorsBag', fieldErrors)
       session.flash('error', error instanceof ApiError ? error.message : 'Unable to save Home card')
       session.flash('homeCardForm', request.all())
     }
@@ -142,14 +196,48 @@ export default class AdminSitePageController {
     return response.redirect('/admin/home#home-cards')
   }
 
-  async settings({ view, admin }: HttpContext) {
+  async settings({ inertia, request, session, admin }: HttpContext) {
     const settings = await db.from('site_settings').where('id', 1).first()
-    return view.render('admin/settings', {
-      admin,
-      settings,
-      contactInquiryTypes: contactInquiryTypes(settings?.contact_inquiry_types).join('\n'),
-      logoImageUrl: cmsImageUrl(settings?.logo_image_key),
-    })
+    const keys = [
+      'brand_name',
+      'direct_phone_number',
+      'direct_phone_description',
+      'whatsapp_number',
+      'whatsapp_description',
+      'contact_email',
+      'headquarters_name',
+      'headquarters_address',
+      'headquarters_map_url',
+      'app_store_url',
+      'play_store_url',
+    ]
+    return inertia.render(
+      'site/settings',
+      {
+        adminName: admin.fullName,
+        csrfToken: request.csrfToken,
+        success: (session.flashMessages.get('success') as string | undefined) ?? null,
+        error: (session.flashMessages.get('error') as string | undefined) ?? null,
+        form: this.formValues(session.flashMessages.get('settingsForm'), [
+          'brandName',
+          'directPhoneNumber',
+          'directPhoneDescription',
+          'whatsappNumber',
+          'whatsappDescription',
+          'contactEmail',
+          'headquartersName',
+          'headquartersAddress',
+          'headquartersMapUrl',
+          'contactInquiryTypes',
+          'appStoreUrl',
+          'playStoreUrl',
+        ]),
+        settings: settings ? Object.fromEntries(keys.map((key) => [key, settings[key]])) : null,
+        contactInquiryTypes: contactInquiryTypes(settings?.contact_inquiry_types).join('\n'),
+        logoImageUrl: cmsImageUrl(settings?.logo_image_key),
+      },
+      { bodyClass: 'cms-body' }
+    )
   }
 
   async saveSettings(ctx: HttpContext) {
@@ -172,13 +260,15 @@ export default class AdminSitePageController {
       await saveSettings(input, admin.id, await formImage(ctx, 'logoImage', 'removeLogo'))
       session.flash('success', 'Site settings saved.')
     } catch (error) {
+      const fieldErrors = validationErrorBag(error)
+      if (fieldErrors) session.flash('inputErrorsBag', fieldErrors)
       session.flash('error', saveError(request, error, 'Unable to save settings'))
       session.flash('settingsForm', request.except(['logoImage', 'removeLogo']))
     }
     return response.redirect('/admin/settings')
   }
 
-  async transport({ view, admin }: HttpContext) {
+  async transport({ inertia, request, session, admin }: HttpContext) {
     const locations = await db
       .from('transport_locations as l')
       .join('transport_location_translations as en', function () {
@@ -199,7 +289,37 @@ export default class AdminSitePageController {
       )
       .orderBy('l.sort_order')
       .orderBy('l.id')
-    return view.render('admin/transport', { admin, locations })
+    return inertia.render(
+      'site/transport',
+      {
+        adminName: admin.fullName,
+        csrfToken: request.csrfToken,
+        success: (session.flashMessages.get('success') as string | undefined) ?? null,
+        error: (session.flashMessages.get('error') as string | undefined) ?? null,
+        form: this.formValues(session.flashMessages.get('transportForm'), [
+          'code',
+          'nameEn',
+          'nameAr',
+          'sortOrder',
+          'pickupEnabled',
+          'dropoffEnabled',
+          'active',
+        ]),
+        locations: locations.map(
+          ({ id, code, active, pickup_enabled, dropoff_enabled, sort_order, name, name_ar }) => ({
+            id: Number(id),
+            code,
+            active: Boolean(active),
+            pickup_enabled: Boolean(pickup_enabled),
+            dropoff_enabled: Boolean(dropoff_enabled),
+            sort_order: Number(sort_order),
+            name,
+            name_ar,
+          })
+        ),
+      },
+      { bodyClass: 'cms-body' }
+    )
   }
 
   async saveLocation({ request, params, response, session, admin }: HttpContext) {
@@ -258,6 +378,8 @@ export default class AdminSitePageController {
       })
       session.flash('success', 'Transport location saved.')
     } catch (error) {
+      const fieldErrors = validationErrorBag(error)
+      if (fieldErrors) session.flash('inputErrorsBag', fieldErrors)
       session.flash('error', error instanceof Error ? error.message : 'Unable to save location')
       session.flash('transportForm', request.all())
     }

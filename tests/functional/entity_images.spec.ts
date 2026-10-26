@@ -149,7 +149,13 @@ test.group('Entity images', (group) => {
     const preview = await client
       .get(`/admin/places/${place.id}/preview`)
       .cookie('admin_access', token)
-    preview.assertTextIncludes(`/admin/images/${updated.cover_image_key}`)
+    const page = JSON.parse(
+      preview
+        .text()
+        .match(/<script data-page="[^"]+" type="application\/json">([^<]+)<\/script>/)![1]
+    )
+    assert.equal(page.component, 'places/preview')
+    assert.equal(page.props.place.cover.url, `/admin/images/${updated.cover_image_key}`)
   })
 
   test('CMS uploads tile, hero and logo images', async ({ client, assert }) => {
