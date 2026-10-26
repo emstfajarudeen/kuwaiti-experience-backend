@@ -57,10 +57,22 @@ export default class ExploreController {
     }
   }
   async saved({ request, customerIdentity }: HttpContext) {
-    const result = await read.places(request.qs(), customerIdentity.customer.id, false, true)
+    const locale = publicLanguage(request.header('accept-language'))
+    const [result, hub] = await Promise.all([
+      read.places(request.qs(), customerIdentity.customer.id, false, true),
+      read.exploreHub(),
+    ])
+    const images = new Map(
+      [...result.meta.images, ...hub.meta.images].map((image) => [image.storage_key, image])
+    )
     return {
       ...result,
-      data: localizePublicData(result.data, publicLanguage(request.header('accept-language'))),
+      data: localizePublicData(result.data, locale),
+      meta: {
+        ...result.meta,
+        category_types: localizePublicData(hub.data.category_types, locale),
+        images: [...images.values()],
+      },
     }
   }
   async save({ params, customerIdentity }: HttpContext) {

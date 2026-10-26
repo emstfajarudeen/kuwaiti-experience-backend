@@ -66,7 +66,7 @@ The open-only SQL filter and returned state use the same request timestamp and i
 Customer bearer authentication is required:
 
 - `PUT /customer/me/saved-places/:place_id`: returns HTTP 200 with `{ data: { customer_id, place_id, created_at } }`. Idempotent; repeats retain the original save timestamp. The place must be published and visible.
-- `GET /customer/me/saved-places?type=restaurant&page=1&per_page=12`: returns localized Places and viewer metadata; hidden/deleted places do not appear or affect totals.
+- `GET /customer/me/saved-places?type=attraction&category=landmarks&page=1&per_page=12`: returns only this customer's saved attractions in the `landmarks` category. Get valid category slugs from `GET /api/v2/categories?type=attraction`; omit `category` or use `category=all` for every category. `type` and `category` are optional, so omitting both returns saved places across all types and categories. Responses include localized Places, viewer metadata, and all localized type tabs in `meta.category_types`; hidden/deleted places do not appear or affect totals.
 - `DELETE /customer/me/saved-places/:place_id`: returns HTTP 204, also if this account never saved it. Does not affect another account's save.
 
 The unique customer/place key prevents duplicates. No customer ID is accepted from the app. Writes are limited to 120 per customer per minute. Customer deletion cascades saves; place deletion also removes associated saves. Guest bookmarks and saved videos/addresses are outside this section.
