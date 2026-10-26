@@ -368,7 +368,7 @@ All require Customer authentication. `{id}` is the numeric Place ID. The server 
 
 | Method and path                                | Request/query                                                     | Success                                               |
 | ---------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------- |
-| `GET /api/v2/customer/me/saved-places`         | Optional `type`, `category`, `feature`, `q`, `open_now`, `page`, `per_page`; `category` is a slug from `/api/v2/categories?type={type}`; omit it or use `all` for every category | 200, localized `PlaceList`, viewer metadata, and localized place types in `meta.category_types` |
+| `GET /api/v2/customer/me/saved-places`         | Optional `type`, `category`, `feature`, `q`, `open_now`, `page`, `per_page`; `category` is a slug from `/api/v2/categories?type={type}`; omit it or use `all` for every category | 200, `data.category_types`, `data.places`, and viewer/pagination metadata |
 | `PUT /api/v2/customer/me/saved-places/{id}`    | No body                                                           | 200, `data: SavedPlace`                               |
 | `DELETE /api/v2/customer/me/saved-places/{id}` | No body                                                           | 204, empty body                                       |
 

@@ -2,7 +2,7 @@
 
 Start with the [mobile app API reference](app-api-reference.md) for the current screen map, common request rules, complete Place/showtime examples and AI handoff instructions. This guide adds Explore/CMS details.
 
-Base: `/api/v2`. Exact schemas: [explore-openapi.json](explore-openapi.json), also referenced by [openapi.yaml](openapi.yaml). The website's v1 contracts remain available. Explore v2 uses the same place, category, translation and image records. Public category and place lists localize the response; detail, saved-list and admin reads retain stored language fields.
+Base: `/api/v2`. Exact schemas: [explore-openapi.json](explore-openapi.json), also referenced by [openapi.yaml](openapi.yaml). The website's v1 contracts remain available. Explore v2 uses the same place, category, translation and image records. Public category and place reads localize the response; admin reads retain stored language fields.
 
 Implemented additions: place bookmarks, venue phones, highlights/amenities/capabilities, stay check-in/out, theater screen counts, CMS-maintained movies/posters/showtimes, and computed Open Now. Schedule remains pending. These APIs do not create cab rides, hotel reservations or cinema ticket bookings.
 
@@ -66,7 +66,7 @@ The open-only SQL filter and returned state use the same request timestamp and i
 Customer bearer authentication is required:
 
 - `PUT /customer/me/saved-places/:place_id`: returns HTTP 200 with `{ data: { customer_id, place_id, created_at } }`. Idempotent; repeats retain the original save timestamp. The place must be published and visible.
-- `GET /customer/me/saved-places?type=attraction&category=landmarks&page=1&per_page=12`: returns only this customer's saved attractions in the `landmarks` category. Get valid category slugs from `GET /api/v2/categories?type=attraction`; omit `category` or use `category=all` for every category. `type` and `category` are optional, so omitting both returns saved places across all types and categories. Responses include localized Places, viewer metadata, and all localized type tabs in `meta.category_types`; hidden/deleted places do not appear or affect totals.
+- `GET /customer/me/saved-places?type=attraction&category=landmarks&page=1&per_page=12`: returns only this customer's saved attractions in the `landmarks` category. Get valid category slugs from `GET /api/v2/categories?type=attraction`; omit `category` or use `category=all` for every category. `type` and `category` are optional, so omitting both returns saved places across all types and categories. `data` contains `category_types` for the type tabs and `places` for the saved cards; both are localized. Hidden/deleted places do not appear or affect totals.
 - `DELETE /customer/me/saved-places/:place_id`: returns HTTP 204, also if this account never saved it. Does not affect another account's save.
 
 The unique customer/place key prevents duplicates. No customer ID is accepted from the app. Writes are limited to 120 per customer per minute. Customer deletion cascades saves; place deletion also removes associated saves. Guest bookmarks and saved videos/addresses are outside this section.
