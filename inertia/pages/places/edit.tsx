@@ -72,7 +72,6 @@ export default function PlaceEdit({
   const [selectedCategory, setSelectedCategory] = useState(
     String(form?.categoryId ?? place?.category_id ?? '')
   )
-  const [priceMode, setPriceMode] = useState(String(form?.priceMode ?? place?.price_mode ?? 'unknown'))
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [processing, setProcessing] = useState(false)
   const submitIntent = useRef<'save' | 'publish'>('save')
@@ -142,9 +141,7 @@ export default function PlaceEdit({
           summaryEn: value('summaryEn', en?.summary), addressEn: value('addressEn', en?.address),
           bodyEn: value('bodyEn', en?.body), titleAr: value('titleAr', ar?.title),
           addressAr: value('addressAr', ar?.address), summaryAr: value('summaryAr', ar?.summary),
-          bodyAr: value('bodyAr', ar?.body), priceAmount: value('priceAmount', place?.price_amount),
-          priceUnitEn: value('priceUnitEn', en?.price_unit), hoursNoteEn: value('hoursNoteEn', en?.hours_note),
-          latitude: value('latitude', place?.latitude), longitude: value('longitude', place?.longitude),
+          bodyAr: value('bodyAr', ar?.body),
           websiteUrl: value('websiteUrl', place?.website_url), seoTitleEn: value('seoTitleEn', en?.seo_title),
           featured_order: value('featured_order', place?.featured_order ?? 0),
           seoDescriptionEn: value('seoDescriptionEn', en?.seo_description),
@@ -171,6 +168,13 @@ export default function PlaceEdit({
         className="editor-grid tw:grid tw:items-start tw:gap-4"
       >
         <input type="hidden" name="_csrf" value={csrfToken} />
+        {/* Preserve stored visit details when saving the simplified form. */}
+        <input type="hidden" name="priceMode" value={value('priceMode', place?.price_mode ?? 'unknown')} />
+        <input type="hidden" name="priceAmount" value={value('priceAmount', place?.price_amount)} />
+        <input type="hidden" name="priceUnitEn" value={value('priceUnitEn', en?.price_unit)} />
+        <input type="hidden" name="hoursNoteEn" value={value('hoursNoteEn', en?.hours_note)} />
+        <input type="hidden" name="latitude" value={value('latitude', place?.latitude)} />
+        <input type="hidden" name="longitude" value={value('longitude', place?.longitude)} />
         <div className="editor-main tw:flex tw:flex-col">
           <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
             <h2>Place details</h2>
@@ -246,31 +250,7 @@ export default function PlaceEdit({
           </section>
           <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
             <h2>Visit information</h2>
-            <div className="form-grid two tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
-              <label>
-                Price type
-                <FormSelect name="priceMode" value={priceMode} required onChange={setPriceMode} options={[{ value: 'unknown', label: 'Unknown / Contact venue' }, { value: 'free', label: 'Free admission' }, { value: 'from', label: 'Starts from' }, { value: 'fixed', label: 'Fixed price' }]} />
-              </label>
-              <label>
-                Price in KWD
-                <Form.Item name="priceAmount"><Input name="priceAmount" inputMode="decimal" placeholder="3.000" /></Form.Item>
-              </label>
-              <label>
-                Price unit
-                <Form.Item name="priceUnitEn"><Input name="priceUnitEn" placeholder="per person / per night" /></Form.Item>
-              </label>
-              <label>
-                Hours summary
-                <Form.Item name="hoursNoteEn"><Input name="hoursNoteEn" placeholder="Daily 9:00 AM – 11:00 PM" /></Form.Item>
-              </label>
-              <label>
-                Latitude
-                <Form.Item name="latitude"><Input name="latitude" inputMode="decimal" placeholder="29.3897" /></Form.Item>
-              </label>
-              <label>
-                Longitude
-                <Form.Item name="longitude"><Input name="longitude" inputMode="decimal" placeholder="47.9984" /></Form.Item>
-              </label>
+            <div className="form-grid tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4">
               <label className="full tw:col-span-full">
                 Website URL
                 <Form.Item name="websiteUrl" rules={[{ type: 'url', warningOnly: true, message: 'Use a complete URL starting with https://' }]}><Input name="websiteUrl" type="url" placeholder="https://example.com" /></Form.Item>
