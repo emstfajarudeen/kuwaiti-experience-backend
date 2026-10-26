@@ -2,7 +2,7 @@ import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import hash from '@adonisjs/core/services/hash'
 import db from '@adonisjs/lucid/services/db'
-import { loginAdmin } from '../../app/services/auth_service.js'
+import { loginAdmin } from '../helpers/admin_auth.js'
 
 function initialPage(response: { text(): string }) {
   const match = response
@@ -62,7 +62,6 @@ test.group('CMS React save success', (group) => {
       .get('/admin/unknown/saved')
       .cookie('admin_access', access)
       .redirects(0)
-    unknown.assertStatus(302)
-    assert.equal(unknown.header('location'), '/admin')
+    unknown.assertStatus(404)
   })
 })

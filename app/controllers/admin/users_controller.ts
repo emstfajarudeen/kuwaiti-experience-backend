@@ -130,9 +130,18 @@ export default class AdminUsersController {
       active: request.input('active') === 'on',
       roleIds: request.input('roleIds'),
     }
+    const roleIds = Array.isArray(form.roleIds)
+      ? form.roleIds
+      : form.roleIds === undefined
+        ? []
+        : [form.roleIds]
     try {
       if (isNew) {
-        const input = await request.validateUsing(createAdminUserValidator)
+        const input = await createAdminUserValidator.validate({
+          ...form,
+          password: request.input('password'),
+          roleIds,
+        })
         const userId = await createStaff(admin, { ...input, roleIds: input.roleIds })
         session.flash(
           'success',
@@ -140,7 +149,7 @@ export default class AdminUsersController {
         )
         return response.redirect('/admin/users/' + userId + '/edit')
       }
-      const input = await updateAdminUserValidator.validate(form)
+      const input = await updateAdminUserValidator.validate({ ...form, roleIds })
       await updateStaff(admin, id, input)
       session.flash('success', 'Staff member updated.')
     } catch (error) {

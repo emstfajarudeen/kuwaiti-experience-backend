@@ -3,7 +3,7 @@ import { test } from '@japa/runner'
 import hash from '@adonisjs/core/services/hash'
 import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
-import { authenticateAdmin, loginAdmin } from '../../app/services/auth_service.js'
+import { authenticateAdmin, loginAdmin } from '../helpers/admin_auth.js'
 
 const email = 'password-reset-admin@example.com'
 const password = 'a-very-long-test-password'

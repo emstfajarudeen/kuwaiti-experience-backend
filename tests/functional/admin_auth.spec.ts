@@ -4,7 +4,7 @@ import db from '@adonisjs/lucid/services/db'
 import hash from '@adonisjs/core/services/hash'
 import jwt from 'jsonwebtoken'
 import env from '#start/env'
-import { authenticateAdmin, loginAdmin } from '../../app/services/auth_service.js'
+import { authenticateAdmin, loginAdmin } from '../helpers/admin_auth.js'
 
 test.group('Admin JWT authentication', (group) => {
   group.each.setup(() => testUtils.db().truncate())

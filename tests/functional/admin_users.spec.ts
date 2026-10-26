@@ -2,7 +2,7 @@ import { test } from '@japa/runner'
 import hash from '@adonisjs/core/services/hash'
 import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
-import { authenticateAdmin, loginAdmin } from '../../app/services/auth_service.js'
+import { authenticateAdmin, loginAdmin } from '../helpers/admin_auth.js'
 
 const password = 'a-very-long-test-password'
 
@@ -35,6 +35,7 @@ test.group('CMS user management', (group) => {
     await db.from('users').where('id', inactiveId).update({ active: false })
     const activeLogin = await loginAdmin('active@example.com', password)
     const access = activeLogin.accessToken
+    const administrator = await db.from('roles').where('slug', 'administrator').firstOrFail()
 
     const filtered = await client
       .get('/admin/users?status=inactive&q=inactive')
@@ -54,6 +55,7 @@ test.group('CMS user management', (group) => {
         fullName: 'New CMS Admin',
         email: 'new-admin@example.com',
         password,
+        roleIds: [String(administrator.id)],
       })
     created.assertStatus(302)
     assert.match(created.header('location') ?? '', /^\/admin\/users\/\d+\/edit$/)
@@ -72,6 +74,8 @@ test.group('CMS user management', (group) => {
     const memberLogin = await loginAdmin('member@example.com', password)
     const ownerAccess = ownerLogin.accessToken
     const memberAccess = memberLogin.accessToken
+    const memberRoles = await db.from('user_roles').where('user_id', memberId).select('role_id')
+    const roleIds = memberRoles.map((role) => String(role.role_id))
 
     const selfDelete = await client
       .post('/admin/users/' + ownerId + '/delete')
@@ -88,7 +92,7 @@ test.group('CMS user management', (group) => {
       .cookie('admin_access', ownerAccess)
       .withCsrfToken()
       .redirects(0)
-      .form({ fullName: 'Member Admin', email: 'member@example.com', active: '' })
+      .form({ fullName: 'Member Admin', email: 'member@example.com', active: '', roleIds })
     deactivate.assertStatus(302)
     const deactivatedMember = await db.from('users').where('id', memberId).first()
     assert.equal(deactivatedMember?.active, 0)

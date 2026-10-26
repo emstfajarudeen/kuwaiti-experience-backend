@@ -2,7 +2,7 @@ import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import hash from '@adonisjs/core/services/hash'
 import db from '@adonisjs/lucid/services/db'
-import { authenticateAdmin, loginAdmin } from '../../app/services/auth_service.js'
+import { authenticateAdmin, loginAdmin, prepareAdminAuthorization } from '../helpers/admin_auth.js'
 
 const email = 'cms-react-admin@example.com'
 const password = 'a-very-long-test-password'
@@ -28,6 +28,7 @@ async function createAdmin() {
     active: true,
     created_at: new Date(),
   })
+  await prepareAdminAuthorization(email)
 }
 
 test.group('CMS React authentication', (group) => {

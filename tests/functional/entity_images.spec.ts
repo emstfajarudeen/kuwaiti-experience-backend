@@ -8,7 +8,7 @@ import drive from '@adonisjs/drive/services/main'
 import limiter from '@adonisjs/limiter/services/main'
 import Tokens from 'csrf'
 import sharp from 'sharp'
-import { loginAdmin } from '../../app/services/auth_service.js'
+import { loginAdmin } from '../helpers/admin_auth.js'
 import { allImageKeys } from '../../app/services/image_reference_service.js'
 import { deleteImages } from '../../app/services/image_storage_service.js'
 

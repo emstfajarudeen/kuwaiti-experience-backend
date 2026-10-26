@@ -2,7 +2,7 @@ import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import hash from '@adonisjs/core/services/hash'
 import db from '@adonisjs/lucid/services/db'
-import { loginAdmin } from '../../app/services/auth_service.js'
+import { loginAdmin } from '../helpers/admin_auth.js'
 
 const email = 'dashboard-admin@example.com'
 const password = 'a-very-long-test-password'
@@ -52,7 +52,11 @@ test.group('CMS React dashboard', (group) => {
     assert.equal(initial.props.draftCount, 0)
     assert.equal(initial.props.archivedCount, 0)
     assert.equal(initial.props.newContactsCount, 0)
-    assert.deepEqual(initial.props.recent, [])
+    const initialActivity = initial.props.recent as Array<Record<string, unknown>>
+    assert.deepEqual(
+      initialActivity.map((entry) => entry.actionLabel),
+      ['rbac bootstrapped', 'permissions synced']
+    )
     assert.notInclude(JSON.stringify(initial.props), access)
 
     const inertiaPage = await client
@@ -130,7 +134,9 @@ test.group('CMS React dashboard', (group) => {
       name: 'Restaurants',
       count: 1,
     })
-    const recent = props.recent as Array<Record<string, unknown>>
+    const recent = (props.recent as Array<Record<string, unknown>>).filter(
+      (entry) => entry.actionLabel === 'Deleted place' || entry.actionLabel === 'Created place'
+    )
     assert.lengthOf(recent, 2)
     assert.equal(recent[0].actionLabel, 'Deleted place')
     assert.equal(recent[0].isDeleted, true)

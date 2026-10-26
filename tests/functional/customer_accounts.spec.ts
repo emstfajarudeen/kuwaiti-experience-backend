@@ -5,7 +5,7 @@ import db from '@adonisjs/lucid/services/db'
 import hash from '@adonisjs/core/services/hash'
 import limiter from '@adonisjs/limiter/services/main'
 import { setTestSmsSender } from '../../app/services/customer_sms_service.js'
-import { loginAdmin } from '../../app/services/auth_service.js'
+import { loginAdmin } from '../helpers/admin_auth.js'
 
 const base = '/api/v2'
 let code = ''
