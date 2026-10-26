@@ -1646,8 +1646,8 @@
                 "value": "{{locale}}"
               }
             ],
-            "url": "{{base_url}}/api/v2/customer/me/saved-places?per_page=12",
-            "description": "",
+            "url": "{{base_url}}/api/v2/customer/me/saved-places?type=attraction&category=all&page=1&per_page=12",
+            "description": "Optional filters: type (place type code) and category (category slug from GET /api/v2/categories?type={type}). Omit category or use category=all for all categories. Omit type to list saved places across all types. The response includes localized type tabs in meta.category_types.",
             "auth": {
               "type": "bearer",
               "bearer": [

@@ -864,8 +864,19 @@
             "name": "type",
             "in": "query",
             "required": false,
+            "description": "Filter saved places by type, such as attraction, restaurant, hotel_resort, or theater. The saved-places response also returns all localized type tabs in meta.category_types.",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "description": "Filter by the category slug returned from GET /api/v2/categories?type={type}. Omit or use all for every category.",
+            "schema": {
+              "type": "string",
+              "example": "landmarks"
             }
           },
           {
@@ -3162,7 +3173,7 @@
       "LocalizedCategoryType": {"type":"object","additionalProperties":false,"required":["code","name","image_key","sort_order","updated_at"],"properties":{"code":{"type":"string"},"name":{"type":"string"},"image_key":{"type":["string","null"]},"sort_order":{"type":"integer"},"updated_at":{"type":["string","null"],"format":"date-time"}}},
       "LocalizedCategory": {"type":"object","additionalProperties":false,"required":["id","type","slug","sort_order","active","created_at","updated_at","category_translations"],"properties":{"id":{"type":"integer"},"type":{"type":"string"},"slug":{"type":"string"},"sort_order":{"type":"integer"},"active":{"type":"boolean"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":["string","null"],"format":"date-time"},"category_translations":{"type":"array","items":{"$ref":"#/components/schemas/CategoryTranslation"},"maxItems":1}}},
       "LocalizedPlace": {"type":"object","additionalProperties":false,"required":["id","type","category_id","slug","status","cover_image_key","latitude","longitude","price_amount","price_currency","price_mode","website_url","featured_order","phone_e164","check_in_time","check_out_time","screen_count","published_at","created_at","updated_at","place_translations","place_hours","place_images","place_features"],"properties":{"id":{"type":"integer"},"type":{"type":"string"},"category_id":{"type":["integer","null"]},"slug":{"type":"string"},"status":{"type":"string","enum":["draft","published","archived"]},"cover_image_key":{"type":["string","null"]},"latitude":{"type":["number","null"]},"longitude":{"type":["number","null"]},"price_amount":{"type":["string","null"],"pattern":"^\\d+\\.\\d{3}$"},"price_currency":{"type":"string"},"price_mode":{"type":"string","enum":["unknown","free","from","fixed"]},"website_url":{"type":["string","null"]},"featured_order":{"type":["integer","null"]},"phone_e164":{"type":["string","null"],"pattern":"^\\+[1-9]\\d{7,14}$"},"check_in_time":{"type":["string","null"],"pattern":"^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$"},"check_out_time":{"type":["string","null"],"pattern":"^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$"},"screen_count":{"type":["integer","null"]},"published_at":{"type":["string","null"],"format":"date-time"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":["string","null"],"format":"date-time"},"place_translations":{"type":"array","items":{"$ref":"#/components/schemas/PlaceTranslation"},"maxItems":1},"place_hours":{"type":"array","items":{"$ref":"#/components/schemas/PlaceHour"}},"place_images":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedPlaceImage"}},"place_features":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedFeature"}}}},
-      "LocalizedPlaceList": {"type":"object","additionalProperties":false,"required":["data","meta"],"properties":{"data":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedPlace"}},"meta":{"type":"object","additionalProperties":false,"required":["viewer","images","evaluated_at","page","per_page","total","last_page"],"properties":{"viewer":{"type":"array","items":{"$ref":"#/components/schemas/Viewer"}},"images":{"type":"array","items":{"$ref":"#/components/schemas/ImageLink"}},"evaluated_at":{"type":"string","format":"date-time"},"page":{"type":"integer"},"per_page":{"type":"integer"},"total":{"type":"integer"},"last_page":{"type":"integer"}}}}},
+      "LocalizedPlaceList": {"type":"object","additionalProperties":false,"required":["data","meta"],"properties":{"data":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedPlace"}},"meta":{"type":"object","additionalProperties":false,"required":["viewer","images","evaluated_at","page","per_page","total","last_page"],"properties":{"viewer":{"type":"array","items":{"$ref":"#/components/schemas/Viewer"}},"images":{"type":"array","items":{"$ref":"#/components/schemas/ImageLink"}},"evaluated_at":{"type":"string","format":"date-time"},"page":{"type":"integer"},"per_page":{"type":"integer"},"total":{"type":"integer"},"last_page":{"type":"integer"},"category_types":{"type":"array","description":"Included in the authenticated saved-places response for rendering type tabs.","items":{"$ref":"#/components/schemas/LocalizedCategoryType"}}}}}},
 
       "CategoryType": {
         "type": "object",
