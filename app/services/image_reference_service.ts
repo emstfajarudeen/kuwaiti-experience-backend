@@ -13,6 +13,15 @@ const imageColumns = [
   { table: 'movies', column: 'poster_image_key' },
 ] as const
 
+const imagePermissionModules: Record<(typeof imageColumns)[number]['table'], string> = {
+  places: 'places',
+  place_images: 'places',
+  category_types: 'category_types',
+  home_content: 'home',
+  site_settings: 'settings',
+  movies: 'movies',
+}
+
 export async function allImageKeys() {
   const rows = await Promise.all(
     imageColumns.map(({ table, column }) =>
@@ -28,6 +37,17 @@ export async function isReferencedImage(key: string) {
     if (await db.from(table).where(column, key).first()) return true
   }
   return false
+}
+
+/** Return the permission modules that actually own this private image key. */
+export async function referencedImageModules(key: string) {
+  const modules = new Set<string>()
+  for (const { table, column } of imageColumns) {
+    if (await db.from(table).where(column, key).first()) {
+      modules.add(imagePermissionModules[table])
+    }
+  }
+  return modules
 }
 
 /** True when the key belongs to content that visitors are allowed to see. */

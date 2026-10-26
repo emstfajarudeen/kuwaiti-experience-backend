@@ -7,6 +7,23 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
+export class AdminPasswordResetTokenSchema extends BaseModel {
+  static $columns = ['consumedAt', 'createdAt', 'expiresAt', 'id', 'tokenHash', 'userId'] as const
+  $columns = AdminPasswordResetTokenSchema.$columns
+  @column.dateTime()
+  declare consumedAt: DateTime | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare tokenHash: string
+  @column()
+  declare userId: number
+}
+
 export class AuditLogSchema extends BaseModel {
   static $columns = [
     'action',
@@ -108,7 +125,9 @@ export class ContactRequestSchema extends BaseModel {
     'email',
     'fullName',
     'id',
+    'inquiryType',
     'message',
+    'phoneNumber',
     'status',
     'updatedAt',
   ] as const
@@ -124,7 +143,11 @@ export class ContactRequestSchema extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
   @column()
+  declare inquiryType: string | null
+  @column()
   declare message: string
+  @column()
+  declare phoneNumber: string | null
   @column()
   declare status: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
@@ -465,6 +488,39 @@ export class PageSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class PermissionSchema extends BaseModel {
+  static $columns = [
+    'action',
+    'createdAt',
+    'description',
+    'id',
+    'isActive',
+    'key',
+    'label',
+    'module',
+    'updatedAt',
+  ] as const
+  $columns = PermissionSchema.$columns
+  @column()
+  declare action: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare description: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isActive: boolean
+  @column()
+  declare key: string
+  @column()
+  declare label: string
+  @column()
+  declare module: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class PlaceFeatureAssignmentSchema extends BaseModel {
   static $columns = ['featureId', 'placeId'] as const
   $columns = PlaceFeatureAssignmentSchema.$columns
@@ -689,6 +745,27 @@ export class RateLimitSchema extends BaseModel {
   declare points: number
 }
 
+export class RbacStateSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'defaultsInitializedAt',
+    'id',
+    'initializedAt',
+    'updatedAt',
+  ] as const
+  $columns = RbacStateSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare defaultsInitializedAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime()
+  declare initializedAt: DateTime | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class RefreshTokenSchema extends BaseModel {
   static $columns = [
     'consumedAt',
@@ -713,15 +790,58 @@ export class RefreshTokenSchema extends BaseModel {
   declare tokenHash: string
 }
 
+export class RolePermissionSchema extends BaseModel {
+  static $columns = ['permissionId', 'roleId'] as const
+  $columns = RolePermissionSchema.$columns
+  @column()
+  declare permissionId: number
+  @column({ isPrimary: true })
+  declare roleId: number
+}
+
+export class RoleSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'description',
+    'id',
+    'isSystem',
+    'name',
+    'slug',
+    'updatedAt',
+  ] as const
+  $columns = RoleSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare description: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isSystem: boolean
+  @column()
+  declare name: string
+  @column()
+  declare slug: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class SiteSettingSchema extends BaseModel {
   static $columns = [
     'appStoreUrl',
     'brandName',
     'contactEmail',
+    'contactInquiryTypes',
+    'directPhoneDescription',
+    'directPhoneNumber',
+    'headquartersAddress',
+    'headquartersMapUrl',
+    'headquartersName',
     'id',
     'logoImageKey',
     'playStoreUrl',
     'updatedAt',
+    'whatsappDescription',
     'whatsappNumber',
   ] as const
   $columns = SiteSettingSchema.$columns
@@ -731,6 +851,18 @@ export class SiteSettingSchema extends BaseModel {
   declare brandName: string
   @column()
   declare contactEmail: string | null
+  @column()
+  declare contactInquiryTypes: any | null
+  @column()
+  declare directPhoneDescription: string | null
+  @column()
+  declare directPhoneNumber: string | null
+  @column()
+  declare headquartersAddress: string | null
+  @column()
+  declare headquartersMapUrl: string | null
+  @column()
+  declare headquartersName: string | null
   @column({ isPrimary: true })
   declare id: number
   @column()
@@ -739,6 +871,8 @@ export class SiteSettingSchema extends BaseModel {
   declare playStoreUrl: string | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
+  @column()
+  declare whatsappDescription: string | null
   @column()
   declare whatsappNumber: string | null
 }
@@ -814,6 +948,17 @@ export class TransportLocationSchema extends BaseModel {
   declare pickupEnabled: boolean
   @column()
   declare sortOrder: number
+}
+
+export class UserRoleSchema extends BaseModel {
+  static $columns = ['createdAt', 'roleId', 'userId'] as const
+  $columns = UserRoleSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare roleId: number
+  @column({ isPrimary: true })
+  declare userId: number
 }
 
 export class UserSchema extends BaseModel {

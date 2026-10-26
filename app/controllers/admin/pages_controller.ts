@@ -8,9 +8,10 @@ import {
   pageBodyFormat,
   safePageBody,
 } from '../../services/page_content_service.js'
+import { validationErrorBag } from '../../services/validation_error_bag.js'
 
 export default class AdminPagesPageController {
-  async index({ view, admin }: HttpContext) {
+  async index({ inertia, request, session, admin }: HttpContext) {
     const rows = await db
       .from('pages as p')
       .leftJoin('page_translations as t', function () {
@@ -18,23 +19,72 @@ export default class AdminPagesPageController {
       })
       .select('p.id', 'p.slug', 'p.status', 't.title')
       .orderBy('p.slug')
-    return view.render('admin/pages/index', { admin, rows })
+    return inertia.render(
+      'pages/index',
+      {
+        adminName: admin.fullName,
+        csrfToken: request.csrfToken,
+        success: (session.flashMessages.get('success') as string | undefined) ?? null,
+        error: (session.flashMessages.get('error') as string | undefined) ?? null,
+        rows: rows.map((row) => ({
+          id: Number(row.id),
+          slug: row.slug,
+          status: row.status,
+          title: row.title,
+        })),
+      },
+      { bodyClass: 'cms-body' }
+    )
   }
 
-  async edit({ params, view, response, admin }: HttpContext) {
+  async edit({ params, inertia, request, session, response, admin }: HttpContext) {
     const page = params.id ? await db.from('pages').where('id', params.id).first() : null
     if (params.id && !page) return response.redirect('/admin/pages')
     const translationRows = page ? await db.from('page_translations').where('page_id', page.id) : []
     const translations = translationRows.map((translation) => ({
-      ...translation,
+      locale: translation.locale,
+      title: translation.title,
+      eyebrow: translation.eyebrow,
       body: safePageBody(translation.body, pageBodyFormat(translation.body_format)),
+      body_format: pageBodyFormat(translation.body_format),
+      seo_title: translation.seo_title,
+      seo_description: translation.seo_description,
     }))
-    return view.render('admin/pages/edit', {
-      admin,
-      page,
-      en: translations.find((item) => item.locale === 'en'),
-      ar: translations.find((item) => item.locale === 'ar'),
-    })
+    return inertia.render(
+      'pages/edit',
+      {
+        adminName: admin.fullName,
+        csrfToken: request.csrfToken,
+        success: (session.flashMessages.get('success') as string | undefined) ?? null,
+        error: (session.flashMessages.get('error') as string | undefined) ?? null,
+        form: this.formValues(session.flashMessages.get('pageForm')),
+        page: page ? { id: Number(page.id), slug: page.slug, status: page.status } : null,
+        en: translations.find((item) => item.locale === 'en') ?? null,
+        ar: translations.find((item) => item.locale === 'ar') ?? null,
+      },
+      { bodyClass: 'cms-body' }
+    )
+  }
+
+  private formValues(value: unknown) {
+    if (!value || typeof value !== 'object') return null
+    const form = value as Record<string, unknown>
+    const field = (key: string) => (typeof form[key] === 'string' ? form[key] : null)
+    return Object.fromEntries(
+      [
+        'slug',
+        'titleEn',
+        'bodyEn',
+        'eyebrowEn',
+        'bodyFormatEn',
+        'titleAr',
+        'bodyAr',
+        'eyebrowAr',
+        'bodyFormatAr',
+        'seoTitleEn',
+        'seoDescriptionEn',
+      ].map((key) => [key, field(key)])
+    )
   }
 
   async save({ request, response, session, admin, params }: HttpContext) {
@@ -114,6 +164,8 @@ export default class AdminPagesPageController {
       session.flash('success', 'Page saved.')
       return response.redirect(`/admin/pages/${id}/edit`)
     } catch (error) {
+      const fieldErrors = validationErrorBag(error)
+      if (fieldErrors) session.flash('inputErrorsBag', fieldErrors)
       session.flash('error', error instanceof Error ? error.message : 'Unable to save page')
       session.flash('pageForm', request.all())
       return response.redirect(params.id ? `/admin/pages/${params.id}/edit` : '/admin/pages/new')

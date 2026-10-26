@@ -15,6 +15,7 @@ import {
   imageFiles,
   prepareImages,
 } from '../../services/image_storage_service.js'
+import { validationErrorBag } from '../../services/validation_error_bag.js'
 
 function optionalNumber(value: unknown) {
   return value === undefined || value === null || value === '' ? null : Number(value)
@@ -43,7 +44,7 @@ function galleryItemsFrom(value: unknown) {
 import { formatKuwaitDateTime } from '../../services/date_service.js'
 
 export default class AdminPlacesPageController {
-  async index({ request, view, admin }: HttpContext) {
+  async index({ request, inertia, session, admin }: HttpContext) {
     const requestedType = request.input('type')
     const requestedStatus = request.input('status')
     const searchQuery = String(request.input('q', '')).trim()
@@ -118,7 +119,13 @@ export default class AdminPlacesPageController {
 
     const rawRows = await dataQuery.offset((currentPage - 1) * perPage).limit(perPage)
     const rows = rawRows.map((place) => ({
-      ...place,
+      id: Number(place.id),
+      type: place.type,
+      slug: place.slug,
+      status: place.status,
+      coverUrl: cmsImageUrl(place.cover_image_key),
+      title: place.title,
+      type_name_en: place.type_name_en,
       updated_at_local: formatKuwaitDateTime(place.updated_at),
     }))
 
@@ -140,20 +147,27 @@ export default class AdminPlacesPageController {
       sort: sortParam,
     }
 
-    return view.render('admin/places/index', {
-      admin,
-      rows,
-      types,
-      selectedType,
-      selectedStatus,
-      searchQuery,
-      selectedSort: sortParam,
-      pagination,
-      filters,
-    })
+    return inertia.render(
+      'places/index',
+      {
+        adminName: admin.fullName,
+        csrfToken: request.csrfToken,
+        success: (session.flashMessages.get('success') as string | undefined) ?? null,
+        error: (session.flashMessages.get('error') as string | undefined) ?? null,
+        rows,
+        types: types.map(({ code, name_en: nameEn }) => ({ code, name_en: nameEn })),
+        selectedType,
+        selectedStatus,
+        searchQuery,
+        selectedSort: sortParam,
+        pagination,
+        filters,
+      },
+      { bodyClass: 'cms-body' }
+    )
   }
 
-  async create({ view, admin }: HttpContext) {
+  async create({ inertia, request, session, admin }: HttpContext) {
     const [categories, types] = await Promise.all([
       db
         .from('categories as c')
@@ -165,21 +179,33 @@ export default class AdminPlacesPageController {
         .orderBy('c.sort_order'),
       categoryTypes(),
     ])
-    return view.render('admin/places/edit', {
-      admin,
-      place: null,
-      en: null,
-      ar: null,
-      categories,
-      types,
-      coverUrl: null,
-      gallery: [],
-      maxUploads: MAX_IMAGES_PER_REQUEST,
-      hoursJson: '[]',
-    })
+    return inertia.render(
+      'places/edit',
+      {
+        adminName: admin.fullName,
+        csrfToken: request.csrfToken,
+        error: (session.flashMessages.get('error') as string | undefined) ?? null,
+        form: this.formValues(session.flashMessages.get('placeForm')),
+        place: null,
+        en: null,
+        ar: null,
+        categories: categories.map(({ id, type, slug, name_en: nameEn }) => ({
+          id: Number(id),
+          type,
+          slug,
+          name_en: nameEn,
+        })),
+        types: types.map(({ code, name_en: nameEn }) => ({ code, name_en: nameEn })),
+        coverUrl: null,
+        gallery: [],
+        maxUploads: MAX_IMAGES_PER_REQUEST,
+        hoursJson: '[]',
+      },
+      { bodyClass: 'cms-body' }
+    )
   }
 
-  async edit({ params, view, admin, response }: HttpContext) {
+  async edit({ params, inertia, request, session, admin, response }: HttpContext) {
     const place = await db.from('places').where('id', params.id).first()
     if (!place) return response.redirect('/admin/places')
     const [translations, categories, gallery, hours, types] = await Promise.all([
@@ -200,32 +226,78 @@ export default class AdminPlacesPageController {
         .orderBy('interval_index'),
       categoryTypes(),
     ])
-    return view.render('admin/places/edit', {
-      admin,
-      place,
-      en: translations.find((t) => t.locale === 'en'),
-      ar: translations.find((t) => t.locale === 'ar'),
-      categories,
-      types,
-      coverUrl: cmsImageUrl(place.cover_image_key),
-      gallery: gallery.map((image) => ({ ...image, url: cmsImageUrl(image.storage_key) })),
-      maxUploads: MAX_IMAGES_PER_REQUEST,
-      hoursJson: JSON.stringify(
-        hours.map((h) => ({
-          weekday: h.weekday,
-          intervalIndex: h.interval_index,
-          opensAt: h.opens_at,
-          closesAt: h.closes_at,
-          closesNextDay: Boolean(h.closes_next_day),
-          closed: Boolean(h.closed),
+    const translation = (locale: string) => {
+      const value = translations.find((row) => row.locale === locale)
+      if (!value) return null
+      return {
+        title: value.title,
+        summary: value.summary,
+        address: value.address,
+        body: value.body,
+        price_unit: value.price_unit,
+        hours_note: value.hours_note,
+        seo_title: value.seo_title,
+        seo_description: value.seo_description,
+      }
+    }
+    return inertia.render(
+      'places/edit',
+      {
+        adminName: admin.fullName,
+        csrfToken: request.csrfToken,
+        error: (session.flashMessages.get('error') as string | undefined) ?? null,
+        form: this.formValues(session.flashMessages.get('placeForm')),
+        place: {
+          id: Number(place.id),
+          type: place.type,
+          category_id: place.category_id ? Number(place.category_id) : null,
+          slug: place.slug,
+          status: place.status,
+          price_mode: place.price_mode,
+          price_amount: place.price_amount,
+          latitude: place.latitude,
+          longitude: place.longitude,
+          website_url: place.website_url,
+          featured_order: place.featured_order,
+        },
+        en: translation('en'),
+        ar: translation('ar'),
+        categories: categories.map(({ id, type, slug, name_en: nameEn }) => ({
+          id: Number(id),
+          type,
+          slug,
+          name_en: nameEn,
         })),
-        null,
-        2
-      ),
-    })
+        types: types.map(({ code, name_en: nameEn }) => ({ code, name_en: nameEn })),
+        coverUrl: cmsImageUrl(place.cover_image_key),
+        gallery: gallery.map((image) => ({
+          id: Number(image.id),
+          alt_en: image.alt_en,
+          alt_ar: image.alt_ar,
+          caption_en: image.caption_en,
+          caption_ar: image.caption_ar,
+          sort_order: Number(image.sort_order),
+          url: cmsImageUrl(image.storage_key),
+        })),
+        maxUploads: MAX_IMAGES_PER_REQUEST,
+        hoursJson: JSON.stringify(
+          hours.map((h) => ({
+            weekday: h.weekday,
+            intervalIndex: h.interval_index,
+            opensAt: h.opens_at,
+            closesAt: h.closes_at,
+            closesNextDay: Boolean(h.closes_next_day),
+            closed: Boolean(h.closed),
+          })),
+          null,
+          2
+        ),
+      },
+      { bodyClass: 'cms-body' }
+    )
   }
 
-  async preview({ params, request, view, admin, response }: HttpContext) {
+  async preview({ params, request, inertia, admin, response }: HttpContext) {
     const place = await db.from('places').where('id', params.id).select('slug', 'status').first()
     if (!place) return response.redirect('/admin/places')
     const result = await showPlace(
@@ -234,7 +306,51 @@ export default class AdminPlacesPageController {
       true,
       cmsImageUrl
     )
-    return view.render('admin/places/preview', { admin, place: result.data, status: place.status })
+    return inertia.render(
+      'places/preview',
+      {
+        adminName: admin.fullName,
+        csrfToken: request.csrfToken,
+        place: result.data,
+        status: place.status,
+      },
+      { bodyClass: 'cms-body' }
+    )
+  }
+
+  private formValues(value: unknown) {
+    if (!value || typeof value !== 'object') return null
+    const form = value as Record<string, unknown>
+    const keys = [
+      'type',
+      'slug',
+      'categoryId',
+      'titleEn',
+      'summaryEn',
+      'addressEn',
+      'bodyEn',
+      'hoursNoteEn',
+      'priceUnitEn',
+      'seoTitleEn',
+      'seoDescriptionEn',
+      'titleAr',
+      'summaryAr',
+      'addressAr',
+      'bodyAr',
+      'priceMode',
+      'priceAmount',
+      'websiteUrl',
+      'latitude',
+      'longitude',
+      'featured',
+      'featured_order',
+      'hoursJson',
+      'galleryAltEn',
+      'removeCover',
+    ]
+    return Object.fromEntries(
+      keys.map((key) => [key, typeof form[key] === 'string' ? form[key] : null])
+    )
   }
 
   async save(ctx: HttpContext) {
@@ -291,6 +407,8 @@ export default class AdminPlacesPageController {
       session.flash('success', publish ? 'Place published.' : 'Place saved.')
       return response.redirect('/admin/places/saved')
     } catch (error) {
+      const fieldErrors = validationErrorBag(error)
+      if (fieldErrors) session.flash('inputErrorsBag', fieldErrors)
       const message = error instanceof Error ? error.message : 'Unable to save place'
       const attached = Object.keys(request.allFiles()).length > 0
       session.flash(

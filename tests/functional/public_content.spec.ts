@@ -100,9 +100,9 @@ test.group('Public content API', (group) => {
     retiredCategoryTypes.assertStatus(404)
   })
 
-  test('renders the admin login view', async ({ client }) => {
+  test('renders the admin login Inertia page', async ({ client }) => {
     const page = await client.get('/admin/login')
     page.assertStatus(200)
-    page.assertTextIncludes('Welcome back')
+    page.assertTextIncludes('data-page="app"')
   })
 })

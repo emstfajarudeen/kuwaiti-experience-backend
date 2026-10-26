@@ -106,6 +106,18 @@ export default class HttpExceptionHandler extends ExceptionHandler {
         error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred', requestId },
       })
     }
+    if (error instanceof ApiError && error.status === 403 && ctx.admin) {
+      ctx.response.status(403)
+      return ctx.inertia.render(
+        'errors/forbidden',
+        {
+          adminName: ctx.admin.fullName,
+          csrfToken: ctx.request.csrfToken,
+          error: error.message,
+        },
+        { bodyClass: 'cms-body' }
+      )
+    }
     return super.handle(error, ctx)
   }
 

@@ -1,0 +1,101 @@
+@layer theme, base, antd, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme) prefix(tw);
+@import 'tailwindcss/utilities.css' layer(utilities) source(none) prefix(tw);
+
+@source '../../inertia';
+
+@theme {
+  --color-brand-navy-deep: #00172e;
+  --color-brand-navy: #00264b;
+  --color-brand-navy-soft: #123d68;
+  --color-brand-navy-subtle: #245585;
+  --color-brand-navy-surface: #eaf1f7;
+
+  --color-brand-ivory: #f8f6f0;
+  --color-brand-ivory-dark: #f0ece1;
+  --color-brand-surface: #ffffff;
+  --color-brand-surface-subtle: #faf8f5;
+
+  --color-brand-gold: #c5973e;
+  --color-brand-gold-deep: #a57827;
+  --color-brand-gold-light: #e5b966;
+  --color-brand-gold-subtle: #fbf5e6;
+  --color-brand-gold-border: #edd9a8;
+
+  --color-brand-ink: #0a233d;
+  --color-brand-ink-secondary: #3b5268;
+  --color-brand-muted: #6b7f92;
+  --color-brand-line: #e3dfd5;
+  --color-brand-line-strong: #cac4b6;
+  --color-brand-line-subtle: #ede9df;
+
+  --color-brand-success-bg: #eaf8f0;
+  --color-brand-success-border: #bce5cf;
+  --color-brand-success-text: #11683b;
+  --color-brand-warning-bg: #fdf6e7;
+  --color-brand-warning-border: #f6dc9c;
+  --color-brand-warning-text: #8d5b06;
+  --color-brand-danger-bg: #fdf0ef;
+  --color-brand-danger-border: #f7c3c2;
+  --color-brand-danger-text: #9e2a2b;
+
+  --font-manrope: 'Manrope', sans-serif;
+  --font-bebas: 'Bebas Neue', sans-serif;
+  --font-playfair: 'Playfair Display', serif;
+
+  --radius-cms-sm: 6px;
+  --radius-cms: 10px;
+  --radius-cms-lg: 16px;
+}
+
+@layer components {
+  .button {
+    @apply tw:inline-flex tw:min-h-[42px] tw:items-center tw:justify-center tw:gap-2 tw:whitespace-nowrap tw:rounded-cms-sm tw:border tw:border-transparent tw:px-[18px] tw:py-[9px] tw:text-sm tw:font-semibold tw:leading-[1.2] tw:no-underline tw:transition-all tw:duration-150;
+  }
+
+  .button:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .button:active {
+    transform: translateY(0);
+  }
+
+  .button.primary:hover {
+    background-color: var(--navy-soft);
+    border-color: var(--navy-soft);
+    color: #fff;
+  }
+
+  .button.secondary:hover {
+    background-color: var(--ivory);
+    border-color: var(--ink-secondary);
+  }
+
+  .button.danger:hover {
+    background-color: #fbe0de;
+    border-color: var(--danger-text);
+  }
+
+  .button.primary {
+    @apply tw:border-brand-navy tw:bg-brand-navy tw:text-white;
+  }
+
+  .button.secondary {
+    @apply tw:border-brand-line-strong tw:bg-white tw:text-brand-ink;
+  }
+
+  .button.danger {
+    @apply tw:border-brand-danger-border tw:bg-brand-danger-bg tw:text-brand-danger-text;
+  }
+
+  .button.wide {
+    @apply tw:w-full;
+  }
+}
+
+/* React uses this marker because body class selectors are not Tailwind candidates. */
+body.cms-sidebar-open .sidebar-backdrop {
+  display: block;
+}

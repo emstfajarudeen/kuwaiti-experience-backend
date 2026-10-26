@@ -3,9 +3,10 @@ import db from '@adonisjs/lucid/services/db'
 import { categoryValidator } from '../../validators/content.js'
 import { ApiError } from '../../services/api_error.js'
 import { assertPlaceType, categoryTypes } from '../../services/category_type_service.js'
+import { validationErrorBag } from '../../services/validation_error_bag.js'
 
 export default class AdminCategoriesPageController {
-  async index({ request, view, admin }: HttpContext) {
+  async index({ request, inertia, session, admin }: HttpContext) {
     const requestedType = request.input('type')
     const types = await categoryTypes()
     const selectedType =
@@ -39,36 +40,92 @@ export default class AdminCategoriesPageController {
       query.where('c.type', selectedType)
     }
     const rows = await query
-    return view.render('admin/categories/index', { admin, rows, types, selectedType })
+    return inertia.render(
+      'categories/index',
+      {
+        adminName: admin.fullName,
+        csrfToken: request.csrfToken,
+        success: (session.flashMessages.get('success') as string | undefined) ?? null,
+        error: (session.flashMessages.get('error') as string | undefined) ?? null,
+        selectedType,
+        types: types.map(({ code, name_en: nameEn }) => ({ code, name_en: nameEn })),
+        rows: rows.map((row) => ({
+          id: Number(row.id),
+          type: row.type,
+          slug: row.slug,
+          active: Boolean(row.active),
+          sort_order: Number(row.sort_order),
+          name_en: row.name_en,
+          name_ar: row.name_ar,
+          type_image_key: row.type_image_key,
+          type_name_en: row.type_name_en,
+        })),
+      },
+      { bodyClass: 'cms-body' }
+    )
   }
 
-  async create({ view, admin }: HttpContext) {
+  async create({ request, inertia, session, admin }: HttpContext) {
     const types = await categoryTypes()
-    return view.render('admin/categories/edit', {
-      admin,
-      category: null,
-      en: null,
-      ar: null,
-      types,
-      defaultType: types[0]?.code ?? null,
-    })
+    return inertia.render(
+      'categories/edit',
+      {
+        adminName: admin.fullName,
+        csrfToken: request.csrfToken,
+        error: (session.flashMessages.get('error') as string | undefined) ?? null,
+        form: this.formValues(session.flashMessages.get('categoryForm')),
+        category: null,
+        enName: null,
+        arName: null,
+        types: types.map(({ code, name_en: nameEn }) => ({ code, name_en: nameEn })),
+        defaultType: types[0]?.code ?? null,
+      },
+      { bodyClass: 'cms-body' }
+    )
   }
 
-  async edit({ params, view, response, admin }: HttpContext) {
+  async edit({ params, request, inertia, session, response, admin }: HttpContext) {
     const id = Number(params.id)
     if (!Number.isSafeInteger(id) || id < 1) return response.redirect('/admin/categories')
     const category = await db.from('categories').where('id', id).first()
     if (!category) return response.redirect('/admin/categories')
     const translations = await db.from('category_translations').where('category_id', category.id)
     const types = await categoryTypes()
-    return view.render('admin/categories/edit', {
-      admin,
-      category,
-      types,
-      defaultType: types[0]?.code ?? null,
-      en: translations.find((translation) => translation.locale === 'en'),
-      ar: translations.find((translation) => translation.locale === 'ar'),
-    })
+    return inertia.render(
+      'categories/edit',
+      {
+        adminName: admin.fullName,
+        csrfToken: request.csrfToken,
+        error: (session.flashMessages.get('error') as string | undefined) ?? null,
+        form: this.formValues(session.flashMessages.get('categoryForm')),
+        category: {
+          id: Number(category.id),
+          type: category.type,
+          slug: category.slug,
+          sort_order: Number(category.sort_order),
+          active: Boolean(category.active),
+        },
+        types: types.map(({ code, name_en: nameEn }) => ({ code, name_en: nameEn })),
+        defaultType: types[0]?.code ?? null,
+        enName: translations.find((translation) => translation.locale === 'en')?.name ?? null,
+        arName: translations.find((translation) => translation.locale === 'ar')?.name ?? null,
+      },
+      { bodyClass: 'cms-body' }
+    )
+  }
+
+  private formValues(value: unknown) {
+    if (!value || typeof value !== 'object') return null
+    const form = value as Record<string, unknown>
+    const field = (key: string) => (typeof form[key] === 'string' ? form[key] : null)
+    return {
+      type: field('type'),
+      slug: field('slug'),
+      nameEn: field('nameEn'),
+      nameAr: field('nameAr'),
+      sortOrder: field('sortOrder'),
+      active: field('active'),
+    }
   }
 
   async save({ request, response, session, admin, params }: HttpContext) {
@@ -145,6 +202,8 @@ export default class AdminCategoriesPageController {
       session.flash('success', 'Category saved.')
       return response.redirect('/admin/categories/saved')
     } catch (error) {
+      const fieldErrors = validationErrorBag(error)
+      if (fieldErrors) session.flash('inputErrorsBag', fieldErrors)
       session.flash('error', error instanceof Error ? error.message : 'Unable to save category')
       session.flash('categoryForm', request.all())
       return response.redirect(

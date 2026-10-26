@@ -3,6 +3,7 @@ import db from '@adonisjs/lucid/services/db'
 import { homeValidator, settingsValidator } from '../../validators/content.js'
 import { contactInquiryTypes } from '../../services/customer_content_service.js'
 import { ApiError } from '../../services/api_error.js'
+import { can } from '../../services/authorization_service.js'
 import {
   adminApiImageUrl,
   imageFiles,
@@ -67,22 +68,55 @@ async function singleImage(ctx: HttpContext) {
 }
 
 export default class AdminSiteController {
-  async dashboard() {
-    const counts = await db
-      .from('places')
-      .select('type', 'status')
-      .count('* as count')
-      .groupBy('type', 'status')
-    const pages = await db.from('pages').count('* as count').first()
-    const recent = await db
-      .from('audit_logs')
-      .select('action', 'entity_type', 'entity_id', 'created_at')
-      .orderBy('id', 'desc')
-      .limit(10)
+  async dashboard({ authorization }: HttpContext) {
+    const [counts, pages, rawRecent] = await Promise.all([
+      can(authorization, 'places.view')
+        ? db.from('places').select('type', 'status').count('* as count').groupBy('type', 'status')
+        : Promise.resolve([]),
+      can(authorization, 'pages.view') ? db.from('pages').count('* as count').first() : null,
+      can(authorization, 'audit_logs.view')
+        ? db
+            .from('audit_logs')
+            .select('action', 'entity_type', 'entity_id', 'created_at')
+            .orderBy('id', 'desc')
+            .limit(30)
+        : Promise.resolve([]),
+    ])
+    const permissions: Record<string, string> = {
+      place: 'places.view',
+      page: 'pages.view',
+      category: 'categories.view',
+      category_type: 'category_types.view',
+      movie: 'movies.view',
+      showtime: 'showtimes.view',
+      theater_showtime: 'showtimes.view',
+      contact: 'contact_requests.view',
+      contact_request: 'contact_requests.view',
+      user: 'staff.view',
+      staff: 'staff.view',
+      role: 'roles.view',
+      permission: 'roles.view',
+      permission_catalog: 'roles.view',
+      rbac: 'roles.view',
+      home_content: 'home.view',
+      home_explore_card: 'home.view',
+      site_settings: 'settings.view',
+      transport_location: 'transport.view',
+    }
+    const recent = rawRecent
+      .filter((row) => {
+        const permission = permissions[String(row.entity_type)]
+        return (
+          can(authorization, 'audit_logs.view') &&
+          Boolean(permission) &&
+          can(authorization, permission)
+        )
+      })
+      .slice(0, 10)
     return {
       data: {
-        placeCounts: counts,
-        pageCount: Number(pages?.count ?? 0),
+        ...(can(authorization, 'places.view') ? { placeCounts: counts } : {}),
+        ...(can(authorization, 'pages.view') ? { pageCount: Number(pages?.count ?? 0) } : {}),
         recent,
       },
     }

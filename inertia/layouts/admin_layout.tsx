@@ -1,0 +1,251 @@
+import { Head } from '@inertiajs/react'
+import { useEffect, useState, type ReactNode } from 'react'
+import ConfirmLogout from '../components/confirm_logout'
+import Notice from '../components/notice'
+import { usePage } from '@inertiajs/react'
+
+type SharedAuth = {
+  permissions: string[]
+  landingUrl: string
+  roleSlugs: string[]
+  isSuperAdmin: boolean
+  isFullAccessAdmin: boolean
+  mustChangePassword: boolean
+} | null
+
+const navigation = [
+  {
+    label: 'OVERVIEW',
+    links: [
+      { href: '/admin', icon: '◫', label: 'Dashboard', active: 'dashboard', permission: 'dashboard.view' },
+    ],
+  },
+  {
+    label: 'CONTENT',
+    links: [
+      { href: '/admin/places', icon: '⌁', label: 'Places', active: 'places', permission: 'places.view' },
+      { href: '/admin/pages', icon: '▤', label: 'Pages', active: 'pages', permission: 'pages.view' },
+      { href: '/admin/categories', icon: '◈', label: 'Categories', active: 'categories', permission: 'categories.view' },
+      {
+        href: '/admin/category-types',
+        icon: '◇',
+        label: 'Category types',
+        active: 'category-types',
+        permission: 'category_types.view',
+      },
+    ],
+  },
+  {
+    label: 'EXPERIENCE',
+    links: [
+      { href: '/admin/home', icon: '✧', label: 'Homepage', active: 'home', permission: 'home.view' },
+      {
+        href: '/admin/place-features',
+        icon: '✦',
+        label: 'Place features',
+        active: 'place-features',
+        permission: 'place_features.view',
+      },
+      { href: '/admin/movies', icon: '▣', label: 'Movies', active: 'movies', permission: 'movies.view' },
+      { href: '/admin/showtimes', icon: '◷', label: 'Showtimes', active: 'showtimes', permission: 'showtimes.view' },
+      { href: '/admin/transport', icon: '↗', label: 'Transport', active: 'transport', permission: 'transport.view' },
+    ],
+  },
+  {
+    label: 'OPERATIONS',
+    links: [
+      { href: '/admin/contact-requests', icon: '✉', label: 'Contact requests', active: 'contacts', permission: 'contact_requests.view' },
+    ],
+  },
+  {
+    label: 'ADMINISTRATION',
+    links: [
+      { href: '/admin/settings', icon: '⚙', label: 'Site settings', active: 'settings', permission: 'settings.view' },
+    ],
+  },
+  {
+    label: 'ACCOUNTS & ACCESS',
+    links: [
+      { href: '/admin/customers', icon: '♙', label: 'Users', active: 'customers', permission: 'customers.view' },
+      { href: '/admin/users', icon: '♟', label: 'Staff', active: 'users', permission: 'staff.view' },
+      { href: '/admin/roles', icon: '⚿', label: 'Roles & Permissions', active: 'roles', permission: 'roles.view' },
+    ],
+  },
+] as const
+
+type Props = {
+  title: string
+  active: string
+  adminName: string
+  csrfToken: string
+  error?: string | null
+  success?: string | null
+  children: ReactNode
+}
+
+export default function AdminLayout({
+  title,
+  active,
+  adminName,
+  csrfToken,
+  error,
+  success,
+  children,
+}: Props) {
+  const page = usePage()
+  const auth = (page.props as unknown as { auth?: SharedAuth }).auth
+  const permissions = new Set(auth?.permissions ?? [])
+  const visibleNavigation = auth?.mustChangePassword
+    ? []
+    : navigation
+        .map((section) => ({
+          ...section,
+          links: section.links.filter((link) => !('permission' in link) || permissions.has(link.permission)),
+        }))
+        .filter((section) => section.links.length > 0)
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  useEffect(() => {
+    document.body.classList.toggle('cms-sidebar-open', menuOpen)
+    return () => document.body.classList.remove('cms-sidebar-open')
+  }, [menuOpen])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [menuOpen])
+
+  return (
+    <>
+      <Head title={`${title} · The Kuwaiti Experience CMS`} />
+      <a
+        href="#main-content"
+        className="skip-link tw:absolute tw:left-5 tw:top-[-100px] tw:z-[10000] tw:rounded-cms-sm tw:bg-brand-navy tw:px-[18px] tw:py-3 tw:font-semibold tw:text-white tw:transition-[top] tw:duration-200 tw:focus:top-4"
+      >
+        Skip to main content
+      </a>
+      <div
+        className="sidebar-backdrop tw:fixed tw:inset-0 tw:z-[999] tw:hidden tw:bg-brand-navy-deep/50"
+        aria-hidden="true"
+        onClick={() => setMenuOpen(false)}
+      />
+      <div className="cms-shell tw:relative tw:grid tw:min-h-screen tw:grid-cols-[260px_minmax(0,1fr)] tw:max-[900px]:grid-cols-1">
+        <aside
+          className="cms-sidebar tw:sticky tw:top-0 tw:z-[100] tw:flex tw:h-screen tw:min-h-screen tw:flex-col tw:overflow-y-auto tw:border-r tw:border-white/10 tw:bg-brand-navy-deep tw:px-4 tw:pb-5 tw:pt-6 tw:text-[#eff5f8] tw:max-[900px]:fixed tw:max-[900px]:-left-[280px] tw:max-[900px]:top-0 tw:max-[900px]:z-[1000] tw:max-[900px]:h-screen tw:max-[900px]:w-[270px] tw:max-[900px]:transition-[left] tw:max-[900px]:duration-[250ms] tw:max-[900px]:ease-in-out tw:max-[900px]:shadow-lg body-cms-sidebar-open:tw:left-0"
+          id="cms-sidebar"
+          aria-label="Main sidebar navigation"
+        >
+          <a
+            href={auth?.landingUrl ?? '/admin/account'}
+            className="brand tw:flex tw:items-center tw:gap-3 tw:px-2 tw:pb-6 tw:pt-2 tw:font-bebas tw:text-[22px] tw:leading-[0.9] tw:tracking-[0.03em] tw:text-white"
+            aria-label="Kuwaiti Experience dashboard"
+          >
+            <span
+              className="brand-mark tw:grid tw:size-10 tw:min-w-10 tw:place-items-center tw:rounded-cms tw:border-[1.5px] tw:border-brand-gold tw:bg-brand-gold/10 tw:font-playfair tw:text-[24px] tw:italic tw:text-brand-gold"
+              aria-hidden="true"
+            >
+              K
+            </span>
+            <span className="brand-text tw:flex tw:flex-col">
+              <span className="brand-title tw:text-[18px] tw:leading-none tw:tracking-[0.04em]">
+                THE KUWAITI EXPERIENCE
+              </span>
+            </span>
+          </a>
+          {visibleNavigation.map((section) => (
+            <div key={section.label}>
+              <div className="sidebar-label tw:mx-2 tw:mb-2 tw:mt-5 tw:text-[11px] tw:font-bold tw:uppercase tw:tracking-[0.14em] tw:text-[#8da4b8]">
+                {section.label}
+              </div>
+              <nav
+                aria-label={`${section.label.toLowerCase()} CMS navigation`}
+                className="cms-nav tw:flex tw:flex-col tw:gap-[3px]"
+              >
+                {section.links.map((link) => (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    className={`tw:flex tw:min-h-10 tw:items-center tw:gap-3 tw:rounded-cms-sm tw:px-3 tw:py-[10px] tw:text-[13px] tw:font-semibold tw:text-[#c4d7e6] tw:transition-[background,color] tw:duration-150 tw:hover:bg-white/10 tw:hover:text-white ${active === link.active ? 'active tw:bg-brand-gold tw:font-bold tw:text-brand-navy-deep' : ''}`}
+                    aria-current={active === link.active ? 'page' : undefined}
+                  >
+                    <span
+                      className="nav-icon tw:w-[18px] tw:text-center tw:text-base tw:leading-none tw:opacity-[0.85]"
+                      aria-hidden="true"
+                    >
+                      {link.icon}
+                    </span>
+                    {link.label}
+                  </a>
+                ))}
+              </nav>
+            </div>
+          ))}
+          <a
+            href="/admin/account"
+            className={`tw:mb-4 tw:mt-5 tw:flex tw:min-h-10 tw:items-center tw:gap-3 tw:rounded-cms-sm tw:border-t tw:border-white/10 tw:px-3 tw:pb-2 tw:pt-5 tw:text-[13px] tw:font-semibold tw:text-[#c4d7e6] tw:transition-[background,color] tw:duration-150 tw:hover:bg-white/10 tw:hover:text-white ${active === 'account' ? 'active tw:bg-brand-gold tw:font-bold tw:text-brand-navy-deep' : ''}`}
+            aria-current={active === 'account' ? 'page' : undefined}
+          >
+            <span className="nav-icon tw:w-[18px] tw:text-center tw:text-base tw:leading-none tw:opacity-[0.85]" aria-hidden="true">
+              ◉
+            </span>
+            My account
+          </a>
+          <div className="sidebar-bottom tw:mt-auto tw:flex tw:items-center tw:gap-3 tw:border-t tw:border-white/10 tw:px-2 tw:pt-4">
+            <div
+              className="admin-avatar tw:grid tw:size-9 tw:place-items-center tw:rounded-full tw:border tw:border-brand-gold/30 tw:bg-brand-navy-soft tw:text-sm tw:font-bold tw:text-brand-gold"
+              aria-hidden="true"
+            >
+              {adminName.slice(0, 1).toUpperCase()}
+            </div>
+            <div className="admin-info tw:flex tw:min-w-0 tw:flex-col">
+              <strong className="tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-[13px] tw:font-semibold tw:text-white">
+                {adminName}
+              </strong>
+              <small className="tw:text-[11px] tw:text-[#8da4b8]">{auth?.isSuperAdmin ? 'Super Admin' : auth?.isFullAccessAdmin ? 'Administrator' : auth?.roleSlugs.join(', ') || 'Staff'}</small>
+            </div>
+            <ConfirmLogout csrfToken={csrfToken} />
+          </div>
+        </aside>
+
+        <div className="cms-main tw:flex tw:min-w-0 tw:flex-col">
+          <header className="cms-topbar tw:sticky tw:top-0 tw:z-50 tw:flex tw:min-h-[60px] tw:items-center tw:justify-between tw:gap-4 tw:border-b tw:border-brand-line tw:bg-white tw:px-8 tw:max-[900px]:px-4">
+            <div className="topbar-left tw:flex tw:items-center tw:gap-3">
+              <button
+                type="button"
+                className="mobile-menu-btn tw:hidden tw:size-[38px] tw:place-items-center tw:rounded-cms-sm tw:border tw:border-brand-line tw:bg-transparent tw:p-0 tw:text-[18px] tw:text-brand-ink tw:max-[900px]:grid"
+                aria-label="Toggle navigation menu"
+                aria-controls="cms-sidebar"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((current) => !current)}
+              >
+                ☰
+              </button>
+              <span className="topbar-path tw:text-xs tw:font-bold tw:uppercase tw:tracking-[0.08em] tw:text-brand-muted">
+                THE KUWAITI EXPERIENCE <b>/</b> {title}
+              </span>
+            </div>
+            <div className="topbar-right tw:flex tw:items-center tw:gap-2 tw:text-[13px] tw:font-medium tw:text-brand-muted">
+              <span
+                className="live-dot tw:inline-block tw:size-2 tw:rounded-full tw:bg-brand-gold tw:shadow-[0_0_0_2px_rgba(197,151,62,0.25)]"
+                aria-hidden="true"
+              />
+              <span>Admin</span>
+            </div>
+          </header>
+          <main
+            className="cms-content tw:w-full tw:px-8 tw:pb-12 tw:pt-6 tw:max-[900px]:px-4 tw:max-[900px]:pb-10 tw:max-[900px]:pt-4"
+            id="main-content"
+          >
+            {success && <Notice kind="success" message={success} dismissible />}
+            {error && <Notice kind="error" message={error} dismissible />}
+            {children}
+          </main>
+        </div>
+      </div>
+    </>
+  )
+}

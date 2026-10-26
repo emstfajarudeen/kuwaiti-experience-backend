@@ -7,7 +7,7 @@ import limiter from '@adonisjs/limiter/services/main'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { DateTime } from 'luxon'
 import sharp from 'sharp'
-import { loginAdmin } from '../../app/services/auth_service.js'
+import { loginAdmin } from '../helpers/admin_auth.js'
 import { localizePublicData } from '../../app/services/public_localization.js'
 
 const expectStatus = (response: { assertStatus: (status: number) => void }, status: number) =>

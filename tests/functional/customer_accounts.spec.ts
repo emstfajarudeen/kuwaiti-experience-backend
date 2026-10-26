@@ -5,7 +5,7 @@ import db from '@adonisjs/lucid/services/db'
 import hash from '@adonisjs/core/services/hash'
 import limiter from '@adonisjs/limiter/services/main'
 import { setTestSmsSender } from '../../app/services/customer_sms_service.js'
-import { loginAdmin } from '../../app/services/auth_service.js'
+import { loginAdmin } from '../helpers/admin_auth.js'
 
 const base = '/api/v2'
 let code = ''
@@ -345,7 +345,8 @@ test.group('Customer accounts and support', (group) => {
     assert.deepEqual(list.body().data[0], detail.body().data)
     const page = await client.get(`/admin/contact-requests/${id}`).cookie('admin_access', admin)
     page.assertStatus(200)
-    page.assertTextIncludes('&lt;script&gt;')
+    page.assertTextIncludes('data-page="app"')
+    assert.notInclude(page.text(), '<script>alert(1)</script>')
     const inbox = await client.get('/admin/contact-requests').cookie('admin_access', admin)
     inbox.assertStatus(200)
     const csrf = await client

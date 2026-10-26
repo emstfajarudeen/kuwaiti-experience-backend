@@ -7,6 +7,8 @@ import {
   contactThrottle,
   customerPhotoThrottle,
   bookmarkThrottle,
+  passwordResetRequestThrottle,
+  passwordResetConfirmThrottle,
 } from '#start/limiter'
 
 const AuthController = () => import('#controllers/api/auth_controller')
@@ -38,11 +40,22 @@ const AdminCategoryTypesPageController = () =>
 const AdminSaveSuccessController = () => import('#controllers/admin/save_success_controller')
 const AdminPagesPageController = () => import('#controllers/admin/pages_controller')
 const AdminSitePageController = () => import('#controllers/admin/site_controller')
+const AdminUsersController = () => import('#controllers/admin/users_controller')
+const AdminCustomersController = () => import('#controllers/admin/customers_controller')
+const AdminRolesController = () => import('#controllers/admin/roles_controller')
 
 router.get('/', ({ response }) => response.redirect('/admin'))
 router.get('/admin/login', [AdminAuthController, 'showLogin'])
 router.post('/admin/login', [AdminAuthController, 'login']).use(authThrottle)
 router.post('/admin/refresh', [AdminAuthController, 'refresh']).use(authThrottle)
+router.get('/admin/forgot-password', [AdminAuthController, 'showForgotPassword'])
+router
+  .post('/admin/forgot-password', [AdminAuthController, 'requestPasswordReset'])
+  .use(passwordResetRequestThrottle)
+router.get('/admin/reset-password', [AdminAuthController, 'showResetPassword'])
+router
+  .post('/admin/reset-password', [AdminAuthController, 'resetPassword'])
+  .use(passwordResetConfirmThrottle)
 router
   .group(() => {
     router.get('/', [AdminDashboardController, 'index'])
@@ -112,6 +125,21 @@ router
       .as('explore.ExplorePageController.post.showtimes_id_delete')
     router.get('/account', [AdminAuthController, 'account'])
     router.post('/account/password', [AdminAuthController, 'password'])
+    router.get('/customers', [AdminCustomersController, 'index'])
+    router.get('/users', [AdminUsersController, 'index'])
+    router.get('/users/new', [AdminUsersController, 'create'])
+    router.post('/users', [AdminUsersController, 'save']).as('cms.users.create')
+    router.get('/users/:id/edit', [AdminUsersController, 'edit'])
+    router.post('/users/:id/save', [AdminUsersController, 'save']).as('cms.users.update')
+    router.post('/users/:id/send-reset', [AdminUsersController, 'sendReset'])
+    router.post('/users/:id/delete', [AdminUsersController, 'destroy'])
+    router.get('/roles', [AdminRolesController, 'index'])
+    router.get('/roles/new', [AdminRolesController, 'create'])
+    router.post('/roles', [AdminRolesController, 'store'])
+    router.get('/roles/:id', [AdminRolesController, 'show'])
+    router.get('/roles/:id/edit', [AdminRolesController, 'edit'])
+    router.post('/roles/:id/save', [AdminRolesController, 'update'])
+    router.post('/roles/:id/delete', [AdminRolesController, 'destroy'])
     router.post('/places/:id/save', [AdminPlacesPageController, 'save']).as('cms.places.update')
     router.post('/places/:id/publish', [AdminPlacesPageController, 'publish'])
     router.post('/places/:id/archive', [AdminPlacesPageController, 'archive'])
@@ -163,6 +191,7 @@ router
   })
   .prefix('/admin')
   .use(middleware.jwtAdmin())
+  .use(middleware.adminAuthorization())
 router.get('/api/v1/health', () => ({ data: { status: 'ok' } }))
 router
   .group(() => {
@@ -233,6 +262,7 @@ router
         router.delete('/transport/locations/:id', [AdminLocationsController, 'destroy'])
       })
       .use(middleware.jwtAdmin())
+      .use(middleware.adminAuthorization())
   })
   .prefix('/api/v1/admin')
 
@@ -390,5 +420,6 @@ router
       })
       .prefix('/admin')
       .use(middleware.jwtAdmin())
+      .use(middleware.adminAuthorization())
   })
   .prefix('/api/v2')

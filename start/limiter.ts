@@ -44,6 +44,29 @@ export const authThrottle = limiter.define('admin-auth', (ctx) =>
     .usingKey(`admin-auth:${ctx.request.ip()}`)
 )
 
+export const passwordResetRequestThrottle = limiter.define(
+  'admin-password-reset-request',
+  (ctx) => {
+    const email = String(ctx.request.input('email') ?? '')
+      .trim()
+      .toLowerCase()
+    const emailHash = createHash('sha256').update(email).digest('hex')
+    return limiter
+      .allowRequests(5)
+      .every('1 hour')
+      .blockFor('1 hour')
+      .usingKey(`admin-password-reset-request:${ctx.request.ip()}:${emailHash}`)
+  }
+)
+
+export const passwordResetConfirmThrottle = limiter.define('admin-password-reset-confirm', (ctx) =>
+  limiter
+    .allowRequests(10)
+    .every('15 minutes')
+    .blockFor('30 minutes')
+    .usingKey(`admin-password-reset-confirm:${ctx.request.ip()}`)
+)
+
 export const enquiryThrottle = limiter.define('transport-enquiry', (ctx) =>
   limiter.allowRequests(20).every('1 minute').usingKey(`enquiry:${ctx.request.ip()}`)
 )
