@@ -1832,7 +1832,7 @@
         {
           "name": "Update my saved address",
           "request": {
-            "method": "PATCH",
+            "method": "PUT",
             "header": [
               {
                 "key": "Accept",

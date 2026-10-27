@@ -73,7 +73,7 @@ test.group('Customer saved addresses', (group) => {
     assert.deepEqual(listed.body().data, [address])
     assert.equal(listed.body().meta.total, 1)
     const updated = await client
-      .patch(`${base}/${address.id}`)
+      .put(`${base}/${address.id}`)
       .header('Authorization', user.token)
       .json({ label: 'Work', latitude: 0, longitude: 0, notes: null })
     updated.assertStatus(200)
@@ -123,7 +123,7 @@ test.group('Customer saved addresses', (group) => {
     const hidden = await client.get(`${base}/${id}`).header('Authorization', b.token)
     hidden.assertStatus(404)
     const forbiddenUpdate = await client
-      .patch(`${base}/${id}`)
+      .put(`${base}/${id}`)
       .header('Authorization', b.token)
       .json({ label: 'Other' })
     forbiddenUpdate.assertStatus(404)
@@ -146,7 +146,7 @@ test.group('Customer saved addresses', (group) => {
       client.get(base),
       client.get(`${base}/1`),
       client.post(base).json(payload),
-      client.patch(`${base}/1`).json({ label: 'Work' }),
+      client.put(`${base}/1`).json({ label: 'Work' }),
       client.delete(`${base}/1`),
     ]) {
       const response = await request
@@ -170,7 +170,7 @@ test.group('Customer saved addresses', (group) => {
     const created = await client.post(base).header('Authorization', user.token).json(payload)
     const id = created.body().data.id
     const unchanged = await client
-      .patch(`${base}/${id}`)
+      .put(`${base}/${id}`)
       .header('Authorization', user.token)
       .json({})
     unchanged.assertStatus(422)

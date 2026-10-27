@@ -9,7 +9,7 @@ Base path: `/api/v2/customer/me/saved-addresses`. Every request requires `Author
 | POST | `/api/v2/customer/me/saved-addresses` | 201, `{ data: SavedAddress }` |
 | GET | `/api/v2/customer/me/saved-addresses?page=1&per_page=12` | 200, `{ data: SavedAddress[], meta: { page, per_page, total, last_page } }` |
 | GET | `/api/v2/customer/me/saved-addresses/{id}` | 200, `{ data: SavedAddress }` |
-| PATCH | `/api/v2/customer/me/saved-addresses/{id}` | 200, `{ data: SavedAddress }` |
+| PUT | `/api/v2/customer/me/saved-addresses/{id}` | 200, `{ data: SavedAddress }` |
 | DELETE | `/api/v2/customer/me/saved-addresses/{id}` | 204, empty body |
 
 Create example:
@@ -44,11 +44,11 @@ All create/read/update/list responses use the same `SavedAddress` fields:
 }
 ```
 
-IDs and coordinates are JSON numbers. Timestamps use UTC ISO strings. Coordinates are stored to seven decimal places. PATCH accepts any nonempty subset of the create fields; omitted fields retain their current values, and `notes: null` clears notes. Identity, ownership and timestamps cannot be edited.
+IDs and coordinates are JSON numbers. Timestamps use UTC ISO strings. PUT accepts any nonempty subset of the create fields; omitted fields retain their current values, and `notes: null` clears notes. Identity, ownership and timestamps cannot be edited.
 
 Lists show newest IDs first. `page` defaults to 1 and supports 1–10000; `per_page` defaults to 12 and supports 1–50. An empty list has `data: []`, `meta.total: 0`, and `meta.last_page: 1`.
 
-An unavailable address, including one owned by another account, returns 404 `NOT_FOUND` for detail/update/delete. Repeated deletion returns 404. Missing or invalid authentication returns 401; invalid fields, empty PATCH and invalid pagination return 422. Writes are limited to 120 requests per customer per minute; excess requests return 429. All responses use `Cache-Control: no-store`. Account deletion removes its saved addresses automatically.
+An unavailable address, including one owned by another account, returns 404 `NOT_FOUND` for detail/update/delete. Repeated deletion returns 404. Missing or invalid authentication returns 401; invalid fields, empty PUT and invalid pagination return 422. Writes are limited to 120 requests per customer per minute; excess requests return 429. All responses use `Cache-Control: no-store`. Account deletion removes its saved addresses automatically.
 
 Schemas: [saved-addresses-openapi.json](saved-addresses-openapi.json). Postman: **08A — Saved addresses** in the main collection.
 

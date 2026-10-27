@@ -223,7 +223,7 @@
           }
         ]
       },
-      "patch": {
+      "put": {
         "summary": "Update my saved address; omitted fields retain their values",
         "tags": [
           "Saved addresses"

@@ -309,7 +309,7 @@ router
           .post('/customer/me/saved-addresses', [CustomerAddressesController, 'store'])
           .use(customerAddressThrottle)
         router
-          .patch('/customer/me/saved-addresses/:id', [CustomerAddressesController, 'update'])
+          .put('/customer/me/saved-addresses/:id', [CustomerAddressesController, 'update'])
           .use(customerAddressThrottle)
         router
           .delete('/customer/me/saved-addresses/:id', [CustomerAddressesController, 'destroy'])
