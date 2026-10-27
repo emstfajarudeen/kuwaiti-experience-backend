@@ -1707,6 +1707,214 @@
       ]
     },
     {
+      "name": "08A — Saved addresses",
+      "description": "Profile Saved Places address book: customer bearer authentication required. Run Save address first to capture saved_address_id. Every resource is owned by the current customer. See docs/saved-addresses-api.md.",
+      "item": [
+        {
+          "name": "Save address",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me/saved-addresses",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Home\",\n  \"address\": \"Block 2, Street 10, Building 5, Kuwait City\",\n  \"latitude\": 29.3759,\n  \"longitude\": 47.9774,\n  \"notes\": \"Apartment 12, second floor\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) pm.environment.set(\"saved_address_id\", pm.response.json().data.id);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List my saved addresses",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me/saved-addresses?page=1&per_page=12",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Read my saved address",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me/saved-addresses/{{saved_address_id}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update my saved address",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me/saved-addresses/{{saved_address_id}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Work\",\n  \"notes\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Delete my saved address",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v2/customer/me/saved-addresses/{{saved_address_id}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "09 — CMS Explore management",
       "description": "Use Admin sign in in folder 06 first. These requests change actual CMS content. Set the selected place/type, upload your own poster and choose a future showtime. Send individually; deletion requests are optional.",
       "item": [

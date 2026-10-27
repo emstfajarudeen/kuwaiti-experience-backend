@@ -4,7 +4,7 @@ Read the [mobile app API reference](../app-api-reference.md) for supported scree
 
 Import both files using Postman's **Import** control:
 
-- `kuwaitiexperience.postman_collection.json` — 73 requests covering the four website footer pages, customer/profile/support, Explore/bookmarks, Home and related CMS APIs.
+- `kuwaitiexperience.postman_collection.json` — requests covering the four website footer pages, customer/profile/support, saved addresses, Explore/bookmarks, Home and related CMS APIs.
 - `local.postman_environment.json` — select **Kuwaiti Experience — Local** after importing.
 
 Set `base_url` to your running backend (default `http://localhost:3333`, without a trailing slash). Start the local server with `npm run dev` if needed. Sample phone numbers are placeholders; replace `phone_e164` and `new_phone_e164` with numbers you control. This collection does not configure the backend or SMS provider.
@@ -43,6 +43,7 @@ Challenge IDs and phone verification proof are stored automatically. Successful 
 - Folder 05 offers guest and customer contact submissions. Each successful Send creates a real inbox record and captures `contact_request_id`. Limit: five submissions per IP per hour.
 - Folder 06 is optional. Enter your own `admin_email`/`admin_password` and use Admin sign in, or supply an existing admin JWT as `admin_access_token`. CMS credentials are separate from customer tokens. Set `contact_status` to `new`, `in_progress` or `resolved` to filter/update contacts.
 - Folders 07–09 cover Explore public browsing, customer bookmarks and CMS feature/movie/showtime management. Folder 09A covers the app Home and CMS controls. See the flows below.
+- Folder 08A contains saved-address create/list/detail/update/delete requests. Send **Save address** first with a customer token to capture `saved_address_id`, then use the remaining requests. See [saved-address integration](../saved-addresses-api.md).
 - Folder 10 contains logout and permanent account deletion. Send these individually after testing. Logout invalidates the current session; deletion removes the customer and owned data and requires OTP sign-in within the past 10 minutes. Both clear captured customer credentials on success. Use a disposable account for deletion.
 
 ## Explore testing

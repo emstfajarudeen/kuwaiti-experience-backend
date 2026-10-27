@@ -12,12 +12,13 @@ Last checked against routes, controllers, validators and serializers: **21 Octob
 | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | This document                                                                                                                   | Supported screens, exact endpoint map, integration order and common examples                   |
 | [Customer OpenAPI](customer-openapi.json)                                                                                       | Exact account/profile/support request and response schemas, including required/nullable fields |
+| [Saved-address OpenAPI](saved-addresses-openapi.json) | Exact customer address create/list/detail/update/delete schemas |
 | [Explore OpenAPI](explore-openapi.json)                                                                                         | Exact place/category/bookmark/movie/showtime schemas and parameters                            |
 | [Home OpenAPI](home-openapi.json)                                                                                               | Exact Home, Home CMS, card-selection and featured-order schemas                                |
 | [Postman collection](postman/kuwaitiexperience.postman_collection.json) + [environment](postman/local.postman_environment.json) | Importable requests; [setup and execution order](postman/README.md)                            |
 | [Customer guide](customer-api.md), [profile guide](customer-profile-api.md), [Explore guide](explore-api.md)                    | More detail about the corresponding implemented flows and CMS management                       |
 
-The three standalone JSON files are OpenAPI 3.1 specifications. Their paths include both mobile and admin operations: mobile clients use the non-admin paths listed here. Use `components.schemas` and each operation's request/response schema to define typed models. Home reuses the Explore Place/CategoryType schemas. The root [openapi.yaml](openapi.yaml) additionally includes legacy website APIs and references these files.
+The four standalone JSON files are OpenAPI 3.1 specifications. Their paths include mobile and, where applicable, admin operations: mobile clients use the non-admin paths listed here. Use `components.schemas` and each operation's request/response schema to define typed models. Home reuses the Explore Place/CategoryType schemas. The root [openapi.yaml](openapi.yaml) additionally includes legacy website APIs and references these files.
 
 **Implemented means the route and backend behavior exist.** It does not mean all provider credentials and editorial content are configured. SMS delivery is pending configuration: OTP request/resend returns **503** unless a development or staging server explicitly enables `CUSTOMER_OTP_DEV_RESPONSE=true` with an OTP secret. In that mode, use fixed OTP `2580`; the code is not returned in the response. This opt-in also works with `NODE_ENV=production`, so disable it before serving real customers. Approved legal pages and venue images/copy must be supplied through the CMS.
 
@@ -36,7 +37,8 @@ The three standalone JSON files are OpenAPI 3.1 specifications. Their paths incl
 | Contact Us, WhatsApp, privacy/terms, logout, delete account                          | Implemented; legal/settings content prerequisites apply             | Sections 5, 6 and 11                                                   |
 | App Home hero, Explore cards and four featured carousels                             | Implemented; artwork and card choices depend on CMS                 | Section 12; `GET /api/v2/home`                                         |
 | Home search, notifications, Schedule                                                 | Pending                                                             | No API contract to integrate                                           |
-| Cab, rentals, bookings, saved addresses, videos/social features                      | Pending separate sections                                           | No working mobile feature contract is supplied here                    |
+| Saved addresses (Home, Work and custom locations) | Implemented; customer authentication required | [Saved-address API reference](saved-addresses-api.md) |
+| Cab, rentals, bookings, videos/social features                      | Pending separate sections                                           | No working mobile feature contract is supplied here                    |
 
 The website's `/api/v1/home` retains its legacy response. The app's Home Explore cards link to existing place details. A future cab flow can receive a selected place, but no cab quotation/ride-creation API is implemented in this section.
 
@@ -373,7 +375,7 @@ All require Customer authentication. `{id}` is the numeric Place ID. The server 
 | `PUT /api/v2/customer/me/saved-places/{id}`    | No body                                                           | 200, `data: SavedPlace`                               |
 | `DELETE /api/v2/customer/me/saved-places/{id}` | No body                                                           | 204, empty body                                       |
 
-Save example: `{ "data": { "customer_id": 1, "place_id": 12, "created_at": "2026-10-20T07:00:00.000Z" } }`. Save/delete are idempotent. After success synchronize bookmark state for that ID across existing screens; on failure retain/restore the previous state. Guest save controls should open login. Saved reads hide unpublished/deleted content and use the same visibility rules for totals. Save writes are limited to 120/customer/minute. Saved addresses and saved videos are separate pending resources.
+Save example: `{ "data": { "customer_id": 1, "place_id": 12, "created_at": "2026-10-20T07:00:00.000Z" } }`. Save/delete are idempotent. After success synchronize bookmark state for that ID across existing screens; on failure retain/restore the previous state. Guest save controls should open login. Saved reads hide unpublished/deleted content and use the same visibility rules for totals. Save writes are limited to 120/customer/minute. Personal addresses use the separate [saved-address CRUD API](saved-addresses-api.md); saved videos remain pending.
 
 ## 11. Legal, contact and settings
 
@@ -506,19 +508,19 @@ Every list screen should distinguish loading, valid empty data, loaded data, net
 
 ## 14. Handoff instructions for AI implementing the app
 
-Copy this brief with this document and all three JSON OpenAPI files:
+Copy this brief with this document and all four JSON OpenAPI files:
 
 ```text
 Implement the mobile client against the implemented non-admin /api/v2 endpoints
-listed in app-api-reference.md. Use customer-openapi.json, explore-openapi.json
-and home-openapi.json
+listed in app-api-reference.md. Use customer-openapi.json, explore-openapi.json,
+home-openapi.json and saved-addresses-openapi.json
 for exact request/response schemas, status codes, required fields and nullability.
 Keep persisted wire keys unchanged and reuse one model per canonical entity.
 Use each endpoint's envelope: auth wraps customer/credentials; profile returns
 Customer directly under data; lists return arrays; showtimes include related movies.
 Preserve token/proof distinctions, rotation, guest behavior, locale fallback,
 metadata joins, pagination, empty/error states and private image authentication.
-Global search, notifications, Schedule, cab/rental/bookings, saved addresses
+Global search, notifications, Schedule, cab/rental/bookings
 and video/social APIs are pending. Do not invent their routes or treat plans as live.
 SMS is not configured, so handle the documented 503 state without a bypass.
 ```
