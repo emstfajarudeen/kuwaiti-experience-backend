@@ -253,7 +253,27 @@ export default function PlaceEdit({
             <div className="form-grid tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4">
               <label className="full tw:col-span-full">
                 Website URL
-                <Form.Item name="websiteUrl" rules={[{ type: 'url', warningOnly: true, message: 'Use a complete URL starting with https://' }]}><Input name="websiteUrl" type="url" placeholder="https://example.com" /></Form.Item>
+                <Form.Item
+                  name="websiteUrl"
+                  rules={[
+                    {
+                      type: 'url',
+                      warningOnly: true,
+                      message: 'Use a complete URL starting with https://',
+                    },
+                  ]}
+                >
+                  <Input
+                    name="websiteUrl"
+                    placeholder="https://example.com"
+                    onBlur={(e) => {
+                      const val = e.target.value.trim()
+                      if (val && !/^https?:\/\//i.test(val)) {
+                        antdForm.setFieldValue('websiteUrl', `https://${val}`)
+                      }
+                    }}
+                  />
+                </Form.Item>
               </label>
             </div>
           </section>

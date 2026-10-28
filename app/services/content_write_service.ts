@@ -96,8 +96,16 @@ async function validatePlace(input: PlaceInput) {
   ) {
     throw new ApiError(422, 'INVALID_COORDINATES', 'Enter both latitude and longitude')
   }
-  if (input.websiteUrl && !['https:', 'http:'].includes(new URL(input.websiteUrl).protocol)) {
-    throw new ApiError(422, 'INVALID_URL', 'Website URL must use HTTP or HTTPS')
+  if (input.websiteUrl) {
+    try {
+      const parsed = new URL(input.websiteUrl)
+      if (!['https:', 'http:'].includes(parsed.protocol)) {
+        throw new ApiError(422, 'INVALID_URL', 'Website URL must use HTTP or HTTPS')
+      }
+    } catch (error) {
+      if (error instanceof ApiError) throw error
+      throw new ApiError(422, 'INVALID_URL', 'Website URL must be a valid HTTP or HTTPS address')
+    }
   }
   const hours = input.hours ?? []
   validateHours(
@@ -245,7 +253,11 @@ export async function savePlace(
         keys,
         released
       )
-      if (existing?.status === 'published' && !coverKey) {
+      const coverWasRemoved = Boolean(existing?.cover_image_key && !coverKey)
+      const removingCoverWhilePublished = Boolean(
+        changes.cover === 'remove' && existing?.status === 'published'
+      )
+      if (removingCoverWhilePublished || coverWasRemoved) {
         throw new ApiError(422, 'COVER_REQUIRED', 'Published places need a cover image')
       }
       const fields = {

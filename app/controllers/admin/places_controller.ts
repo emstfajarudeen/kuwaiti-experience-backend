@@ -21,6 +21,16 @@ function optionalNumber(value: unknown) {
   return value === undefined || value === null || value === '' ? null : Number(value)
 }
 
+function normalizeWebsiteUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return `https://${trimmed}`
+  }
+  return trimmed
+}
+
 /** Reads the indexed `gallery[n][field]` inputs of the gallery editor. */
 function galleryItemsFrom(value: unknown) {
   const entries = Array.isArray(value)
@@ -376,7 +386,7 @@ export default class AdminPlacesPageController {
         bodyAr: request.input('bodyAr') || null,
         priceMode: request.input('priceMode') || 'unknown',
         priceAmount: request.input('priceAmount') || null,
-        websiteUrl: request.input('websiteUrl') || null,
+        websiteUrl: normalizeWebsiteUrl(request.input('websiteUrl')),
         latitude: optionalNumber(request.input('latitude')),
         longitude: optionalNumber(request.input('longitude')),
         featured: request.input('featured') === 'on',
