@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button, Checkbox, Form, Input, message } from 'antd'
 import AdminLayout from '../../layouts/admin_layout'
 import ImageUpload from '../../components/image_upload'
@@ -76,6 +76,9 @@ export default function PlaceEdit({
   const [processing, setProcessing] = useState(false)
   const submitIntent = useRef<'save' | 'publish'>('save')
   const [antdForm] = Form.useForm()
+  useEffect(() => {
+    if (error) void message.error(error)
+  }, [error])
   const value = (key: string, fallback: string | number | null | undefined) =>
     form?.[key] ?? fallback ?? ''
   const matchedCategories = categories.filter(
@@ -88,7 +91,6 @@ export default function PlaceEdit({
       active="places"
       adminName={adminName}
       csrfToken={csrfToken}
-      error={error}
     >
       <a
         className="back-link tw:[display:inline-flex] tw:[align-items:center] tw:[gap:6px] tw:[color:var(--muted)] tw:[font-size:13px] tw:[font-weight:600] tw:[margin-bottom:var(--space-3)] tw:[transition:color_0.15s_ease]"
@@ -159,8 +161,24 @@ export default function PlaceEdit({
           if (element) {
             const data = new FormData(element)
             data.set('intent', submitIntent.current)
-            postCmsForm({ action, csrfToken, form: antdForm, setProcessing, data })
+            postCmsForm({
+              action,
+              csrfToken,
+              form: antdForm,
+              setProcessing,
+              data,
+              onError: (errors) => {
+                const firstField = Object.keys(errors)[0]
+                if (firstField) antdForm.scrollToField(firstField, { focus: true })
+              },
+            })
           }
+        }}
+        onFinishFailed={({ errorFields }) => {
+          const first = errorFields[0]
+          if (!first) return
+          void message.error(first.errors[0] ?? 'Check the highlighted fields.')
+          antdForm.scrollToField(first.name, { focus: true })
         }}
         action={action}
         method="POST"

@@ -419,13 +419,19 @@ export default class AdminPlacesPageController {
     } catch (error) {
       const fieldErrors = validationErrorBag(error)
       if (fieldErrors) session.flash('inputErrorsBag', fieldErrors)
-      const message = error instanceof Error ? error.message : 'Unable to save place'
+      const firstFieldError = fieldErrors && Object.entries(fieldErrors)[0]
+      const message = firstFieldError
+        ? `${firstFieldError[0]}: ${firstFieldError[1][0]}`
+        : error instanceof Error
+          ? error.message
+          : 'Unable to save place'
       const attached = Object.keys(request.allFiles()).length > 0
       session.flash(
         'error',
         attached ? `${message.replace(/\.$/, '')}. Re-select any images you attached.` : message
       )
-      session.flash('placeForm', request.except(['coverImage', 'galleryImages']))
+      // Inertia preserves the editor state after a failed POST. Flashing the full
+      // form exceeds the browser cookie limit when SESSION_DRIVER=cookie.
       return response.redirect(params.id ? `/admin/places/${params.id}/edit` : '/admin/places/new')
     }
   }

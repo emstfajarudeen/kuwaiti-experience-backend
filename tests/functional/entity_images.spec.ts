@@ -158,6 +158,27 @@ test.group('Entity images', (group) => {
     assert.equal(page.props.place.cover.url, `/admin/images/${updated.cover_image_key}`)
   })
 
+  test('failed place save with a long description keeps a readable error cookie', async ({
+    client,
+    assert,
+  }) => {
+    const token = await signIn()
+    const failed = await cmsPost(client, '/admin/places', token)
+      .redirects(0)
+      .fields({
+        ...placeFields,
+        bodyEn: 'A long place description. '.repeat(500),
+        websiteUrl: 'not a valid URL',
+      })
+
+    failed.assertStatus(302)
+    assert.equal(failed.header('location'), '/admin/places/new')
+    const sessionCookie = failed.cookie('adonis-session')?.value
+    assert.isString(sessionCookie)
+    assert.isBelow(sessionCookie!.length, 4096)
+    assert.match(String(failed.flashMessage('error')), /websiteUrl/i)
+  })
+
   test('CMS uploads tile, hero and logo images', async ({ client, assert }) => {
     const token = await signIn()
     const tile = await cmsPost(client, '/admin/category-types/attraction/save', token)

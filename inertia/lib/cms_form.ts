@@ -16,8 +16,9 @@ export function postCmsForm<T extends object>(options: {
   data: FormData | Record<string, FormDataConvertible>
   form: FormInstance<T>
   setProcessing: (processing: boolean) => void
+  onError?: (errors: Record<string, string>) => void
 }) {
-  const { action, csrfToken, data, form, setProcessing } = options
+  const { action, csrfToken, data, form, setProcessing, onError } = options
   if (data instanceof FormData) data.set('_csrf', csrfToken)
   else data._csrf = csrfToken
 
@@ -32,6 +33,7 @@ export function postCmsForm<T extends object>(options: {
           errors: [String(message)],
         }))
       )
+      onError?.(errors)
     },
     onFinish: () => setProcessing(false),
   })
