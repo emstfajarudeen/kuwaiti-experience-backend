@@ -67,10 +67,12 @@ export default class ExploreController {
     )
     return {
       ...result,
-      data: localizePublicData(result.data, locale),
+      data: {
+        category_types: localizePublicData(hub.data.category_types, locale),
+        places: localizePublicData(result.data, locale),
+      },
       meta: {
         ...result.meta,
-        category_types: localizePublicData(hub.data.category_types, locale),
         images: [...images.values()],
       },
     }

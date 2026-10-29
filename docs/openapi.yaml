@@ -631,6 +631,10 @@ paths:
     $ref: './explore-openapi.json#/paths/~1api~1v2~1customer~1me~1saved-places'
   /api/v2/customer/me/saved-places/{id}:
     $ref: './explore-openapi.json#/paths/~1api~1v2~1customer~1me~1saved-places~1{id}'
+  /api/v2/customer/me/saved-addresses:
+    $ref: './saved-addresses-openapi.json#/paths/~1api~1v2~1customer~1me~1saved-addresses'
+  /api/v2/customer/me/saved-addresses/{id}:
+    $ref: './saved-addresses-openapi.json#/paths/~1api~1v2~1customer~1me~1saved-addresses~1{id}'
   /api/v2/admin/places:
     $ref: './explore-openapi.json#/paths/~1api~1v2~1admin~1places'
   /api/v2/admin/places/{id}:

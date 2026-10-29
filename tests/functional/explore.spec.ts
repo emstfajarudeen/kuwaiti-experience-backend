@@ -138,7 +138,9 @@ test.group('Explore and CMS extensions', (group) => {
       .get(`${base}/customer/me/saved-places`)
       .header('Authorization', user.token)
     saved.assertStatus(200)
-    assert.deepEqual(saved.body().data[0], expected)
+    assert.deepEqual(saved.body().data.places[0], expected)
+    assert.isArray(saved.body().data.category_types)
+    assert.isString(saved.body().data.category_types[0].name)
     assert.isTrue(saved.body().meta.viewer[0].saved)
     assert.isFalse(detail.body().meta.viewer[0].saved)
     const personal = await client

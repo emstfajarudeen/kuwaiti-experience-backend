@@ -7,6 +7,7 @@ import {
   contactThrottle,
   customerPhotoThrottle,
   bookmarkThrottle,
+  customerAddressThrottle,
   passwordResetRequestThrottle,
   passwordResetConfirmThrottle,
 } from '#start/limiter'
@@ -14,6 +15,7 @@ import {
 const AuthController = () => import('#controllers/api/auth_controller')
 const CustomerAuthController = () => import('#controllers/api/customer_auth_controller')
 const CustomerProfileController = () => import('#controllers/api/customer_profile_controller')
+const CustomerAddressesController = () => import('#controllers/api/customer_addresses_controller')
 const CustomerSupportController = () => import('#controllers/api/customer_support_controller')
 const AdminContactsController = () => import('#controllers/api/admin_contacts_controller')
 const ContactsController = () => import('#controllers/admin/contacts_controller')
@@ -314,6 +316,17 @@ router
     router
       .group(() => {
         router.get('/customer/me', [CustomerAuthController, 'me'])
+        router.get('/customer/me/saved-addresses', [CustomerAddressesController, 'index'])
+        router.get('/customer/me/saved-addresses/:id', [CustomerAddressesController, 'show'])
+        router
+          .post('/customer/me/saved-addresses', [CustomerAddressesController, 'store'])
+          .use(customerAddressThrottle)
+        router
+          .put('/customer/me/saved-addresses/:id', [CustomerAddressesController, 'update'])
+          .use(customerAddressThrottle)
+        router
+          .delete('/customer/me/saved-addresses/:id', [CustomerAddressesController, 'destroy'])
+          .use(customerAddressThrottle)
         router
           .get('/customer/me/saved-places', [ExploreController, 'saved'])
           .as('explore.ExploreController.get.customer_me_saved_places')

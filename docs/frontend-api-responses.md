@@ -143,6 +143,7 @@ This endpoint is only for the first landing page. It does not provide category f
     "address": "Kuwait City",
     "cover": { "url": "/api/v1/images/9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d.webp" },
     "body": "Example place description",
+    "websiteUrl": "https://example.com",
     "hoursNote": null,
     "price": { "mode": "free", "amount": null, "currency": "KWD", "unit": null },
     "coordinates": { "latitude": 29.3759, "longitude": 47.9774 },
@@ -169,7 +170,7 @@ This endpoint is only for the first landing page. It does not provide category f
 }
 ```
 
-`coordinates` can be `null`; `hours` and `gallery` can be empty. Gallery items are ordered; `id` identifies the gallery image within its place, and Arabic `alt`/`caption` fall back to English. `price.mode` is `unknown`, `free`, `from`, or `fixed`. `price.amount` is a three-decimal string when set. The `hours` keys currently use database-style snake case, and its boolean fields may be returned as database booleans or `0`/`1` depending on the driver. `cabDestination` identifies this place for display; its `placeId` is not a transport location ID.
+`websiteUrl` is the CMS website URL, or `null` when none is set. `coordinates` can be `null`; `hours` and `gallery` can be empty. Gallery items are ordered; `id` identifies the gallery image within its place, and Arabic `alt`/`caption` fall back to English. `price.mode` is `unknown`, `free`, `from`, or `fixed`. `price.amount` is a three-decimal string when set. The `hours` keys currently use database-style snake case, and its boolean fields may be returned as database booleans or `0`/`1` depending on the driver. `cabDestination` identifies this place for display; its `placeId` is not a transport location ID.
 
 ## Other public endpoints
 

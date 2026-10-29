@@ -147,6 +147,7 @@ export async function showPlace(
     data: {
       ...placeCard(card, imageUrl),
       body: text('body') ?? '',
+      websiteUrl: place.website_url ?? null,
       hoursNote: text('hours_note') ?? null,
       price: {
         mode: place.price_mode,

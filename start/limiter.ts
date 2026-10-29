@@ -8,6 +8,13 @@ export const bookmarkThrottle = limiter.define('customer-bookmarks', (ctx) =>
     .usingKey(`bookmarks:${ctx.customerIdentity.customer.id}`)
 )
 
+export const customerAddressThrottle = limiter.define('customer-addresses', (ctx) =>
+  limiter
+    .allowRequests(120)
+    .every('1 minute')
+    .usingKey(`customer-addresses:${ctx.customerIdentity.customer.id}`)
+)
+
 export const customerPhotoThrottle = limiter.define('customer-profile-photo', (ctx) =>
   limiter
     .allowRequests(20)
