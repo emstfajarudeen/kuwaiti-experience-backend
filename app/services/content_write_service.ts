@@ -96,8 +96,16 @@ async function validatePlace(input: PlaceInput) {
   ) {
     throw new ApiError(422, 'INVALID_COORDINATES', 'Enter both latitude and longitude')
   }
-  if (input.websiteUrl && !['https:', 'http:'].includes(new URL(input.websiteUrl).protocol)) {
-    throw new ApiError(422, 'INVALID_URL', 'Website URL must use HTTP or HTTPS')
+  if (input.websiteUrl) {
+    try {
+      const parsed = new URL(input.websiteUrl)
+      if (!['https:', 'http:'].includes(parsed.protocol)) {
+        throw new ApiError(422, 'INVALID_URL', 'Website URL must use HTTP or HTTPS')
+      }
+    } catch (error) {
+      if (error instanceof ApiError) throw error
+      throw new ApiError(422, 'INVALID_URL', 'Website URL must be a valid HTTP or HTTPS address')
+    }
   }
   const hours = input.hours ?? []
   validateHours(
@@ -210,7 +218,7 @@ export async function savePlace(
   input: PlaceInput,
   actorId: number,
   id?: number,
-  options: { publish?: boolean; images?: PlaceImageChanges } = {}
+  options: { publish?: boolean; deactivate?: boolean; images?: PlaceImageChanges } = {}
 ) {
   await validatePlace(input)
   const changes = options.images ?? {}
@@ -245,7 +253,11 @@ export async function savePlace(
         keys,
         released
       )
-      if (existing?.status === 'published' && !coverKey) {
+      const coverWasRemoved = Boolean(existing?.cover_image_key && !coverKey)
+      const removingCoverWhilePublished = Boolean(
+        changes.cover === 'remove' && existing?.status === 'published' && !options.deactivate
+      )
+      if (removingCoverWhilePublished || (coverWasRemoved && !options.deactivate)) {
         throw new ApiError(422, 'COVER_REQUIRED', 'Published places need a cover image')
       }
       const fields = {
@@ -344,6 +356,12 @@ export async function savePlace(
           published_at: new Date(),
           updated_at: new Date(),
         })
+      } else if (options.deactivate && existing?.status === 'published') {
+        await trx.from('places').where('id', placeId).update({
+          status: 'archived',
+          published_at: null,
+          updated_at: new Date(),
+        })
       }
       await trx.table('audit_logs').insert({
         actor_id: actorId,
@@ -356,6 +374,14 @@ export async function savePlace(
         await trx.table('audit_logs').insert({
           actor_id: actorId,
           action: 'place.published',
+          entity_type: 'place',
+          entity_id: String(placeId),
+          created_at: new Date(),
+        })
+      } else if (options.deactivate && existing?.status === 'published') {
+        await trx.table('audit_logs').insert({
+          actor_id: actorId,
+          action: 'place.archived',
           entity_type: 'place',
           entity_id: String(placeId),
           created_at: new Date(),

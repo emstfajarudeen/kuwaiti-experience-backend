@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react'
 import { useEffect, useState, type ReactNode } from 'react'
-import ConfirmLogout from '../components/confirm_logout'
+import AdminProfileMenu from '../components/admin_profile_menu'
 import Notice from '../components/notice'
 import { usePage } from '@inertiajs/react'
 
@@ -17,15 +17,39 @@ const navigation = [
   {
     label: 'OVERVIEW',
     links: [
-      { href: '/admin', icon: '◫', label: 'Dashboard', active: 'dashboard', permission: 'dashboard.view' },
+      {
+        href: '/admin',
+        icon: '◫',
+        label: 'Dashboard',
+        active: 'dashboard',
+        permission: 'dashboard.view',
+      },
     ],
   },
   {
     label: 'CONTENT',
     links: [
-      { href: '/admin/places', icon: '⌁', label: 'Places', active: 'places', permission: 'places.view' },
-      { href: '/admin/pages', icon: '▤', label: 'Pages', active: 'pages', permission: 'pages.view' },
-      { href: '/admin/categories', icon: '◈', label: 'Categories', active: 'categories', permission: 'categories.view' },
+      {
+        href: '/admin/places',
+        icon: '⌁',
+        label: 'Places',
+        active: 'places',
+        permission: 'places.view',
+      },
+      {
+        href: '/admin/pages',
+        icon: '▤',
+        label: 'Pages',
+        active: 'pages',
+        permission: 'pages.view',
+      },
+      {
+        href: '/admin/categories',
+        icon: '◈',
+        label: 'Categories',
+        active: 'categories',
+        permission: 'categories.view',
+      },
       {
         href: '/admin/category-types',
         icon: '◇',
@@ -33,12 +57,25 @@ const navigation = [
         active: 'category-types',
         permission: 'category_types.view',
       },
+      {
+        href: '/admin/countries',
+        icon: '◎',
+        label: 'Countries',
+        active: 'countries',
+        permission: 'countries.view',
+      },
     ],
   },
   {
     label: 'EXPERIENCE',
     links: [
-      { href: '/admin/home', icon: '✧', label: 'Homepage', active: 'home', permission: 'home.view' },
+      {
+        href: '/admin/home',
+        icon: '✧',
+        label: 'Homepage',
+        active: 'home',
+        permission: 'home.view',
+      },
       {
         href: '/admin/place-features',
         icon: '✦',
@@ -46,29 +83,77 @@ const navigation = [
         active: 'place-features',
         permission: 'place_features.view',
       },
-      { href: '/admin/movies', icon: '▣', label: 'Movies', active: 'movies', permission: 'movies.view' },
-      { href: '/admin/showtimes', icon: '◷', label: 'Showtimes', active: 'showtimes', permission: 'showtimes.view' },
-      { href: '/admin/transport', icon: '↗', label: 'Transport', active: 'transport', permission: 'transport.view' },
+      {
+        href: '/admin/movies',
+        icon: '▣',
+        label: 'Movies',
+        active: 'movies',
+        permission: 'movies.view',
+      },
+      {
+        href: '/admin/showtimes',
+        icon: '◷',
+        label: 'Showtimes',
+        active: 'showtimes',
+        permission: 'showtimes.view',
+      },
+      {
+        href: '/admin/transport',
+        icon: '↗',
+        label: 'Transport',
+        active: 'transport',
+        permission: 'transport.view',
+      },
     ],
   },
   {
     label: 'OPERATIONS',
     links: [
-      { href: '/admin/contact-requests', icon: '✉', label: 'Contact requests', active: 'contacts', permission: 'contact_requests.view' },
+      {
+        href: '/admin/contact-requests',
+        icon: '✉',
+        label: 'Contact requests',
+        active: 'contacts',
+        permission: 'contact_requests.view',
+      },
     ],
   },
   {
     label: 'ADMINISTRATION',
     links: [
-      { href: '/admin/settings', icon: '⚙', label: 'Site settings', active: 'settings', permission: 'settings.view' },
+      {
+        href: '/admin/settings',
+        icon: '⚙',
+        label: 'Site settings',
+        active: 'settings',
+        permission: 'settings.view',
+      },
     ],
   },
   {
     label: 'ACCOUNTS & ACCESS',
     links: [
-      { href: '/admin/customers', icon: '♙', label: 'Users', active: 'customers', permission: 'customers.view' },
-      { href: '/admin/users', icon: '♟', label: 'Staff', active: 'users', permission: 'staff.view' },
-      { href: '/admin/roles', icon: '⚿', label: 'Roles & Permissions', active: 'roles', permission: 'roles.view' },
+      {
+        href: '/admin/customers',
+        icon: '♙',
+        label: 'Users',
+        active: 'customers',
+        permission: 'customers.view',
+      },
+      {
+        href: '/admin/users',
+        icon: '♟',
+        label: 'Staff',
+        active: 'users',
+        permission: 'staff.view',
+      },
+      {
+        href: '/admin/roles',
+        icon: '⚿',
+        label: 'Roles & Permissions',
+        active: 'roles',
+        permission: 'roles.view',
+      },
     ],
   },
 ] as const
@@ -100,7 +185,9 @@ export default function AdminLayout({
     : navigation
         .map((section) => ({
           ...section,
-          links: section.links.filter((link) => !('permission' in link) || permissions.has(link.permission)),
+          links: section.links.filter(
+            (link) => !('permission' in link) || permissions.has(link.permission)
+          ),
         }))
         .filter((section) => section.links.length > 0)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -184,31 +271,6 @@ export default function AdminLayout({
               </nav>
             </div>
           ))}
-          <a
-            href="/admin/account"
-            className={`tw:mb-4 tw:mt-5 tw:flex tw:min-h-10 tw:items-center tw:gap-3 tw:rounded-cms-sm tw:border-t tw:border-white/10 tw:px-3 tw:pb-2 tw:pt-5 tw:text-[13px] tw:font-semibold tw:text-[#c4d7e6] tw:transition-[background,color] tw:duration-150 tw:hover:bg-white/10 tw:hover:text-white ${active === 'account' ? 'active tw:bg-brand-gold tw:font-bold tw:text-brand-navy-deep' : ''}`}
-            aria-current={active === 'account' ? 'page' : undefined}
-          >
-            <span className="nav-icon tw:w-[18px] tw:text-center tw:text-base tw:leading-none tw:opacity-[0.85]" aria-hidden="true">
-              ◉
-            </span>
-            My account
-          </a>
-          <div className="sidebar-bottom tw:mt-auto tw:flex tw:items-center tw:gap-3 tw:border-t tw:border-white/10 tw:px-2 tw:pt-4">
-            <div
-              className="admin-avatar tw:grid tw:size-9 tw:place-items-center tw:rounded-full tw:border tw:border-brand-gold/30 tw:bg-brand-navy-soft tw:text-sm tw:font-bold tw:text-brand-gold"
-              aria-hidden="true"
-            >
-              {adminName.slice(0, 1).toUpperCase()}
-            </div>
-            <div className="admin-info tw:flex tw:min-w-0 tw:flex-col">
-              <strong className="tw:overflow-hidden tw:text-ellipsis tw:whitespace-nowrap tw:text-[13px] tw:font-semibold tw:text-white">
-                {adminName}
-              </strong>
-              <small className="tw:text-[11px] tw:text-[#8da4b8]">{auth?.isSuperAdmin ? 'Super Admin' : auth?.isFullAccessAdmin ? 'Administrator' : auth?.roleSlugs.join(', ') || 'Staff'}</small>
-            </div>
-            <ConfirmLogout csrfToken={csrfToken} />
-          </div>
         </aside>
 
         <div className="cms-main tw:flex tw:min-w-0 tw:flex-col">
@@ -229,18 +291,14 @@ export default function AdminLayout({
               </span>
             </div>
             <div className="topbar-right tw:flex tw:items-center tw:gap-2 tw:text-[13px] tw:font-medium tw:text-brand-muted">
-              <span
-                className="live-dot tw:inline-block tw:size-2 tw:rounded-full tw:bg-brand-gold tw:shadow-[0_0_0_2px_rgba(197,151,62,0.25)]"
-                aria-hidden="true"
-              />
-              <span>Admin</span>
+              <AdminProfileMenu adminName={adminName} csrfToken={csrfToken} />
             </div>
           </header>
           <main
             className="cms-content tw:w-full tw:px-8 tw:pb-12 tw:pt-6 tw:max-[900px]:px-4 tw:max-[900px]:pb-10 tw:max-[900px]:pt-4"
             id="main-content"
           >
-            {success && <Notice kind="success" message={success} dismissible />}
+            {success && <Notice kind="success" message={success} eventKey={page} />}
             {error && <Notice kind="error" message={error} dismissible />}
             {children}
           </main>

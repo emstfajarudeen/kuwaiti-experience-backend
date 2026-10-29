@@ -54,6 +54,17 @@ function cmsPost(client: ApiClient, path: string, token: string) {
     .field('_csrf', tokens.create(secret))
 }
 
+function cmsStatusPost(client: ApiClient, path: string, token: string, returnTo: string) {
+  const tokens = new Tokens()
+  const secret = tokens.secretSync()
+  return client
+    .post(path)
+    .cookie('admin_access', token)
+    .withSession({ 'csrf-secret': secret })
+    .header('X-CSRF-TOKEN', tokens.create(secret))
+    .json({ returnTo })
+}
+
 async function createPlace(client: ApiClient, token: string) {
   const created = await client
     .post('/api/v1/admin/places')
@@ -156,6 +167,69 @@ test.group('Entity images', (group) => {
     )
     assert.equal(page.component, 'places/preview')
     assert.equal(page.props.place.cover.url, `/admin/images/${updated.cover_image_key}`)
+  })
+
+  test('failed place save with a long description keeps a readable error cookie', async ({
+    client,
+    assert,
+  }) => {
+    const token = await signIn()
+    const failed = await cmsPost(client, '/admin/places', token)
+      .redirects(0)
+      .fields({
+        ...placeFields,
+        bodyEn: 'A long place description. '.repeat(500),
+        websiteUrl: 'not a valid URL',
+      })
+
+    failed.assertStatus(302)
+    assert.equal(failed.header('location'), '/admin/places/new')
+    const sessionCookie = failed.cookie('adonis-session')?.value
+    assert.isString(sessionCookie)
+    assert.isBelow(sessionCookie!.length, 4096)
+
+    assert.match(String(failed.flashMessage('error')), /websiteUrl/i)
+  })
+
+  test('CMS form and list can deactivate and reactivate a place', async ({ client, assert }) => {
+    const token = await signIn()
+    const created = await cmsPost(client, '/admin/places', token)
+      .fields({ ...placeFields, intent: 'publish', hoursJson: '[]' })
+      .file('coverImage', await png(), { filename: 'cover.png', contentType: 'image/png' })
+    created.assertStatus(200)
+    const place = await db.from('places').where('slug', placeFields.slug).first()
+    assert.equal(place.status, 'published')
+
+    const deactivated = await cmsPost(client, `/admin/places/${place.id}/save`, token).fields({
+      ...placeFields,
+      intent: 'save',
+      deactivate: '1',
+      hoursJson: '[]',
+    })
+    deactivated.assertStatus(200)
+    const inactive = await db.from('places').where('id', place.id).first()
+    assert.equal(inactive.status, 'archived')
+    assert.isNull(inactive.published_at)
+
+    const activated = await cmsStatusPost(
+      client,
+      `/admin/places/${place.id}/publish`,
+      token,
+      '/admin/places?status=archived'
+    )
+    activated.assertStatus(200)
+    const active = await db.from('places').where('id', place.id).first()
+    assert.equal(active.status, 'published')
+
+    const listDeactivated = await cmsStatusPost(
+      client,
+      `/admin/places/${place.id}/archive`,
+      token,
+      '/admin/places?status=published'
+    )
+    listDeactivated.assertStatus(200)
+    const archivedPlace = await db.from('places').where('id', place.id).first()
+    assert.equal(archivedPlace.status, 'archived')
   })
 
   test('CMS uploads tile, hero and logo images', async ({ client, assert }) => {

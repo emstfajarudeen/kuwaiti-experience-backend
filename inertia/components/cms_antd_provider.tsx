@@ -1,5 +1,5 @@
 import { StyleProvider } from '@ant-design/cssinjs'
-import { ConfigProvider } from 'antd'
+import { App, ConfigProvider } from 'antd'
 import type { ReactNode } from 'react'
 import type { createCache } from '@ant-design/cssinjs'
 
@@ -7,6 +7,8 @@ type Props = {
   children: ReactNode
   cache?: ReturnType<typeof createCache>
 }
+
+const notificationConfig = { placement: 'topRight' as const, duration: 4, maxCount: 1 }
 
 export default function CmsAntdProvider({ children, cache }: Props) {
   return (
@@ -39,7 +41,9 @@ export default function CmsAntdProvider({ children, cache }: Props) {
           },
         }}
       >
-        {children}
+        <App component={false} notification={notificationConfig}>
+          {children}
+        </App>
       </ConfigProvider>
     </StyleProvider>
   )

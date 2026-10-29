@@ -11,9 +11,17 @@ type Props = {
   csrfToken: string
   success: string | null
   error: string | null
+  publicSiteUrl: string
   rows: PageRow[]
 }
-export default function PagesIndex({ adminName, csrfToken, success, error, rows }: Props) {
+export default function PagesIndex({
+  adminName,
+  csrfToken,
+  success,
+  error,
+  publicSiteUrl,
+  rows,
+}: Props) {
   const { can } = useAuthorization()
   const [deleting, setDeleting] = useState<PageRow | null>(null)
   return (
@@ -39,9 +47,9 @@ export default function PagesIndex({ adminName, csrfToken, success, error, rows 
           <div className="table-scroll tw:overflow-x-auto"><Table<PageRow> rowKey="id" pagination={false} scroll={{ x: 700 }} dataSource={rows} columns={[
             ...(can('pages.update') ? [{ title: 'Edit', key: 'edit', width: 64, render: (_: unknown, row: PageRow) => <a href={`/admin/pages/${row.id}/edit`} className="action-pencil-btn" aria-label={`Edit ${row.title || 'page'}`}>✎</a> }] : []),
             { title: 'Page Title', dataIndex: 'title', render: (title: string | null) => <strong>{title || 'Untitled page'}</strong> },
-            { title: 'Public URL', dataIndex: 'slug', render: (slug: string) => <code>/{slug}</code> },
+            { title: 'Public URL', dataIndex: 'slug', render: (slug: string) => <a href={`${publicSiteUrl.replace(/\/$/, '')}/${encodeURIComponent(slug)}`} target="_blank" rel="noreferrer"><code>/{slug}</code></a> },
             { title: 'Status', dataIndex: 'status', render: (status: string) => <span className={`status ${status}`}>{status}</span> },
-            ...(can('pages.delete') ? [{ title: 'Actions', key: 'actions', render: (_: unknown, row: PageRow) => <RowActionMenu label={`More actions for ${row.title || 'page'}`} actions={[...(row.status === 'published' ? [{ label: 'View page', href: `/${row.slug}`, target: '_blank' as const }] : []), { label: 'Delete', danger: true, onClick: () => setDeleting(row) }]} /> }] : []),
+            ...(can('pages.delete') ? [{ title: 'Actions', key: 'actions', render: (_: unknown, row: PageRow) => <RowActionMenu label={`More actions for ${row.title || 'page'}`} actions={[...(row.status === 'published' ? [{ label: 'View page', href: `${publicSiteUrl.replace(/\/$/, '')}/${encodeURIComponent(row.slug)}`, target: '_blank' as const }] : []), { label: 'Delete', danger: true, onClick: () => setDeleting(row) }]} /> }] : []),
           ]} /></div>
         ) : (
           <div className="empty-state tw:[padding:var(--space-10)_var(--space-6)] tw:[text-align:center] tw:[color:var(--muted)] tw:[display:flex] tw:[flex-direction:column] tw:[align-items:center] tw:[gap:var(--space-3)]">

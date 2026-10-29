@@ -7,6 +7,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   LOG_LEVEL: Env.schema.string(),
   APP_KEY: Env.schema.secret(),
   APP_URL: Env.schema.string({ format: 'url', tld: false }),
+  PUBLIC_SITE_URL: Env.schema.string.optional({ format: 'url', tld: false }),
   CORS_ORIGINS: Env.schema.string.optional(),
   SESSION_DRIVER: Env.schema.enum(['cookie', 'memory', 'database'] as const),
   DB_HOST: Env.schema.string(),
@@ -29,4 +30,5 @@ export default await Env.create(new URL('../', import.meta.url), {
   SMTP_USERNAME: Env.schema.string.optional(),
   SMTP_PASSWORD: Env.schema.secret.optional(),
   ADMIN_PASSWORD_RESET_FROM: Env.schema.string.optional(),
+  PHOTON_BASE_URL: Env.schema.string.optional({ format: 'url' }),
 })

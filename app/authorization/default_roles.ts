@@ -4,6 +4,7 @@ const modules = [
   'places',
   'categories',
   'category_types',
+  'countries',
   'pages',
   'place_features',
   'movies',

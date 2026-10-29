@@ -6,6 +6,7 @@ const destinations = [
   ['places.view', '/admin/places'],
   ['categories.view', '/admin/categories'],
   ['category_types.view', '/admin/category-types'],
+  ['countries.view', '/admin/countries'],
   ['pages.view', '/admin/pages'],
   ['place_features.view', '/admin/place-features'],
   ['movies.view', '/admin/movies'],

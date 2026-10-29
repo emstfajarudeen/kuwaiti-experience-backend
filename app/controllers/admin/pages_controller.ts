@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import env from '#start/env'
 import db from '@adonisjs/lucid/services/db'
 import { pageValidator } from '../../validators/content.js'
 import { ApiError } from '../../services/api_error.js'
@@ -26,6 +27,10 @@ export default class AdminPagesPageController {
         csrfToken: request.csrfToken,
         success: (session.flashMessages.get('success') as string | undefined) ?? null,
         error: (session.flashMessages.get('error') as string | undefined) ?? null,
+        publicSiteUrl:
+          env.get('PUBLIC_SITE_URL') ??
+          env.get('CORS_ORIGINS')?.split(',')[0]?.trim() ??
+          'https://thekuwaitiexperience.com',
         rows: rows.map((row) => ({
           id: Number(row.id),
           slug: row.slug,

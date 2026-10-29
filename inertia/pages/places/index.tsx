@@ -2,8 +2,9 @@ import { useState } from 'react'
 import AdminLayout from '../../layouts/admin_layout'
 import RowActionMenu from '../../components/row_action_menu'
 import ConfirmModal from '../../components/confirm_modal'
-import { Table } from 'antd'
+import { Switch, Table } from 'antd'
 import { Input } from 'antd'
+import { router } from '@inertiajs/react'
 import FormSelect from '../../components/form_select'
 
 type Place = {
@@ -56,11 +57,23 @@ export default function PlacesIndex({
   filters,
 }: Props) {
   const [deleting, setDeleting] = useState<Place | null>(null)
+  const [changingStatus, setChangingStatus] = useState<number | null>(null)
   const [typeFilter, setTypeFilter] = useState(selectedType)
   const [statusFilter, setStatusFilter] = useState(selectedStatus)
   const [sortFilter, setSortFilter] = useState(selectedSort)
   const pageUrl = (page: number) =>
     `/admin/places?${new URLSearchParams({ page: String(page), q: filters.q, type: filters.type, status: filters.status, sort: filters.sort })}`
+  const changeStatus = (place: Place, checked: boolean) => {
+    router.post(
+      `/admin/places/${place.id}/${checked ? 'publish' : 'archive'}`,
+      { _csrf: csrfToken, returnTo: window.location.pathname + window.location.search },
+      {
+        preserveScroll: true,
+        onStart: () => setChangingStatus(place.id),
+        onFinish: () => setChangingStatus(null),
+      }
+    )
+  }
   return (
     <AdminLayout
       title="Places"
@@ -91,15 +104,46 @@ export default function PlacesIndex({
         </div>
         <div className="filter-group">
           <label htmlFor="places-type-filter">Type:</label>
-          <FormSelect id="places-type-filter" name="type" value={typeFilter} onChange={setTypeFilter} placeholder="All types" options={types.map((type) => ({ value: type.code, label: type.name_en }))} />
+          <FormSelect
+            id="places-type-filter"
+            name="type"
+            value={typeFilter}
+            onChange={setTypeFilter}
+            placeholder="All types"
+            options={types.map((type) => ({ value: type.code, label: type.name_en }))}
+          />
         </div>
         <div className="filter-group">
           <label htmlFor="places-status-filter">Status:</label>
-          <FormSelect id="places-status-filter" name="status" value={statusFilter} onChange={setStatusFilter} placeholder="All statuses" options={[{ value: 'published', label: 'Published' }, { value: 'draft', label: 'Draft' }, { value: 'archived', label: 'Archived' }]} />
+          <FormSelect
+            id="places-status-filter"
+            name="status"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            placeholder="All statuses"
+            options={[
+              { value: 'published', label: 'Active' },
+              { value: 'draft', label: 'Draft' },
+              { value: 'archived', label: 'Inactive' },
+            ]}
+          />
         </div>
         <div className="filter-group">
           <label htmlFor="places-sort-filter">Sort:</label>
-          <FormSelect id="places-sort-filter" name="sort" value={sortFilter} required onChange={setSortFilter} options={[{ value: 'updated_desc', label: 'Recently edited' }, { value: 'updated_asc', label: 'Oldest edited' }, { value: 'title_asc', label: 'Title (A–Z)' }, { value: 'title_desc', label: 'Title (Z–A)' }, { value: 'status', label: 'Status' }]} />
+          <FormSelect
+            id="places-sort-filter"
+            name="sort"
+            value={sortFilter}
+            required
+            onChange={setSortFilter}
+            options={[
+              { value: 'updated_desc', label: 'Recently edited' },
+              { value: 'updated_asc', label: 'Oldest edited' },
+              { value: 'title_asc', label: 'Title (A–Z)' },
+              { value: 'title_desc', label: 'Title (Z–A)' },
+              { value: 'status', label: 'Status' },
+            ]}
+          />
         </div>
         <div className="filter-actions tw:[margin-left:auto] tw:[display:flex] tw:[align-items:center] tw:[gap:var(--space-2)]">
           <button type="submit" className="button secondary">
@@ -128,14 +172,98 @@ export default function PlacesIndex({
         </div>
         {rows.length ? (
           <>
-            <div className="table-scroll tw:overflow-x-auto"><Table<Place> rowKey="id" pagination={false} scroll={{ x: 850 }} dataSource={rows} columns={[
-              { title: 'Edit', key: 'edit', width: 64, render: (_: unknown, row) => <a href={`/admin/places/${row.id}/edit`} className="action-pencil-btn" aria-label={`Edit ${row.title}`}>✎</a> },
-              { title: 'Place', key: 'place', render: (_: unknown, row) => <div className="place-cell tw:[display:flex] tw:[align-items:center] tw:[gap:var(--space-3)] tw:[min-width:220px]">{row.coverUrl ? <img src={row.coverUrl} alt="" loading="lazy" /> : <span className="thumb-empty" aria-hidden="true">K</span>}<div className="place-title-wrap"><strong>{row.title}</strong><small>/places/{row.slug}</small></div></div> },
-              { title: 'Type', dataIndex: 'type_name_en', render: (name: string) => <span className="type-chip">{name}</span> },
-              { title: 'Status', dataIndex: 'status', render: (status: string) => <span className={`status ${status}`}>{status}</span> },
-              { title: 'Last Edit (Kuwait)', dataIndex: 'updated_at_local', render: (value: string | null) => value || '—' },
-              { title: 'Actions', key: 'actions', render: (_: unknown, row) => <RowActionMenu label={`More actions for ${row.title}`} actions={[{ label: 'Preview', href: `/admin/places/${row.id}/preview`, target: '_blank' }, { label: 'Delete', danger: true, onClick: () => setDeleting(row) }]} /> },
-            ]} /></div>
+            <div className="table-scroll tw:overflow-x-auto">
+              <Table<Place>
+                rowKey="id"
+                pagination={false}
+                scroll={{ x: 850 }}
+                dataSource={rows}
+                columns={[
+                  {
+                    title: 'Edit',
+                    key: 'edit',
+                    width: 64,
+                    render: (_: unknown, row) => (
+                      <a
+                        href={`/admin/places/${row.id}/edit`}
+                        className="action-pencil-btn"
+                        aria-label={`Edit ${row.title}`}
+                      >
+                        ✎
+                      </a>
+                    ),
+                  },
+                  {
+                    title: 'Place',
+                    key: 'place',
+                    render: (_: unknown, row) => (
+                      <div className="place-cell tw:[display:flex] tw:[align-items:center] tw:[gap:var(--space-3)] tw:[min-width:220px]">
+                        {row.coverUrl ? (
+                          <img src={row.coverUrl} alt="" loading="lazy" />
+                        ) : (
+                          <span className="thumb-empty" aria-hidden="true">
+                            K
+                          </span>
+                        )}
+                        <div className="place-title-wrap">
+                          <strong>{row.title}</strong>
+                          <small>/places/{row.slug}</small>
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    title: 'Type',
+                    dataIndex: 'type_name_en',
+                    render: (name: string) => <span className="type-chip">{name}</span>,
+                  },
+                  {
+                    title: 'Active',
+                    key: 'status',
+                    render: (_: unknown, row) => (
+                      <div className="tw:flex tw:items-center tw:gap-2">
+                        <Switch
+                          aria-label={`${row.status === 'published' ? 'Deactivate' : 'Activate'} ${row.title}`}
+                          checked={row.status === 'published'}
+                          loading={changingStatus === row.id}
+                          disabled={changingStatus !== null}
+                          onChange={(checked) => changeStatus(row, checked)}
+                        />
+                        <span className={`status ${row.status}`}>
+                          {row.status === 'published'
+                            ? 'Active'
+                            : row.status === 'draft'
+                              ? 'Draft'
+                              : 'Inactive'}
+                        </span>
+                      </div>
+                    ),
+                  },
+                  {
+                    title: 'Last Edit (Kuwait)',
+                    dataIndex: 'updated_at_local',
+                    render: (value: string | null) => value || '—',
+                  },
+                  {
+                    title: 'Actions',
+                    key: 'actions',
+                    render: (_: unknown, row) => (
+                      <RowActionMenu
+                        label={`More actions for ${row.title}`}
+                        actions={[
+                          {
+                            label: 'Preview',
+                            href: `/admin/places/${row.id}/preview`,
+                            target: '_blank',
+                          },
+                          { label: 'Delete', danger: true, onClick: () => setDeleting(row) },
+                        ]}
+                      />
+                    ),
+                  },
+                ]}
+              />
+            </div>
             <div className="pagination-bar tw:[display:flex] tw:[justify-content:space-between] tw:[align-items:center] tw:[flex-wrap:wrap] tw:[gap:var(--space-3)] tw:[padding:var(--space-4)_var(--space-6)] tw:[border-top:1px_solid_var(--line-subtle)] tw:[background:var(--surface)] tw:[font-size:13px] tw:[color:var(--muted)]">
               <span>
                 Page {pagination.page} of {pagination.lastPage} ({pagination.total} total places)

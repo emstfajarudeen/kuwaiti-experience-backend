@@ -1,48 +1,38 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
+import { App } from 'antd'
 
 type Props = {
   message: string
   kind: 'error' | 'success'
   dismissible?: boolean
+  eventKey?: object
 }
 
-export default function Notice({ message, kind, dismissible = false }: Props) {
+export default function Notice({ message, kind, dismissible = false, eventKey }: Props) {
   const [visible, setVisible] = useState(true)
+  const { notification } = App.useApp()
+  const toastKey = useId()
   useEffect(() => {
     if (kind !== 'success') return
-    let disposed = false
-    let toast: HTMLElement | null = null
-    void import('@awesome.me/webawesome/dist/components/toast/toast.js').then(async () => {
-      if (disposed) return
-      toast = document.createElement('wa-toast')
-      toast.setAttribute('placement', 'top-end')
-      document.body.append(toast)
-      await customElements.whenDefined('wa-toast')
-      if (!disposed) {
-        ;(
-          toast as HTMLElement & {
-            create: (text: string, options: { variant: string; duration: number }) => void
-          }
-        ).create(message, { variant: 'success', duration: 4000 })
-      }
+    notification.success({
+      key: toastKey,
+      title: message,
+      role: 'status',
     })
-    return () => {
-      disposed = true
-      toast?.remove()
-    }
-  }, [kind, message])
-  if (!visible) return null
+    return () => notification.destroy(toastKey)
+  }, [kind, message, eventKey, notification, toastKey])
+  if (kind === 'success' || !visible) return null
 
   return (
     <div
-      className={`notice ${kind} tw:relative tw:mb-6 tw:flex tw:items-start tw:gap-3 tw:rounded-cms tw:px-5 tw:py-4 tw:text-sm tw:leading-[1.5] tw:shadow-sm ${kind === 'success' ? 'tw:border tw:border-brand-success-border tw:bg-brand-success-bg tw:text-brand-success-text' : 'tw:border tw:border-brand-danger-border tw:bg-brand-danger-bg tw:text-brand-danger-text'}`}
-      role={kind === 'error' ? 'alert' : 'status'}
+      className="notice error tw:relative tw:mb-6 tw:flex tw:items-start tw:gap-3 tw:rounded-cms tw:px-5 tw:py-4 tw:text-sm tw:leading-[1.5] tw:shadow-sm tw:border tw:border-brand-danger-border tw:bg-brand-danger-bg tw:text-brand-danger-text"
+      role="alert"
     >
       <span
         className="notice-icon tw:mt-px tw:shrink-0 tw:text-lg tw:leading-none"
         aria-hidden="true"
       >
-        {kind === 'error' ? '⚠' : '✓'}
+        ⚠
       </span>
       <div className="notice-body tw:grow tw:font-medium">{message}</div>
       {dismissible && (

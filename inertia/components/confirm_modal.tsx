@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { Button, Modal } from 'antd'
 
 type Props = {
   open: boolean
@@ -21,37 +21,25 @@ export default function ConfirmModal({
   confirmLabel,
   danger = false,
 }: Props) {
-  const dialogRef = useRef<HTMLDialogElement>(null)
-
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (!dialog) return
-    if (open && !dialog.open) dialog.showModal()
-    if (!open && dialog.open) dialog.close()
-  }, [open])
-
   return (
-    <dialog
-      ref={dialogRef}
-      className="cms-confirm-dialog tw:w-[min(420px,calc(100vw-32px))] tw:rounded-cms-lg tw:border tw:border-brand-line tw:p-6 tw:text-brand-ink tw:shadow-lg"
-      aria-labelledby="confirm-title"
-      onClose={onClose}
+    <Modal
+      open={open}
+      title={title}
+      onCancel={onClose}
+      width={420}
+      footer={
+        <div className="tw:flex tw:justify-end tw:gap-2">
+          <Button onClick={onClose}>Cancel</Button>
+          <form action={action} method="POST">
+            <input type="hidden" name="_csrf" value={csrfToken} />
+            <Button htmlType="submit" type={danger ? 'primary' : 'default'} danger={danger}>
+              {confirmLabel}
+            </Button>
+          </form>
+        </div>
+      }
     >
-      <h2 id="confirm-title" className="tw:mb-3 tw:mt-0 tw:text-lg">
-        {title}
-      </h2>
-      <p className="tw:mb-6 tw:mt-0">{message}</p>
-      <div className="cms-confirm-actions tw:flex tw:justify-end tw:gap-2">
-        <button type="button" className="button secondary" onClick={onClose}>
-          Cancel
-        </button>
-        <form action={action} method="POST">
-          <input type="hidden" name="_csrf" value={csrfToken} />
-          <button type="submit" className={`button ${danger ? 'danger' : 'primary'}`}>
-            {confirmLabel}
-          </button>
-        </form>
-      </div>
-    </dialog>
+      <p className="tw:mb-2 tw:mt-0">{message}</p>
+    </Modal>
   )
 }

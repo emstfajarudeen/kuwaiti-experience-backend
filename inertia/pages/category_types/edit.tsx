@@ -86,39 +86,42 @@ export default function CategoryTypeEdit({
               <Form.Item name="sortOrder" label="Display order" rules={[{ required: true, message: 'Enter a display order.' }]}><InputNumber name="sortOrder" className="tw:w-full" precision={0} /></Form.Item>
               <Form.Item name="nameEn" label="English name" rules={[{ required: true, min: 2, max: 160, message: 'Enter an English name between 2 and 160 characters.' }]}><Input name="nameEn" maxLength={160} placeholder="Museums" /></Form.Item>
               <Form.Item name="nameAr" label="Arabic name" rules={[{ max: 160, message: 'Arabic name must be 160 characters or fewer.' }]}><Input name="nameAr" dir="rtl" lang="ar" maxLength={160} placeholder="المتاحف" /></Form.Item>
-              <div className="full image-field tw:col-span-full tw:[display:flex] tw:[flex-direction:column] tw:[gap:var(--space-2)]">
-                <span>Tile image</span>
-                {imageUrl &&
-                  (removeImage ? (
-                    <div className="image-removed-banner">
-                      <span>Image removed</span>
-                      <button
-                        type="button"
-                        className="button secondary"
-                        onClick={() => setRemoveImage(false)}
-                      >
-                        Undo
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="image-preview-card">
+              <Form.Item label="Image" className="full tw:col-span-full">
+                <input type="hidden" name="removeImage" value={removeImage ? 'on' : ''} />
+                {imageUrl && !removeImage ? (
+                  <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-4">
+                    <div className="tw:relative tw:flex tw:size-[110px] tw:shrink-0 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-cms tw:border tw:border-brand-line tw:bg-white tw:p-2 tw:shadow-sm">
                       <img
                         src={imageUrl}
                         alt={categoryType?.name_en ?? ''}
-                        className="tw:size-[140px] tw:object-contain"
+                        className="tw:max-h-full tw:max-w-full tw:object-contain"
                       />
-                      <button
-                        type="button"
-                        aria-label="Remove image"
+                    </div>
+                    <div className="tw:flex tw:flex-col tw:items-start tw:gap-2.5">
+                      <ImageUpload name="image" />
+                      <Button
+                        danger
+                        size="small"
                         onClick={() => setRemoveImage(true)}
                       >
                         Remove image
-                      </button>
+                      </Button>
                     </div>
-                  ))}
-                <input type="hidden" name="removeImage" value={removeImage ? 'on' : ''} />
-                <ImageUpload name="image" label={imageUrl && !removeImage ? 'Replace tile image' : 'Upload tile image'} />
-              </div>
+                  </div>
+                ) : (
+                  <div className="tw:flex tw:flex-col tw:items-start tw:gap-3">
+                    {imageUrl && removeImage && (
+                      <div className="tw:inline-flex tw:items-center tw:gap-3 tw:rounded-cms tw:border tw:border-dashed tw:border-red-300 tw:bg-red-50/70 tw:px-3.5 tw:py-2 tw:text-xs">
+                        <span className="tw:font-medium tw:text-red-700">Image will be removed upon saving</span>
+                        <Button size="small" onClick={() => setRemoveImage(false)}>
+                          Undo
+                        </Button>
+                      </div>
+                    )}
+                    <ImageUpload name="image" />
+                  </div>
+                )}
+              </Form.Item>
             </div>
           </section>
         </div>

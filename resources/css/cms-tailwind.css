@@ -49,6 +49,21 @@
 }
 
 @layer components {
+  /* Page names already appear in the sticky admin header. Keep each page's h1
+     available to assistive technology while removing the repeated visual title. */
+  .cms-content .page-head h1 {
+    @apply tw:sr-only;
+  }
+
+  .cms-content .page-head > div:has(> h1:only-child) {
+    @apply tw:contents;
+  }
+
+  .cms-content .page-head:has(> h1:only-child),
+  .cms-content .page-head:has(> div:only-child > h1:only-child) {
+    @apply tw:mb-0;
+  }
+
   .button {
     @apply tw:inline-flex tw:min-h-[42px] tw:items-center tw:justify-center tw:gap-2 tw:whitespace-nowrap tw:rounded-cms-sm tw:border tw:border-transparent tw:px-[18px] tw:py-[9px] tw:text-sm tw:font-semibold tw:leading-[1.2] tw:no-underline tw:transition-all tw:duration-150;
   }
@@ -84,6 +99,33 @@
 
   .button.secondary {
     @apply tw:border-brand-line-strong tw:bg-white tw:text-brand-ink;
+  }
+
+  .filter-bar .button.secondary,
+  .cms-filter-panel .button.secondary {
+    @apply tw:border-brand-navy tw:bg-brand-navy tw:text-white;
+  }
+
+  .filter-bar .button.secondary:hover,
+  .cms-filter-panel .button.secondary:hover {
+    @apply tw:border-brand-navy-soft tw:bg-brand-navy-soft tw:text-white;
+  }
+
+  .filter-bar .button.secondary:focus-visible,
+  .cms-filter-panel .button.secondary:focus-visible {
+    @apply tw:outline-2 tw:outline-offset-2 tw:outline-brand-gold-deep;
+  }
+
+  .action-pencil-btn {
+    @apply tw:inline-flex tw:size-9 tw:items-center tw:justify-center tw:rounded-cms-sm tw:border tw:border-brand-line-strong tw:bg-white tw:text-brand-navy tw:text-base tw:font-semibold tw:no-underline tw:transition-colors;
+  }
+
+  .action-pencil-btn:hover {
+    @apply tw:border-brand-navy tw:bg-brand-navy-surface tw:text-brand-navy;
+  }
+
+  .action-pencil-btn:focus-visible {
+    @apply tw:outline-2 tw:outline-offset-2 tw:outline-brand-gold-deep;
   }
 
   .button.danger {

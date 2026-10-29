@@ -5,8 +5,7 @@ export default defineConfig({
   rootView: 'inertia_layout',
   encryptHistory: true,
   ssr: {
-    // Inertia's SSR HTTP listener keeps the Japa process open after its suites finish.
-    // Production and development retain SSR for migrated CMS pages.
+    // Browser tests use client rendering; development and production render in-process.
     enabled: !app.inTest,
     entrypoint: 'inertia/ssr.tsx',
     pages: [
@@ -23,7 +22,6 @@ export default defineConfig({
       'dashboard/overview',
       'contacts/index',
       'contacts/show',
-      'save_success/show',
       'categories/index',
       'categories/edit',
       'category_types/index',

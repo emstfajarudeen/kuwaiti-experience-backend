@@ -13,6 +13,10 @@ type Preview = {
 }
 type Props = { adminName: string; csrfToken: string; place: Preview; status: string }
 export default function PlacePreview({ adminName, csrfToken, place, status }: Props) {
+  const summaryRepeatsBody = place.body
+    ?.replace(/\s+/g, ' ')
+    .trim()
+    .startsWith(place.summary.trim())
   return (
     <AdminLayout title="Place preview" active="places" adminName={adminName} csrfToken={csrfToken}>
       <a
@@ -28,7 +32,7 @@ export default function PlacePreview({ adminName, csrfToken, place, status }: Pr
             <span
               className={`status ${status} tw:[display:inline-flex] tw:[align-items:center] tw:[gap:6px] tw:[padding:4px_10px] tw:[border-radius:var(--radius-full)] tw:[font-size:12px] tw:[font-weight:700] tw:[text-transform:capitalize] tw:[letter-spacing:0.02em] tw:[border:1px_solid_transparent] tw:[line-height:1.2]`}
             >
-              {status}
+              {status === 'published' ? 'Active' : status === 'archived' ? 'Inactive' : 'Draft'}
             </span>
           </div>
           <p>{place.address}</p>
@@ -49,9 +53,11 @@ export default function PlacePreview({ adminName, csrfToken, place, status }: Pr
             />
           </div>
         )}
-        <div className="tw:[font-size:16px] tw:[font-weight:600] tw:[color:var(--navy)] tw:[margin-bottom:16px] tw:[line-height:1.5]">
-          {place.summary}
-        </div>
+        {place.summary && !summaryRepeatsBody && (
+          <div className="tw:[font-size:16px] tw:[font-weight:600] tw:[color:var(--navy)] tw:[margin-bottom:16px] tw:[line-height:1.5]">
+            {place.summary}
+          </div>
+        )}
         {place.body && (
           <div className="tw:[font-size:15px] tw:[line-height:1.7] tw:[color:var(--ink-secondary)] tw:[margin-bottom:28px] tw:[white-space:pre-wrap]">
             {place.body}

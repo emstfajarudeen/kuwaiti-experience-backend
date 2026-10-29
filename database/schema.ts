@@ -25,16 +25,7 @@ export class AdminPasswordResetTokenSchema extends BaseModel {
 }
 
 export class AuditLogSchema extends BaseModel {
-  static $columns = [
-    'action',
-    'actorId',
-    'changedFields',
-    'createdAt',
-    'entityId',
-    'entityType',
-    'id',
-    'requestId',
-  ] as const
+  static $columns = ['action', 'actorId', 'changedFields', 'createdAt', 'entityId', 'entityType', 'id', 'requestId'] as const
   $columns = AuditLogSchema.$columns
   @column()
   declare action: string
@@ -119,18 +110,7 @@ export class CategoryTypeSchema extends BaseModel {
 }
 
 export class ContactRequestSchema extends BaseModel {
-  static $columns = [
-    'createdAt',
-    'customerId',
-    'email',
-    'fullName',
-    'id',
-    'inquiryType',
-    'message',
-    'phoneNumber',
-    'status',
-    'updatedAt',
-  ] as const
+  static $columns = ['createdAt', 'customerId', 'email', 'fullName', 'id', 'inquiryType', 'message', 'phoneNumber', 'status', 'updatedAt'] as const
   $columns = ContactRequestSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -154,17 +134,27 @@ export class ContactRequestSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class CountrySchema extends BaseModel {
+  static $columns = ['active', 'code', 'createdAt', 'nameAr', 'nameEn', 'sortOrder', 'updatedAt'] as const
+  $columns = CountrySchema.$columns
+  @column()
+  declare active: boolean
+  @column({ isPrimary: true })
+  declare code: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare nameAr: string | null
+  @column()
+  declare nameEn: string
+  @column()
+  declare sortOrder: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class CustomerLegalAcceptanceSchema extends BaseModel {
-  static $columns = [
-    'acceptedAt',
-    'body',
-    'contentHash',
-    'customerId',
-    'id',
-    'locale',
-    'slug',
-    'title',
-  ] as const
+  static $columns = ['acceptedAt', 'body', 'contentHash', 'customerId', 'id', 'locale', 'slug', 'title'] as const
   $columns = CustomerLegalAcceptanceSchema.$columns
   @column.dateTime()
   declare acceptedAt: DateTime
@@ -185,24 +175,7 @@ export class CustomerLegalAcceptanceSchema extends BaseModel {
 }
 
 export class CustomerOtpChallengeSchema extends BaseModel {
-  static $columns = [
-    'attemptCount',
-    'codeHash',
-    'consumedAt',
-    'createdAt',
-    'customerId',
-    'expiresAt',
-    'id',
-    'phoneE164',
-    'purpose',
-    'resendAvailableAt',
-    'sendCount',
-    'sendWindowAt',
-    'sessionId',
-    'verificationExpiresAt',
-    'verificationTokenHash',
-    'verifiedAt',
-  ] as const
+  static $columns = ['attemptCount', 'codeHash', 'consumedAt', 'createdAt', 'customerId', 'expiresAt', 'id', 'phoneE164', 'purpose', 'resendAvailableAt', 'sendCount', 'sendWindowAt', 'sessionId', 'verificationExpiresAt', 'verificationTokenHash', 'verifiedAt'] as const
   $columns = CustomerOtpChallengeSchema.$columns
   @column()
   declare attemptCount: number
@@ -239,14 +212,7 @@ export class CustomerOtpChallengeSchema extends BaseModel {
 }
 
 export class CustomerRefreshTokenSchema extends BaseModel {
-  static $columns = [
-    'consumedAt',
-    'createdAt',
-    'expiresAt',
-    'id',
-    'sessionId',
-    'tokenHash',
-  ] as const
+  static $columns = ['consumedAt', 'createdAt', 'expiresAt', 'id', 'sessionId', 'tokenHash'] as const
   $columns = CustomerRefreshTokenSchema.$columns
   @column.dateTime()
   declare consumedAt: DateTime | null
@@ -274,16 +240,7 @@ export class CustomerSavedPlaceSchema extends BaseModel {
 }
 
 export class CustomerSessionSchema extends BaseModel {
-  static $columns = [
-    'accessExpiresAt',
-    'accessTokenHash',
-    'authenticatedAt',
-    'createdAt',
-    'customerId',
-    'expiresAt',
-    'id',
-    'revokedAt',
-  ] as const
+  static $columns = ['accessExpiresAt', 'accessTokenHash', 'authenticatedAt', 'createdAt', 'customerId', 'expiresAt', 'id', 'revokedAt'] as const
   $columns = CustomerSessionSchema.$columns
   @column.dateTime()
   declare accessExpiresAt: DateTime
@@ -304,17 +261,7 @@ export class CustomerSessionSchema extends BaseModel {
 }
 
 export class CustomerSchema extends BaseModel {
-  static $columns = [
-    'createdAt',
-    'email',
-    'firstName',
-    'id',
-    'lastName',
-    'phoneE164',
-    'phoneVerifiedAt',
-    'profilePhotoId',
-    'updatedAt',
-  ] as const
+  static $columns = ['createdAt', 'email', 'firstName', 'id', 'lastName', 'phoneE164', 'phoneVerifiedAt', 'profilePhotoId', 'updatedAt'] as const
   $columns = CustomerSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -337,16 +284,7 @@ export class CustomerSchema extends BaseModel {
 }
 
 export class HomeContentSchema extends BaseModel {
-  static $columns = [
-    'appBody',
-    'appTitle',
-    'discoveryTitle',
-    'heroEyebrow',
-    'heroImageKey',
-    'heroTitle',
-    'locale',
-    'updatedAt',
-  ] as const
+  static $columns = ['appBody', 'appTitle', 'discoveryTitle', 'heroEyebrow', 'heroImageKey', 'heroTitle', 'locale', 'updatedAt'] as const
   $columns = HomeContentSchema.$columns
   @column()
   declare appBody: string | null
@@ -367,16 +305,7 @@ export class HomeContentSchema extends BaseModel {
 }
 
 export class HomeExploreCardSchema extends BaseModel {
-  static $columns = [
-    'active',
-    'captionAr',
-    'captionEn',
-    'createdAt',
-    'id',
-    'placeId',
-    'sortOrder',
-    'updatedAt',
-  ] as const
+  static $columns = ['active', 'captionAr', 'captionEn', 'createdAt', 'id', 'placeId', 'sortOrder', 'updatedAt'] as const
   $columns = HomeExploreCardSchema.$columns
   @column()
   declare active: boolean
@@ -397,20 +326,7 @@ export class HomeExploreCardSchema extends BaseModel {
 }
 
 export class MovieSchema extends BaseModel {
-  static $columns = [
-    'ageRating',
-    'createdAt',
-    'durationMinutes',
-    'id',
-    'posterImageKey',
-    'publishedAt',
-    'status',
-    'synopsisAr',
-    'synopsisEn',
-    'titleAr',
-    'titleEn',
-    'updatedAt',
-  ] as const
+  static $columns = ['ageRating', 'createdAt', 'durationMinutes', 'id', 'posterImageKey', 'publishedAt', 'status', 'synopsisAr', 'synopsisEn', 'titleAr', 'titleEn', 'updatedAt'] as const
   $columns = MovieSchema.$columns
   @column()
   declare ageRating: string | null
@@ -439,17 +355,7 @@ export class MovieSchema extends BaseModel {
 }
 
 export class PageTranslationSchema extends BaseModel {
-  static $columns = [
-    'body',
-    'bodyFormat',
-    'eyebrow',
-    'id',
-    'locale',
-    'pageId',
-    'seoDescription',
-    'seoTitle',
-    'title',
-  ] as const
+  static $columns = ['body', 'bodyFormat', 'eyebrow', 'id', 'locale', 'pageId', 'seoDescription', 'seoTitle', 'title'] as const
   $columns = PageTranslationSchema.$columns
   @column()
   declare body: string
@@ -489,17 +395,7 @@ export class PageSchema extends BaseModel {
 }
 
 export class PermissionSchema extends BaseModel {
-  static $columns = [
-    'action',
-    'createdAt',
-    'description',
-    'id',
-    'isActive',
-    'key',
-    'label',
-    'module',
-    'updatedAt',
-  ] as const
+  static $columns = ['action', 'createdAt', 'description', 'id', 'isActive', 'key', 'label', 'module', 'updatedAt'] as const
   $columns = PermissionSchema.$columns
   @column()
   declare action: string
@@ -531,18 +427,7 @@ export class PlaceFeatureAssignmentSchema extends BaseModel {
 }
 
 export class PlaceFeatureSchema extends BaseModel {
-  static $columns = [
-    'active',
-    'code',
-    'createdAt',
-    'id',
-    'kind',
-    'nameAr',
-    'nameEn',
-    'sortOrder',
-    'type',
-    'updatedAt',
-  ] as const
+  static $columns = ['active', 'code', 'createdAt', 'id', 'kind', 'nameAr', 'nameEn', 'sortOrder', 'type', 'updatedAt'] as const
   $columns = PlaceFeatureSchema.$columns
   @column()
   declare active: boolean
@@ -567,16 +452,7 @@ export class PlaceFeatureSchema extends BaseModel {
 }
 
 export class PlaceHourSchema extends BaseModel {
-  static $columns = [
-    'closed',
-    'closesAt',
-    'closesNextDay',
-    'id',
-    'intervalIndex',
-    'opensAt',
-    'placeId',
-    'weekday',
-  ] as const
+  static $columns = ['closed', 'closesAt', 'closesNextDay', 'id', 'intervalIndex', 'opensAt', 'placeId', 'weekday'] as const
   $columns = PlaceHourSchema.$columns
   @column()
   declare closed: boolean
@@ -597,17 +473,7 @@ export class PlaceHourSchema extends BaseModel {
 }
 
 export class PlaceImageSchema extends BaseModel {
-  static $columns = [
-    'altAr',
-    'altEn',
-    'captionAr',
-    'captionEn',
-    'createdAt',
-    'id',
-    'placeId',
-    'sortOrder',
-    'storageKey',
-  ] as const
+  static $columns = ['altAr', 'altEn', 'captionAr', 'captionEn', 'createdAt', 'id', 'placeId', 'sortOrder', 'storageKey'] as const
   $columns = PlaceImageSchema.$columns
   @column()
   declare altAr: string | null
@@ -630,19 +496,7 @@ export class PlaceImageSchema extends BaseModel {
 }
 
 export class PlaceTranslationSchema extends BaseModel {
-  static $columns = [
-    'address',
-    'body',
-    'hoursNote',
-    'id',
-    'locale',
-    'placeId',
-    'priceUnit',
-    'seoDescription',
-    'seoTitle',
-    'summary',
-    'title',
-  ] as const
+  static $columns = ['address', 'body', 'hoursNote', 'id', 'locale', 'placeId', 'priceUnit', 'seoDescription', 'seoTitle', 'summary', 'title'] as const
   $columns = PlaceTranslationSchema.$columns
   @column()
   declare address: string
@@ -669,28 +523,7 @@ export class PlaceTranslationSchema extends BaseModel {
 }
 
 export class PlaceSchema extends BaseModel {
-  static $columns = [
-    'categoryId',
-    'checkInTime',
-    'checkOutTime',
-    'coverImageKey',
-    'createdAt',
-    'featuredOrder',
-    'id',
-    'latitude',
-    'longitude',
-    'phoneE164',
-    'priceAmount',
-    'priceCurrency',
-    'priceMode',
-    'publishedAt',
-    'screenCount',
-    'slug',
-    'status',
-    'type',
-    'updatedAt',
-    'websiteUrl',
-  ] as const
+  static $columns = ['categoryId', 'checkInTime', 'checkOutTime', 'coverImageKey', 'createdAt', 'featuredOrder', 'id', 'latitude', 'longitude', 'phoneE164', 'priceAmount', 'priceCurrency', 'priceMode', 'publishedAt', 'screenCount', 'slug', 'status', 'type', 'updatedAt', 'websiteUrl'] as const
   $columns = PlaceSchema.$columns
   @column()
   declare categoryId: number | null
@@ -746,13 +579,7 @@ export class RateLimitSchema extends BaseModel {
 }
 
 export class RbacStateSchema extends BaseModel {
-  static $columns = [
-    'createdAt',
-    'defaultsInitializedAt',
-    'id',
-    'initializedAt',
-    'updatedAt',
-  ] as const
+  static $columns = ['createdAt', 'defaultsInitializedAt', 'id', 'initializedAt', 'updatedAt'] as const
   $columns = RbacStateSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -767,14 +594,7 @@ export class RbacStateSchema extends BaseModel {
 }
 
 export class RefreshTokenSchema extends BaseModel {
-  static $columns = [
-    'consumedAt',
-    'createdAt',
-    'expiresAt',
-    'id',
-    'sessionId',
-    'tokenHash',
-  ] as const
+  static $columns = ['consumedAt', 'createdAt', 'expiresAt', 'id', 'sessionId', 'tokenHash'] as const
   $columns = RefreshTokenSchema.$columns
   @column.dateTime()
   declare consumedAt: DateTime | null
@@ -800,15 +620,7 @@ export class RolePermissionSchema extends BaseModel {
 }
 
 export class RoleSchema extends BaseModel {
-  static $columns = [
-    'createdAt',
-    'description',
-    'id',
-    'isSystem',
-    'name',
-    'slug',
-    'updatedAt',
-  ] as const
+  static $columns = ['createdAt', 'description', 'id', 'isSystem', 'name', 'slug', 'updatedAt'] as const
   $columns = RoleSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -827,23 +639,7 @@ export class RoleSchema extends BaseModel {
 }
 
 export class SiteSettingSchema extends BaseModel {
-  static $columns = [
-    'appStoreUrl',
-    'brandName',
-    'contactEmail',
-    'contactInquiryTypes',
-    'directPhoneDescription',
-    'directPhoneNumber',
-    'headquartersAddress',
-    'headquartersMapUrl',
-    'headquartersName',
-    'id',
-    'logoImageKey',
-    'playStoreUrl',
-    'updatedAt',
-    'whatsappDescription',
-    'whatsappNumber',
-  ] as const
+  static $columns = ['appStoreUrl', 'brandName', 'contactEmail', 'contactInquiryTypes', 'directPhoneDescription', 'directPhoneNumber', 'headquartersAddress', 'headquartersMapUrl', 'headquartersName', 'id', 'logoImageKey', 'playStoreUrl', 'updatedAt', 'whatsappDescription', 'whatsappNumber'] as const
   $columns = SiteSettingSchema.$columns
   @column()
   declare appStoreUrl: string | null
@@ -878,16 +674,7 @@ export class SiteSettingSchema extends BaseModel {
 }
 
 export class TheaterShowtimeSchema extends BaseModel {
-  static $columns = [
-    'createdAt',
-    'format',
-    'id',
-    'movieId',
-    'placeId',
-    'startsAt',
-    'status',
-    'updatedAt',
-  ] as const
+  static $columns = ['createdAt', 'format', 'id', 'movieId', 'placeId', 'startsAt', 'status', 'updatedAt'] as const
   $columns = TheaterShowtimeSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -921,16 +708,7 @@ export class TransportLocationTranslationSchema extends BaseModel {
 }
 
 export class TransportLocationSchema extends BaseModel {
-  static $columns = [
-    'active',
-    'code',
-    'dropoffEnabled',
-    'id',
-    'latitude',
-    'longitude',
-    'pickupEnabled',
-    'sortOrder',
-  ] as const
+  static $columns = ['active', 'code', 'dropoffEnabled', 'id', 'latitude', 'longitude', 'pickupEnabled', 'sortOrder'] as const
   $columns = TransportLocationSchema.$columns
   @column()
   declare active: boolean
@@ -962,17 +740,7 @@ export class UserRoleSchema extends BaseModel {
 }
 
 export class UserSchema extends BaseModel {
-  static $columns = [
-    'active',
-    'createdAt',
-    'email',
-    'fullName',
-    'id',
-    'mustChangePassword',
-    'password',
-    'role',
-    'updatedAt',
-  ] as const
+  static $columns = ['active', 'createdAt', 'email', 'fullName', 'id', 'mustChangePassword', 'password', 'role', 'updatedAt'] as const
   $columns = UserSchema.$columns
   @column()
   declare active: boolean

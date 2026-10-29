@@ -172,11 +172,13 @@ export default class AdminAuthController {
     return response.redirect('/admin/login')
   }
 
-  async login({ request, response, session }: HttpContext) {
+  async login({ request, response, session, inertia }: HttpContext) {
     try {
       const payload = await request.validateUsing(loginValidator)
       const tokens = await loginAdmin(payload.email, payload.password)
       setAdminCookies(response, tokens)
+      // Authentication changes the document layout; load the authenticated shell afresh.
+      if (request.header('X-Inertia')) return inertia.location('/admin')
       return response.redirect('/admin')
     } catch {
       session.flash('loginError', 'Invalid email or password')
@@ -185,11 +187,12 @@ export default class AdminAuthController {
     }
   }
 
-  async refresh({ request, response, session }: HttpContext) {
+  async refresh({ request, response, session, inertia }: HttpContext) {
     try {
       const token = request.cookie('admin_refresh')
       if (!token) throw new Error('Missing refresh token')
       setAdminCookies(response, await rotateRefreshToken(token))
+      if (request.header('X-Inertia')) return inertia.location('/admin')
       return response.redirect('/admin')
     } catch {
       clearAdminCookies(response)

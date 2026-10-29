@@ -68,6 +68,8 @@ moduleRoutes(
   [
     '/places',
     '/places/new',
+    '/places/address-search',
+    '/places/address-reverse',
     '/places/:id/edit',
     '/places/:id/preview',
     '/places/:id/explore',
@@ -102,7 +104,14 @@ moduleRoutes(
   ],
   ['/places', '/places/:id', '/places/:id/explore'],
   {
-    'GET view': ['/places', '/places/:id', '/places/:id/preview', '/places/:id/explore'],
+    'GET view': [
+      '/places',
+      '/places/address-search',
+      '/places/address-reverse',
+      '/places/:id',
+      '/places/:id/preview',
+      '/places/:id/explore',
+    ],
     'GET create': ['/places/new'],
     'GET update': ['/places/:id/edit'],
     'POST create': ['/places'],
@@ -177,6 +186,28 @@ moduleRoutes(
     'PUT update': ['/category-types/:code', '/category-types/:code/image'],
     'DELETE delete': ['/category-types/:code'],
     'DELETE update': ['/category-types/:code/image'],
+  }
+)
+
+moduleRoutes(
+  'countries',
+  [
+    '/countries',
+    '/countries/new',
+    '/countries/:code/edit',
+    '/countries/:code/save',
+    '/countries/:code/status',
+    '/countries/:code/delete',
+  ],
+  [],
+  [],
+  {
+    'GET view': ['/countries'],
+    'GET create': ['/countries/new'],
+    'GET update': ['/countries/:code/edit'],
+    'POST create': ['/countries'],
+    'POST update': ['/countries/:code/save', '/countries/:code/status'],
+    'POST delete': ['/countries/:code/delete'],
   }
 )
 

@@ -38,7 +38,6 @@ test.group('CMS migrated content browser', (group) => {
     await page.getByLabel('Arabic name').fill('معالم')
     await page.getByLabel('URL slug').fill('browser-landmarks')
     await page.getByRole('button', { name: 'Save category' }).click()
-    await page.waitForURL('**/admin/categories/saved')
     await page.waitForURL('**/admin/categories')
     await page.getByText('Browser Landmarks').waitFor({ state: 'visible' })
     await page.getByLabel('Category type:').selectOption('attraction')
@@ -47,7 +46,6 @@ test.group('CMS migrated content browser', (group) => {
     await row.getByRole('link', { name: 'Edit Browser Landmarks' }).click()
     await page.getByLabel('English name').fill('Browser Sights')
     await page.getByRole('button', { name: 'Save changes' }).click()
-    await page.waitForURL('**/admin/categories/saved')
     await page.waitForURL('**/admin/categories')
     await page.getByText('Browser Sights').waitFor({ state: 'visible' })
     const saved = await db.from('categories').where('slug', 'browser-landmarks').first()
@@ -74,12 +72,10 @@ test.group('CMS migrated content browser', (group) => {
     await page.getByLabel('Code').fill('browser_type')
     await page.getByLabel('English name').fill('Browser Type')
     await page.getByRole('button', { name: 'Save category type' }).click()
-    await page.waitForURL('**/admin/category-types/saved')
     await page.waitForURL('**/admin/category-types')
     await page.getByRole('link', { name: 'Edit Browser Type' }).click()
     await page.getByLabel('Arabic name').fill('نوع المتصفح')
     await page.getByRole('button', { name: 'Save changes' }).click()
-    await page.waitForURL('**/admin/category-types/saved')
     await page.waitForURL('**/admin/category-types')
     const savedType = await db.from('category_types').where('code', 'browser_type').first()
     assert.equal(savedType.name_ar, 'نوع المتصفح')
@@ -103,7 +99,7 @@ test.group('CMS migrated content browser', (group) => {
     assert.isTrue(translations.every((translation) => translation.body_format === 'html'))
     await page.getByRole('button', { name: 'Publish page' }).click()
     await page
-      .locator('#main-content .notice-body')
+      .locator('.ant-notification-notice')
       .filter({ hasText: 'Page published.' })
       .waitFor({ state: 'visible' })
     const publishedPage = await db.from('pages').where('id', record.id).first()
@@ -129,10 +125,9 @@ test.group('CMS migrated content browser', (group) => {
     await page.getByLabel('Place type').selectOption('attraction')
     await page.getByLabel('English title').fill('Browser Towers')
     await page.getByLabel('URL slug').fill('browser-towers')
-    await page.getByLabel('Short summary').fill('A browser tested venue')
+    await page.getByLabel('About this place').fill('A browser tested venue')
     await page.getByLabel('Address', { exact: true }).fill('Kuwait City')
     await page.getByRole('button', { name: 'Save draft' }).click()
-    await page.waitForURL('**/admin/places/saved')
     await page.waitForURL('**/admin/places')
     const place = await db.from('places').where('slug', 'browser-towers').first()
     assert.isTrue(Boolean(place))
@@ -151,7 +146,6 @@ test.group('CMS migrated content browser', (group) => {
     await page.getByLabel('Alt text for new images').fill('Browser image')
     await page.locator('.filepond--item').nth(1).waitFor({ state: 'attached' })
     await page.getByRole('button', { name: 'Save changes' }).click()
-    await page.waitForURL('**/admin/places/saved')
     await page.waitForURL('**/admin/places')
     const savedPlace = await db.from('places').where('id', place.id).first()
     assert.isString(savedPlace.cover_image_key)
@@ -169,7 +163,7 @@ test.group('CMS migrated content browser', (group) => {
     await monday.getByRole('button', { name: 'Closed', exact: true }).click()
     await page.getByRole('button', { name: 'Save Explore details' }).click()
     await page
-      .locator('#main-content .notice-body')
+      .locator('.ant-notification-notice')
       .filter({ hasText: 'Changes saved.' })
       .waitFor({ state: 'visible' })
     const hours = await db
@@ -216,7 +210,7 @@ test.group('CMS migrated content browser', (group) => {
     await page.getByLabel('English label').fill('Large Screen')
     await page.getByRole('button', { name: 'Save feature' }).click()
     await page
-      .locator('#main-content .notice-body')
+      .locator('.ant-notification-notice')
       .filter({ hasText: 'Changes saved.' })
       .waitFor({ state: 'visible' })
     assert.isTrue(Boolean(await db.from('place_features').where('code', 'large-screen').first()))
@@ -232,7 +226,7 @@ test.group('CMS migrated content browser', (group) => {
     await page.getByLabel('Arabic title').fill('فيلم المتصفح')
     await page.getByRole('button', { name: 'Save changes' }).click()
     await page
-      .locator('#main-content .notice-body')
+      .locator('.ant-notification-notice')
       .filter({ hasText: 'Changes saved.' })
       .waitFor({ state: 'visible' })
     const translatedMovie = await db.from('movies').where('id', movie.id).first()
@@ -247,7 +241,7 @@ test.group('CMS migrated content browser', (group) => {
     await page.getByLabel('Presentation format').fill('Standard')
     await page.getByRole('button', { name: 'Save showtime' }).click()
     await page
-      .locator('#main-content .notice-body')
+      .locator('.ant-notification-notice')
       .filter({ hasText: 'Changes saved.' })
       .waitFor({ state: 'visible' })
     const showtime = await db
@@ -260,7 +254,7 @@ test.group('CMS migrated content browser', (group) => {
     await page.getByLabel('Presentation format').fill('IMAX')
     await page.getByRole('button', { name: 'Update showtime' }).click()
     await page
-      .locator('#main-content .notice-body')
+      .locator('.ant-notification-notice')
       .filter({ hasText: 'Changes saved.' })
       .waitFor({ state: 'visible' })
     const updatedShowtime = await db.from('theater_showtimes').where('id', showtime.id).first()
@@ -298,7 +292,7 @@ test.group('CMS migrated content browser', (group) => {
     await page.getByLabel('Hero headline').fill('Browser Kuwait')
     await page.getByRole('button', { name: 'Save homepage' }).click()
     await page
-      .locator('#main-content .notice-body')
+      .locator('.ant-notification-notice')
       .filter({ hasText: 'Homepage content saved.' })
       .waitFor({ state: 'visible' })
     const homeContent = await db.from('home_content').where('locale', 'en').first()
@@ -307,7 +301,7 @@ test.group('CMS migrated content browser', (group) => {
     await page.getByText(/Browser Home Place/).click()
     await page.getByRole('button', { name: 'Add story card' }).click()
     await page
-      .locator('#main-content .notice-body')
+      .locator('.ant-notification-notice')
       .filter({ hasText: 'Home Explore card saved.' })
       .waitFor({ state: 'visible' })
     const homeCards = await db.from('home_explore_cards').where('place_id', placeId)
@@ -318,7 +312,7 @@ test.group('CMS migrated content browser', (group) => {
     await page.getByLabel('Code').fill('browser-airport')
     await page.getByRole('button', { name: 'Add location' }).click()
     await page
-      .locator('#main-content .notice-body')
+      .locator('.ant-notification-notice')
       .filter({ hasText: 'Transport location saved.' })
       .waitFor({ state: 'visible' })
     assert.isTrue(
@@ -329,7 +323,7 @@ test.group('CMS migrated content browser', (group) => {
     await page.getByLabel('Contact email').fill('browser@example.com')
     await page.getByRole('button', { name: 'Save settings' }).click()
     await page
-      .locator('#main-content .notice-body')
+      .locator('.ant-notification-notice')
       .filter({ hasText: 'Site settings saved.' })
       .waitFor({ state: 'visible' })
     const settings = await db.from('site_settings').where('id', 1).first()

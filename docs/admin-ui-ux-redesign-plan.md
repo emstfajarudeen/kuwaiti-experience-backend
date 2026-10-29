@@ -18,7 +18,7 @@ The visual direction is a **refined editorial operations workspace**: retain the
 | Weekly hours | At least 21 rows render, mostly as “Unused,” before the editor has chosen any day.                                                                                                  | `app/controllers/admin/explore_controller.ts`, `resources/views/admin/explore/place.edge`                                                                         |
 | Feedback     | Every flash notice is replaced by a toast, including errors; the original inline notice is removed.                                                                                 | `resources/views/components/layouts/admin.edge`, `resources/js/admin_components.js`                                                                               |
 | Forms        | Small labels and controls, inconsistent save-button widths and spacing, oversized image drop areas, and inconsistent checkbox placement recur across screens.                       | `resources/css/admin.css` and admin Edge views                                                                                                                    |
-| Components   | Native controls are replaced with Web Awesome elements after load. This makes layout, form behavior, and progressive states harder to reason about.                                 | `resources/js/admin_components.js`                                                                                                                                |
+| Components   | Native controls are replaced after load. This makes layout, form behavior, and progressive states harder to reason about.                                                        | `resources/js/admin_components.js`                                                                                                                                |
 
 ## 2. Non-negotiable preservation rules
 
@@ -47,14 +47,14 @@ Before replacing a view, record its current route, request field names, validati
 
 ### Components
 
-- Reuse the installed **Web Awesome** components for fields, selection, checkboxes, dialogs, dropdown action menus, and lightweight toasts; **FilePond** for uploads; **Quill** for formatted page content. A new component framework is not required for the first pass.
+- Reuse **Ant Design** components for fields, selection, checkboxes, dialogs, dropdown action menus, and lightweight toasts; **FilePond** for uploads; **Quill** for formatted page content. A new component framework is not required for the first pass.
 - Migrate screen by screen from generic post-load DOM replacement in `resources/js/admin_components.js` to explicit components in Edge markup. Preserve form names, values, validation, and server submission while migrating. Do not switch every screen at once.
-- Use semantic HTML tables for tabular data, with Web Awesome controls for filters and actions. Use labelled primary links when a row has only one action; use a keyboard-accessible menu for multiple actions.
+- Use semantic HTML tables for tabular data, with Ant Design controls for filters and actions. Use labelled primary links when a row has only one action; use a keyboard-accessible menu for multiple actions.
 - Standardize status badges and confirmation dialogs. Place destructive actions last and visually separate from routine actions.
 
 ### Feedback rules
 
-- A successful save may use a concise Web Awesome toast, paired with a visible updated state on the page. Use a single, consistent toast position, readable width, icon/status styling, and a dismiss control.
+- A successful save may use a concise Ant Design toast, paired with a visible updated state on the page. Use a single, consistent toast position, readable width, icon/status styling, and a dismiss control.
 - Keep validation errors and failed saves **inline**: a visible summary near the page/form header and field-level errors when a field is known. Do not remove these messages to display only a toast. An error must persist until resolved or dismissed.
 - For longer operations, disable duplicate submission and show progress without obscuring the form. Make an action available on the page even if a transient toast mentions it.
 - Review all flash-message paths so create/edit/delete/publish/upload outcomes use the same rules.
@@ -139,11 +139,11 @@ Use the Phase 2 screens as the design checkpoint. If their patterns are not work
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Shared shell and flash messages    | `resources/views/components/layouts/admin.edge`                                                                                                                             |
 | Shared styles/tokens               | `resources/css/admin.css`                                                                                                                                                   |
-| Web Awesome enhancement and toasts | `resources/js/admin_components.js`, `resources/js/app.js`                                                                                                                   |
+| Ant Design enhancement and toasts | `resources/js/admin_components.js`, `resources/js/app.js`                                                                                                                   |
 | Overview UI/data                   | `resources/views/admin/dashboard.edge`, `app/controllers/admin/dashboard_controller.ts`                                                                                     |
 | Places list and query              | `resources/views/admin/places/index.edge`, `app/controllers/admin/places_controller.ts`                                                                                     |
 | Place editor/media/status          | `resources/views/admin/places/edit.edge`, `resources/views/admin/places/preview.edge`                                                                                       |
 | Explore editor/hour serialization  | `resources/views/admin/explore/place.edge`, `app/controllers/admin/explore_controller.ts`, `app/services/explore_write_service.ts`, `app/validators/explore.ts`             |
 | Other views                        | `resources/views/admin/categories`, `category_types`, `pages`, `explore`, `contacts`, plus `home.edge`, `transport.edge`, `settings.edge`, `account.edge`, and `login.edge` |
 
-Reference standards and component documentation: [WCAG 2.2](https://www.w3.org/TR/WCAG22/), [Web Awesome dropdown](https://webawesome.com/docs/components/dropdown), and [Web Awesome toast accessibility guidance](https://webawesome.com/docs/components/toast).
+Reference standards and component documentation: [WCAG 2.2](https://www.w3.org/TR/WCAG22/) and [Ant Design components](https://ant.design/components/overview/).

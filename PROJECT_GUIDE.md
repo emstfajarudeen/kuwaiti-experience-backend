@@ -48,7 +48,7 @@ The application is a modular monolith. HTTP controllers validate input and coord
 | `database/migrations`       | Ordered MySQL schema and category-type bootstrap                                                  |
 | `database/seeders`          | Administrator and non-production demo data                                                        |
 | `resources/views`           | Edge CMS, layout, form, and error templates                                                       |
-| `resources/js`              | WebAwesome enhancement, FilePond upload UI, notices, and unsaved-change warning                   |
+| `resources/js`              | FilePond upload UI, notices, and unsaved-change warning                                            |
 | `resources/css/admin.css`   | CMS design system and responsive layout                                                           |
 | `docs/openapi.yaml`         | API reference contract and examples of route shapes                                               |
 | `docs/operations.md`        | Deployment, reset, migration, and operational notes                                               |
@@ -310,7 +310,7 @@ The Edge CMS navigation exposes:
 - **Site settings**: brand, logo upload/replace/remove, contact email, WhatsApp number, App Store and Google Play URLs.
 - **My account**: change password; all active sessions are revoked.
 
-The CMS is responsive, uses a navy/ivory/gold design system, and enhances native controls with WebAwesome. There is no separate media library screen: image fields are part of their forms, which submit as multipart with the CSRF field in the body. FilePond provides upload previews and client-side type/size hints. After a validation error the editor must re-select attached files, because browsers cannot refill file inputs. The JavaScript marks editor forms as changed and shows the browser unsaved-change prompt. Destructive actions use a confirmation dialog. Server-side CSRF remains required for non-GET browser forms.
+The CMS is responsive and uses a navy/ivory/gold design system with Ant Design components for interactive controls and dialogs. There is no separate media library screen: image fields are part of their forms, which submit as multipart with the CSRF field in the body. FilePond provides upload previews and client-side type/size hints. After a validation error the editor must re-select attached files, because browsers cannot refill file inputs. The JavaScript marks editor forms as changed and shows the browser unsaved-change prompt. Destructive actions use an Ant Design confirmation dialog. Server-side CSRF remains required for non-GET browser forms.
 
 ## 10. Image and content workflows
 

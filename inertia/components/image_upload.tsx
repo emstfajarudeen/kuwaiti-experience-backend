@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Button, message, Upload } from 'antd'
 import type { UploadFile, UploadProps } from 'antd'
 
-type Props = { name: string; label: string; multiple?: boolean; maxFiles?: number }
+type Props = { name: string; label?: string; multiple?: boolean; maxFiles?: number }
 const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 export default function ImageUpload({ name, label, multiple = false, maxFiles = 1 }: Props) {
@@ -40,7 +40,7 @@ export default function ImageUpload({ name, label, multiple = false, maxFiles = 
 
   return (
     <div className="image-upload">
-      <span className="image-upload-label">{label}</span>
+      {Boolean(label) && <span className="image-upload-label">{label}</span>}
       <Upload accept="image/jpeg,image/png,image/webp" multiple={multiple} fileList={files} beforeUpload={beforeUpload} onChange={onChange} onRemove={(file) => updateFiles(files.filter((item) => item.uid !== file.uid))} listType="picture">
         <Button disabled={multiple && files.length >= maxFiles}>{multiple ? 'Add images' : files.length ? 'Replace image' : 'Choose image'}</Button>
       </Upload>

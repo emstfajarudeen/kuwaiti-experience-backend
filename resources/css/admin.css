@@ -6,7 +6,6 @@
 @import '@fontsource/manrope/700.css';
 @import '@fontsource/bebas-neue/400.css';
 @import '@fontsource/playfair-display/600-italic.css';
-@import '@awesome.me/webawesome/dist/styles/themes/default.css';
 @import 'quill/dist/quill.snow.css';
 
 @layer components {
@@ -827,16 +826,8 @@
     color: #fff;
   }
 
-  /* Save Success Screen */
-
-  @keyframes save-spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  /* Login Screen Styles */
-  .login-body {
+  /* Scope auth layout to the rendered card: Inertia keeps the document body across visits. */
+  body:has(.login-shell) {
     background:
       radial-gradient(circle at 15% 85%, rgba(197, 151, 62, 0.16), transparent 29%),
       radial-gradient(circle at 92% 7%, rgba(62, 109, 149, 0.14), transparent 26%), var(--ivory);
@@ -847,7 +838,7 @@
     padding: clamp(24px, 4vw, 64px);
   }
 
-  .login-body #app {
+  #app:has(> .login-shell) {
     width: 100%;
     display: grid;
     justify-items: center;
@@ -1215,6 +1206,40 @@
     text-align: center;
   }
 
+  /* Keep the split sign-in card inside short laptop viewports. */
+  @media (min-width: 901px) and (max-height: 700px) {
+    body:has(.login-shell) {
+      min-height: 100svh;
+      padding: 16px 24px;
+    }
+
+    .login-shell--sign-in {
+      min-height: 0;
+      height: min(640px, calc(100svh - 32px));
+    }
+
+    .login-shell--sign-in .login-visual {
+      padding: 32px;
+    }
+
+    .login-shell--sign-in .login-panel {
+      padding: 28px clamp(32px, 4.5vw, 64px);
+    }
+
+    .login-panel h2 {
+      font-size: clamp(32px, 4.8vh, 40px);
+      margin-bottom: 8px;
+    }
+
+    .login-panel .ant-form-item {
+      margin-bottom: 14px;
+    }
+
+    .login-submit {
+      margin-top: 18px;
+    }
+  }
+
   .ql-toolbar.ql-snow {
     border-color: var(--line-strong) !important;
     border-radius: var(--radius-sm) var(--radius-sm) 0 0 !important;
@@ -1231,7 +1256,7 @@
   }
 
   @media (max-width: 900px) {
-    .login-body {
+    body:has(.login-shell) {
       padding: var(--space-4);
     }
 
@@ -1289,7 +1314,7 @@
   }
 
   @media (max-width: 480px) {
-    .login-body {
+    body:has(.login-shell) {
       padding: var(--space-3);
       place-items: stretch center;
       align-content: center;

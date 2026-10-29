@@ -15,10 +15,27 @@ import {
   imageFiles,
   prepareImages,
 } from '../../services/image_storage_service.js'
-import { validationErrorBag } from '../../services/validation_error_bag.js'
+import { readableValidationError, validationErrorBag } from '../../services/validation_error_bag.js'
 
 function optionalNumber(value: unknown) {
   return value === undefined || value === null || value === '' ? null : Number(value)
+}
+
+function briefText(body: unknown, title: unknown) {
+  const text = String(body || title || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return Array.from(text).slice(0, 500).join('')
+}
+
+function normalizeWebsiteUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return `https://${trimmed}`
+  }
+  return trimmed
 }
 
 /** Reads the indexed `gallery[n][field]` inputs of the gallery editor. */
@@ -199,7 +216,6 @@ export default class AdminPlacesPageController {
         coverUrl: null,
         gallery: [],
         maxUploads: MAX_IMAGES_PER_REQUEST,
-        hoursJson: '[]',
       },
       { bodyClass: 'cms-body' }
     )
@@ -208,7 +224,7 @@ export default class AdminPlacesPageController {
   async edit({ params, inertia, request, session, admin, response }: HttpContext) {
     const place = await db.from('places').where('id', params.id).first()
     if (!place) return response.redirect('/admin/places')
-    const [translations, categories, gallery, hours, types] = await Promise.all([
+    const [translations, categories, gallery, types] = await Promise.all([
       db.from('place_translations').where('place_id', place.id),
       db
         .from('categories as c')
@@ -219,11 +235,6 @@ export default class AdminPlacesPageController {
         .orderBy('c.type')
         .orderBy('c.sort_order'),
       db.from('place_images').where('place_id', place.id).orderBy('sort_order').orderBy('id'),
-      db
-        .from('place_hours')
-        .where('place_id', place.id)
-        .orderBy('weekday')
-        .orderBy('interval_index'),
       categoryTypes(),
     ])
     const translation = (locale: string) => {
@@ -280,18 +291,6 @@ export default class AdminPlacesPageController {
           url: cmsImageUrl(image.storage_key),
         })),
         maxUploads: MAX_IMAGES_PER_REQUEST,
-        hoursJson: JSON.stringify(
-          hours.map((h) => ({
-            weekday: h.weekday,
-            intervalIndex: h.interval_index,
-            opensAt: h.opens_at,
-            closesAt: h.closes_at,
-            closesNextDay: Boolean(h.closes_next_day),
-            closed: Boolean(h.closed),
-          })),
-          null,
-          2
-        ),
       },
       { bodyClass: 'cms-body' }
     )
@@ -344,7 +343,6 @@ export default class AdminPlacesPageController {
       'longitude',
       'featured',
       'featured_order',
-      'hoursJson',
       'galleryAltEn',
       'removeCover',
     ]
@@ -356,33 +354,50 @@ export default class AdminPlacesPageController {
   async save(ctx: HttpContext) {
     const { request, response, session, admin, params } = ctx
     try {
-      const rawHours = String(request.input('hoursJson', '[]'))
-      const hours = JSON.parse(rawHours)
+      const rawHours = request.input('hoursJson')
+      const hours = rawHours === undefined ? undefined : JSON.parse(String(rawHours))
+      const previousTranslations = params.id
+        ? await db.from('place_translations').where('place_id', Number(params.id))
+        : []
+      const previousEn = previousTranslations.find((translation) => translation.locale === 'en')
+      const previousAr = previousTranslations.find((translation) => translation.locale === 'ar')
+      const bodyEn = request.input('bodyEn') || null
+      const bodyAr = request.input('bodyAr') || null
       const input = await placeValidator.validate({
         type: request.input('type'),
         slug: request.input('slug'),
         categoryId: optionalNumber(request.input('categoryId')),
         titleEn: request.input('titleEn'),
-        summaryEn: request.input('summaryEn'),
+        summaryEn:
+          request.input('summaryEn') ||
+          (previousEn && bodyEn === previousEn.body
+            ? previousEn.summary
+            : briefText(bodyEn, request.input('titleEn'))),
         addressEn: request.input('addressEn'),
-        bodyEn: request.input('bodyEn') || null,
+        bodyEn,
         hoursNoteEn: request.input('hoursNoteEn') || null,
         priceUnitEn: request.input('priceUnitEn') || null,
         seoTitleEn: request.input('seoTitleEn') || null,
         seoDescriptionEn: request.input('seoDescriptionEn') || null,
         titleAr: request.input('titleAr') || null,
-        summaryAr: request.input('summaryAr') || null,
+        summaryAr:
+          request.input('summaryAr') ||
+          (request.input('titleAr')
+            ? previousAr && bodyAr === previousAr.body
+              ? previousAr.summary
+              : briefText(bodyAr, request.input('titleAr'))
+            : null),
         addressAr: request.input('addressAr') || null,
-        bodyAr: request.input('bodyAr') || null,
+        bodyAr,
         priceMode: request.input('priceMode') || 'unknown',
         priceAmount: request.input('priceAmount') || null,
-        websiteUrl: request.input('websiteUrl') || null,
+        websiteUrl: normalizeWebsiteUrl(request.input('websiteUrl')),
         latitude: optionalNumber(request.input('latitude')),
         longitude: optionalNumber(request.input('longitude')),
         featured: request.input('featured') === 'on',
         featured_order:
           request.input('featured') === 'on' ? Number(request.input('featured_order', 0)) : null,
-        hours,
+        ...(hours === undefined ? {} : { hours }),
       })
       const { items: galleryItems } = await galleryItemsValidator.validate({
         items: galleryItemsFrom(request.input('gallery')),
@@ -395,8 +410,10 @@ export default class AdminPlacesPageController {
         gallery: imageFiles(request, 'galleryImages', MAX_IMAGES_PER_REQUEST),
       })
       const publish = request.input('intent') === 'publish'
+      const deactivate = request.input('deactivate') === '1' && !publish
       await savePlace(input, admin.id, params.id ? Number(params.id) : undefined, {
         publish,
+        deactivate,
         images: {
           cover: images.cover[0] ?? (request.input('removeCover') === 'on' ? 'remove' : undefined),
           galleryAdd: images.gallery,
@@ -404,36 +421,60 @@ export default class AdminPlacesPageController {
           galleryItems,
         },
       })
-      session.flash('success', publish ? 'Place published.' : 'Place saved.')
-      return response.redirect('/admin/places/saved')
+      session.flash(
+        'success',
+        publish ? 'Place activated.' : deactivate ? 'Place deactivated.' : 'Place saved.'
+      )
+      return response.redirect('/admin/places')
     } catch (error) {
       const fieldErrors = validationErrorBag(error)
       if (fieldErrors) session.flash('inputErrorsBag', fieldErrors)
-      const message = error instanceof Error ? error.message : 'Unable to save place'
+      const firstFieldError = fieldErrors && Object.entries(fieldErrors)[0]
+      const message = firstFieldError
+        ? readableValidationError(firstFieldError[0], firstFieldError[1][0])
+        : error instanceof Error
+          ? error.message
+          : 'Unable to save place'
       const attached = Object.keys(request.allFiles()).length > 0
       session.flash(
         'error',
         attached ? `${message.replace(/\.$/, '')}. Re-select any images you attached.` : message
       )
-      session.flash('placeForm', request.except(['coverImage', 'galleryImages']))
+      // Inertia preserves the editor state after a failed POST. Flashing the full
+      // form (including long descriptions and gallery metadata) exceeds the
+      // browser's cookie size limit when SESSION_DRIVER=cookie.
       return response.redirect(params.id ? `/admin/places/${params.id}/edit` : '/admin/places/new')
     }
   }
 
-  async publish({ params, admin, response, session }: HttpContext) {
+  async publish({ params, admin, request, response, session }: HttpContext) {
     try {
       await setPlaceStatus(Number(params.id), 'published', admin.id)
-      session.flash('success', 'Place published.')
+      session.flash('success', 'Place activated.')
     } catch (error) {
       session.flash('error', error instanceof Error ? error.message : 'Unable to publish')
     }
-    return response.redirect(`/admin/places/${params.id}/edit`)
+    const returnTo = String(request.input('returnTo', ''))
+    return response.redirect(
+      returnTo === '/admin/places' || returnTo.startsWith('/admin/places?')
+        ? returnTo
+        : `/admin/places/${params.id}/edit`
+    )
   }
 
-  async archive({ params, admin, response, session }: HttpContext) {
-    await setPlaceStatus(Number(params.id), 'archived', admin.id)
-    session.flash('success', 'Place archived.')
-    return response.redirect('/admin/places')
+  async archive({ params, admin, request, response, session }: HttpContext) {
+    try {
+      await setPlaceStatus(Number(params.id), 'archived', admin.id)
+      session.flash('success', 'Place deactivated.')
+    } catch (error) {
+      session.flash('error', error instanceof Error ? error.message : 'Unable to deactivate place')
+    }
+    const returnTo = String(request.input('returnTo', ''))
+    return response.redirect(
+      returnTo === '/admin/places' || returnTo.startsWith('/admin/places?')
+        ? returnTo
+        : '/admin/places'
+    )
   }
 
   async destroy({ params, admin, response, session }: HttpContext) {

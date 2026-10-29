@@ -7,12 +7,14 @@ const permissionDefinitions = [
     label: `${action[0].toUpperCase()}${action.slice(1)} places`,
   })),
   ...(['view', 'create', 'update', 'delete'] as const).flatMap((action) =>
-    (['categories', 'category_types', 'pages', 'place_features'] as const).map((module) => ({
-      key: `${module}.${action}` as const,
-      module,
-      action,
-      label: `${action[0].toUpperCase()}${action.slice(1)} ${module.replace('_', ' ')}`,
-    }))
+    (['categories', 'category_types', 'countries', 'pages', 'place_features'] as const).map(
+      (module) => ({
+        key: `${module}.${action}` as const,
+        module,
+        action,
+        label: `${action[0].toUpperCase()}${action.slice(1)} ${module.replace('_', ' ')}`,
+      })
+    )
   ),
   ...(['publish', 'archive'] as const).map((action) => ({
     key: `pages.${action}` as const,

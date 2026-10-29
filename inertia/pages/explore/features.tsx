@@ -50,9 +50,7 @@ export default function Features({
       success={success}
       error={error}
     >
-      <div className="page-head tw:mb-6 tw:flex tw:flex-wrap tw:items-start tw:justify-between tw:gap-4">
-        <h1>Place features</h1>
-      </div>
+      <h1 className="tw:sr-only">Place features</h1>
       <div className="content-grid cms-form-workspace tw:grid tw:gap-4">
         <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
           <div className="panel-heading tw:[padding:0_0_16px] tw:[border-bottom:1px_solid_var(--line-subtle)] tw:[margin-bottom:16px] tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-brand-line-subtle tw:bg-white tw:px-6 tw:py-5">

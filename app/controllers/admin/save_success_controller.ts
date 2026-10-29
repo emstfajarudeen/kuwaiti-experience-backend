@@ -11,19 +11,13 @@ const destinations = {
 } as const
 
 export default class AdminSaveSuccessController {
-  async show({ params, request, response, inertia, session, admin }: HttpContext) {
+  async show({ params, response, session }: HttpContext) {
     const destination = destinations[params.resource as keyof typeof destinations]
     if (!destination) return response.redirect('/admin')
 
-    return inertia.render(
-      'save_success/show',
-      {
-        adminName: admin.fullName,
-        csrfToken: request.csrfToken,
-        success: (session.flashMessages.get('success') as string | undefined) ?? null,
-        destination,
-      },
-      { bodyClass: 'cms-body' }
-    )
+    // Preserve old saved URLs without consuming their success message on this redirect.
+    const success = session.flashMessages.get('success')
+    if (typeof success === 'string') session.flash('success', success)
+    return response.redirect(destination.path)
   }
 }

@@ -71,6 +71,21 @@ test.group('CMS React authentication', (group) => {
     assert.isString(refreshed.cookie('admin_access')?.value)
   })
 
+  test('Inertia sign in loads a fresh authenticated document', async ({ client, assert }) => {
+    await createAdmin()
+    const login = await client
+      .post('/admin/login')
+      .header('X-Inertia', 'true')
+      .withCsrfToken()
+      .redirects(0)
+      .form({ email, password })
+
+    login.assertStatus(409)
+    assert.equal(login.header('x-inertia-location'), '/admin')
+    assert.isString(login.cookie('admin_access')?.value)
+    assert.isString(login.cookie('admin_refresh')?.value)
+  })
+
   test('logs in, renders account props, and revokes the session on logout', async ({
     client,
     assert,

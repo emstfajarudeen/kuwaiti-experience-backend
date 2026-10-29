@@ -12,7 +12,7 @@ const slug = vine
   .string()
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
   .maxLength(160)
-const httpUrl = vine.string().url().maxLength(500)
+const httpUrl = vine.string().trim().url().maxLength(500)
 
 export const categoryTypeValidator = vine.compile(
   vine.object({

@@ -200,7 +200,7 @@ export default class AdminCategoriesPageController {
         return savedCategoryId
       })
       session.flash('success', 'Category saved.')
-      return response.redirect('/admin/categories/saved')
+      return response.redirect('/admin/categories')
     } catch (error) {
       const fieldErrors = validationErrorBag(error)
       if (fieldErrors) session.flash('inputErrorsBag', fieldErrors)

@@ -78,7 +78,7 @@ export default function Overview({
           className="stat-card tw:relative tw:flex tw:flex-col tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-5 tw:shadow-sm tw:transition-all tw:hover:-translate-y-0.5 tw:hover:shadow-md tw:[background:var(--surface)] tw:[border:1px_solid_var(--line)] tw:[border-radius:var(--radius-lg)] tw:[padding:var(--space-5)] tw:[box-shadow:var(--shadow-sm)] tw:[display:flex] tw:[flex-direction:column] tw:[position:relative] tw:[overflow:hidden] tw:[transition:transform_0.15s_ease,_box-shadow_0.15s_ease]"
         >
           <span className="stat-label tw:[font-size:11px] tw:[font-weight:700] tw:[letter-spacing:0.12em] tw:[color:var(--muted)] tw:[text-transform:uppercase]">
-            Published
+            Active
           </span>
           <strong className="stat-value tw:my-3 tw:text-[34px] tw:font-bold tw:leading-[1.1] tw:text-brand-success-text tw:[font-size:34px] tw:[line-height:1.1] tw:[font-weight:700] tw:[color:var(--ink)] tw:[margin:var(--space-3)_0_var(--space-2)]">
             {publishedCount}
@@ -100,7 +100,7 @@ export default function Overview({
           className="stat-card tw:relative tw:flex tw:flex-col tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-5 tw:shadow-sm tw:transition-all tw:hover:-translate-y-0.5 tw:hover:shadow-md tw:[background:var(--surface)] tw:[border:1px_solid_var(--line)] tw:[border-radius:var(--radius-lg)] tw:[padding:var(--space-5)] tw:[box-shadow:var(--shadow-sm)] tw:[display:flex] tw:[flex-direction:column] tw:[position:relative] tw:[overflow:hidden] tw:[transition:transform_0.15s_ease,_box-shadow_0.15s_ease]"
         >
           <span className="stat-label tw:[font-size:11px] tw:[font-weight:700] tw:[letter-spacing:0.12em] tw:[color:var(--muted)] tw:[text-transform:uppercase]">
-            Archived
+            Inactive
           </span>
           <strong className="stat-value tw:my-3 tw:text-[34px] tw:font-bold tw:leading-[1.1] tw:text-brand-danger-text tw:[font-size:34px] tw:[line-height:1.1] tw:[font-weight:700] tw:[color:var(--ink)] tw:[margin:var(--space-3)_0_var(--space-2)]">
             {archivedCount}

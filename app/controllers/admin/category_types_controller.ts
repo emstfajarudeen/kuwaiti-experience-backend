@@ -107,7 +107,7 @@ export default class AdminCategoryTypesPageController {
           image[0] ?? (isRemove ? 'remove' : undefined)
         )
         session.flash('success', 'Category type saved.')
-        return response.redirect('/admin/category-types/saved')
+        return response.redirect('/admin/category-types')
       }
       const input = await newCategoryTypeValidator.validate({
         ...formInput(request),
@@ -116,7 +116,7 @@ export default class AdminCategoryTypesPageController {
       const { image } = await prepareImages(admin.id, { image: imageFiles(request, 'image') })
       await createCategoryType(input, admin.id, image[0])
       session.flash('success', 'Category type created.')
-      return response.redirect('/admin/category-types/saved')
+      return response.redirect('/admin/category-types')
     } catch (error) {
       const fieldErrors = validationErrorBag(error)
       if (fieldErrors) session.flash('inputErrorsBag', fieldErrors)
