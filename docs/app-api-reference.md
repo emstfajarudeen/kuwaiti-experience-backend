@@ -427,7 +427,9 @@ Example response skeleton (illustrative content):
         "hero_eyebrow": "WELCOME TO KUWAIT",
         "hero_title": "Explore Kuwait",
         "hero_image_key": null,
+        "discovery_eyebrow": "EVERYTHING IN ONE PLACE",
         "discovery_title": "What would you like to do?",
+        "discovery_description": "Start with a ride, then make the city yours. Find the best of Kuwait by category.",
         "app_title": null,
         "app_body": null,
         "updated_at": "2026-10-21T06:00:00.000Z"
@@ -464,7 +466,7 @@ The browser editor is `/admin/home`; it can edit localized Home copy/hero, selec
 | Method and path                                           | Input                                                                                                | Success                                                              |
 | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | `GET /api/v2/admin/home?locale=en`                        | Locale `en` or `ar`; defaults to `en`                                                                | `data` is HomeContent or null; `meta.images`                         |
-| `PATCH /api/v2/admin/home`                                | `locale`, `hero_eyebrow`, `hero_title`, `discovery_title`; optional nullable `app_title`, `app_body` | Complete `HomeContent` in `data`                                     |
+| `PATCH /api/v2/admin/home`                                | `locale`, `hero_eyebrow`, `hero_title`, `discovery_eyebrow`, `discovery_title`, `discovery_description`; optional nullable `app_title`, `app_body` | Complete `HomeContent` in `data`                                     |
 | `PUT /api/v2/admin/home/hero-image?locale=en`             | Multipart `file`: JPEG/PNG/WebP up to 5 MB                                                           | Complete `HomeContent` in `data`                                     |
 | `DELETE /api/v2/admin/home/hero-image?locale=en`          | No body                                                                                              | 204                                                                  |
 | `GET /api/v2/admin/home-explore-cards?page=1&per_page=20` | Pagination, max 50 per page                                                                          | Complete `HomeExploreCard[]`, `included.places`, pagination metadata |

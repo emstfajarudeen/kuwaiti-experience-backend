@@ -60,6 +60,13 @@ function moduleRoutes(
 }
 
 add('GET', ['/admin', '/api/v1/admin/dashboard'], ['dashboard.view'])
+add('GET', ['/admin/activity-logs'], ['audit_logs.view'])
+add('GET', ['/admin/transport', '/admin/place-features', '/admin/place-features/:id/edit'], [])
+
+add('GET', ['/api/v2/admin/place-features'], ['place_features.view'])
+add('POST', ['/api/v2/admin/place-features'], ['place_features.create'])
+add('PUT', ['/api/v2/admin/place-features/:id'], ['place_features.update'])
+add('DELETE', ['/api/v2/admin/place-features/:id'], ['place_features.delete'])
 
 // Content modules are deliberately enumerated. A new endpoint must be added here;
 // unclassified routes fail closed in the middleware.
@@ -249,35 +256,6 @@ moduleRoutes(
 )
 
 moduleRoutes(
-  'place_features',
-  [
-    '/place-features',
-    '/place-features',
-    '/place-features/:id/edit',
-    '/place-features/:id/save',
-    '/place-features/:id/delete',
-  ],
-  [],
-  [
-    '/place-features',
-    '/place-features',
-    '/place-features/:id',
-    '/place-features/:id',
-    '/place-features/:id',
-  ],
-  {
-    'GET view': ['/place-features'],
-    'GET update': ['/place-features/:id/edit'],
-    'POST create': ['/place-features'],
-    'POST update': ['/place-features/:id/save'],
-    'POST delete': ['/place-features/:id/delete'],
-    'GET delete': [],
-    'PUT update': ['/place-features/:id'],
-    'DELETE delete': ['/place-features/:id'],
-  }
-)
-
-moduleRoutes(
   'movies',
   [
     '/movies',
@@ -348,7 +326,7 @@ moduleRoutes(
 
 moduleRoutes(
   'home',
-  ['/home', '/home', '/home/cards', '/home/cards/:id/save', '/home/cards/:id/delete'],
+  ['/home', '/home'],
   ['/home', '/home', '/home/hero-image', '/home/hero-image'],
   [
     '/home',
@@ -363,13 +341,7 @@ moduleRoutes(
   ],
   {
     'GET view': ['/home', '/home-explore-cards', '/home-explore-cards/:id'],
-    'POST update': [
-      '/home',
-      '/home/cards',
-      '/home/cards/:id/save',
-      '/home-explore-cards',
-      '/home/cards/:id/delete',
-    ],
+    'POST update': ['/home', '/home-explore-cards'],
     'GET delete': [],
     'PATCH update': ['/home'],
     'PUT update': ['/home/hero-image', '/home-explore-cards/:id'],
@@ -379,7 +351,7 @@ moduleRoutes(
 
 moduleRoutes(
   'transport',
-  ['/transport', '/transport', '/transport/:id/save', '/transport/:id/delete'],
+  [],
   [
     '/transport/locations',
     '/transport/locations',
@@ -388,10 +360,8 @@ moduleRoutes(
   ],
   [],
   {
-    'GET view': ['/transport', '/transport/locations'],
-    'POST create': ['/transport', '/transport/locations'],
-    'POST update': ['/transport/:id/save'],
-    'POST delete': ['/transport/:id/delete'],
+    'GET view': ['/transport/locations'],
+    'POST create': ['/transport/locations'],
     'GET delete': [],
     'PUT update': ['/transport/locations/:id'],
     'DELETE delete': ['/transport/locations/:id'],

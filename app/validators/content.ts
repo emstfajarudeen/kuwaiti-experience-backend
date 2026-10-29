@@ -124,7 +124,7 @@ export const locationValidator = vine.compile(
 
 export const settingsValidator = vine.compile(
   vine.object({
-    brandName: vine.string().minLength(2).maxLength(120),
+    brandName: vine.string().minLength(2).maxLength(120).optional(),
     directPhoneNumber: vine
       .string()
       .regex(/^\+?[1-9]\d{7,14}$/)

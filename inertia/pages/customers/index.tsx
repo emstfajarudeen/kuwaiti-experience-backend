@@ -90,7 +90,9 @@ export default function CustomersIndex({ adminName, csrfToken, query, users, met
           <Form.Item name="q" label="Search" className="tw:mb-0 tw:min-w-[260px] tw:flex-1">
             <Input allowClear maxLength={120} placeholder="Name, phone, or email" aria-label="Search app users" />
           </Form.Item>
-          <Button htmlType="submit" loading={searching}>Search</Button>
+          <Button className="button secondary tw:mb-0" htmlType="submit" loading={searching}>
+            Search
+          </Button>
         </Form>
       </section>
       <section className="panel table-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-0">

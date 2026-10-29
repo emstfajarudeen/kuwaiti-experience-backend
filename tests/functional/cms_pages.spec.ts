@@ -78,7 +78,6 @@ test.group('CMS pages', (group) => {
       '/admin/pages',
       '/admin/pages/new',
       '/admin/home',
-      '/admin/transport',
       '/admin/settings',
       '/admin/account',
       '/admin/places/saved',
@@ -88,6 +87,11 @@ test.group('CMS pages', (group) => {
     for (const path of pages) {
       const response = await client.get(path).cookie('admin_access', token)
       response.assertStatus(200)
+    }
+    for (const path of ['/admin/transport', '/admin/place-features']) {
+      const response = await client.get(path).cookie('admin_access', token).redirects(0)
+      response.assertStatus(302)
+      assert.equal(response.header('location'), '/admin')
     }
     const categoriesView = await client.get('/admin/categories').cookie('admin_access', token)
     categoriesView.assertTextIncludes('Landmarks')

@@ -176,7 +176,7 @@ test.group('CMS migrated content browser', (group) => {
     assert.equal(hours[2].closed, 1)
   })
 
-  test('manages feature, movie, and theater showtime forms', async ({ visit, assert }) => {
+  test('manages movie and theater showtime forms', async ({ visit, assert }) => {
     await admin()
     await db
       .table('category_types')
@@ -203,18 +203,6 @@ test.group('CMS migrated content browser', (group) => {
     await page.getByLabel('Password', { exact: true }).fill('a-very-long-test-password')
     await page.getByRole('button', { name: 'Sign in' }).click()
     await page.waitForURL('**/admin')
-    await page.goto(new URL('/admin/place-features', page.url()).toString())
-    await page.getByLabel('Place type').click()
-    await page.getByText('Theaters', { exact: true }).last().click()
-    await page.getByLabel('Code').fill('large-screen')
-    await page.getByLabel('English label').fill('Large Screen')
-    await page.getByRole('button', { name: 'Save feature' }).click()
-    await page
-      .locator('.ant-notification-notice')
-      .filter({ hasText: 'Changes saved.' })
-      .waitFor({ state: 'visible' })
-    assert.isTrue(Boolean(await db.from('place_features').where('code', 'large-screen').first()))
-
     await page.goto(new URL('/admin/movies/new', page.url()).toString())
     await page.getByLabel('English title').fill('Browser Film')
     await page.getByLabel('Duration (minutes)').fill('120')
@@ -261,28 +249,8 @@ test.group('CMS migrated content browser', (group) => {
     assert.equal(updatedShowtime.format, 'IMAX')
   })
 
-  test('updates homepage, cards, transport, and site settings', async ({ visit, assert }) => {
+  test('updates homepage and site settings', async ({ visit, assert }) => {
     await admin()
-    await db
-      .table('category_types')
-      .insert({ code: 'attraction', name_en: 'Attractions', sort_order: 0 })
-      .onConflict('code')
-      .ignore()
-    const [placeId] = await db.table('places').insert({
-      type: 'attraction',
-      slug: 'browser-home-place',
-      status: 'published',
-      created_at: new Date(),
-      updated_at: new Date(),
-      published_at: new Date(),
-    })
-    await db.table('place_translations').insert({
-      place_id: placeId,
-      locale: 'en',
-      title: 'Browser Home Place',
-      summary: 'A place',
-      address: 'Kuwait City',
-    })
     const page = await visit('/admin/login')
     await page.getByLabel('Email address').fill('content-browser@example.com')
     await page.getByLabel('Password', { exact: true }).fill('a-very-long-test-password')
@@ -297,29 +265,7 @@ test.group('CMS migrated content browser', (group) => {
       .waitFor({ state: 'visible' })
     const homeContent = await db.from('home_content').where('locale', 'en').first()
     assert.equal(homeContent.hero_title, 'Browser Kuwait')
-    await page.locator('#home-cards .ant-select').last().click()
-    await page.getByText(/Browser Home Place/).click()
-    await page.getByRole('button', { name: 'Add story card' }).click()
-    await page
-      .locator('.ant-notification-notice')
-      .filter({ hasText: 'Home Explore card saved.' })
-      .waitFor({ state: 'visible' })
-    const homeCards = await db.from('home_explore_cards').where('place_id', placeId)
-    assert.equal(homeCards.length, 1)
-
-    await page.goto(new URL('/admin/transport', page.url()).toString())
-    await page.getByLabel('English name').fill('Browser Airport')
-    await page.getByLabel('Code').fill('browser-airport')
-    await page.getByRole('button', { name: 'Add location' }).click()
-    await page
-      .locator('.ant-notification-notice')
-      .filter({ hasText: 'Transport location saved.' })
-      .waitFor({ state: 'visible' })
-    assert.isTrue(
-      Boolean(await db.from('transport_locations').where('code', 'browser-airport').first())
-    )
     await page.goto(new URL('/admin/settings', page.url()).toString())
-    await page.getByLabel('Brand name').fill('Browser Brand')
     await page.getByLabel('Contact email').fill('browser@example.com')
     await page.getByRole('button', { name: 'Save settings' }).click()
     await page

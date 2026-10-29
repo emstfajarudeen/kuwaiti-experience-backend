@@ -40,7 +40,7 @@ export default function CategoryEdit({ adminName, csrfToken, error, form, catego
         </div></section>
       </div>
     </Form>
-    {category && <section className="panel danger-zone-panel tw:mt-5 tw:p-6"><h2>Danger zone</h2><Button danger className="tw:mt-3" onClick={() => setConfirmDelete(true)}>Delete category</Button></section>}
+    {category && <div className="form-delete-actions"><Button danger onClick={() => setConfirmDelete(true)}>Delete category</Button></div>}
     <ConfirmModal open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete category" message="Delete this category? Places assigned to it will become uncategorized." action={category ? `/admin/categories/${category.id}/delete` : ''} csrfToken={csrfToken} confirmLabel="Delete" danger />
   </AdminLayout>
 }

@@ -51,7 +51,11 @@ async function homeData(locale: 'en' | 'ar') {
     locale,
     hero_eyebrow: row?.hero_eyebrow ?? 'WELCOME TO KUWAIT',
     hero_title: row?.hero_title ?? 'Explore Kuwait',
+    discovery_eyebrow: row?.discovery_eyebrow ?? 'EVERYTHING IN ONE PLACE',
     discovery_title: row?.discovery_title ?? 'What would you like to do?',
+    discovery_description:
+      row?.discovery_description ??
+      'Start with a ride, then make the city yours. Find the best of Kuwait by category.',
     hero_image_url: adminApiImageUrl(row?.hero_image_key),
   }
 }

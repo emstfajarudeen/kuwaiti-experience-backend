@@ -90,6 +90,7 @@ export default class AdminCategoryTypesPageController {
       nameEn: field('nameEn'),
       nameAr: field('nameAr'),
       sortOrder: field('sortOrder'),
+      removeImage: field('removeImage'),
     }
   }
 
@@ -126,7 +127,7 @@ export default class AdminCategoryTypesPageController {
         'error',
         attached ? `${message.replace(/\.$/, '')}. Re-select the image you attached.` : message
       )
-      session.flash('categoryTypeForm', request.except(['image', 'removeImage']))
+      session.flash('categoryTypeForm', request.except(['image']))
       return response.redirect(
         params.code ? `/admin/category-types/${params.code}/edit` : '/admin/category-types/new'
       )

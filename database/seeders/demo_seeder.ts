@@ -191,7 +191,10 @@ export default class DemoSeeder extends BaseSeeder {
         locale: 'en',
         hero_eyebrow: 'WELCOME TO KUWAIT',
         hero_title: 'Explore Kuwait',
+        discovery_eyebrow: 'EVERYTHING IN ONE PLACE',
         discovery_title: 'What would you like to do?',
+        discovery_description:
+          'Start with a ride, then make the city yours. Find the best of Kuwait by category.',
         hero_image_key: hero,
         updated_at: new Date(),
       })

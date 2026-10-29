@@ -27,7 +27,7 @@ const navigation = [
     ],
   },
   {
-    label: 'CONTENT',
+    label: 'MASTERS',
     links: [
       {
         href: '/admin/places',
@@ -67,70 +67,6 @@ const navigation = [
     ],
   },
   {
-    label: 'EXPERIENCE',
-    links: [
-      {
-        href: '/admin/home',
-        icon: '✧',
-        label: 'Homepage',
-        active: 'home',
-        permission: 'home.view',
-      },
-      {
-        href: '/admin/place-features',
-        icon: '✦',
-        label: 'Place features',
-        active: 'place-features',
-        permission: 'place_features.view',
-      },
-      {
-        href: '/admin/movies',
-        icon: '▣',
-        label: 'Movies',
-        active: 'movies',
-        permission: 'movies.view',
-      },
-      {
-        href: '/admin/showtimes',
-        icon: '◷',
-        label: 'Showtimes',
-        active: 'showtimes',
-        permission: 'showtimes.view',
-      },
-      {
-        href: '/admin/transport',
-        icon: '↗',
-        label: 'Transport',
-        active: 'transport',
-        permission: 'transport.view',
-      },
-    ],
-  },
-  {
-    label: 'OPERATIONS',
-    links: [
-      {
-        href: '/admin/contact-requests',
-        icon: '✉',
-        label: 'Contact requests',
-        active: 'contacts',
-        permission: 'contact_requests.view',
-      },
-    ],
-  },
-  {
-    label: 'ADMINISTRATION',
-    links: [
-      {
-        href: '/admin/settings',
-        icon: '⚙',
-        label: 'Site settings',
-        active: 'settings',
-        permission: 'settings.view',
-      },
-    ],
-  },
-  {
     label: 'ACCOUNTS & ACCESS',
     links: [
       {
@@ -153,6 +89,49 @@ const navigation = [
         label: 'Roles & Permissions',
         active: 'roles',
         permission: 'roles.view',
+      },
+    ],
+  },
+  {
+    label: 'OPERATIONS',
+    links: [
+      {
+        href: '/admin/contact-requests',
+        icon: '✉',
+        label: 'Contact requests',
+        active: 'contacts',
+        permission: 'contact_requests.view',
+      },
+    ],
+  },
+  {
+    label: 'EXPERIENCE',
+    links: [
+      {
+        href: '/admin/home',
+        icon: '✧',
+        label: 'Homepage',
+        active: 'home',
+        permission: 'home.view',
+      },
+    ],
+  },
+  {
+    label: 'ADMINISTRATION',
+    links: [
+      {
+        href: '/admin/activity-logs',
+        icon: '✎',
+        label: 'Activity logs',
+        active: 'activity-logs',
+        permission: 'audit_logs.view',
+      },
+      {
+        href: '/admin/settings',
+        icon: '⚙',
+        label: 'Site settings',
+        active: 'settings',
+        permission: 'settings.view',
       },
     ],
   },

@@ -47,6 +47,7 @@ const AdminSitePageController = () => import('#controllers/admin/site_controller
 const AdminUsersController = () => import('#controllers/admin/users_controller')
 const AdminCustomersController = () => import('#controllers/admin/customers_controller')
 const AdminRolesController = () => import('#controllers/admin/roles_controller')
+const AdminActivityLogsController = () => import('#controllers/admin/activity_logs_controller')
 
 router.get('/', ({ response }) => response.redirect('/admin'))
 router.get('/admin/login', [AdminAuthController, 'showLogin'])
@@ -81,54 +82,6 @@ router
     router
       .post('/places/:id/explore', [ExplorePageController, 'savePlace'])
       .as('explore.ExplorePageController.post.places_id_explore')
-    router
-      .get('/place-features', [ExplorePageController, 'features'])
-      .as('explore.ExplorePageController.get.place_features')
-    router
-      .post('/place-features', [ExplorePageController, 'saveFeature'])
-      .as('explore.ExplorePageController.post.place_features')
-    router
-      .get('/place-features/:id/edit', [ExplorePageController, 'features'])
-      .as('explore.ExplorePageController.get.place_features_id_edit')
-    router
-      .post('/place-features/:id/save', [ExplorePageController, 'saveFeature'])
-      .as('explore.ExplorePageController.post.place_features_id_save')
-    router
-      .post('/place-features/:id/delete', [ExplorePageController, 'deleteFeature'])
-      .as('explore.ExplorePageController.post.place_features_id_delete')
-    router
-      .get('/movies', [ExplorePageController, 'movies'])
-      .as('explore.ExplorePageController.get.movies')
-    router
-      .get('/movies/new', [ExplorePageController, 'movie'])
-      .as('explore.ExplorePageController.get.movies_new')
-    router
-      .post('/movies', [ExplorePageController, 'saveMovie'])
-      .as('explore.ExplorePageController.post.movies')
-    router
-      .get('/movies/:id/edit', [ExplorePageController, 'movie'])
-      .as('explore.ExplorePageController.get.movies_id_edit')
-    router
-      .post('/movies/:id/save', [ExplorePageController, 'saveMovie'])
-      .as('explore.ExplorePageController.post.movies_id_save')
-    router
-      .post('/movies/:id/delete', [ExplorePageController, 'deleteMovie'])
-      .as('explore.ExplorePageController.post.movies_id_delete')
-    router
-      .get('/showtimes', [ExplorePageController, 'showtimes'])
-      .as('explore.ExplorePageController.get.showtimes')
-    router
-      .post('/showtimes', [ExplorePageController, 'saveShowtime'])
-      .as('explore.ExplorePageController.post.showtimes')
-    router
-      .get('/showtimes/:id/edit', [ExplorePageController, 'showtimes'])
-      .as('explore.ExplorePageController.get.showtimes_id_edit')
-    router
-      .post('/showtimes/:id/save', [ExplorePageController, 'saveShowtime'])
-      .as('explore.ExplorePageController.post.showtimes_id_save')
-    router
-      .post('/showtimes/:id/delete', [ExplorePageController, 'deleteShowtime'])
-      .as('explore.ExplorePageController.post.showtimes_id_delete')
     router.get('/account', [AdminAuthController, 'account'])
     router.post('/account/password', [AdminAuthController, 'password'])
     router.get('/customers', [AdminCustomersController, 'index'])
@@ -188,21 +141,12 @@ router
     router.get('/images/:key', [ImagesController, 'adminShow']).as('cms.images.show')
     router.get('/home', [AdminSitePageController, 'home'])
     router.post('/home', [AdminSitePageController, 'saveHome'])
-    router
-      .post('/home/cards', [AdminSitePageController, 'saveHomeCard'])
-      .as('cms.home.cards.create')
-    router
-      .post('/home/cards/:id/save', [AdminSitePageController, 'saveHomeCard'])
-      .as('cms.home.cards.update')
-    router.post('/home/cards/:id/delete', [AdminSitePageController, 'deleteHomeCard'])
     router.get('/settings', [AdminSitePageController, 'settings'])
     router.post('/settings', [AdminSitePageController, 'saveSettings'])
-    router.get('/transport', [AdminSitePageController, 'transport'])
-    router.post('/transport', [AdminSitePageController, 'saveLocation']).as('cms.transport.create')
-    router
-      .post('/transport/:id/save', [AdminSitePageController, 'saveLocation'])
-      .as('cms.transport.update')
-    router.post('/transport/:id/delete', [AdminSitePageController, 'deleteLocation'])
+    router.get('/activity-logs', [AdminActivityLogsController, 'index'])
+    router.get('/transport', ({ response }) => response.redirect('/admin'))
+    router.get('/place-features', ({ response }) => response.redirect('/admin'))
+    router.get('/place-features/:id/edit', ({ response }) => response.redirect('/admin'))
   })
   .prefix('/admin')
   .use(middleware.jwtAdmin())

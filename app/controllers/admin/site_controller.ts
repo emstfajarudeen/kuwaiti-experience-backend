@@ -1,14 +1,9 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
-import { locationValidator, settingsValidator } from '../../validators/content.js'
+import { settingsValidator } from '../../validators/content.js'
 import { cmsImageUrl, imageFiles, prepareImages } from '../../services/image_storage_service.js'
 import { saveHome, saveSettings } from '../../services/site_content_service.js'
-import { contactInquiryTypes } from '../../services/customer_content_service.js'
-import { HOME_TYPES } from '../../services/home_read_service.js'
-import { positiveId } from '../../services/explore_read_service.js'
-import { deleteHomeCard, saveHomeCard } from '../../services/home_write_service.js'
-import { homeCardValidator, homeContentValidator } from '../../validators/home.js'
-import { ApiError } from '../../services/api_error.js'
+import { homeContentValidator } from '../../validators/home.js'
 import { validationErrorBag } from '../../services/validation_error_bag.js'
 
 async function formImage(ctx: HttpContext, field: string, removeField: string) {
@@ -23,53 +18,10 @@ function saveError(request: HttpContext['request'], error: unknown, fallback: st
     : message
 }
 
-function inquiryTypesInput(value: unknown) {
-  return String(value ?? '')
-    .split(/\r?\n/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-}
-
 export default class AdminSitePageController {
   async home({ inertia, session, admin, request }: HttpContext) {
     const locale = request.input('locale') === 'ar' ? 'ar' : 'en'
-    const [home, cards, places] = await Promise.all([
-      db.from('home_content').where('locale', locale).first(),
-      db
-        .from('home_explore_cards as c')
-        .join('places as p', 'p.id', 'c.place_id')
-        .leftJoin('place_translations as t', function () {
-          this.on('t.place_id', '=', 'p.id').andOnVal('t.locale', '=', 'en')
-        })
-        .select('c.*', 'p.type', 'p.status', 't.title')
-        .orderBy('c.sort_order')
-        .orderBy('c.id')
-        .limit(50),
-      db
-        .from('places as p')
-        .join('place_translations as t', function () {
-          this.on('t.place_id', '=', 'p.id').andOnVal('t.locale', '=', 'en')
-        })
-        .whereIn('p.type', [...HOME_TYPES])
-        .select('p.id', 'p.type', 'p.status', 'p.featured_order', 't.title')
-        .orderBy('p.type')
-        .orderBy('t.title')
-        .limit(500),
-    ])
-    const availablePlaces = new Map<number, (typeof places)[number]>()
-    for (const place of places) availablePlaces.set(Number(place.id), place)
-    for (const card of cards) {
-      const id = Number(card.place_id)
-      if (!availablePlaces.has(id)) {
-        availablePlaces.set(id, {
-          id,
-          type: card.type,
-          status: card.status,
-          featured_order: null,
-          title: card.title,
-        })
-      }
-    }
+    const home = await db.from('home_content').where('locale', locale).first()
     return inertia.render(
       'site/home',
       {
@@ -80,41 +32,20 @@ export default class AdminSitePageController {
         form: this.formValues(session.flashMessages.get('homeForm'), [
           'hero_eyebrow',
           'hero_title',
+          'discovery_eyebrow',
           'discovery_title',
-          'app_title',
-          'app_body',
-        ]),
-        cardForm: this.formValues(session.flashMessages.get('homeCardForm'), [
-          'place_id',
-          'caption_en',
-          'caption_ar',
-          'sort_order',
-          'active',
+          'discovery_description',
         ]),
         locale,
         home: home
           ? {
               hero_eyebrow: home.hero_eyebrow,
               hero_title: home.hero_title,
+              discovery_eyebrow: home.discovery_eyebrow,
               discovery_title: home.discovery_title,
-              app_title: home.app_title,
-              app_body: home.app_body,
+              discovery_description: home.discovery_description,
             }
           : null,
-        cards: cards.map(({ id, place_id, caption_en, caption_ar, sort_order, active }) => ({
-          id: Number(id),
-          place_id: Number(place_id),
-          caption_en,
-          caption_ar,
-          sort_order: Number(sort_order),
-          active: Boolean(active),
-        })),
-        places: [...availablePlaces.values()].map(({ id, type, status, title }) => ({
-          id: Number(id),
-          type,
-          status,
-          title,
-        })),
         heroImageUrl: cmsImageUrl(home?.hero_image_key),
       },
       { bodyClass: 'cms-body' }
@@ -133,20 +64,25 @@ export default class AdminSitePageController {
     const { request, response, session, admin } = ctx
     const locale = request.input('locale') === 'ar' ? 'ar' : 'en'
     try {
+      const existing = await db.from('home_content').where('locale', locale).first()
       const input = await homeContentValidator.validate({
         locale: request.input('locale'),
         hero_eyebrow: request.input('hero_eyebrow') ?? request.input('heroEyebrow'),
         hero_title: request.input('hero_title') ?? request.input('heroTitle'),
-        discovery_title: request.input('discovery_title') ?? request.input('discoveryTitle'),
-        app_title: request.input('app_title') ?? request.input('appTitle'),
-        app_body: request.input('app_body') ?? request.input('appBody'),
+        discovery_eyebrow: request.input('discovery_eyebrow'),
+        discovery_title: request.input('discovery_title'),
+        discovery_description: request.input('discovery_description'),
+        app_title: existing?.app_title ?? null,
+        app_body: existing?.app_body ?? null,
       })
       await saveHome(
         {
           locale: input.locale,
           heroEyebrow: input.hero_eyebrow,
           heroTitle: input.hero_title,
+          discoveryEyebrow: input.discovery_eyebrow,
           discoveryTitle: input.discovery_title,
+          discoveryDescription: input.discovery_description,
           appTitle: input.app_title,
           appBody: input.app_body,
         },
@@ -158,56 +94,14 @@ export default class AdminSitePageController {
       const fieldErrors = validationErrorBag(error)
       if (fieldErrors) session.flash('inputErrorsBag', fieldErrors)
       session.flash('error', saveError(request, error, 'Unable to save homepage'))
-      session.flash('homeForm', request.except(['heroImage', 'removeHeroImage']))
+      session.flash('homeForm', request.except(['heroImage']))
     }
     return response.redirect(`/admin/home?locale=${locale}`)
-  }
-
-  async saveHomeCard({ request, params, response, session, admin }: HttpContext) {
-    try {
-      const input = await homeCardValidator.validate({
-        place_id: Number(request.input('place_id')),
-        caption_en: request.input('caption_en') || null,
-        caption_ar: request.input('caption_ar') || null,
-        sort_order: Number(request.input('sort_order', 0)),
-        active: request.input('active') === 'on',
-      })
-      await saveHomeCard(input, admin.id, params.id ? positiveId(params.id) : undefined)
-      session.flash('success', 'Home Explore card saved.')
-    } catch (error) {
-      const fieldErrors = validationErrorBag(error)
-      if (fieldErrors) session.flash('inputErrorsBag', fieldErrors)
-      session.flash('error', error instanceof ApiError ? error.message : 'Unable to save Home card')
-      session.flash('homeCardForm', request.all())
-    }
-    return response.redirect('/admin/home#home-cards')
-  }
-
-  async deleteHomeCard({ params, response, session, admin }: HttpContext) {
-    try {
-      await deleteHomeCard(positiveId(params.id), admin.id)
-      session.flash('success', 'Home Explore card removed.')
-    } catch (error) {
-      session.flash(
-        'error',
-        error instanceof ApiError ? error.message : 'Unable to remove Home card'
-      )
-    }
-    return response.redirect('/admin/home#home-cards')
   }
 
   async settings({ inertia, request, session, admin }: HttpContext) {
     const settings = await db.from('site_settings').where('id', 1).first()
     const keys = [
-      'brand_name',
-      'direct_phone_number',
-      'direct_phone_description',
-      'whatsapp_number',
-      'whatsapp_description',
-      'contact_email',
-      'headquarters_name',
-      'headquarters_address',
-      'headquarters_map_url',
       'app_store_url',
       'play_store_url',
     ]
@@ -219,22 +113,10 @@ export default class AdminSitePageController {
         success: (session.flashMessages.get('success') as string | undefined) ?? null,
         error: (session.flashMessages.get('error') as string | undefined) ?? null,
         form: this.formValues(session.flashMessages.get('settingsForm'), [
-          'brandName',
-          'directPhoneNumber',
-          'directPhoneDescription',
-          'whatsappNumber',
-          'whatsappDescription',
-          'contactEmail',
-          'headquartersName',
-          'headquartersAddress',
-          'headquartersMapUrl',
-          'contactInquiryTypes',
           'appStoreUrl',
           'playStoreUrl',
         ]),
         settings: settings ? Object.fromEntries(keys.map((key) => [key, settings[key]])) : null,
-        contactInquiryTypes: contactInquiryTypes(settings?.contact_inquiry_types).join('\n'),
-        logoImageUrl: cmsImageUrl(settings?.logo_image_key),
       },
       { bodyClass: 'cms-body' }
     )
@@ -244,151 +126,18 @@ export default class AdminSitePageController {
     const { request, response, session, admin } = ctx
     try {
       const input = await settingsValidator.validate({
-        brandName: request.input('brandName'),
-        directPhoneNumber: request.input('directPhoneNumber') || null,
-        directPhoneDescription: request.input('directPhoneDescription') || null,
-        whatsappNumber: request.input('whatsappNumber') || null,
-        whatsappDescription: request.input('whatsappDescription') || null,
-        contactEmail: request.input('contactEmail') || null,
-        headquartersName: request.input('headquartersName') || null,
-        headquartersAddress: request.input('headquartersAddress') || null,
-        headquartersMapUrl: request.input('headquartersMapUrl') || null,
-        contactInquiryTypes: inquiryTypesInput(request.input('contactInquiryTypes')),
         appStoreUrl: request.input('appStoreUrl') || null,
         playStoreUrl: request.input('playStoreUrl') || null,
       })
-      await saveSettings(input, admin.id, await formImage(ctx, 'logoImage', 'removeLogo'))
+      await saveSettings(input, admin.id)
       session.flash('success', 'Site settings saved.')
     } catch (error) {
       const fieldErrors = validationErrorBag(error)
       if (fieldErrors) session.flash('inputErrorsBag', fieldErrors)
       session.flash('error', saveError(request, error, 'Unable to save settings'))
-      session.flash('settingsForm', request.except(['logoImage', 'removeLogo']))
+      session.flash('settingsForm', request.all())
     }
     return response.redirect('/admin/settings')
   }
 
-  async transport({ inertia, request, session, admin }: HttpContext) {
-    const locations = await db
-      .from('transport_locations as l')
-      .join('transport_location_translations as en', function () {
-        this.on('en.location_id', '=', 'l.id').andOnVal('en.locale', '=', 'en')
-      })
-      .leftJoin('transport_location_translations as ar', function () {
-        this.on('ar.location_id', '=', 'l.id').andOnVal('ar.locale', '=', 'ar')
-      })
-      .select(
-        'l.id',
-        'l.code',
-        'l.active',
-        'l.pickup_enabled',
-        'l.dropoff_enabled',
-        'l.sort_order',
-        'en.name',
-        'ar.name as name_ar'
-      )
-      .orderBy('l.sort_order')
-      .orderBy('l.id')
-    return inertia.render(
-      'site/transport',
-      {
-        adminName: admin.fullName,
-        csrfToken: request.csrfToken,
-        success: (session.flashMessages.get('success') as string | undefined) ?? null,
-        error: (session.flashMessages.get('error') as string | undefined) ?? null,
-        form: this.formValues(session.flashMessages.get('transportForm'), [
-          'code',
-          'nameEn',
-          'nameAr',
-          'sortOrder',
-          'pickupEnabled',
-          'dropoffEnabled',
-          'active',
-        ]),
-        locations: locations.map(
-          ({ id, code, active, pickup_enabled, dropoff_enabled, sort_order, name, name_ar }) => ({
-            id: Number(id),
-            code,
-            active: Boolean(active),
-            pickup_enabled: Boolean(pickup_enabled),
-            dropoff_enabled: Boolean(dropoff_enabled),
-            sort_order: Number(sort_order),
-            name,
-            name_ar,
-          })
-        ),
-      },
-      { bodyClass: 'cms-body' }
-    )
-  }
-
-  async saveLocation({ request, params, response, session, admin }: HttpContext) {
-    try {
-      const input = await locationValidator.validate({
-        code: request.input('code'),
-        nameEn: request.input('nameEn'),
-        nameAr: request.input('nameAr') || null,
-        pickupEnabled: request.input('pickupEnabled') === 'on',
-        dropoffEnabled: request.input('dropoffEnabled') === 'on',
-        active: request.input('active') === 'on',
-        sortOrder: Number(request.input('sortOrder', 0)),
-      })
-      await db.transaction(async (trx) => {
-        let id = params.id ? Number(params.id) : undefined
-        const fields = {
-          code: input.code,
-          pickup_enabled: input.pickupEnabled,
-          dropoff_enabled: input.dropoffEnabled,
-          active: input.active,
-          sort_order: input.sortOrder,
-        }
-        if (id) await trx.from('transport_locations').where('id', id).update(fields)
-        else {
-          const createdLocationIds = await trx.table('transport_locations').insert(fields)
-          id = createdLocationIds[0]
-        }
-        await trx
-          .table('transport_location_translations')
-          .insert({ location_id: id, locale: 'en', name: input.nameEn })
-          .onConflict(['location_id', 'locale'])
-          .merge()
-        if (input.nameAr)
-          await trx
-            .table('transport_location_translations')
-            .insert({
-              location_id: id,
-              locale: 'ar',
-              name: input.nameAr,
-            })
-            .onConflict(['location_id', 'locale'])
-            .merge()
-        else
-          await trx
-            .from('transport_location_translations')
-            .where('location_id', id!)
-            .where('locale', 'ar')
-            .delete()
-        await trx.table('audit_logs').insert({
-          actor_id: admin.id,
-          action: params.id ? 'location.updated' : 'location.created',
-          entity_type: 'transport_location',
-          entity_id: String(id),
-          created_at: new Date(),
-        })
-      })
-      session.flash('success', 'Transport location saved.')
-    } catch (error) {
-      const fieldErrors = validationErrorBag(error)
-      if (fieldErrors) session.flash('inputErrorsBag', fieldErrors)
-      session.flash('error', error instanceof Error ? error.message : 'Unable to save location')
-      session.flash('transportForm', request.all())
-    }
-    return response.redirect('/admin/transport')
-  }
-
-  async deleteLocation({ params, response, session }: HttpContext) {
-    await db.from('transport_locations').where('id', Number(params.id)).delete()
-    session.flash('success', 'Location deleted.')
-    return response.redirect('/admin/transport')
-  }
 }

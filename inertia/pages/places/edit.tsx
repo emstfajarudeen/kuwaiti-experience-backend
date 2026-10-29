@@ -83,6 +83,7 @@ export default function PlaceEdit({
         ? false
         : place?.status === 'published'
   )
+  const [removedGalleryImages, setRemovedGalleryImages] = useState<number[]>([])
   const [antdForm] = Form.useForm()
   useEffect(() => {
     if (error) void message.error(error)
@@ -122,7 +123,7 @@ export default function PlaceEdit({
         <div className="tw:[display:flex] tw:[align-items:center] tw:[gap:12px] tw:[flex-wrap:wrap]">
           <h1>{place ? en?.title || 'Edit place' : 'Create a new place'}</h1>
         </div>
-        <div className="form-page-actions">
+        <div className="form-page-actions place-form-actions">
           {place && (
             <div className="page-head-actions tw:flex tw:flex-wrap tw:items-center tw:gap-3">
               <a className="button secondary" href={`/admin/places/${place.id}/explore`}>
@@ -130,15 +131,6 @@ export default function PlaceEdit({
               </a>
             </div>
           )}
-          <label className="tw:flex tw:items-center tw:gap-2 tw:text-sm tw:font-semibold">
-            <Switch
-              aria-label="Place active"
-              checked={active}
-              onChange={setActive}
-              disabled={processing}
-            />
-            {active ? 'Active' : 'Inactive'}
-          </label>
           <Button
             className="button primary"
             htmlType="submit"
@@ -217,7 +209,18 @@ export default function PlaceEdit({
         <input type="hidden" name="_csrf" value={csrfToken} />
         <div className="editor-main tw:flex tw:flex-col">
           <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
-            <h2>Place details</h2>
+            <div className="place-details-heading">
+              <h2>Place details</h2>
+              <label className="place-form-active-toggle tw:flex tw:items-center tw:gap-2 tw:text-sm tw:font-semibold">
+                <Switch
+                  aria-label="Place active"
+                  checked={active}
+                  onChange={setActive}
+                  disabled={processing}
+                />
+                {active ? 'Active' : 'Inactive'}
+              </label>
+            </div>
             <div className="form-grid two tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
               <label>
                 Place type
@@ -463,13 +466,60 @@ export default function PlaceEdit({
               <div className="gallery-editor tw:[margin-top:16px] tw:max-[900px]:[grid-template-columns:1fr] tw:[display:grid] tw:[grid-template-columns:repeat(2,_minmax(0,_1fr))] tw:[gap:var(--space-4)] tw:[margin-bottom:var(--space-5)]">
                 {gallery.map((image, index) => (
                   <article
-                    className="gallery-item tw:[background:var(--surface-subtle)] tw:[border:1px_solid_var(--line)] tw:[border-radius:var(--radius-sm)] tw:[padding:var(--space-3)] tw:[display:flex] tw:[flex-direction:column] tw:[gap:var(--space-3)]"
+                    className="gallery-item"
                     key={image.id}
                   >
-                    {image.url && (
-                      <img src={image.url} alt={image.alt_en || 'Gallery image'} loading="lazy" />
-                    )}
                     <input type="hidden" name={`gallery[${index}][id]`} value={image.id} />
+                    <input
+                      type="hidden"
+                      name={`gallery[${index}][remove]`}
+                      value={removedGalleryImages.includes(image.id) ? 'on' : ''}
+                    />
+                    <div className="image-upload-current gallery-image-current">
+                      {image.url && (
+                        <div className="image-upload-current-preview">
+                          <img
+                            src={image.url}
+                            alt={image.alt_en || 'Gallery image'}
+                            loading="lazy"
+                          />
+                        </div>
+                      )}
+                      <div className="image-upload-content">
+                        <div className="image-upload-status">
+                          <span className="image-upload-status-dot" />
+                          {removedGalleryImages.includes(image.id)
+                            ? 'Marked for removal'
+                            : 'Current gallery image'}
+                        </div>
+                        {removedGalleryImages.includes(image.id) ? (
+                          <div className="image-upload-removed" role="status">
+                            <span>Removed when you save.</span>
+                            <Button
+                              size="small"
+                              htmlType="button"
+                              onClick={() =>
+                                setRemovedGalleryImages((current) =>
+                                  current.filter((id) => id !== image.id)
+                                )
+                              }
+                            >
+                              Undo
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            danger
+                            htmlType="button"
+                            onClick={() =>
+                              setRemovedGalleryImages((current) => [...current, image.id])
+                            }
+                          >
+                            Remove image
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                     <div className="form-grid two tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
                       <label>
                         English alt
@@ -517,7 +567,6 @@ export default function PlaceEdit({
                           defaultValue={image.sort_order}
                         />
                       </label>
-                      <Checkbox name={`gallery[${index}][remove]`}>Remove</Checkbox>
                     </div>
                   </article>
                 ))}
@@ -546,12 +595,12 @@ export default function PlaceEdit({
             {place ? (
               <div className="tw:[margin-top:16px]">
                 <a className="button secondary" href={`/admin/places/${place.id}/explore`}>
-                  Open Explore features &amp; hours editor
+                  Open Explore details &amp; hours editor
                 </a>
               </div>
             ) : (
               <p className="tw:[margin-top:12px] tw:[color:var(--muted)] tw:[font-size:13px]">
-                Save this place first to configure its Explore amenities and weekly hours.
+                Save this place first to configure its Explore details and weekly hours.
               </p>
             )}
           </section>
@@ -560,45 +609,25 @@ export default function PlaceEdit({
           <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
             <h2>Cover image</h2>
             <div className="tw:[margin-top:12px]">
-              {coverUrl ? (
-                <img
-                  className="cover-preview tw:[width:100%] tw:[max-height:220px] tw:[object-fit:cover] tw:[border-radius:var(--radius-sm)] tw:[border:1px_solid_var(--line)] tw:[background:var(--ivory)]"
-                  src={coverUrl}
-                  alt="Current cover"
-                />
-              ) : (
-                <div className="cover-placeholder tw:[width:100%] tw:[height:140px] tw:[display:grid] tw:[place-items:center] tw:[background:var(--surface-subtle)] tw:[border:1.5px_dashed_var(--line-strong)] tw:[border-radius:var(--radius-sm)] tw:[color:var(--muted)] tw:[font-size:13px] tw:[font-weight:500]">
-                  No cover image uploaded
-                </div>
-              )}
-              <div className="tw:[margin-top:12px]">
-                <ImageUpload
-                  name="coverImage"
-                  label={coverUrl ? 'Replace cover' : 'Upload cover'}
-                />
-              </div>
-              {coverUrl && place?.status !== 'published' && (
-                <Checkbox
-                  className="tw:mt-3"
-                  name="removeCover"
-                  defaultChecked={form?.removeCover === 'on'}
-                >
-                  Remove cover image
-                </Checkbox>
-              )}
+              <ImageUpload
+                name="coverImage"
+                currentImageUrl={coverUrl}
+                currentImageAlt="Current cover"
+                removeName="removeCover"
+                initiallyRemoved={form?.removeCover === 'on'}
+                allowRemove={place?.status !== 'published' || !active}
+                disabledRemoveReason="Deactivate this place before removing its cover image."
+              />
             </div>
           </section>
         </aside>
       </Form>
       {place && (
-        <section className="panel danger-zone-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:[border-color:var(--danger-border)] tw:[background:#fdfaf9] tw:[padding:var(--space-5)_var(--space-6)] tw:[margin-top:var(--space-8)]">
-          <h2>Danger zone</h2>
-          <div className="danger-zone-actions tw:[display:flex] tw:[align-items:center] tw:[flex-wrap:wrap] tw:[gap:var(--space-4)] tw:[margin-top:var(--space-4)]">
-            <button className="button danger" type="button" onClick={() => setConfirmDelete(true)}>
-              Delete permanently
-            </button>
-          </div>
-        </section>
+        <div className="form-delete-actions">
+          <button className="button danger" type="button" onClick={() => setConfirmDelete(true)}>
+            Delete permanently
+          </button>
+        </div>
       )}
       <ConfirmModal
         open={confirmDelete}

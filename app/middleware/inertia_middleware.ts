@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 import BaseInertiaMiddleware from '@adonisjs/inertia/inertia_middleware'
+import env from '#start/env'
 import { adminLandingUrl } from '../authorization/admin_landing.js'
 
 export default class InertiaMiddleware extends BaseInertiaMiddleware {
@@ -8,6 +9,10 @@ export default class InertiaMiddleware extends BaseInertiaMiddleware {
     const flashedErrors = ctx.session.flashMessages.get('inputErrorsBag')
     const validationErrors = this.getValidationErrors(ctx)
     return {
+      cmsSocial: {
+        url: new URL('/admin/login', env.get('APP_URL')).href,
+        image: new URL('/cms-social-card.png', env.get('APP_URL')).href,
+      },
       auth: ctx.inertia.always(
         (() => {
           const admin = (ctx as Partial<HttpContext>).admin

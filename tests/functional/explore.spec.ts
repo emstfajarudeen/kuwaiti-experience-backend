@@ -478,7 +478,6 @@ test.group('Explore and CMS extensions', (group) => {
     const p = await place('hotel_resort')
     const token = auth.replace('Bearer ', '')
     for (const path of [
-      '/admin/place-features',
       '/admin/movies',
       '/admin/movies/new',
       '/admin/showtimes',
@@ -496,12 +495,6 @@ test.group('Explore and CMS extensions', (group) => {
     const row = await db.from('places').where('id', p.id).first()
     assert.equal(row.phone_e164, '+96590987788')
     assert.equal(row.check_in_time, '15:00:00')
-    await client
-      .post('/admin/place-features')
-      .cookie('admin_access', token)
-      .withCsrfToken()
-      .form({ ...featurePayload('hotel_resort'), active: 'on' })
-    assert.isNotNull(await db.from('place_features').where('type', 'hotel_resort').first())
     await client
       .post('/admin/movies')
       .cookie('admin_access', token)

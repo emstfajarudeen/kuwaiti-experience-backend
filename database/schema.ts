@@ -228,6 +228,29 @@ export class CustomerRefreshTokenSchema extends BaseModel {
   declare tokenHash: string
 }
 
+export class CustomerSavedAddressSchema extends BaseModel {
+  static $columns = ['address', 'createdAt', 'customerId', 'id', 'label', 'latitude', 'longitude', 'notes', 'updatedAt'] as const
+  $columns = CustomerSavedAddressSchema.$columns
+  @column()
+  declare address: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare customerId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare label: string
+  @column()
+  declare latitude: string
+  @column()
+  declare longitude: string
+  @column()
+  declare notes: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class CustomerSavedPlaceSchema extends BaseModel {
   static $columns = ['createdAt', 'customerId', 'placeId'] as const
   $columns = CustomerSavedPlaceSchema.$columns
@@ -284,12 +307,16 @@ export class CustomerSchema extends BaseModel {
 }
 
 export class HomeContentSchema extends BaseModel {
-  static $columns = ['appBody', 'appTitle', 'discoveryTitle', 'heroEyebrow', 'heroImageKey', 'heroTitle', 'locale', 'updatedAt'] as const
+  static $columns = ['appBody', 'appTitle', 'discoveryDescription', 'discoveryEyebrow', 'discoveryTitle', 'heroEyebrow', 'heroImageKey', 'heroTitle', 'locale', 'updatedAt'] as const
   $columns = HomeContentSchema.$columns
   @column()
   declare appBody: string | null
   @column()
   declare appTitle: string | null
+  @column()
+  declare discoveryDescription: string | null
+  @column()
+  declare discoveryEyebrow: string | null
   @column()
   declare discoveryTitle: string
   @column()

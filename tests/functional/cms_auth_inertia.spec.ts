@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import hash from '@adonisjs/core/services/hash'
 import db from '@adonisjs/lucid/services/db'
+import env from '#start/env'
 import { authenticateAdmin, loginAdmin, prepareAdminAuthorization } from '../helpers/admin_auth.js'
 
 const email = 'cms-react-admin@example.com'
@@ -33,6 +34,28 @@ async function createAdmin() {
 
 test.group('CMS React authentication', (group) => {
   group.each.setup(() => testUtils.db().truncate())
+
+  test('login HTML and public assets provide CMS branding for link previews', async ({
+    client,
+    assert,
+  }) => {
+    const page = await client.get('/admin/login')
+    page.assertStatus(200)
+    const html = page.text()
+    const socialImage = new URL('/cms-social-card.png', env.get('APP_URL')).href
+    const loginUrl = new URL('/admin/login', env.get('APP_URL')).href
+    assert.include(html, 'href="/favicon.svg"')
+    assert.include(html, 'property="og:title"')
+    assert.include(html, `property="og:image" content="${socialImage}"`)
+    assert.include(html, `property="og:url" content="${loginUrl}"`)
+
+    const icon = await client.get('/favicon.svg')
+    icon.assertStatus(200)
+    assert.include(String(icon.header('content-type')), 'image/svg+xml')
+    const image = await client.get('/cms-social-card.png')
+    image.assertStatus(200)
+    assert.include(String(image.header('content-type')), 'image/png')
+  })
 
   test('login page retains failed input and offers refresh only with a refresh cookie', async ({
     client,

@@ -1,11 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import db from '@adonisjs/lucid/services/db'
-import { DateTime } from 'luxon'
 import * as read from '../../services/explore_read_service.js'
 import * as write from '../../services/explore_write_service.js'
 import * as validators from '../../validators/explore.js'
-import { cmsImageUrl, imageFiles, prepareImages } from '../../services/image_storage_service.js'
-import { ApiError } from '../../services/api_error.js'
 import { validationErrorBag } from '../../services/validation_error_bag.js'
 
 const numberOrNull = (v: unknown) => (v === '' || v === null || v === undefined ? null : Number(v))
@@ -16,7 +12,6 @@ const records = (v: unknown): Record<string, any>[] =>
 export default class ExplorePageController {
   async place({ params, inertia, request, admin, session }: HttpContext) {
     const result = await read.showPlace(read.positiveId(params.id), undefined, true)
-    const features = await read.features(result.data.type, true)
     const rawHours = result.data.place_hours
 
     // Check if there is flashed form input from a failed validation submission
@@ -57,11 +52,6 @@ export default class ExplorePageController {
       }
     })
 
-    const flashedFeatureIds = flashForm?.feature_ids
-    const selectedFeatures =
-      flashedFeatureIds === undefined
-        ? result.data.place_features.map((f) => f.id)
-        : (Array.isArray(flashedFeatureIds) ? flashedFeatureIds : [flashedFeatureIds]).map(Number)
     return inertia.render(
       'explore/place',
       {
@@ -89,14 +79,6 @@ export default class ExplorePageController {
           check_out_time: result.data.check_out_time,
           screen_count: result.data.screen_count,
         },
-        features: features.data.map((feature) => ({
-          id: feature.id,
-          name_en: feature.name_en,
-          kind: feature.kind,
-          code: feature.code,
-          active: feature.active,
-        })),
-        selectedFeatures,
         days,
       },
       { bodyClass: 'cms-body' }
@@ -106,8 +88,6 @@ export default class ExplorePageController {
     const id = read.positiveId(ctx.params.id)
     return this.form(ctx, `/admin/places/${id}/explore`, async () => {
       const r = ctx.request
-      const raw = r.input('feature_ids', [])
-      const featureIds = Array.isArray(raw) ? raw : raw === null || raw === undefined ? [] : [raw]
       const hours = records(r.input('place_hours'))
         .filter((h) => h.weekday !== '' && h.weekday !== null && h.weekday !== undefined)
         .map((h) => ({
@@ -123,286 +103,10 @@ export default class ExplorePageController {
         check_in_time: r.input('check_in_time') || null,
         check_out_time: r.input('check_out_time') || null,
         screen_count: numberOrNull(r.input('screen_count')),
-        feature_ids: featureIds.map(Number),
         place_hours: hours,
       })
       await write.updatePlaceExplore(id, input, ctx.admin.id)
     })
-  }
-  async features({ params, request, inertia, session, admin }: HttpContext) {
-    const [features, types] = await Promise.all([
-      read.features(undefined, true),
-      db.from('category_types').orderBy('sort_order'),
-    ])
-    const editing = params.id
-      ? features.data.find((f) => f.id === read.positiveId(params.id))
-      : null
-    if (params.id && !editing) throw new ApiError(404, 'NOT_FOUND', 'Feature not found')
-    return inertia.render(
-      'explore/features',
-      {
-        adminName: admin.fullName,
-        csrfToken: request.csrfToken,
-        success: (session.flashMessages.get('success') as string | undefined) ?? null,
-        error: (session.flashMessages.get('error') as string | undefined) ?? null,
-        form: this.formValues(session.flashMessages.get('exploreForm'), [
-          'type',
-          'kind',
-          'code',
-          'name_en',
-          'name_ar',
-          'sort_order',
-          'active',
-        ]),
-        features: features.data.map(
-          ({ id, type, kind, code, name_en, name_ar, active, sort_order }) => ({
-            id,
-            type,
-            kind,
-            code,
-            name_en,
-            name_ar,
-            active,
-            sort_order,
-          })
-        ),
-        types: types.map(({ code, name_en }) => ({ code, name_en })),
-        editing: editing ?? null,
-        selectedType: typeof request.input('type') === 'string' ? request.input('type') : '',
-      },
-      { bodyClass: 'cms-body' }
-    )
-  }
-
-  private formValues(value: unknown, keys: string[]) {
-    if (!value || typeof value !== 'object') return null
-    const form = value as Record<string, unknown>
-    return Object.fromEntries(
-      keys.map((key) => [key, typeof form[key] === 'string' ? form[key] : null])
-    )
-  }
-  async saveFeature(ctx: HttpContext) {
-    const r = ctx.request
-    return this.form(
-      ctx,
-      ctx.params.id ? `/admin/place-features/${ctx.params.id}/edit` : '/admin/place-features',
-      async () => {
-        const input = await validators.featureValidator.validate({
-          type: r.input('type'),
-          code: r.input('code'),
-          kind: r.input('kind'),
-          name_en: r.input('name_en'),
-          name_ar: r.input('name_ar') || null,
-          active: checkbox(r.input('active')),
-          sort_order: Number(r.input('sort_order', 0)),
-        })
-        await write.saveFeature(
-          input,
-          ctx.admin.id,
-          ctx.params.id ? read.positiveId(ctx.params.id) : undefined
-        )
-      },
-      '/admin/place-features'
-    )
-  }
-  async deleteFeature(ctx: HttpContext) {
-    return this.form(ctx, '/admin/place-features', () =>
-      write.deleteFeature(read.positiveId(ctx.params.id), ctx.admin.id)
-    )
-  }
-  async movies({ request, inertia, session, admin }: HttpContext) {
-    const result = await read.movies(request.qs())
-    return inertia.render(
-      'explore/movies',
-      {
-        adminName: admin.fullName,
-        csrfToken: request.csrfToken,
-        success: (session.flashMessages.get('success') as string | undefined) ?? null,
-        error: (session.flashMessages.get('error') as string | undefined) ?? null,
-        result: {
-          data: result.data.map(({ id, title_en, title_ar, status, duration_minutes }) => ({
-            id,
-            title_en,
-            title_ar,
-            status,
-            duration_minutes,
-          })),
-          meta: {
-            total: result.meta.total,
-            page: result.meta.page,
-            lastPage: result.meta.last_page,
-          },
-        },
-      },
-      { bodyClass: 'cms-body' }
-    )
-  }
-  async movie({ params, request, inertia, session, admin }: HttpContext) {
-    const movie = params.id
-      ? await db.from('movies').where('id', read.positiveId(params.id)).first()
-      : null
-    if (params.id && !movie) throw new ApiError(404, 'NOT_FOUND', 'Movie not found')
-    return inertia.render(
-      'explore/movie',
-      {
-        adminName: admin.fullName,
-        csrfToken: request.csrfToken,
-        success: (session.flashMessages.get('success') as string | undefined) ?? null,
-        error: (session.flashMessages.get('error') as string | undefined) ?? null,
-        form: this.formValues(session.flashMessages.get('exploreForm'), [
-          'title_en',
-          'title_ar',
-          'synopsis_en',
-          'synopsis_ar',
-          'duration_minutes',
-          'age_rating',
-          'status',
-          'remove_poster',
-        ]),
-        movie: movie
-          ? {
-              id: Number(movie.id),
-              title_en: movie.title_en,
-              title_ar: movie.title_ar,
-              synopsis_en: movie.synopsis_en,
-              synopsis_ar: movie.synopsis_ar,
-              duration_minutes: movie.duration_minutes,
-              age_rating: movie.age_rating,
-              status: movie.status,
-            }
-          : null,
-        posterUrl: cmsImageUrl(movie?.poster_image_key),
-      },
-      { bodyClass: 'cms-body' }
-    )
-  }
-  async saveMovie(ctx: HttpContext) {
-    return this.form(
-      ctx,
-      ctx.params.id ? `/admin/movies/${ctx.params.id}/edit` : '/admin/movies/new',
-      async () => {
-        const r = ctx.request
-        const input = await validators.movieValidator.validate({
-          title_en: r.input('title_en'),
-          title_ar: r.input('title_ar') || null,
-          synopsis_en: r.input('synopsis_en') || null,
-          synopsis_ar: r.input('synopsis_ar') || null,
-          duration_minutes: numberOrNull(r.input('duration_minutes')),
-          age_rating: r.input('age_rating') || null,
-          status: r.input('status'),
-        })
-        const images = await prepareImages(ctx.admin.id, { poster: imageFiles(r, 'poster') })
-        await write.saveMovie(
-          input,
-          ctx.admin.id,
-          ctx.params.id ? read.positiveId(ctx.params.id) : undefined,
-          images.poster[0] ??
-            (checkbox(r.input('remove_poster')) || checkbox(r.input('removePoster'))
-              ? 'remove'
-              : undefined)
-        )
-      },
-      '/admin/movies'
-    )
-  }
-  async deleteMovie(ctx: HttpContext) {
-    return this.form(ctx, '/admin/movies', () =>
-      write.deleteMovie(read.positiveId(ctx.params.id), ctx.admin.id)
-    )
-  }
-  async showtimes({ params, request, inertia, session, admin }: HttpContext) {
-    const [result, theaters, movies] = await Promise.all([
-      read.showtimes(request.qs()),
-      db.from('places').where('type', 'theater').orderBy('slug').limit(1000),
-      db.from('movies').orderBy('title_en').limit(1000),
-    ])
-    const editing = params.id
-      ? await db.from('theater_showtimes').where('id', read.positiveId(params.id)).first()
-      : null
-    if (params.id && !editing) throw new ApiError(404, 'NOT_FOUND', 'Showtime not found')
-    return inertia.render(
-      'explore/showtimes',
-      {
-        adminName: admin.fullName,
-        csrfToken: request.csrfToken,
-        success: (session.flashMessages.get('success') as string | undefined) ?? null,
-        error: (session.flashMessages.get('error') as string | undefined) ?? null,
-        form: this.formValues(session.flashMessages.get('exploreForm'), [
-          'place_id',
-          'movie_id',
-          'starts_at',
-          'format',
-          'status',
-        ]),
-        result: {
-          data: result.data.map(({ id, movie_id, place_id, starts_at, format, status }) => ({
-            id,
-            movie_id,
-            place_id,
-            starts_at,
-            format,
-            status,
-          })),
-          included: {
-            movies: result.included.movies.map(({ id, title_en }) => ({ id, title_en })),
-          },
-          meta: {
-            total: result.meta.total,
-            page: result.meta.page,
-            lastPage: result.meta.last_page,
-          },
-        },
-        theaters: theaters.map(({ id, slug, status }) => ({ id: Number(id), slug, status })),
-        movies: movies.map(({ id, title_en, status }) => ({ id: Number(id), title_en, status })),
-        editing: editing
-          ? {
-              id: Number(editing.id),
-              place_id: Number(editing.place_id),
-              movie_id: Number(editing.movie_id),
-              format: editing.format,
-              status: editing.status,
-            }
-          : null,
-        startsLocal: editing
-          ? DateTime.fromJSDate(new Date(editing.starts_at))
-              .setZone('Asia/Kuwait')
-              .toFormat("yyyy-MM-dd'T'HH:mm")
-          : '',
-        filterPlaceId:
-          typeof request.input('place_id') === 'string' ? request.input('place_id') : '',
-      },
-      { bodyClass: 'cms-body' }
-    )
-  }
-  async saveShowtime(ctx: HttpContext) {
-    return this.form(
-      ctx,
-      ctx.params.id ? `/admin/showtimes/${ctx.params.id}/edit` : '/admin/showtimes',
-      async () => {
-        const r = ctx.request
-        const starts = DateTime.fromISO(String(r.input('starts_at')), { zone: 'Asia/Kuwait' })
-        if (!starts.isValid)
-          throw new ApiError(422, 'INVALID_TIME', 'Choose a valid Kuwait date and time')
-        const input = await validators.showtimeValidator.validate({
-          place_id: Number(r.input('place_id')),
-          movie_id: Number(r.input('movie_id')),
-          starts_at: starts.toUTC().toISO(),
-          format: r.input('format'),
-          status: r.input('status'),
-        })
-        await write.saveShowtime(
-          input,
-          ctx.admin.id,
-          ctx.params.id ? read.positiveId(ctx.params.id) : undefined
-        )
-      },
-      '/admin/showtimes'
-    )
-  }
-  async deleteShowtime(ctx: HttpContext) {
-    return this.form(ctx, '/admin/showtimes', () =>
-      write.deleteShowtime(read.positiveId(ctx.params.id), ctx.admin.id)
-    )
   }
 
   private async form(

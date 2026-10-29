@@ -6,7 +6,7 @@ import { withStoredImages, type PreparedImage } from '#services/image_storage_se
 type ImageChange = PreparedImage | 'remove' | undefined
 
 type SettingsInput = {
-  brandName: string
+  brandName?: string
   directPhoneNumber?: string | null
   directPhoneDescription?: string | null
   whatsappNumber?: string | null
@@ -23,7 +23,9 @@ type SettingsInput = {
 type HomeInput = {
   heroEyebrow: string
   heroTitle: string
+  discoveryEyebrow?: string
   discoveryTitle: string
+  discoveryDescription?: string
   appTitle?: string | null
   appBody?: string | null
 }
@@ -55,7 +57,7 @@ async function writeSettings(input: SettingsInput | null, logo: ImageChange, act
       const fields = {
         ...(input
           ? {
-              brand_name: input.brandName,
+              ...(input.brandName !== undefined ? { brand_name: input.brandName } : {}),
               ...(input.directPhoneNumber !== undefined
                 ? { direct_phone_number: input.directPhoneNumber }
                 : {}),
@@ -96,7 +98,7 @@ async function writeSettings(input: SettingsInput | null, logo: ImageChange, act
       else
         await trx
           .table('site_settings')
-          .insert({ id: 1, brand_name: 'The Kuwaiti Experience', ...fields })
+          .insert({ id: 1, brand_name: input?.brandName ?? 'The Kuwaiti Experience', ...fields })
       await trx.table('audit_logs').insert({
         actor_id: actorId,
         action: 'site.settings.updated',
@@ -128,7 +130,13 @@ async function writeHome(
           ? {
               hero_eyebrow: input.heroEyebrow,
               hero_title: input.heroTitle,
+              ...(input.discoveryEyebrow !== undefined
+                ? { discovery_eyebrow: input.discoveryEyebrow }
+                : {}),
               discovery_title: input.discoveryTitle,
+              ...(input.discoveryDescription !== undefined
+                ? { discovery_description: input.discoveryDescription }
+                : {}),
               ...(input.appTitle !== undefined ? { app_title: input.appTitle } : {}),
               ...(input.appBody !== undefined ? { app_body: input.appBody } : {}),
             }

@@ -172,7 +172,6 @@
     gap: 12px;
     padding: 12px 0;
     background: var(--ivory);
-    border-bottom: 1px solid var(--line);
   }
 
   .form-page-head h1 { margin: 0; }
@@ -188,8 +187,35 @@
   .form-page-actions .button,
   .form-page-actions .ant-btn { width: auto; }
 
+  .place-form-actions { flex-wrap: nowrap; }
+
+  .place-form-active-toggle {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .place-details-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .place-details-heading .place-form-active-toggle { margin-left: auto; }
+
+  .form-delete-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: var(--space-6) 0;
+  }
+
   @media (max-width: 640px) {
     .form-page-actions { margin-left: 0; width: 100%; }
+    .place-form-actions { flex-wrap: wrap; }
+    .place-details-heading { flex-wrap: wrap; }
   }
 
   .text-button:hover {
@@ -379,7 +405,64 @@
   .cms-permission-group h2 { margin-bottom: 12px; }
   .image-upload-label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--ink-secondary); }
   .image-upload-native { display: none !important; }
-  .image-upload .ant-upload-list { max-width: 560px; }
+  .image-upload-current {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    align-items: center;
+    gap: 18px;
+    width: min(100%, 640px);
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: linear-gradient(115deg, #fbfaf7, #fff 48%);
+  }
+  .image-upload-current-preview {
+    display: grid;
+    width: 112px;
+    height: 112px;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+  }
+  .image-upload-current-preview img { width: 100%; height: 100%; object-fit: contain; }
+  .image-upload-content { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 12px; }
+  .image-upload-status { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-secondary); font-size: 13px; font-weight: 650; }
+  .image-upload-status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold, #c99d42); box-shadow: 0 0 0 3px rgb(201 157 66 / 14%); }
+  .image-upload-files { display: flex; flex-wrap: wrap; gap: 6px; }
+  .image-upload-file { display: inline-flex; max-width: 100%; align-items: center; gap: 8px; padding: 5px 8px 5px 10px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink); font-size: 12px; }
+  .image-upload-file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .image-upload-file-remove { display: grid; width: 18px; height: 18px; flex: 0 0 18px; place-items: center; padding: 0; border: 0; border-radius: 50%; background: #f2f0eb; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; }
+  .image-upload-file-remove:hover { background: var(--danger-bg, #fdf2f2); color: var(--danger-text); }
+  .image-upload-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .image-upload-actions .ant-upload-wrapper { display: inline-flex; }
+  .image-upload-remove-note { max-width: 260px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+  .image-upload-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+  .image-upload-empty .ant-upload-wrapper { display: inline-flex; }
+  .gallery-item { display: flex; flex-direction: column; gap: 14px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: #fff; }
+  .gallery-item .image-upload-current { width: 100%; padding: 0; border: 0; background: transparent; }
+  .gallery-item .image-upload-current-preview { width: 96px; height: 96px; }
+  .image-upload-removed {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    border: 1px dashed var(--danger-border);
+    border-radius: var(--radius-sm);
+    background: var(--danger-bg, #fdf2f2);
+    color: var(--danger-text);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  @media (max-width: 560px) {
+    .image-upload-current { grid-template-columns: 80px minmax(0, 1fr); gap: 12px; padding: 10px; }
+    .image-upload-current-preview { width: 80px; height: 80px; }
+    .image-upload-actions { align-items: flex-start; flex-direction: column; }
+  }
   .cms-antd-table .ant-table-container { overflow: hidden; }
 
   @media (max-width: 1100px) {
@@ -759,14 +842,6 @@
 
   /* Gallery Editor Cards */
 
-  .gallery-item img {
-    width: 100%;
-    height: 140px;
-    object-fit: cover;
-    border-radius: 4px;
-    border: 1px solid var(--line);
-  }
-
   /* Weekly Hours 7-Day Editor */
 
   .day-hours-card.open-day {
@@ -793,13 +868,6 @@
   .interval-time-group input[type='time'] {
     width: 130px;
     min-height: 38px;
-  }
-
-  /* Danger Zone Card */
-
-  .danger-zone-panel h2 {
-    color: var(--danger-text);
-    font-size: 16px;
   }
 
   /* Filter Pills (e.g. Locale Switcher) */

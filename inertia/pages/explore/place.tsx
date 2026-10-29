@@ -25,7 +25,6 @@ type Place = {
   check_out_time: string | null
   screen_count: number | null
 }
-type Feature = { id: number; name_en: string; kind: string; code: string; active: boolean }
 type Props = {
   adminName: string
   csrfToken: string
@@ -33,8 +32,6 @@ type Props = {
   error: string | null
   form: Record<string, string | null> | null
   place: Place
-  features: Feature[]
-  selectedFeatures: number[]
   days: Day[]
 }
 
@@ -45,8 +42,6 @@ export default function ExplorePlace({
   error,
   form,
   place,
-  features,
-  selectedFeatures,
   days: initialDays,
 }: Props) {
   const [days, setDays] = useState(initialDays)
@@ -152,10 +147,9 @@ export default function ExplorePlace({
         }
         const payload: Record<string, FormDataConvertible> = {}
         for (const [key, value] of data.entries()) {
-          if (key === '_csrf' || key === 'feature_ids[]' || key.startsWith('place_hours[')) continue
+          if (key === '_csrf' || key.startsWith('place_hours[')) continue
           if (typeof value === 'string') payload[key] = value
         }
-        payload.feature_ids = data.getAll('feature_ids[]').map(String)
         payload.place_hours = Object.keys(hours).sort((a, b) => Number(a) - Number(b)).map((key) => hours[Number(key)])
         postCmsForm({ action: `/admin/places/${place.id}/explore`, csrfToken, form: formInstance, setProcessing, data: payload })
       }} action={`/admin/places/${place.id}/explore`} method="POST">
@@ -204,55 +198,7 @@ export default function ExplorePlace({
                     defaultValue={form?.screen_count ?? place.screen_count ?? ''}
                   />
                 </label>
-                <div className="full tw:col-span-full">
-                  <a className="button secondary" href={`/admin/showtimes?place_id=${place.id}`}>
-                    Manage showtimes
-                  </a>
-                </div>
               </>
-            )}
-          </div>
-        </section>
-        <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
-          <div className="tw:[display:flex] tw:[justify-content:space-between] tw:[align-items:center] tw:[flex-wrap:wrap] tw:[gap:12px]">
-            <h2>Highlights &amp; amenities</h2>
-            <a
-              className="text-button tw:[display:inline-flex] tw:[align-items:center] tw:[gap:6px] tw:[padding:8px_12px] tw:[background:transparent] tw:[border:none] tw:[color:var(--navy)] tw:[font-size:14px] tw:[font-weight:600] tw:[cursor:pointer] tw:[border-radius:var(--radius-sm)] tw:[transition:all_0.15s_ease]"
-              href={`/admin/place-features?type=${encodeURIComponent(place.type)}`}
-            >
-              Manage feature definitions
-            </a>
-          </div>
-          <div className="form-grid two tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
-            {features.length ? (
-              features.map((feature) => (
-                <div
-                  key={feature.id}
-                  className="checkbox-line tw:[border:1px_solid_var(--line)] tw:[border-radius:var(--radius-sm)] tw:[padding:8px_12px] tw:[background:var(--surface-subtle)] tw:[display:flex] tw:[flex-direction:row] tw:[align-items:center] tw:[gap:10px] tw:[font-size:14px] tw:[font-weight:500] tw:[color:var(--ink)] tw:[cursor:pointer] tw:[min-height:44px] tw:[user-select:none]"
-                >
-                  <Checkbox
-                    name="feature_ids[]"
-                    value={feature.id}
-                    defaultChecked={selectedFeatures.includes(feature.id)}
-                  >
-                  <span>
-                    <strong>{feature.name_en}</strong>
-                    <small className="tw:[display:block] tw:[color:var(--muted)]">
-                      {feature.kind} · {feature.code}
-                      {feature.active ? '' : ' (hidden)'}
-                    </small>
-                  </span>
-                  </Checkbox>
-                </div>
-              ))
-            ) : (
-              <p className="panel-help tw:[color:var(--muted)] tw:[font-size:13px] tw:[line-height:1.5] tw:[margin:var(--space-2)_0_0]">
-                No feature definitions found for this place type.{' '}
-                <a href={`/admin/place-features?type=${encodeURIComponent(place.type)}`}>
-                  Add feature definitions
-                </a>
-                .
-              </p>
             )}
           </div>
         </section>

@@ -4,7 +4,7 @@ import { categoryTypes } from '../../services/category_type_service.js'
 import { formatKuwaitDateTime } from '../../services/date_service.js'
 import { can } from '../../services/authorization_service.js'
 
-function formatActionLabel(action: string): string {
+export function formatActionLabel(action: string): string {
   const map: Record<string, string> = {
     'place.create': 'Created place',
     'place.save': 'Updated place',
@@ -31,8 +31,6 @@ function formatActionLabel(action: string): string {
     'page.archive': 'Archived page',
     'page.delete': 'Deleted page',
     'place_explore.update': 'Updated Explore details',
-    'place_features.save': 'Updated feature',
-    'place_features.delete': 'Deleted feature',
     'contact.status': 'Updated contact request',
     'home.save': 'Updated homepage',
     'settings.save': 'Updated site settings',
@@ -46,12 +44,22 @@ export default class AdminDashboardController {
     const showContacts = can(authorization, 'contact_requests.view')
     const showTypes = showPlaces && can(authorization, 'category_types.view')
     const showAudit = can(authorization, 'audit_logs.view')
+    const showCustomers = can(authorization, 'customers.view')
+    const showCategories = can(authorization, 'categories.view')
     const [
       totalPlacesRes,
       publishedPlacesRes,
       draftPlacesRes,
       archivedPlacesRes,
+      featuredPlacesRes,
+      geocodedPlacesRes,
       newContactsRes,
+      totalContactsRes,
+      resolvedContactsRes,
+      totalCustomersRes,
+      verifiedCustomersRes,
+      activeCategoriesRes,
+      topCategoriesRes,
       typeCounts,
       types,
       rawAuditLogs,
@@ -62,9 +70,47 @@ export default class AdminDashboardController {
         : null,
       showPlaces ? db.from('places').where('status', 'draft').count('* as count').first() : null,
       showPlaces ? db.from('places').where('status', 'archived').count('* as count').first() : null,
+      showPlaces
+        ? db.from('places').whereNotNull('featured_order').count('* as count').first()
+        : null,
+      showPlaces
+        ? db
+            .from('places')
+            .whereNotNull('latitude')
+            .whereNotNull('longitude')
+            .count('* as count')
+            .first()
+        : null,
       showContacts
         ? db.from('contact_requests').where('status', 'new').count('* as count').first()
         : null,
+      showContacts ? db.from('contact_requests').count('* as count').first() : null,
+      showContacts
+        ? db.from('contact_requests').where('status', 'resolved').count('* as count').first()
+        : null,
+      showCustomers ? db.from('customers').count('* as count').first() : null,
+      showCustomers
+        ? db.from('customers').whereNotNull('phone_verified_at').count('* as count').first()
+        : null,
+      showCategories
+        ? db.from('categories').where('active', true).count('* as count').first()
+        : null,
+      showPlaces
+        ? db
+            .from('places as p')
+            .join('categories as c', 'c.id', 'p.category_id')
+            .leftJoin('category_translations as ct', function () {
+              this.on('ct.category_id', '=', 'c.id').andOnVal('ct.locale', '=', 'en')
+            })
+            .select(
+              'c.slug',
+              db.raw('COALESCE(ct.name, c.slug) as name'),
+              db.raw('count(p.id) as count')
+            )
+            .groupBy('c.id', 'c.slug', 'ct.name')
+            .orderBy('count', 'desc')
+            .limit(5)
+        : [],
       showTypes ? db.from('places').select('type').count('* as count').groupBy('type') : [],
       showTypes ? categoryTypes() : [],
       showAudit
@@ -119,7 +165,38 @@ export default class AdminDashboardController {
     const publishedCount = Number(publishedPlacesRes?.count ?? 0)
     const draftCount = Number(draftPlacesRes?.count ?? 0)
     const archivedCount = Number(archivedPlacesRes?.count ?? 0)
+    const featuredCount = Number(featuredPlacesRes?.count ?? 0)
+    const geocodedCount = Number(geocodedPlacesRes?.count ?? 0)
+
     const newContactsCount = Number(newContactsRes?.count ?? 0)
+    const totalContacts = Number(totalContactsRes?.count ?? 0)
+    const resolvedContacts = Number(resolvedContactsRes?.count ?? 0)
+
+    const totalCustomers = Number(totalCustomersRes?.count ?? 0)
+    const verifiedCustomers = Number(verifiedCustomersRes?.count ?? 0)
+
+    const activeCategories = Number(activeCategoriesRes?.count ?? 0)
+
+    const topCategories = Array.isArray(topCategoriesRes)
+      ? (
+          topCategoriesRes as Array<{
+            name: unknown
+            slug: unknown
+            count: unknown
+          }>
+        ).map((c) => ({
+          name: String(c.name),
+          slug: String(c.slug),
+          count: Number(c.count),
+        }))
+      : []
+
+    const publishedRate = totalPlaces > 0 ? Math.round((publishedCount / totalPlaces) * 100) : 0
+    const draftRate = totalPlaces > 0 ? Math.round((draftCount / totalPlaces) * 100) : 0
+    const archivedRate = totalPlaces > 0 ? Math.round((archivedCount / totalPlaces) * 100) : 0
+    const geocodedRate = totalPlaces > 0 ? Math.round((geocodedCount / totalPlaces) * 100) : 0
+    const contactsResolutionRate =
+      totalContacts > 0 ? Math.round((resolvedContacts / totalContacts) * 100) : 0
 
     const countByType = (code: string) =>
       Number(typeCounts.find((row) => row.type === code)?.count ?? 0)
@@ -309,11 +386,28 @@ export default class AdminDashboardController {
         archivedCount,
         newContactsCount,
         typeBreakdown,
+        analytics: {
+          featuredCount,
+          geocodedCount,
+          geocodedRate,
+          publishedRate,
+          draftRate,
+          archivedRate,
+          totalContacts,
+          resolvedContacts,
+          contactsResolutionRate,
+          totalCustomers,
+          verifiedCustomers,
+          activeCategories,
+          topCategories,
+        },
         visibility: {
           places: showPlaces,
           contacts: showContacts,
           types: showTypes,
           audit: showAudit,
+          customers: showCustomers,
+          categories: showCategories,
         },
         permissions: [...authorization.permissions],
       },

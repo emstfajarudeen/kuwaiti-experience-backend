@@ -11,6 +11,7 @@ type FormValues = {
   nameEn: string | null
   nameAr: string | null
   sortOrder: string | null
+  removeImage?: string | null
 }
 type Props = {
   adminName: string
@@ -33,7 +34,6 @@ export default function CategoryTypeEdit({
 }: Props) {
   const [antdForm] = Form.useForm()
   const [processing, setProcessing] = useState(false)
-  const [removeImage, setRemoveImage] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const action = categoryType
     ? `/admin/category-types/${encodeURIComponent(categoryType.code)}/save`
@@ -87,54 +87,24 @@ export default function CategoryTypeEdit({
               <Form.Item name="nameEn" label="English name" rules={[{ required: true, min: 2, max: 160, message: 'Enter an English name between 2 and 160 characters.' }]}><Input name="nameEn" maxLength={160} placeholder="Museums" /></Form.Item>
               <Form.Item name="nameAr" label="Arabic name" rules={[{ max: 160, message: 'Arabic name must be 160 characters or fewer.' }]}><Input name="nameAr" dir="rtl" lang="ar" maxLength={160} placeholder="المتاحف" /></Form.Item>
               <Form.Item label="Image" className="full tw:col-span-full">
-                <input type="hidden" name="removeImage" value={removeImage ? 'on' : ''} />
-                {imageUrl && !removeImage ? (
-                  <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-4">
-                    <div className="tw:relative tw:flex tw:size-[110px] tw:shrink-0 tw:items-center tw:justify-center tw:overflow-hidden tw:rounded-cms tw:border tw:border-brand-line tw:bg-white tw:p-2 tw:shadow-sm">
-                      <img
-                        src={imageUrl}
-                        alt={categoryType?.name_en ?? ''}
-                        className="tw:max-h-full tw:max-w-full tw:object-contain"
-                      />
-                    </div>
-                    <div className="tw:flex tw:flex-col tw:items-start tw:gap-2.5">
-                      <ImageUpload name="image" />
-                      <Button
-                        danger
-                        size="small"
-                        onClick={() => setRemoveImage(true)}
-                      >
-                        Remove image
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="tw:flex tw:flex-col tw:items-start tw:gap-3">
-                    {imageUrl && removeImage && (
-                      <div className="tw:inline-flex tw:items-center tw:gap-3 tw:rounded-cms tw:border tw:border-dashed tw:border-red-300 tw:bg-red-50/70 tw:px-3.5 tw:py-2 tw:text-xs">
-                        <span className="tw:font-medium tw:text-red-700">Image will be removed upon saving</span>
-                        <Button size="small" onClick={() => setRemoveImage(false)}>
-                          Undo
-                        </Button>
-                      </div>
-                    )}
-                    <ImageUpload name="image" />
-                  </div>
-                )}
+                <ImageUpload
+                  name="image"
+                  currentImageUrl={imageUrl}
+                  currentImageAlt={categoryType?.name_en ?? 'Current category image'}
+                  removeName="removeImage"
+                  initiallyRemoved={form?.removeImage === 'on'}
+                />
               </Form.Item>
             </div>
           </section>
         </div>
       </Form>
       {categoryType && (
-        <section className="panel danger-zone-panel tw:max-w-[600px] tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:[border-color:var(--danger-border)] tw:[background:#fdfaf9] tw:[padding:var(--space-5)_var(--space-6)] tw:[margin-top:var(--space-8)]">
-          <h2>Danger zone</h2>
-          <div className="tw:mt-3.5">
-            <button type="button" className="button danger" onClick={() => setConfirmDelete(true)}>
-              Delete category type
-            </button>
-          </div>
-        </section>
+        <div className="form-delete-actions">
+          <button type="button" className="button danger" onClick={() => setConfirmDelete(true)}>
+            Delete category type
+          </button>
+        </div>
       )}
       <ConfirmModal
         open={confirmDelete}

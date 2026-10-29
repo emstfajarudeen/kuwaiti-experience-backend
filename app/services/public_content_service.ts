@@ -232,7 +232,12 @@ export async function homeContent(locale: 'en' | 'ar') {
             : english?.hero_image_key
         ),
       },
+      discoveryEyebrow:
+        homeText('discovery_eyebrow') ?? 'EVERYTHING IN ONE PLACE',
       discoveryTitle: homeText('discovery_title') ?? 'What would you like to do?',
+      discoveryDescription:
+        homeText('discovery_description') ??
+        'Start with a ride, then make the city yours. Find the best of Kuwait by category.',
       categoryTypes,
       featured,
       app: {

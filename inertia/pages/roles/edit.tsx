@@ -35,8 +35,12 @@ export default function RoleEditor({ adminName, csrfToken, error, role, permissi
             <div className="cms-permission-grid">{Object.entries(groups).map(([module, items]) => <section className="cms-permission-group" key={module}><h2 className="tw:capitalize">{module.replaceAll('_', ' ')}</h2><div className="tw:flex tw:flex-col tw:gap-2">{items?.map((permission) => <Checkbox key={permission.key} value={permission.key}>{permission.label}</Checkbox>)}</div></section>)}</div>
           </Checkbox.Group>
         </Form.Item>
-        {role && <div className="tw:mt-6"><Button danger onClick={() => setDeleteOpen(true)}>Delete role</Button></div>}
       </Form>}
+      {role && !role.is_system && (
+        <div className="form-delete-actions">
+          <Button danger onClick={() => setDeleteOpen(true)}>Delete role</Button>
+        </div>
+      )}
       <ConfirmModal open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Delete role" message="Delete this role? Reassign its staff first; assigned roles cannot be deleted." action={role ? `/admin/roles/${role.id}/delete` : ''} csrfToken={csrfToken} confirmLabel="Delete role" danger />
     </AdminLayout>
   )

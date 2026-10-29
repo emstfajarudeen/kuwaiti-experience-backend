@@ -58,7 +58,9 @@ The code above illustrates URL construction; adapt state and error handling to t
       "title": "Explore Kuwait",
       "image": "/api/v1/images/5f0c6b1e-8a7d-4c2b-9e1f-3a2b1c0d9e8f.webp"
     },
+    "discoveryEyebrow": "EVERYTHING IN ONE PLACE",
     "discoveryTitle": "What would you like to do?",
+    "discoveryDescription": "Start with a ride, then make the city yours. Find the best of Kuwait by category.",
     "categoryTypes": [
       {
         "type": "attraction",

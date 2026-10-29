@@ -124,11 +124,8 @@ export async function updatePlaceExplore(id: number, input: Row, actorId: number
 export async function saveFeature(input: Row, actorId: number, id?: number) {
   await assertPlaceType(input.type)
   const savedId = await db.transaction(async (trx) => {
-    // Shared type lock bounds feature definitions and serializes type changes.
     await trx.from('category_types').where('code', input.type).forUpdate().first()
-    const existing = id
-      ? await trx.from('place_features').where('id', id).forUpdate().first()
-      : null
+    const existing = id ? await trx.from('place_features').where('id', id).forUpdate().first() : null
     if (id && !existing) throw new ApiError(404, 'NOT_FOUND', 'Feature not found')
     if (
       existing &&
@@ -143,11 +140,7 @@ export async function saveFeature(input: Row, actorId: number, id?: number) {
       .first()
     if (duplicate && Number(duplicate.id) !== id)
       throw new ApiError(409, 'FEATURE_EXISTS', 'A feature with this code exists for the type')
-    const count = await trx
-      .from('place_features')
-      .where('type', input.type)
-      .count('* as total')
-      .first()
+    const count = await trx.from('place_features').where('type', input.type).count('* as total').first()
     if ((!existing || existing.type !== input.type) && Number(count?.total) >= 500)
       throw new ApiError(422, 'FEATURE_LIMIT', 'A type can have up to 500 features')
     const fields = {
@@ -160,17 +153,13 @@ export async function saveFeature(input: Row, actorId: number, id?: number) {
       sort_order: input.sort_order,
       updated_at: new Date(),
     }
-    const inserted = id
-      ? []
-      : await trx.table('place_features').insert({ ...fields, created_at: new Date() })
+    const inserted = id ? [] : await trx.table('place_features').insert({ ...fields, created_at: new Date() })
     const result = id ?? inserted[0]
     if (id) await trx.from('place_features').where('id', id).update(fields)
     await audit(trx, actorId, 'place_feature', result, id ? 'updated' : 'created')
     return result
   })
-  return {
-    data: serialize.feature((await db.from('place_features').where('id', savedId).first())!),
-  }
+  return { data: serialize.feature((await db.from('place_features').where('id', savedId).first())!) }
 }
 
 export async function deleteFeature(id: number, actorId: number) {

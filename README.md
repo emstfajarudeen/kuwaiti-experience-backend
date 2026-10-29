@@ -6,7 +6,7 @@ AdonisJS 7, TypeScript, MySQL backend and browser-based admin CMS for a Kuwait d
 
 ## What is implemented
 
-- Place, category, category-type, static-page, homepage, transport-location, and site-settings management in a navy/ivory/gold CMS inspired by the supplied screenshots. Category types can be added or deleted in the CMS; deletion is blocked while categories or places use a type.
+- Place, category, category-type, static-page, homepage, and site-settings management in a navy/ivory/gold CMS inspired by the supplied screenshots. Category types can be added or deleted in the CMS; deletion is blocked while categories or places use a type. Transport locations remain available through the admin API.
 - Public landing page, listing, detail, category, page, site, and cab-enquiry-link APIs. The landing page returns category type tiles and published places selected as featured in the place editor. The cab action creates a WhatsApp enquiry link; it does **not** confirm a booking or charge a fare.
 - Admin JWT bearer API and HttpOnly-cookie CMS sessions. Access tokens last 15 minutes; hashed, rotating refresh tokens last up to seven days. Logout and password changes revoke sessions.
 - Images owned by the records that use them, with no shared media library: place cover and gallery, category type tile, per-locale homepage hero, and site logo are uploaded directly in their CMS forms (or the matching admin API endpoints). Uploads are stored privately, decoded and re-encoded to WebP, and served publicly at `/api/v1/images/{key}` only while their owner is visible. Replacing or removing an image, or deleting its record, deletes the file after the database commit.

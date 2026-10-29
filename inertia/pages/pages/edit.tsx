@@ -152,23 +152,20 @@ export default function PageEdit({
         </div>
       </Form>
       {page && (
-        <section className="panel danger-zone-panel tw:[max-width:600px] tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:[border-color:var(--danger-border)] tw:[background:#fdfaf9] tw:[padding:var(--space-5)_var(--space-6)] tw:[margin-top:var(--space-8)]">
-          <h2>Danger zone</h2>
-          <div className="danger-zone-actions tw:[margin-top:14px] tw:[display:flex] tw:[align-items:center] tw:[flex-wrap:wrap] tw:[gap:var(--space-4)] tw:[margin-top:var(--space-4)]">
-            <form
-              action={`/admin/pages/${page.id}/${page.status === 'published' ? 'archive' : 'publish'}`}
-              method="POST"
-            >
-              <input type="hidden" name="_csrf" value={csrfToken} />
-              <button className="button secondary" type="submit">
-                {page.status === 'published' ? 'Archive page' : 'Publish page'}
-              </button>
-            </form>
-            <button className="button danger" type="button" onClick={() => setConfirmDelete(true)}>
-              Delete permanently
+        <div className="form-delete-actions">
+          <form
+            action={`/admin/pages/${page.id}/${page.status === 'published' ? 'archive' : 'publish'}`}
+            method="POST"
+          >
+            <input type="hidden" name="_csrf" value={csrfToken} />
+            <button className="button secondary" type="submit">
+              {page.status === 'published' ? 'Archive page' : 'Publish page'}
             </button>
-          </div>
-        </section>
+          </form>
+          <button className="button danger" type="button" onClick={() => setConfirmDelete(true)}>
+            Delete permanently
+          </button>
+        </div>
       )}
       <ConfirmModal
         open={confirmDelete}
