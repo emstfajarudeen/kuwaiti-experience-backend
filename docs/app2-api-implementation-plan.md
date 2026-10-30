@@ -2,7 +2,7 @@
 
 The [Home API and CMS section](app-api-reference.md#12-home-screen) is implemented. Home Explore cards link to existing place details; search stays pending. Rental/cab and notification functionality are outside this Home section.
 
-Current approval status: the first account/support screens, Edit Profile, Explore additions with CMS management, and Home API with CMS management are implemented. See the [Explore guide](explore-api.md) and [app API reference Home section](app-api-reference.md#12-home-screen). Schedule, Home search, notifications and actual cab ride creation remain pending. The original design-stage status line below describes the initial plan, not these completed sections.
+Current approval status: the first account/support screens, Edit Profile, Explore additions with CMS management, Home API with CMS management, and generic FCM notification inbox/token APIs are implemented. See the [Explore guide](explore-api.md) and [app API reference](app-api-reference.md). Schedule, Home search, ride/rental notification event integrations, and actual cab ride creation remain pending. The original design-stage status line below describes the initial plan, not these completed sections.
 
 Status: **design analysis and planning; no implementation section approved**. Source: [Figma App 2 page](https://www.figma.com/design/Ut5EtFQuXCwoux1QMCSZDD/Kuwaitiexperience?node-id=625-13471), reviewed 20 October 2026. See the [81-frame screen audit](app2-figma-screen-audit.md) and [API reference](app-api-reference.md). The earlier `IMPLEMENTATION_PLAN.md` describes the website/CMS baseline, not the full mobile product.
 

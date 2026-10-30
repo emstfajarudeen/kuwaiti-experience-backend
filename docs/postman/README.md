@@ -44,6 +44,7 @@ Challenge IDs and phone verification proof are stored automatically. Successful 
 - Folder 06 is optional. Enter your own `admin_email`/`admin_password` and use Admin sign in, or supply an existing admin JWT as `admin_access_token`. CMS credentials are separate from customer tokens. Set `contact_status` to `new`, `in_progress` or `resolved` to filter/update contacts.
 - Folders 07–09 cover Explore public browsing, customer bookmarks and CMS feature/movie/showtime management. Folder 09A covers the app Home and CMS controls. See the flows below.
 - Folder 08A contains saved-address create/list/detail/update/delete requests. Send **Save address** first with a customer token to capture `saved_address_id`, then use the remaining requests. See [saved-address integration](../saved-addresses-api.md).
+- Folder 08B contains FCM token registration/removal and the customer notification inbox/read requests. Set the secret `fcm_registration_token` from the app's Firebase SDK before registering a device. No ride/rental events currently create inbox items; delivery also requires Firebase server credentials and the background worker. See [notification API](../notifications-openapi.json).
 - Folder 10 contains logout and permanent account deletion. Send these individually after testing. Logout invalidates the current session; deletion removes the customer and owned data and requires OTP sign-in within the past 10 minutes. Both clear captured customer credentials on success. Use a disposable account for deletion.
 
 ## Explore testing
@@ -66,4 +67,4 @@ Send requests individually. A full Collection Runner run is unsuitable: sign-in 
 
 Tokens, proofs, OTP codes and the admin password are marked secret in the environment. Do not share populated environment exports; keep the checked-in template empty of credentials. A failing HTTP assertion shows an unmet prerequisite or API error; inspect the response's `error.code` and `error.message`.
 
-Contract details: [app API reference](../app-api-reference.md), [customer API](../customer-api.md), [Edit Profile](../customer-profile-api.md), [customer OpenAPI](../customer-openapi.json), [Explore API](../explore-api.md), [Explore OpenAPI](../explore-openapi.json), [Home OpenAPI](../home-openapi.json).
+Contract details: [app API reference](../app-api-reference.md), [customer API](../customer-api.md), [Edit Profile](../customer-profile-api.md), [customer OpenAPI](../customer-openapi.json), [Explore API](../explore-api.md), [Explore OpenAPI](../explore-openapi.json), [Home OpenAPI](../home-openapi.json), [Notifications OpenAPI](../notifications-openapi.json).

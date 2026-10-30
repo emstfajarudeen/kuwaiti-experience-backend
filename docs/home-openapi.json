@@ -3,7 +3,7 @@
   "info": {
     "title": "Kuwaiti Experience App Home API",
     "version": "2.0.0",
-    "description": "Canonical DB-key Home content and CMS management. Place, CategoryType, Viewer and ImageLink schemas are shared with Explore. Home search, notifications, cab and rental are pending separate sections."
+    "description": "Canonical DB-key Home content and CMS management. Place, CategoryType, Viewer and ImageLink schemas are shared with Explore. Home search, cab and rental remain pending separate sections."
   },
   "servers": [
     {

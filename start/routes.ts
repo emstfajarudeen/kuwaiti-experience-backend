@@ -8,6 +8,7 @@ import {
   customerPhotoThrottle,
   bookmarkThrottle,
   customerAddressThrottle,
+  customerNotificationThrottle,
   passwordResetRequestThrottle,
   passwordResetConfirmThrottle,
 } from '#start/limiter'
@@ -16,6 +17,8 @@ const AuthController = () => import('#controllers/api/auth_controller')
 const CustomerAuthController = () => import('#controllers/api/customer_auth_controller')
 const CustomerProfileController = () => import('#controllers/api/customer_profile_controller')
 const CustomerAddressesController = () => import('#controllers/api/customer_addresses_controller')
+const CustomerNotificationsController = () =>
+  import('#controllers/api/customer_notifications_controller')
 const CustomerSupportController = () => import('#controllers/api/customer_support_controller')
 const AdminContactsController = () => import('#controllers/api/admin_contacts_controller')
 const ContactsController = () => import('#controllers/admin/contacts_controller')
@@ -260,6 +263,19 @@ router
     router
       .group(() => {
         router.get('/customer/me', [CustomerAuthController, 'me'])
+        router
+          .post('/customer/me/push-tokens', [CustomerNotificationsController, 'registerToken'])
+          .use(customerNotificationThrottle)
+        router
+          .delete('/customer/me/push-tokens/:id', [CustomerNotificationsController, 'removeToken'])
+          .use(customerNotificationThrottle)
+        router.get('/customer/me/notifications', [CustomerNotificationsController, 'index'])
+        router
+          .put('/customer/me/notifications/read-all', [CustomerNotificationsController, 'markAllRead'])
+          .use(customerNotificationThrottle)
+        router
+          .put('/customer/me/notifications/:id/read', [CustomerNotificationsController, 'markRead'])
+          .use(customerNotificationThrottle)
         router.get('/customer/me/saved-addresses', [CustomerAddressesController, 'index'])
         router.get('/customer/me/saved-addresses/:id', [CustomerAddressesController, 'show'])
         router

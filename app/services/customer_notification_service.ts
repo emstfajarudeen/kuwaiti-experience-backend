@@ -1,0 +1,317 @@
+import { createHash } from 'node:crypto'
+import jwt from 'jsonwebtoken'
+import db from '@adonisjs/lucid/services/db'
+import env from '#start/env'
+import { ApiError } from './api_error.js'
+import { pagination, positiveId } from './explore_read_service.js'
+import { customerNotification } from '../serializers/customer_notification.js'
+import type { Row } from '../serializers/customer.js'
+
+type PushTokenInput = { token: string; platform: 'ios' | 'android'; device_id?: string }
+export type NotificationInput = {
+  type: string
+  title: string
+  body: string
+  action_data?: Record<string, unknown> | null
+}
+
+const MAX_DELIVERY_ATTEMPTS = 10
+const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
+const FCM_SCOPE = 'https://www.googleapis.com/auth/firebase.messaging'
+let cachedAccessToken: { value: string; expiresAt: number } | null = null
+
+function digest(value: string) {
+  return createHash('sha256').update(value).digest('hex')
+}
+
+function pushConfig() {
+  const projectId = env.get('FCM_PROJECT_ID')
+  const clientEmail = env.get('FCM_CLIENT_EMAIL')
+  const privateKey = env.get('FCM_PRIVATE_KEY')?.release().replace(/\\n/g, '\n')
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error('FCM_PROJECT_ID, FCM_CLIENT_EMAIL, and FCM_PRIVATE_KEY must be configured')
+  }
+  return { projectId, clientEmail, privateKey }
+}
+
+export function assertPushConfigured() {
+  pushConfig()
+}
+
+async function accessToken() {
+  if (cachedAccessToken && cachedAccessToken.expiresAt > Date.now() + 60_000)
+    return cachedAccessToken.value
+
+  const { clientEmail, privateKey } = pushConfig()
+  const now = Math.floor(Date.now() / 1000)
+  const assertion = jwt.sign(
+    { scope: FCM_SCOPE, aud: GOOGLE_TOKEN_URL, iat: now, exp: now + 3600 },
+    privateKey,
+    { algorithm: 'RS256', issuer: clientEmail }
+  )
+  const form = new URLSearchParams({
+    grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+    assertion,
+  })
+  const response = await fetch(GOOGLE_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form,
+    signal: AbortSignal.timeout(15_000),
+  })
+  const result = (await response.json()) as { access_token?: string; expires_in?: number }
+  if (!response.ok || !result.access_token) throw new Error('Could not obtain FCM access token')
+  cachedAccessToken = {
+    value: result.access_token,
+    expiresAt: Date.now() + Number(result.expires_in ?? 3600) * 1000,
+  }
+  return cachedAccessToken.value
+}
+
+async function sendPush(input: {
+  token: string
+  notificationId: number
+  type: string
+  title: string
+  body: string
+  actionData: unknown
+}) {
+  const { projectId } = pushConfig()
+  const bearer = await accessToken()
+  const data: Record<string, string> = {
+    notification_id: String(input.notificationId),
+    type: input.type,
+  }
+  if (input.actionData !== null && input.actionData !== undefined)
+    data.action_data = JSON.stringify(input.actionData)
+
+  const response = await fetch(
+    `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/messages:send`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: {
+          token: input.token,
+          notification: { title: input.title, body: input.body },
+          data,
+        },
+      }),
+      signal: AbortSignal.timeout(15_000),
+    }
+  )
+  const result = (await response.json().catch(() => ({}))) as {
+    error?: { message?: string; status?: string; details?: Array<{ errorCode?: string }> }
+  }
+  if (response.ok) return
+  const error = result.error?.status ?? 'FCM_SEND_FAILED'
+  const invalidToken =
+    error === 'UNREGISTERED' || result.error?.details?.some((detail) => detail.errorCode === 'UNREGISTERED')
+  throw Object.assign(new Error(`FCM delivery failed: ${error}`), { invalidToken })
+}
+
+export async function registerPushToken(customerId: number, input: PushTokenInput) {
+  const tokenHash = digest(input.token)
+  return db.transaction(async (trx) => {
+    const customer = await trx.from('customers').where('id', customerId).forUpdate().first()
+    if (!customer) throw new ApiError(401, 'UNAUTHENTICATED', 'Customer authentication required')
+
+    if (input.device_id) {
+      await trx
+        .from('customer_push_tokens')
+        .where({ customer_id: customerId, device_id: input.device_id })
+        .whereNot('token_hash', tokenHash)
+        .delete()
+    }
+
+    await trx
+      .table('customer_push_tokens')
+      .insert({
+        customer_id: customerId,
+        token: input.token,
+        token_hash: tokenHash,
+        platform: input.platform,
+        device_id: input.device_id ?? null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      })
+      .onConflict('token_hash')
+      .merge({
+        customer_id: customerId,
+        platform: input.platform,
+        device_id: input.device_id ?? null,
+        updated_at: new Date(),
+      })
+    const row = await trx.from('customer_push_tokens').where('token_hash', tokenHash).firstOrFail()
+    return {
+      data: {
+        id: Number(row.id),
+        platform: row.platform,
+        device_id: row.device_id ?? null,
+        created_at: new Date(row.created_at).toISOString(),
+        updated_at: new Date(row.updated_at).toISOString(),
+      },
+    }
+  })
+}
+
+export async function removePushToken(customerId: number, id: unknown) {
+  const removed = await db
+    .from('customer_push_tokens')
+    .where({ customer_id: customerId, id: positiveId(id) })
+    .delete()
+  if (!removed) throw new ApiError(404, 'NOT_FOUND', 'Push token not found')
+}
+
+export async function listNotifications(customerId: number, input: Row) {
+  const { page, perPage } = pagination({ ...input, per_page: input.per_page ?? 20 })
+  const query = db.from('customer_notifications').where('customer_id', customerId)
+  const [count, unread, rows] = await Promise.all([
+    query.clone().count('* as total').first(),
+    query.clone().whereNull('read_at').count('* as total').first(),
+    query.clone().orderBy('id', 'desc').limit(perPage).offset((page - 1) * perPage),
+  ])
+  const total = Number(count?.total ?? 0)
+  return {
+    data: rows.map(customerNotification),
+    meta: {
+      page,
+      per_page: perPage,
+      total,
+      last_page: Math.max(1, Math.ceil(total / perPage)),
+      unread_count: Number(unread?.total ?? 0),
+    },
+  }
+}
+
+export async function markNotificationRead(customerId: number, id: unknown) {
+  const key = { customer_id: customerId, id: positiveId(id) }
+  const row = await db.from('customer_notifications').where(key).first()
+  if (!row) throw new ApiError(404, 'NOT_FOUND', 'Notification not found')
+  if (!row.read_at) {
+    await db.from('customer_notifications').where(key).whereNull('read_at').update({ read_at: new Date() })
+  }
+  return { data: customerNotification(await db.from('customer_notifications').where(key).firstOrFail()) }
+}
+
+export async function markAllNotificationsRead(customerId: number) {
+  await db
+    .from('customer_notifications')
+    .where('customer_id', customerId)
+    .whereNull('read_at')
+    .update({ read_at: new Date() })
+}
+
+/** Internal event hook for trusted backend workflows; never expose this as a customer write API. */
+export async function createCustomerNotification(customerId: number, input: NotificationInput) {
+  return db.transaction(async (trx) => {
+    const customer = await trx.from('customers').where('id', customerId).forUpdate().first()
+    if (!customer) throw new ApiError(404, 'NOT_FOUND', 'Customer not found')
+    const [id] = await trx.table('customer_notifications').insert({
+      customer_id: customerId,
+      type: input.type,
+      title: input.title,
+      body: input.body,
+      action_data: input.action_data ?? null,
+      created_at: new Date(),
+    })
+    const notification = await trx.from('customer_notifications').where('id', id).firstOrFail()
+    const tokens = await trx
+      .from('customer_push_tokens')
+      .where('customer_id', customerId)
+      .select('id')
+    if (tokens.length) {
+      const availableAt = new Date()
+      await trx.table('customer_notification_outbox').insert(
+        tokens.map((token) => ({
+          notification_id: id,
+          push_token_id: token.id,
+          available_at: availableAt,
+        }))
+      )
+    }
+    return { data: customerNotification(notification) }
+  })
+}
+
+async function claimOutboxBatch() {
+  const now = new Date()
+  const staleLock = new Date(Date.now() - 5 * 60 * 1000)
+  return db.transaction(async (trx) => {
+    const rows = await trx
+      .from('customer_notification_outbox')
+      .whereNull('delivered_at')
+      .whereNull('failed_at')
+      .where('available_at', '<=', now)
+      .where((query) => query.whereNull('locked_at').orWhere('locked_at', '<=', staleLock))
+      .orderBy('id')
+      .limit(25)
+      .forUpdate()
+      .skipLocked()
+    if (!rows.length) return [] as number[]
+    const ids = rows.map((row) => Number(row.id))
+    await trx.from('customer_notification_outbox').whereIn('id', ids).update({ locked_at: now })
+    return ids
+  })
+}
+
+async function deliverOne(row: Row) {
+  try {
+    await sendPush({
+      token: row.token,
+      notificationId: Number(row.notification_id),
+      type: row.type,
+      title: row.title,
+      body: row.body,
+      actionData:
+        row.action_data === null || row.action_data === undefined
+          ? null
+          : typeof row.action_data === 'string'
+            ? JSON.parse(row.action_data)
+            : row.action_data,
+    })
+    await db
+      .from('customer_notification_outbox')
+      .where('id', row.outbox_id)
+      .update({ delivered_at: new Date(), locked_at: null, last_error: null })
+  } catch (error) {
+    const attempts = Number(row.attempts) + 1
+    const invalidToken = Boolean((error as { invalidToken?: boolean }).invalidToken)
+    const exhausted = attempts >= MAX_DELIVERY_ATTEMPTS || invalidToken
+    const message = error instanceof Error ? error.message.slice(0, 1000) : 'Unknown FCM error'
+    await db
+      .from('customer_notification_outbox')
+      .where('id', row.outbox_id)
+      .update({
+        attempts,
+        available_at: new Date(Date.now() + Math.min(6 * 60 * 60_000, 30_000 * 2 ** (attempts - 1))),
+        locked_at: null,
+        failed_at: exhausted ? new Date() : null,
+        last_error: message,
+      })
+    if (invalidToken) await db.from('customer_push_tokens').where('id', row.push_token_id).delete()
+  }
+}
+
+export async function deliverPushBatch() {
+  const ids = await claimOutboxBatch()
+  if (!ids.length) return 0
+  const rows = await db
+    .from('customer_notification_outbox as o')
+    .join('customer_notifications as n', 'n.id', 'o.notification_id')
+    .join('customer_push_tokens as t', 't.id', 'o.push_token_id')
+    .whereIn('o.id', ids)
+    .select(
+      'o.id as outbox_id',
+      'o.attempts',
+      'o.push_token_id',
+      'n.id as notification_id',
+      'n.type',
+      'n.title',
+      'n.body',
+      'n.action_data',
+      't.token'
+    )
+  for (const row of rows) await deliverOne(row)
+  return rows.length
+}
