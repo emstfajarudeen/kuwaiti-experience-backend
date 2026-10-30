@@ -370,12 +370,12 @@ moduleRoutes(
 
 moduleRoutes(
   'settings',
-  ['/settings', '/settings'],
+  ['/settings', '/settings', '/app-config', '/app-config'],
   ['/settings', '/settings', '/settings/logo', '/settings/logo'],
   ['/site'],
   {
-    'GET view': ['/settings', '/site'],
-    'POST update': ['/settings'],
+    'GET view': ['/settings', '/site', '/app-config'],
+    'POST update': ['/settings', '/app-config'],
     'PATCH update': ['/settings'],
     'PUT update': ['/settings/logo'],
     'DELETE update': ['/settings/logo'],

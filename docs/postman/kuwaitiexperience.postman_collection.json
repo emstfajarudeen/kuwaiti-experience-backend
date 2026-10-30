@@ -7,6 +7,25 @@
   },
   "item": [
     {
+      "name": "00 — App startup configuration",
+      "item": [
+        {
+          "name": "Get app configuration",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Accept-Language", "value": "{{locale}}" }
+            ],
+            "url": "{{base_url}}/api/v2/config",
+            "auth": { "type": "noauth" },
+            "description": "Call at app startup. Each environment returns its own public origins, update settings and maintenance state."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "01 — Footer pages and public settings",
       "description": "Read all four footer Page resources after CMS publication. Privacy/Terms pages are available for app display; registration does not require page hashes. Contact submissions are in folder 05.",
       "item": [

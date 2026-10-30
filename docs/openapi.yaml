@@ -637,6 +637,8 @@ paths:
     $ref: './saved-addresses-openapi.json#/paths/~1api~1v2~1customer~1me~1saved-addresses~1{id}'
   /api/v2/customer/me/push-tokens:
     $ref: './notifications-openapi.json#/paths/~1api~1v2~1customer~1me~1push-tokens'
+  /api/v2/config:
+    $ref: './app-config-openapi.json#/paths/~1api~1v2~1config'
   /api/v2/customer/me/push-tokens/{id}:
     $ref: './notifications-openapi.json#/paths/~1api~1v2~1customer~1me~1push-tokens~1{id}'
   /api/v2/customer/me/notifications:

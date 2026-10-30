@@ -52,7 +52,7 @@ export default class extends BaseSchema {
         .notNullable()
         .references('customer_push_tokens.id')
         .onDelete('CASCADE')
-      table.unsignedInteger('attempts').notNullable().defaultTo(0)
+      table.integer('attempts').unsigned().notNullable().defaultTo(0)
       table.timestamp('available_at').notNullable()
       table.timestamp('locked_at').nullable()
       table.timestamp('delivered_at').nullable()

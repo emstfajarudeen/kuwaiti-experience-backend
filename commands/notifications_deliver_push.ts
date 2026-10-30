@@ -17,7 +17,7 @@ export default class NotificationsDeliverPush extends BaseCommand {
         const delivered = await deliverPushBatch()
         if (!delivered && this.watch) await new Promise((resolve) => setTimeout(resolve, 1000))
       } catch (error) {
-        this.logger.error({ err: error }, 'Push notification delivery worker failed')
+        this.logger.error(error instanceof Error ? error.message : String(error))
         if (!this.watch) throw error
         await new Promise((resolve) => setTimeout(resolve, 3000))
       }

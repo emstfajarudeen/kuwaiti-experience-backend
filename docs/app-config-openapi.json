@@ -1,0 +1,55 @@
+{
+  "openapi": "3.1.0",
+  "info": { "title": "Mobile app configuration", "version": "2.0.0" },
+  "paths": {
+    "/api/v2/config": {
+      "get": {
+        "summary": "Get the public app configuration for this environment",
+        "description": "No authentication is required. The language header selects English or Arabic with English fallback. Values can change in the CMS; cache the last successful response for offline startup.",
+        "parameters": [{ "name": "Accept-Language", "in": "header", "required": false, "schema": { "type": "string", "example": "ar" } }],
+        "responses": {
+          "200": {
+            "description": "Current configuration; do not cache HTTP responses",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConfigResult" } } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PlatformUpdate": {
+        "type": "object", "required": ["version", "force", "store_url"],
+        "properties": {
+          "version": { "type": ["string", "null"], "example": "1.0.0", "description": "Latest available version. Null means no update is configured." },
+          "force": { "type": "boolean" },
+          "store_url": { "type": ["string", "null"], "format": "uri" }
+        }
+      },
+      "ConfigResult": {
+        "type": "object", "required": ["data"], "properties": {
+          "data": {
+            "type": "object", "required": ["environment", "api_base_url", "image_base_url", "update", "maintenance"],
+            "properties": {
+              "environment": { "type": ["string", "null"], "enum": ["qa", "live", null] },
+              "api_base_url": { "type": "string", "format": "uri", "description": "Origin; API paths already begin with /api/v2." },
+              "image_base_url": { "type": "string", "format": "uri", "description": "Origin for resolving returned relative image paths." },
+              "update": {
+                "type": "object", "required": ["title", "message", "ios", "android"], "properties": {
+                  "title": { "type": "string" }, "message": { "type": "string" },
+                  "ios": { "$ref": "#/components/schemas/PlatformUpdate" },
+                  "android": { "$ref": "#/components/schemas/PlatformUpdate" }
+                }
+              },
+              "maintenance": {
+                "type": "object", "required": ["enabled", "title", "message"], "properties": {
+                  "enabled": { "type": "boolean" }, "title": { "type": "string" }, "message": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

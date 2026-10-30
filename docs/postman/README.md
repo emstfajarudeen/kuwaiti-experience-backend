@@ -40,6 +40,7 @@ Challenge IDs and phone verification proof are stored automatically. Successful 
 
 ## Contact, CMS and session endings
 
+- Folder 00 retrieves the public app startup configuration for the selected environment. Configure updates and maintenance under CMS Site settings → Mobile app configuration.
 - Folder 05 offers guest and customer contact submissions. Each successful Send creates a real inbox record and captures `contact_request_id`. Limit: five submissions per IP per hour.
 - Folder 06 is optional. Enter your own `admin_email`/`admin_password` and use Admin sign in, or supply an existing admin JWT as `admin_access_token`. CMS credentials are separate from customer tokens. Set `contact_status` to `new`, `in_progress` or `resolved` to filter/update contacts.
 - Folders 07–09 cover Explore public browsing, customer bookmarks and CMS feature/movie/showtime management. Folder 09A covers the app Home and CMS controls. See the flows below.
