@@ -51,11 +51,6 @@ export default function Settings({
       >
         <input type="hidden" name="_csrf" value={csrfToken} />
         <div className="editor-main tw:flex tw:flex-col">
-          <section className="panel form-panel tw:mb-6 tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-6">
-            <h2>Mobile app configuration</h2>
-            <p>Manage app versions, update messages and maintenance mode.</p>
-            <a href="/admin/app-config">Open app configuration</a>
-          </section>
           <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
             <h2>App store links</h2>
             <div className="form-grid two tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">

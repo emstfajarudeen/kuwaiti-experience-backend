@@ -40,7 +40,7 @@ export default function AppConfigPage({ adminName, csrfToken, success, error, en
   return (
     <AdminLayout
       title="App configuration"
-      active="settings"
+      active="app-config"
       adminName={adminName}
       csrfToken={csrfToken}
       success={success}
