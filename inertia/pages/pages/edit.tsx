@@ -213,7 +213,6 @@ export default function PageEdit({
                 format={value('bodyFormatEn', en?.body_format || 'plain_text')}
                 required
                 error={bodyError || null}
-                hint="Required before publishing. Drafts can be saved without content."
                 onChange={(nextBody) => {
                   setBodyContent(nextBody)
                   setBodyError((current) => {
