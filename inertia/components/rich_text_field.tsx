@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { Form } from 'antd'
 
 type Props = {
   id: string
@@ -39,6 +40,7 @@ export default function RichTextField({
     if (!source || !editor || !formatInput) return
     let disposed = false
     let toolbar: HTMLElement | null = null
+    let submitHandler: (() => void) | undefined
     void import('quill').then(({ default: Quill }) => {
       if (disposed) return
       const quill = new Quill(editor, {
@@ -70,14 +72,18 @@ export default function RichTextField({
       formatInput.value = 'html'
       toolbar = editor.parentElement?.querySelector('.ql-toolbar') ?? null
       const sync = () => {
-        source.value = quill.getText().trim() ? quill.getSemanticHTML() : ''
+        const visibleText = quill.getText().replace(/\uFEFF/g, '').trim()
+        source.value = visibleText ? quill.getSemanticHTML() : ''
         source.dispatchEvent(new Event('input', { bubbles: true }))
         onChangeRef.current?.(source.value)
       }
       quill.on('text-change', sync)
+      submitHandler = sync
+      source.closest('form')?.addEventListener('submit', submitHandler)
     })
     return () => {
       disposed = true
+      if (submitHandler) source.closest('form')?.removeEventListener('submit', submitHandler)
       toolbar?.remove()
       if (editor) editor.innerHTML = ''
     }
@@ -95,29 +101,39 @@ export default function RichTextField({
   }, [error, id])
   return (
     <div
-      className="rich-field tw:mt-2 tw:flex tw:flex-col tw:gap-2"
+      className={`rich-field tw:flex tw:flex-col tw:gap-1.5 ${error ? 'has-error' : ''}`}
       dir={rtl ? 'rtl' : undefined}
       lang={rtl ? 'ar' : undefined}
     >
       <label id={`${id}-label`}>
-        {label}
-        {required ? ' *' : ''}
+        <span>
+          {label}
+          {required && (
+            <>
+              {' '}
+              <span className="tw:text-red-700" aria-hidden="true">
+                *
+              </span>
+            </>
+          )}
+        </span>
       </label>
       <input ref={formatRef} type="hidden" name={formatName} defaultValue={format} />
       <input ref={sourceRef} type="hidden" id={`${id}-source`} name={name} defaultValue={value} />
       {hint && <p className="tw:m-0 tw:text-sm tw:text-brand-muted">{hint}</p>}
-      <div
-        ref={editorRef}
-        id={id}
-        className="rich-editor tw:min-h-[250px] tw:rounded-b-cms-sm tw:bg-white tw:text-[15px]"
-        aria-label={`${rtl ? 'Arabic' : 'English'} page body editor`}
-        aria-invalid={error ? true : undefined}
-      />
-      {error && (
-        <p id={`${id}-error`} role="alert" className="tw:m-0 tw:text-sm tw:text-red-700">
-          {error}
-        </p>
-      )}
+      <Form.Item
+        className="tw:!mb-0"
+        validateStatus={error ? 'error' : undefined}
+        help={error || undefined}
+      >
+        <div
+          ref={editorRef}
+          id={id}
+          className="rich-editor tw:min-h-[250px] tw:rounded-b-cms-sm tw:bg-white tw:text-[15px]"
+          aria-label={`${rtl ? 'Arabic' : 'English'} page body editor`}
+          aria-invalid={error ? true : undefined}
+        />
+      </Form.Item>
     </div>
   )
 }

@@ -62,6 +62,18 @@ const permissionDefinitions = [
     action: 'view',
     label: 'View registered app users',
   },
+  {
+    key: 'notifications.view',
+    module: 'notifications',
+    action: 'view',
+    label: 'View notifications',
+  },
+  {
+    key: 'notifications.send',
+    module: 'notifications',
+    action: 'send',
+    label: 'Send notifications',
+  },
   { key: 'staff.view', module: 'staff', action: 'view', label: 'View staff' },
   { key: 'staff.manage', module: 'staff', action: 'manage', label: 'Manage staff', reserved: true },
   { key: 'roles.view', module: 'roles', action: 'view', label: 'View roles' },

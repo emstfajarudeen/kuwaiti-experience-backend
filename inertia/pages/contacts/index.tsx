@@ -2,6 +2,7 @@ import { Table } from 'antd'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import RowActionMenu from '../../components/row_action_menu'
 import AdminLayout from '../../layouts/admin_layout'
+import { formatCmsDateTime } from '../../lib/date_time'
 
 type Contact = {
   id: number
@@ -137,11 +138,11 @@ export default function ContactInbox({
       ),
     },
     {
-      title: 'Received (Kuwait)',
+      title: 'Received ',
       dataIndex: 'created_at',
       key: 'created_at',
       render: (createdAt: Contact['created_at']) => (
-        <span className="tw:text-[13px] tw:text-brand-muted">{createdAt}</span>
+        <span className="tw:text-[13px] tw:text-brand-muted">{formatCmsDateTime(createdAt)}</span>
       ),
     },
     {

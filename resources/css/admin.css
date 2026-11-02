@@ -318,7 +318,7 @@
     box-shadow: var(--shadow);
   }
 
-  /* Editors use the available CMS width; field rows stay compact. */
+  /* Editors use the available CMS width with room to scan between fields. */
   .editor-grid,
   .cms-form-workspace {
     grid-template-columns: minmax(0, 1fr) !important;
@@ -336,8 +336,8 @@
   }
 
   .form-grid {
-    row-gap: 8px !important;
-    column-gap: 16px !important;
+    row-gap: 22px !important;
+    column-gap: 24px !important;
     align-items: start;
   }
 
@@ -346,11 +346,26 @@
   }
 
   .form-grid .ant-form-item-label {
-    padding-bottom: 4px;
+    padding-bottom: 8px;
   }
 
   .cms-content .ant-form-item {
-    margin-bottom: 12px;
+    margin-bottom: 20px;
+  }
+
+  .cms-content .form-panel .ant-form-item-label {
+    padding-bottom: 8px;
+  }
+
+  .cms-content .form-panel .form-grid > label:not([class*='ant-']) {
+    gap: 9px;
+  }
+
+  .cms-form-section + .cms-form-section,
+  .cms-form-section-separated {
+    border-top: 1px solid var(--line);
+    margin-top: 32px;
+    padding-top: 32px;
   }
 
   .editor-grid .actions-panel .save-controls-stack {
@@ -501,6 +516,12 @@
     font-size: 13px;
     font-weight: 600;
     color: var(--ink-secondary);
+  }
+
+  label:not([class*='ant-']):not(.ant-form-item-label > label) > span:first-child {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
   }
 
   label:not([class*='ant-']):not(.ant-form-item-label > label) small {
@@ -1317,6 +1338,19 @@
   .ql-container.ql-snow {
     border-color: var(--line-strong) !important;
     border-radius: 0 0 var(--radius-sm) var(--radius-sm) !important;
+  }
+
+  .ant-form-item-has-error .ql-toolbar.ql-snow,
+  .ant-form-item-has-error .ql-container.ql-snow,
+  .rich-field.has-error .ql-toolbar.ql-snow,
+  .rich-field.has-error .ql-container.ql-snow {
+    border-color: var(--danger-text, #9e2a2b) !important;
+  }
+
+  .ant-form-item-has-error .ql-container.ql-snow:focus-within,
+  .rich-field.has-error .ql-container.ql-snow:focus-within {
+    border-color: var(--danger-text, #9e2a2b) !important;
+    box-shadow: 0 0 0 2px rgba(158, 42, 43, 0.2);
   }
 
   /* Responsive Rules */

@@ -29,7 +29,13 @@ function userUrl(page: number, query: string) {
 
 function formatDate(value: string | null) {
   if (!value) return '—'
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
+    new Date(value)
+  )
+}
+
+function initials(firstName: string, lastName: string) {
+  return `${firstName.trim().charAt(0)}${lastName.trim().charAt(0)}`.toUpperCase() || '?'
 }
 
 export default function CustomersIndex({ adminName, csrfToken, query, users, meta }: Props) {
@@ -41,9 +47,21 @@ export default function CustomersIndex({ adminName, csrfToken, query, users, met
       title: 'User',
       key: 'name',
       render: (_, user) => (
-        <div className="tw:flex tw:flex-col">
-          <strong>{user.first_name} {user.last_name}</strong>
-          <span className="tw:text-[13px] tw:text-brand-muted">{user.email || 'No email added'}</span>
+        <div className="tw:flex tw:min-w-[240px] tw:items-center tw:gap-3">
+          <span
+            className="tw:grid tw:size-10 tw:shrink-0 tw:place-items-center tw:rounded-full tw:bg-brand-navy tw:text-sm tw:font-bold tw:text-brand-gold"
+            aria-hidden="true"
+          >
+            {initials(user.first_name, user.last_name)}
+          </span>
+          <div className="tw:flex tw:flex-col">
+            <strong>
+              {user.first_name} {user.last_name}
+            </strong>
+            <span className="tw:text-[13px] tw:text-brand-muted">
+              {user.email || 'No email added'}
+            </span>
+          </div>
         </div>
       ),
     },
@@ -59,10 +77,17 @@ export default function CustomersIndex({ adminName, csrfToken, query, users, met
       ),
     },
     {
+      title: 'Status',
+      key: 'status',
+      render: () => <span className="status published">Active</span>,
+    },
+    {
       title: 'Registered',
       dataIndex: 'created_at',
       key: 'created_at',
-      render: (value: string | null) => <span className="tw:text-[13px] tw:text-brand-muted">{formatDate(value)}</span>,
+      render: (value: string | null) => (
+        <span className="tw:text-[13px] tw:text-brand-muted">{formatDate(value)}</span>
+      ),
     },
   ]
 
@@ -86,11 +111,22 @@ export default function CustomersIndex({ adminName, csrfToken, query, users, met
       </div>
 
       <section className="panel cms-filter-panel tw:mb-5">
-        <Form form={form} layout="vertical" initialValues={{ q: query }} onFinish={applySearch} className="tw:flex tw:flex-wrap tw:items-end tw:gap-3">
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{ q: query }}
+          onFinish={applySearch}
+          className="tw:flex tw:flex-wrap tw:items-end tw:gap-3"
+        >
           <Form.Item name="q" label="Search" className="tw:mb-0 tw:min-w-[260px] tw:flex-1">
-            <Input allowClear maxLength={120} placeholder="Name, phone, or email" aria-label="Search app users" />
+            <Input
+              allowClear
+              maxLength={120}
+              placeholder="Name, phone, or email"
+              aria-label="Search app users"
+            />
           </Form.Item>
-          <Button className="button secondary tw:mb-0" htmlType="submit" loading={searching}>
+          <Button htmlType="submit" loading={searching}>
             Search
           </Button>
         </Form>
@@ -114,7 +150,9 @@ export default function CustomersIndex({ adminName, csrfToken, query, users, met
           }}
           onChange={changePage}
           scroll={{ x: 720 }}
-          locale={{ emptyText: query ? 'No app users match this search.' : 'No registered app users yet.' }}
+          locale={{
+            emptyText: query ? 'No app users match this search.' : 'No registered app users yet.',
+          }}
         />
       </section>
     </AdminLayout>

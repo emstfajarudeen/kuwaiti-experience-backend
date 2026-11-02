@@ -16,6 +16,8 @@ export type NotificationInput = {
 }
 
 const MAX_DELIVERY_ATTEMPTS = 10
+const DELIVERY_BATCH_SIZE = 100
+const DELIVERY_CONCURRENCY = 10
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const FCM_SCOPE = 'https://www.googleapis.com/auth/firebase.messaging'
 let cachedAccessToken: { value: string; expiresAt: number } | null = null
@@ -36,6 +38,12 @@ function pushConfig() {
 
 export function assertPushConfigured() {
   pushConfig()
+}
+
+export function isPushConfigured() {
+  return Boolean(
+    env.get('FCM_PROJECT_ID') && env.get('FCM_CLIENT_EMAIL') && env.get('FCM_PRIVATE_KEY')
+  )
 }
 
 async function accessToken() {
@@ -89,7 +97,7 @@ async function sendPush(input: {
     `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/messages:send`,
     {
       method: 'POST',
-      headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': `Bearer ${bearer}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: {
           token: input.token,
@@ -106,8 +114,44 @@ async function sendPush(input: {
   if (response.ok) return
   const error = result.error?.status ?? 'FCM_SEND_FAILED'
   const invalidToken =
-    error === 'UNREGISTERED' || result.error?.details?.some((detail) => detail.errorCode === 'UNREGISTERED')
+    error === 'UNREGISTERED' ||
+    result.error?.details?.some((detail) => detail.errorCode === 'UNREGISTERED')
   throw Object.assign(new Error(`FCM delivery failed: ${error}`), { invalidToken })
+}
+
+/**
+ * Proves the whole push path without touching a device: service-account credentials
+ * are exchanged for an OAuth token, then FCM validates a dry-run message
+ * (`validate_only`). A placeholder token is rejected as INVALID_ARGUMENT only after
+ * FCM has accepted our credentials and project, so that answer means "working".
+ */
+export async function checkPushConnection() {
+  const { projectId } = pushConfig()
+  const bearer = await accessToken()
+  const response = await fetch(
+    `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/messages:send`,
+    {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${bearer}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        validate_only: true,
+        message: {
+          token: 'connection-check',
+          notification: { title: 'Connection check', body: 'Connection check' },
+        },
+      }),
+      signal: AbortSignal.timeout(15_000),
+    }
+  )
+  const result = (await response.json().catch(() => ({}))) as {
+    error?: { message?: string; status?: string }
+  }
+  const status = result.error?.status
+  if (response.ok || status === 'INVALID_ARGUMENT') return { projectId }
+  if (response.status === 401) cachedAccessToken = null
+  throw new Error(
+    `FCM rejected the connection check (${status ?? `HTTP ${response.status}`}). Check the FCM project and service account.`
+  )
 }
 
 export async function registerPushToken(customerId: number, input: PushTokenInput) {
@@ -169,7 +213,11 @@ export async function listNotifications(customerId: number, input: Row) {
   const [count, unread, rows] = await Promise.all([
     query.clone().count('* as total').first(),
     query.clone().whereNull('read_at').count('* as total').first(),
-    query.clone().orderBy('id', 'desc').limit(perPage).offset((page - 1) * perPage),
+    query
+      .clone()
+      .orderBy('id', 'desc')
+      .limit(perPage)
+      .offset((page - 1) * perPage),
   ])
   const total = Number(count?.total ?? 0)
   return {
@@ -189,9 +237,15 @@ export async function markNotificationRead(customerId: number, id: unknown) {
   const row = await db.from('customer_notifications').where(key).first()
   if (!row) throw new ApiError(404, 'NOT_FOUND', 'Notification not found')
   if (!row.read_at) {
-    await db.from('customer_notifications').where(key).whereNull('read_at').update({ read_at: new Date() })
+    await db
+      .from('customer_notifications')
+      .where(key)
+      .whereNull('read_at')
+      .update({ read_at: new Date() })
   }
-  return { data: customerNotification(await db.from('customer_notifications').where(key).firstOrFail()) }
+  return {
+    data: customerNotification(await db.from('customer_notifications').where(key).firstOrFail()),
+  }
 }
 
 export async function markAllNotificationsRead(customerId: number) {
@@ -245,7 +299,7 @@ async function claimOutboxBatch() {
       .where('available_at', '<=', now)
       .where((query) => query.whereNull('locked_at').orWhere('locked_at', '<=', staleLock))
       .orderBy('id')
-      .limit(25)
+      .limit(DELIVERY_BATCH_SIZE)
       .forUpdate()
       .skipLocked()
     if (!rows.length) return [] as number[]
@@ -284,7 +338,9 @@ async function deliverOne(row: Row) {
       .where('id', row.outbox_id)
       .update({
         attempts,
-        available_at: new Date(Date.now() + Math.min(6 * 60 * 60_000, 30_000 * 2 ** (attempts - 1))),
+        available_at: new Date(
+          Date.now() + Math.min(6 * 60 * 60_000, 30_000 * 2 ** (attempts - 1))
+        ),
         locked_at: null,
         failed_at: exhausted ? new Date() : null,
         last_error: message,
@@ -312,6 +368,9 @@ export async function deliverPushBatch() {
       'n.action_data',
       't.token'
     )
-  for (const row of rows) await deliverOne(row)
+  // Rows are independent, so deliver with bounded concurrency: a broadcast to thousands
+  // of devices would otherwise crawl at one sequential FCM round trip at a time.
+  for (let offset = 0; offset < rows.length; offset += DELIVERY_CONCURRENCY)
+    await Promise.all(rows.slice(offset, offset + DELIVERY_CONCURRENCY).map(deliverOne))
   return rows.length
 }

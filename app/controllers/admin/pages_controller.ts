@@ -27,10 +27,9 @@ export default class AdminPagesPageController {
         csrfToken: request.csrfToken,
         success: (session.flashMessages.get('success') as string | undefined) ?? null,
         error: (session.flashMessages.get('error') as string | undefined) ?? null,
-        publicSiteUrl:
-          env.get('PUBLIC_SITE_URL') ??
-          env.get('CORS_ORIGINS')?.split(',')[0]?.trim() ??
-          'https://thekuwaitiexperience.com',
+        // CORS origins describe allowed browser requests to this API and can be
+        // localhost in development; they are not the public website's base URL.
+        publicSiteUrl: env.get('PUBLIC_SITE_URL') ?? 'https://thekuwaitiexperience.com',
         rows: rows.map((row) => ({
           id: Number(row.id),
           slug: row.slug,
@@ -129,7 +128,7 @@ export default class AdminPagesPageController {
         normalizingPageBodyField = 'bodyAr'
         bodyAr = normalizePageBody(input.bodyAr, input.bodyFormatAr ?? 'plain_text')
       }
-      const id = await db.transaction(async (trx) => {
+      await db.transaction(async (trx) => {
         let pageId = params.id ? Number(params.id) : undefined
         if (pageId) {
           const changed = await trx
@@ -189,7 +188,7 @@ export default class AdminPagesPageController {
         return pageId
       })
       session.flash('success', 'Page saved.')
-      return response.redirect(`/admin/pages/${id}/edit`)
+      return response.redirect('/admin/pages')
     } catch (error) {
       const fieldErrors = validationErrorBag(error)
       if (fieldErrors) session.flash('pageFieldErrors', fieldErrors)
@@ -237,7 +236,7 @@ export default class AdminPagesPageController {
       created_at: new Date(),
     })
     session.flash('success', 'Page published.')
-    return response.redirect(`/admin/pages/${id}/edit`)
+    return response.redirect('/admin/pages')
   }
 
   async archive({ params, response, session }: HttpContext) {
@@ -247,7 +246,7 @@ export default class AdminPagesPageController {
       .where('id', id)
       .update({ status: 'archived', published_at: null, updated_at: new Date() })
     session.flash('success', 'Page archived.')
-    return response.redirect(`/admin/pages/${id}/edit`)
+    return response.redirect('/admin/pages')
   }
 
   async destroy({ params, response, session }: HttpContext) {

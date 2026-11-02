@@ -102,8 +102,9 @@ export default class AdminSitePageController {
   async settings({ inertia, request, session, admin }: HttpContext) {
     const settings = await db.from('site_settings').where('id', 1).first()
     const keys = [
-      'app_store_url',
-      'play_store_url',
+      'app_store_url', 'play_store_url', 'direct_phone_number', 'direct_phone_description',
+      'whatsapp_number', 'whatsapp_description', 'contact_email', 'headquarters_name',
+      'headquarters_address', 'headquarters_map_url',
     ]
     return inertia.render(
       'site/settings',
@@ -115,6 +116,9 @@ export default class AdminSitePageController {
         form: this.formValues(session.flashMessages.get('settingsForm'), [
           'appStoreUrl',
           'playStoreUrl',
+          'directPhoneNumber', 'directPhoneDescription', 'whatsappNumber',
+          'whatsappDescription', 'contactEmail', 'headquartersName',
+          'headquartersAddress', 'headquartersMapUrl',
         ]),
         settings: settings ? Object.fromEntries(keys.map((key) => [key, settings[key]])) : null,
       },
@@ -128,6 +132,14 @@ export default class AdminSitePageController {
       const input = await settingsValidator.validate({
         appStoreUrl: request.input('appStoreUrl') || null,
         playStoreUrl: request.input('playStoreUrl') || null,
+        directPhoneNumber: request.input('directPhoneNumber') || null,
+        directPhoneDescription: request.input('directPhoneDescription') || null,
+        whatsappNumber: request.input('whatsappNumber') || null,
+        whatsappDescription: request.input('whatsappDescription') || null,
+        contactEmail: request.input('contactEmail') || null,
+        headquartersName: request.input('headquartersName') || null,
+        headquartersAddress: request.input('headquartersAddress') || null,
+        headquartersMapUrl: request.input('headquartersMapUrl') || null,
       })
       await saveSettings(input, admin.id)
       session.flash('success', 'Site settings saved.')

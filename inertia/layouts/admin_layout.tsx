@@ -102,6 +102,13 @@ const navigation = [
         active: 'contacts',
         permission: 'contact_requests.view',
       },
+      {
+        href: '/admin/notifications',
+        icon: '❖',
+        label: 'Notifications',
+        active: 'notifications',
+        permission: 'notifications.view',
+      },
     ],
   },
   {

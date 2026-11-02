@@ -24,6 +24,45 @@ export class AdminPasswordResetTokenSchema extends BaseModel {
   declare userId: number
 }
 
+export class AppConfigSchema extends BaseModel {
+  static $columns = ['androidForce', 'androidStoreUrl', 'androidVersion', 'environment', 'iosForce', 'iosStoreUrl', 'iosVersion', 'maintenanceEnabled', 'maintenanceMessageAr', 'maintenanceMessageEn', 'maintenanceTitleAr', 'maintenanceTitleEn', 'updateMessageAr', 'updateMessageEn', 'updateTitleAr', 'updateTitleEn', 'updatedAt'] as const
+  $columns = AppConfigSchema.$columns
+  @column()
+  declare androidForce: boolean
+  @column()
+  declare androidStoreUrl: string | null
+  @column()
+  declare androidVersion: string | null
+  @column({ isPrimary: true })
+  declare environment: string
+  @column()
+  declare iosForce: boolean
+  @column()
+  declare iosStoreUrl: string | null
+  @column()
+  declare iosVersion: string | null
+  @column()
+  declare maintenanceEnabled: boolean
+  @column()
+  declare maintenanceMessageAr: string | null
+  @column()
+  declare maintenanceMessageEn: string
+  @column()
+  declare maintenanceTitleAr: string | null
+  @column()
+  declare maintenanceTitleEn: string
+  @column()
+  declare updateMessageAr: string | null
+  @column()
+  declare updateMessageEn: string
+  @column()
+  declare updateTitleAr: string | null
+  @column()
+  declare updateTitleEn: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class AuditLogSchema extends BaseModel {
   static $columns = ['action', 'actorId', 'changedFields', 'createdAt', 'entityId', 'entityType', 'id', 'requestId'] as const
   $columns = AuditLogSchema.$columns
@@ -174,6 +213,52 @@ export class CustomerLegalAcceptanceSchema extends BaseModel {
   declare title: string
 }
 
+export class CustomerNotificationOutboxSchema extends BaseModel {
+  static $columns = ['attempts', 'availableAt', 'deliveredAt', 'failedAt', 'id', 'lastError', 'lockedAt', 'notificationId', 'pushTokenId'] as const
+  $columns = CustomerNotificationOutboxSchema.$columns
+  @column()
+  declare attempts: number
+  @column.dateTime()
+  declare availableAt: DateTime
+  @column.dateTime()
+  declare deliveredAt: DateTime | null
+  @column.dateTime()
+  declare failedAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare lastError: string | null
+  @column.dateTime()
+  declare lockedAt: DateTime | null
+  @column()
+  declare notificationId: number
+  @column()
+  declare pushTokenId: number
+}
+
+export class CustomerNotificationSchema extends BaseModel {
+  static $columns = ['actionData', 'body', 'broadcastId', 'createdAt', 'customerId', 'id', 'readAt', 'title', 'type'] as const
+  $columns = CustomerNotificationSchema.$columns
+  @column()
+  declare actionData: any | null
+  @column()
+  declare body: string
+  @column()
+  declare broadcastId: number | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare customerId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column.dateTime()
+  declare readAt: DateTime | null
+  @column()
+  declare title: string
+  @column()
+  declare type: string
+}
+
 export class CustomerOtpChallengeSchema extends BaseModel {
   static $columns = ['attemptCount', 'codeHash', 'consumedAt', 'createdAt', 'customerId', 'expiresAt', 'id', 'phoneE164', 'purpose', 'resendAvailableAt', 'sendCount', 'sendWindowAt', 'sessionId', 'verificationExpiresAt', 'verificationTokenHash', 'verifiedAt'] as const
   $columns = CustomerOtpChallengeSchema.$columns
@@ -209,6 +294,27 @@ export class CustomerOtpChallengeSchema extends BaseModel {
   declare verificationTokenHash: string | null
   @column.dateTime()
   declare verifiedAt: DateTime | null
+}
+
+export class CustomerPushTokenSchema extends BaseModel {
+  static $columns = ['createdAt', 'customerId', 'deviceId', 'id', 'platform', 'token', 'tokenHash', 'updatedAt'] as const
+  $columns = CustomerPushTokenSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare customerId: number
+  @column()
+  declare deviceId: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare platform: string
+  @column()
+  declare token: string
+  @column()
+  declare tokenHash: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }
 
 export class CustomerRefreshTokenSchema extends BaseModel {
@@ -379,6 +485,41 @@ export class MovieSchema extends BaseModel {
   declare titleEn: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
+}
+
+export class NotificationBroadcastSchema extends BaseModel {
+  static $columns = ['audience', 'body', 'completedAt', 'createdAt', 'createdBy', 'cursorCustomerId', 'customerId', 'id', 'lastError', 'lockedAt', 'pushCount', 'recipientCount', 'requestKey', 'status', 'title'] as const
+  $columns = NotificationBroadcastSchema.$columns
+  @column()
+  declare audience: string
+  @column()
+  declare body: string
+  @column.dateTime()
+  declare completedAt: DateTime | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare createdBy: number | null
+  @column()
+  declare cursorCustomerId: number
+  @column()
+  declare customerId: number | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare lastError: string | null
+  @column.dateTime()
+  declare lockedAt: DateTime | null
+  @column()
+  declare pushCount: number
+  @column()
+  declare recipientCount: number
+  @column()
+  declare requestKey: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
 }
 
 export class PageTranslationSchema extends BaseModel {

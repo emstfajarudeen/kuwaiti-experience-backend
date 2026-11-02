@@ -389,6 +389,12 @@ add(
 )
 
 add('GET', ['/admin/customers'], ['customers.view'])
+add('GET', ['/admin/notifications'], ['notifications.view'])
+add(
+  'POST',
+  ['/admin/notifications', '/admin/notifications/check-connection'],
+  ['notifications.send']
+)
 add('GET', ['/admin/users'], ['staff.view'])
 add('GET', ['/admin/users/new', '/admin/users/:id/edit'], ['staff.view', 'staff.manage'], true)
 add(

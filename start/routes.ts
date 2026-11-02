@@ -9,6 +9,8 @@ import {
   bookmarkThrottle,
   customerAddressThrottle,
   customerNotificationThrottle,
+  notificationBroadcastThrottle,
+  pushConnectionCheckThrottle,
   passwordResetRequestThrottle,
   passwordResetConfirmThrottle,
 } from '#start/limiter'
@@ -53,6 +55,7 @@ const AdminUsersController = () => import('#controllers/admin/users_controller')
 const AdminCustomersController = () => import('#controllers/admin/customers_controller')
 const AdminRolesController = () => import('#controllers/admin/roles_controller')
 const AdminActivityLogsController = () => import('#controllers/admin/activity_logs_controller')
+const AdminNotificationsController = () => import('#controllers/admin/notifications_controller')
 
 router.get('/', ({ response }) => response.redirect('/admin'))
 router.get('/admin/login', [AdminAuthController, 'showLogin'])
@@ -90,6 +93,13 @@ router
     router.get('/account', [AdminAuthController, 'account'])
     router.post('/account/password', [AdminAuthController, 'password'])
     router.get('/customers', [AdminCustomersController, 'index'])
+    router.get('/notifications', [AdminNotificationsController, 'index'])
+    router
+      .post('/notifications', [AdminNotificationsController, 'send'])
+      .use(notificationBroadcastThrottle)
+    router
+      .post('/notifications/check-connection', [AdminNotificationsController, 'checkConnection'])
+      .use(pushConnectionCheckThrottle)
     router.get('/users', [AdminUsersController, 'index'])
     router.get('/users/new', [AdminUsersController, 'create'])
     router.post('/users', [AdminUsersController, 'save']).as('cms.users.create')
@@ -275,7 +285,10 @@ router
           .use(customerNotificationThrottle)
         router.get('/customer/me/notifications', [CustomerNotificationsController, 'index'])
         router
-          .put('/customer/me/notifications/read-all', [CustomerNotificationsController, 'markAllRead'])
+          .put('/customer/me/notifications/read-all', [
+            CustomerNotificationsController,
+            'markAllRead',
+          ])
           .use(customerNotificationThrottle)
         router
           .put('/customer/me/notifications/:id/read', [CustomerNotificationsController, 'markRead'])

@@ -58,6 +58,18 @@ export const authThrottle = limiter.define('admin-auth', (ctx) =>
     .usingKey(`admin-auth:${ctx.request.ip()}`)
 )
 
+// A broadcast can reach every customer, so keep it deliberately scarce per staff member.
+export const notificationBroadcastThrottle = limiter.define('admin-notification-broadcast', (ctx) =>
+  limiter.allowRequests(10).every('1 hour').usingKey(`admin-notification-broadcast:${ctx.admin.id}`)
+)
+
+export const pushConnectionCheckThrottle = limiter.define('admin-push-connection-check', (ctx) =>
+  limiter
+    .allowRequests(10)
+    .every('5 minutes')
+    .usingKey(`admin-push-connection-check:${ctx.admin.id}`)
+)
+
 export const passwordResetRequestThrottle = limiter.define(
   'admin-password-reset-request',
   (ctx) => {

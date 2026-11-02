@@ -48,7 +48,7 @@ export default function PagesIndex({
             ...(can('pages.update') ? [{ title: 'Edit', key: 'edit', width: 64, render: (_: unknown, row: PageRow) => <a href={`/admin/pages/${row.id}/edit`} className="action-pencil-btn" aria-label={`Edit ${row.title || 'page'}`}>✎</a> }] : []),
             { title: 'Page Title', dataIndex: 'title', render: (title: string | null) => <strong>{title || 'Untitled page'}</strong> },
             { title: 'Public URL', dataIndex: 'slug', render: (slug: string) => <a href={`${publicSiteUrl.replace(/\/$/, '')}/${encodeURIComponent(slug)}`} target="_blank" rel="noreferrer"><code>/{slug}</code></a> },
-            { title: 'Status', dataIndex: 'status', render: (status: string) => <span className={`status ${status}`}>{status}</span> },
+            { title: 'Status', dataIndex: 'status', render: (status: string) => <span className={`status ${status}`}>{status.charAt(0).toUpperCase() + status.slice(1)}</span> },
             ...(can('pages.delete') ? [{ title: 'Actions', key: 'actions', render: (_: unknown, row: PageRow) => <RowActionMenu label={`More actions for ${row.title || 'page'}`} actions={[...(row.status === 'published' ? [{ label: 'View page', href: `${publicSiteUrl.replace(/\/$/, '')}/${encodeURIComponent(row.slug)}`, target: '_blank' as const }] : []), { label: 'Delete', danger: true, onClick: () => setDeleting(row) }]} /> }] : []),
           ]} /></div>
         ) : (

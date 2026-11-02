@@ -122,9 +122,9 @@ export default function PlacesIndex({
             onChange={setStatusFilter}
             placeholder="All statuses"
             options={[
-              { value: 'published', label: 'Active' },
+              { value: 'published', label: 'Published' },
               { value: 'draft', label: 'Draft' },
-              { value: 'archived', label: 'Inactive' },
+              { value: 'archived', label: 'Archived' },
             ]}
           />
         </div>
@@ -198,16 +198,9 @@ export default function PlacesIndex({
                     key: 'place',
                     render: (_: unknown, row) => (
                       <div className="place-cell tw:[display:flex] tw:[align-items:center] tw:[gap:var(--space-3)] tw:[min-width:220px]">
-                        {row.coverUrl ? (
-                          <img src={row.coverUrl} alt="" loading="lazy" />
-                        ) : (
-                          <span className="thumb-empty" aria-hidden="true">
-                            K
-                          </span>
-                        )}
+                        {row.coverUrl && <img src={row.coverUrl} alt="" loading="lazy" />}
                         <div className="place-title-wrap">
                           <strong>{row.title}</strong>
-                          <small>/places/{row.slug}</small>
                         </div>
                       </div>
                     ),
@@ -218,31 +211,23 @@ export default function PlacesIndex({
                     render: (name: string) => <span className="type-chip">{name}</span>,
                   },
                   {
-                    title: 'Active',
-                    key: 'status',
-                    render: (_: unknown, row) => (
-                      <div className="tw:flex tw:items-center tw:gap-2">
-                        <Switch
-                          aria-label={`${row.status === 'published' ? 'Deactivate' : 'Activate'} ${row.title}`}
-                          checked={row.status === 'published'}
-                          loading={changingStatus === row.id}
-                          disabled={changingStatus !== null}
-                          onChange={(checked) => changeStatus(row, checked)}
-                        />
-                        <span className={`status ${row.status}`}>
-                          {row.status === 'published'
-                            ? 'Active'
-                            : row.status === 'draft'
-                              ? 'Draft'
-                              : 'Inactive'}
-                        </span>
-                      </div>
-                    ),
-                  },
-                  {
-                    title: 'Last Edit (Kuwait)',
+                    title: 'Last Edit',
                     dataIndex: 'updated_at_local',
                     render: (value: string | null) => value || '—',
+                  },
+                  {
+                    title: 'Status',
+                    key: 'status',
+                    render: (_: unknown, row) => (
+                      <Switch
+                        aria-label={`${row.status === 'published' ? 'Archive' : 'Publish'} ${row.title}; current status: ${row.status}`}
+                        title={`Current status: ${row.status}`}
+                        checked={row.status === 'published'}
+                        loading={changingStatus === row.id}
+                        disabled={changingStatus !== null}
+                        onChange={(checked) => changeStatus(row, checked)}
+                      />
+                    ),
                   },
                   {
                     title: 'Actions',

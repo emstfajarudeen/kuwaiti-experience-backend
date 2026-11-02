@@ -12,6 +12,7 @@ const destinations = [
   ['home.view', '/admin/home'],
   ['settings.view', '/admin/settings'],
   ['customers.view', '/admin/customers'],
+  ['notifications.view', '/admin/notifications'],
   ['staff.view', '/admin/users'],
   ['roles.view', '/admin/roles'],
 ] as const

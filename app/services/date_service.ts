@@ -7,7 +7,7 @@ export function formatKuwaitDateTime(date: Date | string | null | undefined): st
       ? DateTime.fromISO(date, { zone: 'utc' })
       : DateTime.fromJSDate(date instanceof Date ? date : new Date(date))
   if (!dt.isValid) return '—'
-  return dt.setZone('Asia/Kuwait').toFormat("d LLL yyyy, HH:mm '(Kuwait)'")
+  return dt.setZone('Asia/Kuwait').toFormat('d LLL yyyy, HH:mm')
 }
 
 export function formatKuwaitDate(date: Date | string | null | undefined): string {
@@ -27,5 +27,5 @@ export function formatKuwaitTime(date: Date | string | null | undefined): string
       ? DateTime.fromISO(date, { zone: 'utc' })
       : DateTime.fromJSDate(date instanceof Date ? date : new Date(date))
   if (!dt.isValid) return '—'
-  return dt.setZone('Asia/Kuwait').toFormat("HH:mm '(Kuwait)'")
+  return dt.setZone('Asia/Kuwait').toFormat('HH:mm')
 }

@@ -20,7 +20,12 @@ type User = {
 }
 
 type Filters = { q: string; status: string | null; reset: string | null; role: number | null }
-type FilterValues = { q?: string; status?: string | null; reset?: string | null; role?: number | null }
+type FilterValues = {
+  q?: string
+  status?: string | null
+  reset?: string | null
+  role?: number | null
+}
 
 type Props = {
   adminName: string
@@ -47,6 +52,17 @@ function date(value: string | null) {
   if (!value) return '—'
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
     new Date(value)
+  )
+}
+
+function initials(name: string) {
+  return (
+    name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('') || '?'
   )
 }
 
@@ -102,19 +118,32 @@ export default function UsersIndex({
       title: 'Staff member',
       key: 'administrator',
       render: (_, user) => (
-        <div className="tw:flex tw:min-w-[220px] tw:flex-col">
-          <strong>{user.full_name}</strong>
-          <span className="tw:text-[13px] tw:text-brand-muted">{user.email}</span>
+        <div className="tw:flex tw:min-w-[240px] tw:items-center tw:gap-3">
+          <span
+            className="tw:grid tw:size-10 tw:shrink-0 tw:place-items-center tw:rounded-full tw:bg-brand-navy tw:text-sm tw:font-bold tw:text-brand-gold"
+            aria-hidden="true"
+          >
+            {initials(user.full_name)}
+          </span>
+          <div className="tw:flex tw:flex-col">
+            <strong>{user.full_name}</strong>
+            <span className="tw:text-[13px] tw:text-brand-muted">{user.email}</span>
+          </div>
         </div>
       ),
     },
     {
       title: 'Roles',
       dataIndex: 'roles',
-      render: (assigned: StaffRole[]) => assigned.map((role) => <span className="type-chip tw:mr-1" key={role.id}>{role.name}</span>),
+      render: (assigned: StaffRole[]) =>
+        assigned.map((role) => (
+          <span className="type-chip tw:mr-1" key={role.id}>
+            {role.name}
+          </span>
+        )),
     },
     {
-      title: 'Access',
+      title: 'Status',
       dataIndex: 'active',
       render: (active: boolean) => (
         <span className={`status ${active ? 'published' : 'archived'}`}>
@@ -187,7 +216,11 @@ export default function UsersIndex({
             />
           </Form.Item>
           <Form.Item label="Role" name="role" className="tw:mb-0">
-            <Select allowClear placeholder="All roles" options={roles.map((role) => ({ value: role.id, label: role.name }))} />
+            <Select
+              allowClear
+              placeholder="All roles"
+              options={roles.map((role) => ({ value: role.id, label: role.name }))}
+            />
           </Form.Item>
           <Button className="button secondary tw:mb-0" htmlType="submit">
             Apply filters
@@ -200,7 +233,11 @@ export default function UsersIndex({
           <h2>
             {meta.total} staff member{meta.total === 1 ? '' : 's'}
           </h2>
-          {canManage && <a className="button primary" href="/admin/users/new">+ Add staff member</a>}
+          {canManage && (
+            <a className="button primary" href="/admin/users/new">
+              + Add staff member
+            </a>
+          )}
         </div>
         <Table<User>
           className="cms-antd-table"
