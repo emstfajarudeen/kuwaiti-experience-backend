@@ -23,6 +23,7 @@ type Props = {
   page: { id: number; slug: string; status: string } | null
   en: Translation | null
   ar: Translation | null
+  fieldErrors: Record<string, string[]> | null
 }
 export default function PageEdit({
   adminName,
@@ -33,12 +34,37 @@ export default function PageEdit({
   page,
   en,
   ar,
+  fieldErrors,
 }: Props) {
+  const value = (key: string, fallback: string | null | undefined) => form?.[key] ?? fallback ?? ''
+  const initialTitle = value('titleEn', en?.title)
+  const initialSlug = value('slug', page?.slug)
+  const initialBody = value('bodyEn', en?.body)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [titleError, setTitleError] = useState(fieldErrors?.titleEn?.[0] ?? '')
+  const [slugError, setSlugError] = useState(fieldErrors?.slug?.[0] ?? '')
+  const [bodyError, setBodyError] = useState(fieldErrors?.bodyEn?.[0] ?? '')
+  const [bodyContent, setBodyContent] = useState(initialBody)
   const [antdForm] = Form.useForm()
   const action = page ? `/admin/pages/${page.id}/save` : '/admin/pages'
-  const value = (key: string, fallback: string | null | undefined) => form?.[key] ?? fallback ?? ''
+  const placeholderCopy = (body: string) =>
+    /Gheyar Seller App|demo placeholder|placeholder content|Draft demo content/i.test(body)
+  const bodyHasText = (body: string) => {
+    const format = (document.querySelector('[name="bodyFormatEn"]') as HTMLInputElement | null)
+      ?.value
+    return format === 'html'
+      ? Boolean(new DOMParser().parseFromString(body, 'text/html').body.textContent?.trim())
+      : Boolean(body.trim())
+  }
+  const bodyLength = (body: string) => body.length
+  const focusBody = () => {
+    const editor = document.querySelector(
+      '#page-body-en .ql-editor[contenteditable="true"]'
+    ) as HTMLElement | null
+    editor?.focus()
+    editor?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }
   return (
     <AdminLayout
       title={page ? 'Edit page' : 'New page'}
@@ -65,7 +91,16 @@ export default function PageEdit({
             </span>
           )}
         </div>
-        <div className="form-page-actions"><Button className="button primary" htmlType="submit" form="cms-page-editor" loading={processing}>Save page</Button></div>
+        <div className="form-page-actions">
+          <Button
+            className="button primary"
+            htmlType="submit"
+            form="cms-page-editor"
+            loading={processing}
+          >
+            Save page
+          </Button>
+        </div>
       </div>
       <Form
         id="cms-page-editor"
@@ -73,15 +108,35 @@ export default function PageEdit({
         form={antdForm}
         layout="vertical"
         initialValues={{
-          titleEn: value('titleEn', en?.title), eyebrowEn: value('eyebrowEn', en?.eyebrow),
-          slug: value('slug', page?.slug), seoTitleEn: value('seoTitleEn', en?.seo_title),
+          titleEn: initialTitle,
+          eyebrowEn: value('eyebrowEn', en?.eyebrow),
+          slug: initialSlug,
+          seoTitleEn: value('seoTitleEn', en?.seo_title),
           seoDescriptionEn: value('seoDescriptionEn', en?.seo_description),
-          titleAr: value('titleAr', ar?.title), eyebrowAr: value('eyebrowAr', ar?.eyebrow),
+          titleAr: value('titleAr', ar?.title),
+          eyebrowAr: value('eyebrowAr', ar?.eyebrow),
         }}
         onFinish={() => {
+          const bodyInput = document.getElementById(
+            'page-body-en-source'
+          ) as HTMLInputElement | null
+          const currentBody = bodyInput?.value ?? bodyContent
+          if (page?.status === 'published' && !bodyHasText(currentBody)) {
+            setBodyError('A published page must keep English content. Add text before saving.')
+            focusBody()
+            return
+          }
+          if (bodyLength(currentBody) > 50000) {
+            setBodyError('Page content must be 50,000 characters or fewer.')
+            focusBody()
+            return
+          }
           const element = document.getElementById('cms-page-editor') as HTMLFormElement | null
           if (element) {
-            const data = Object.fromEntries(new FormData(element).entries()) as Record<string, string>
+            const data = Object.fromEntries(new FormData(element).entries()) as Record<
+              string,
+              string
+            >
             postCmsForm({ action, csrfToken, form: antdForm, setProcessing, data })
           }
         }}
@@ -93,16 +148,60 @@ export default function PageEdit({
             <h2>Page details</h2>
             <div className="form-grid tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4">
               <label>
-                Page title
-                <Form.Item name="titleEn" rules={[{ required: true, message: 'Enter an English page title.' }, { max: 200, message: 'Title must be 200 characters or fewer.' }]}><Input name="titleEn" maxLength={200} placeholder="About The Kuwaiti Experience" /></Form.Item>
+                Page title{' '}
+                <span className="tw:text-red-700" aria-hidden="true">
+                  *
+                </span>
+                <Form.Item
+                  name="titleEn"
+                  validateStatus={titleError ? 'error' : undefined}
+                  help={titleError || undefined}
+                  rules={[
+                    { required: true, whitespace: true, message: 'Enter an English page title.' },
+                    { min: 2, message: 'Use at least 2 characters.' },
+                    { max: 200, message: 'Title must be 200 characters or fewer.' },
+                  ]}
+                >
+                  <Input
+                    name="titleEn"
+                    maxLength={200}
+                    placeholder="About The Kuwaiti Experience"
+                    onChange={() => setTitleError('')}
+                  />
+                </Form.Item>
               </label>
               <label>
                 Intro label
-                <Form.Item name="eyebrowEn"><Input name="eyebrowEn" maxLength={120} placeholder="LEGAL & POLICIES" /></Form.Item>
+                <Form.Item name="eyebrowEn">
+                  <Input name="eyebrowEn" maxLength={120} placeholder="LEGAL & POLICIES" />
+                </Form.Item>
               </label>
               <label>
-                URL slug
-                <Form.Item name="slug" rules={[{ required: true, message: 'Enter a URL slug.' }, { pattern: /^[a-z0-9]+(-[a-z0-9]+)*$/, message: 'Use lowercase letters, numbers, and single hyphens.' }]}><Input name="slug" pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="about-us" /></Form.Item>
+                URL slug{' '}
+                <span className="tw:text-red-700" aria-hidden="true">
+                  *
+                </span>
+                <Form.Item
+                  name="slug"
+                  validateStatus={slugError ? 'error' : undefined}
+                  help={slugError || undefined}
+                  rules={[
+                    { required: true, whitespace: true, message: 'Enter a URL slug.' },
+                    {
+                      pattern: /^[a-z0-9]+(-[a-z0-9]+)*$/,
+                      message: 'Use lowercase letters, numbers, and single hyphens.',
+                    },
+                    { max: 160, message: 'URL slug must be 160 characters or fewer.' },
+                  ]}
+                >
+                  <Input
+                    name="slug"
+                    pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                    maxLength={160}
+                    placeholder="about-us"
+                    onChange={() => setSlugError('')}
+                  />
+                </Form.Item>
               </label>
               <RichTextField
                 key={`en-${page?.id ?? 'new'}`}
@@ -110,18 +209,34 @@ export default function PageEdit({
                 label="Formatted body"
                 name="bodyEn"
                 formatName="bodyFormatEn"
-                value={value('bodyEn', en?.body)}
+                value={initialBody}
                 format={value('bodyFormatEn', en?.body_format || 'plain_text')}
-                rows={10}
                 required
+                error={bodyError || null}
+                hint="Required before publishing. Drafts can be saved without content."
+                onChange={(nextBody) => {
+                  setBodyContent(nextBody)
+                  setBodyError((current) => {
+                    if (bodyLength(nextBody) > 50000)
+                      return 'Page content must be 50,000 characters or fewer.'
+                    if (!bodyHasText(nextBody)) return current
+                    if (placeholderCopy(nextBody))
+                      return current.toLowerCase().includes('demo text') ? current : ''
+                    return ''
+                  })
+                }}
               />
               <label>
                 SEO title
-                <Form.Item name="seoTitleEn"><Input name="seoTitleEn" placeholder="About Us — The Kuwaiti Experience" /></Form.Item>
+                <Form.Item name="seoTitleEn">
+                  <Input name="seoTitleEn" placeholder="About Us — The Kuwaiti Experience" />
+                </Form.Item>
               </label>
               <label>
                 SEO description
-                <Form.Item name="seoDescriptionEn"><Input.TextArea name="seoDescriptionEn" rows={2} /></Form.Item>
+                <Form.Item name="seoDescriptionEn">
+                  <Input.TextArea name="seoDescriptionEn" rows={2} />
+                </Form.Item>
               </label>
             </div>
           </section>
@@ -130,11 +245,21 @@ export default function PageEdit({
             <div className="form-grid tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4">
               <label>
                 Arabic title
-                <Form.Item name="titleAr"><Input name="titleAr" dir="rtl" lang="ar" placeholder="عن تجربة الكويت" /></Form.Item>
+                <Form.Item name="titleAr">
+                  <Input name="titleAr" dir="rtl" lang="ar" placeholder="عن تجربة الكويت" />
+                </Form.Item>
               </label>
               <label>
                 Arabic intro label
-                <Form.Item name="eyebrowAr"><Input name="eyebrowAr" dir="rtl" lang="ar" maxLength={120} placeholder="الشروط والسياسات" /></Form.Item>
+                <Form.Item name="eyebrowAr">
+                  <Input
+                    name="eyebrowAr"
+                    dir="rtl"
+                    lang="ar"
+                    maxLength={120}
+                    placeholder="الشروط والسياسات"
+                  />
+                </Form.Item>
               </label>
               <RichTextField
                 key={`ar-${page?.id ?? 'new'}`}
@@ -144,7 +269,6 @@ export default function PageEdit({
                 formatName="bodyFormatAr"
                 value={value('bodyAr', ar?.body)}
                 format={value('bodyFormatAr', ar?.body_format || 'plain_text')}
-                rows={8}
                 rtl
               />
             </div>
@@ -156,6 +280,35 @@ export default function PageEdit({
           <form
             action={`/admin/pages/${page.id}/${page.status === 'published' ? 'archive' : 'publish'}`}
             method="POST"
+            onSubmit={(event) => {
+              if (page.status === 'published') return
+              const title = String(antdForm.getFieldValue('titleEn') ?? '').trim()
+              if (title.length < 2) {
+                event.preventDefault()
+                setTitleError('Enter an English page title before publishing.')
+                antdForm.scrollToField('titleEn')
+                return
+              }
+              if (!bodyHasText(bodyContent)) {
+                event.preventDefault()
+                setBodyError('Add English page content before publishing.')
+                focusBody()
+                return
+              }
+              if (bodyLength(bodyContent) > 50000) {
+                event.preventDefault()
+                setBodyError('Page content must be 50,000 characters or fewer.')
+                focusBody()
+                return
+              }
+              if (placeholderCopy(bodyContent)) {
+                event.preventDefault()
+                setBodyError(
+                  'Replace the demo text with approved page copy, save the page, then publish again.'
+                )
+                focusBody()
+              }
+            }}
           >
             <input type="hidden" name="_csrf" value={csrfToken} />
             <button className="button secondary" type="submit">

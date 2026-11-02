@@ -46,7 +46,7 @@ export function assertApprovedPageCopy(slug: string, body: string): void {
     throw new ApiError(
       422,
       'PLACEHOLDER_PAGE_CONTENT',
-      `Replace placeholder content before publishing ${slug}`
+      `Publishing “${slug}” is blocked because its English page body still contains demo or placeholder text (for example, “Draft demo content…”). Replace that sample text with approved page copy, save the page, then publish again.`
     )
   }
 }

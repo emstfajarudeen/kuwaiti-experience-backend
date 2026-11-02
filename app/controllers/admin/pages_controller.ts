@@ -62,6 +62,9 @@ export default class AdminPagesPageController {
         csrfToken: request.csrfToken,
         success: (session.flashMessages.get('success') as string | undefined) ?? null,
         error: (session.flashMessages.get('error') as string | undefined) ?? null,
+        fieldErrors:
+          (session.flashMessages.get('pageFieldErrors') as Record<string, string[]> | undefined) ??
+          null,
         form: this.formValues(session.flashMessages.get('pageForm')),
         page: page ? { id: Number(page.id), slug: page.slug, status: page.status } : null,
         en: translations.find((item) => item.locale === 'en') ?? null,
@@ -93,6 +96,7 @@ export default class AdminPagesPageController {
   }
 
   async save({ request, response, session, admin, params }: HttpContext) {
+    let normalizingPageBodyField = 'bodyEn'
     try {
       const input = await pageValidator.validate({
         slug: request.input('slug'),
@@ -107,6 +111,24 @@ export default class AdminPagesPageController {
         seoTitleEn: request.input('seoTitleEn') || null,
         seoDescriptionEn: request.input('seoDescriptionEn') || null,
       })
+      const bodyEn = input.bodyEn.trim()
+        ? normalizePageBody(input.bodyEn, input.bodyFormatEn ?? 'plain_text')
+        : ''
+      if (!bodyEn && params.id) {
+        const currentPage = await db.from('pages').where('id', params.id).first()
+        if (currentPage?.status === 'published') {
+          throw new ApiError(
+            422,
+            'INVALID_PAGE_BODY',
+            'Add English page content before saving changes to a published page.'
+          )
+        }
+      }
+      let bodyAr: string | null = null
+      if (input.titleAr && input.bodyAr) {
+        normalizingPageBodyField = 'bodyAr'
+        bodyAr = normalizePageBody(input.bodyAr, input.bodyFormatAr ?? 'plain_text')
+      }
       const id = await db.transaction(async (trx) => {
         let pageId = params.id ? Number(params.id) : undefined
         if (pageId) {
@@ -131,14 +153,14 @@ export default class AdminPagesPageController {
             locale: 'en',
             title: input.titleEn,
             eyebrow: input.eyebrowEn || null,
-            body: normalizePageBody(input.bodyEn, input.bodyFormatEn ?? 'plain_text'),
+            body: bodyEn,
             body_format: input.bodyFormatEn ?? 'plain_text',
             seo_title: input.seoTitleEn ?? null,
             seo_description: input.seoDescriptionEn ?? null,
           })
           .onConflict(['page_id', 'locale'])
           .merge()
-        if (input.titleAr && input.bodyAr)
+        if (input.titleAr && bodyAr)
           await trx
             .table('page_translations')
             .insert({
@@ -146,7 +168,7 @@ export default class AdminPagesPageController {
               locale: 'ar',
               title: input.titleAr,
               eyebrow: input.eyebrowAr || null,
-              body: normalizePageBody(input.bodyAr, input.bodyFormatAr ?? 'plain_text'),
+              body: bodyAr,
               body_format: input.bodyFormatAr ?? 'plain_text',
             })
             .onConflict(['page_id', 'locale'])
@@ -170,8 +192,10 @@ export default class AdminPagesPageController {
       return response.redirect(`/admin/pages/${id}/edit`)
     } catch (error) {
       const fieldErrors = validationErrorBag(error)
-      if (fieldErrors) session.flash('inputErrorsBag', fieldErrors)
-      session.flash('error', error instanceof Error ? error.message : 'Unable to save page')
+      if (fieldErrors) session.flash('pageFieldErrors', fieldErrors)
+      else if (error instanceof ApiError && error.code === 'INVALID_PAGE_BODY')
+        session.flash('pageFieldErrors', { [normalizingPageBodyField]: [error.message] })
+      else session.flash('error', error instanceof Error ? error.message : 'Unable to save page')
       session.flash('pageForm', request.all())
       return response.redirect(params.id ? `/admin/pages/${params.id}/edit` : '/admin/pages/new')
     }
@@ -183,11 +207,18 @@ export default class AdminPagesPageController {
     if (!page) return response.redirect('/admin/pages')
     const en = await db.from('page_translations').where('page_id', id).where('locale', 'en').first()
     if (!en?.title || !en.body) {
-      session.flash('error', 'English title and body are required.')
+      session.flash('pageFieldErrors', {
+        ...(!en?.title ? { titleEn: ['Enter an English page title before publishing.'] } : {}),
+        ...(!en?.body ? { bodyEn: ['Add English page content before publishing.'] } : {}),
+      })
       return response.redirect(`/admin/pages/${id}/edit`)
     }
     if (hasPlaceholderPageCopy(en.body)) {
-      session.flash('error', 'Replace placeholder content before publishing.')
+      session.flash('pageFieldErrors', {
+        bodyEn: [
+          'Replace the demo text in the English page body with approved copy, save the page, then publish again.',
+        ],
+      })
       return response.redirect(`/admin/pages/${id}/edit`)
     }
     await db

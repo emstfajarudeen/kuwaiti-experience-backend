@@ -42,7 +42,9 @@ export default class AdminPagesController {
         locale: 'en',
         title: input.titleEn,
         eyebrow: input.eyebrowEn || null,
-        body: normalizePageBody(input.bodyEn, input.bodyFormatEn ?? 'plain_text'),
+        body: input.bodyEn.trim()
+          ? normalizePageBody(input.bodyEn, input.bodyFormatEn ?? 'plain_text')
+          : '',
         body_format: input.bodyFormatEn ?? 'plain_text',
         seo_title: input.seoTitleEn ?? null,
         seo_description: input.seoDescriptionEn ?? null,
@@ -84,7 +86,9 @@ export default class AdminPagesController {
           locale: 'en',
           title: input.titleEn,
           eyebrow: input.eyebrowEn || null,
-          body: normalizePageBody(input.bodyEn, input.bodyFormatEn ?? 'plain_text'),
+          body: input.bodyEn.trim()
+            ? normalizePageBody(input.bodyEn, input.bodyFormatEn ?? 'plain_text')
+            : '',
           body_format: input.bodyFormatEn ?? 'plain_text',
           seo_title: input.seoTitleEn ?? null,
           seo_description: input.seoDescriptionEn ?? null,
