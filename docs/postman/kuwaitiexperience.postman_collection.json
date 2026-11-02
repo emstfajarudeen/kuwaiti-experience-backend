@@ -7,6 +7,25 @@
   },
   "item": [
     {
+      "name": "00 — App startup configuration",
+      "item": [
+        {
+          "name": "Get app configuration",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Accept-Language", "value": "{{locale}}" }
+            ],
+            "url": "{{base_url}}/api/v2/config",
+            "auth": { "type": "noauth" },
+            "description": "Call at app startup. Each environment returns its own public origins, update settings and maintenance state."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "01 — Footer pages and public settings",
       "description": "Read all four footer Page resources after CMS publication. Privacy/Terms pages are available for app display; registration does not require page hashes. Contact submissions are in folder 05.",
       "item": [
@@ -1910,6 +1929,68 @@
               }
             }
           ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "08B — Notifications and push tokens",
+      "description": "Customer notification inbox and FCM token management. Actual push delivery requires FCM server configuration and a running worker. No ride/rental events currently create notifications.",
+      "item": [
+        {
+          "name": "Register my FCM token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/api/v2/customer/me/push-tokens",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{fcm_registration_token}}\",\n  \"platform\": \"android\",\n  \"device_id\": \"postman-test-device\"\n}", "options": { "raw": { "language": "json" } } }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });", "if (pm.response.code === 201) pm.environment.set(\"push_token_id\", pm.response.json().data.id);"] } }],
+          "response": []
+        },
+        {
+          "name": "List my notifications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{base_url}}/api/v2/customer/me/notifications?page=1&per_page=20",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });", "if (pm.response.code === 200 && pm.response.json().data.length) pm.environment.set(\"notification_id\", pm.response.json().data[0].id);"] } }],
+          "response": []
+        },
+        {
+          "name": "Mark notification as read",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{base_url}}/api/v2/customer/me/notifications/{{notification_id}}/read",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"] } }],
+          "response": []
+        },
+        {
+          "name": "Mark all notifications as read",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{base_url}}/api/v2/customer/me/notifications/read-all",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"] } }],
+          "response": []
+        },
+        {
+          "name": "Remove my FCM token",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{base_url}}/api/v2/customer/me/push-tokens/{{push_token_id}}",
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] }
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"] } }],
           "response": []
         }
       ]

@@ -8,6 +8,7 @@ import {
   customerPhotoThrottle,
   bookmarkThrottle,
   customerAddressThrottle,
+  customerNotificationThrottle,
   passwordResetRequestThrottle,
   passwordResetConfirmThrottle,
 } from '#start/limiter'
@@ -16,7 +17,11 @@ const AuthController = () => import('#controllers/api/auth_controller')
 const CustomerAuthController = () => import('#controllers/api/customer_auth_controller')
 const CustomerProfileController = () => import('#controllers/api/customer_profile_controller')
 const CustomerAddressesController = () => import('#controllers/api/customer_addresses_controller')
+const CustomerNotificationsController = () =>
+  import('#controllers/api/customer_notifications_controller')
 const CustomerSupportController = () => import('#controllers/api/customer_support_controller')
+const AppConfigController = () => import('#controllers/api/app_config_controller')
+const AdminAppConfigController = () => import('#controllers/admin/app_config_controller')
 const AdminContactsController = () => import('#controllers/api/admin_contacts_controller')
 const ContactsController = () => import('#controllers/admin/contacts_controller')
 const PublicController = () => import('#controllers/api/public_controller')
@@ -143,6 +148,8 @@ router
     router.post('/home', [AdminSitePageController, 'saveHome'])
     router.get('/settings', [AdminSitePageController, 'settings'])
     router.post('/settings', [AdminSitePageController, 'saveSettings'])
+    router.get('/app-config', [AdminAppConfigController, 'show'])
+    router.post('/app-config', [AdminAppConfigController, 'update'])
     router.get('/activity-logs', [AdminActivityLogsController, 'index'])
     router.get('/transport', ({ response }) => response.redirect('/admin'))
     router.get('/place-features', ({ response }) => response.redirect('/admin'))
@@ -260,6 +267,19 @@ router
     router
       .group(() => {
         router.get('/customer/me', [CustomerAuthController, 'me'])
+        router
+          .post('/customer/me/push-tokens', [CustomerNotificationsController, 'registerToken'])
+          .use(customerNotificationThrottle)
+        router
+          .delete('/customer/me/push-tokens/:id', [CustomerNotificationsController, 'removeToken'])
+          .use(customerNotificationThrottle)
+        router.get('/customer/me/notifications', [CustomerNotificationsController, 'index'])
+        router
+          .put('/customer/me/notifications/read-all', [CustomerNotificationsController, 'markAllRead'])
+          .use(customerNotificationThrottle)
+        router
+          .put('/customer/me/notifications/:id/read', [CustomerNotificationsController, 'markRead'])
+          .use(customerNotificationThrottle)
         router.get('/customer/me/saved-addresses', [CustomerAddressesController, 'index'])
         router.get('/customer/me/saved-addresses/:id', [CustomerAddressesController, 'show'])
         router
@@ -299,6 +319,7 @@ router
         router.post('/customer/auth/logout', [CustomerAuthController, 'logout'])
       })
       .use(middleware.customerAuth())
+    router.get('/config', [AppConfigController, 'show'])
     router.get('/pages/:slug', [CustomerSupportController, 'page'])
     router.get('/site', [CustomerSupportController, 'site'])
     router.post('/contact-requests', [CustomerSupportController, 'contact']).use(contactThrottle)

@@ -1,0 +1,146 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Kuwaiti Experience customer notifications",
+    "version": "2.0.0",
+    "description": "Customer-owned notification inbox and FCM device token management. Notifications are created by trusted backend workflows; no customer notification-creation endpoint is exposed."
+  },
+  "servers": [{ "url": "http://localhost:3333" }],
+  "paths": {
+    "/api/v2/customer/me/push-tokens": {
+      "post": {
+        "summary": "Register or refresh this device's FCM token",
+        "tags": ["Customer notifications"],
+        "security": [{ "customerBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PushTokenInput" } } }
+        },
+        "responses": {
+          "201": { "description": "Registered token metadata; token value is never echoed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PushTokenResult" } } } },
+          "401": { "description": "Standard API error", "content": { "application/json": { "schema": { "$ref": "./customer-openapi.json#/components/schemas/Error" } } } },
+          "422": { "description": "Standard API error", "content": { "application/json": { "schema": { "$ref": "./customer-openapi.json#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/v2/customer/me/push-tokens/{id}": {
+      "delete": {
+        "summary": "Remove a registered device token",
+        "tags": ["Customer notifications"],
+        "security": [{ "customerBearer": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "responses": {
+          "204": { "description": "Token removed" },
+          "401": { "description": "Standard API error", "content": { "application/json": { "schema": { "$ref": "./customer-openapi.json#/components/schemas/Error" } } } },
+          "404": { "description": "Standard API error", "content": { "application/json": { "schema": { "$ref": "./customer-openapi.json#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/v2/customer/me/notifications": {
+      "get": {
+        "summary": "List my notifications and unread count",
+        "tags": ["Customer notifications"],
+        "security": [{ "customerBearer": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+          { "name": "per_page", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 } }
+        ],
+        "responses": {
+          "200": { "description": "Newest notifications first", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NotificationList" } } } },
+          "401": { "description": "Standard API error", "content": { "application/json": { "schema": { "$ref": "./customer-openapi.json#/components/schemas/Error" } } } },
+          "422": { "description": "Standard API error", "content": { "application/json": { "schema": { "$ref": "./customer-openapi.json#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/v2/customer/me/notifications/read-all": {
+      "put": {
+        "summary": "Mark all my notifications as read",
+        "tags": ["Customer notifications"],
+        "security": [{ "customerBearer": [] }],
+        "responses": {
+          "204": { "description": "All notifications marked read" },
+          "401": { "description": "Standard API error", "content": { "application/json": { "schema": { "$ref": "./customer-openapi.json#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/api/v2/customer/me/notifications/{id}/read": {
+      "put": {
+        "summary": "Mark one notification as read",
+        "tags": ["Customer notifications"],
+        "security": [{ "customerBearer": [] }],
+        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "responses": {
+          "200": { "description": "Updated notification", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NotificationResult" } } } },
+          "401": { "description": "Standard API error", "content": { "application/json": { "schema": { "$ref": "./customer-openapi.json#/components/schemas/Error" } } } },
+          "404": { "description": "Standard API error", "content": { "application/json": { "schema": { "$ref": "./customer-openapi.json#/components/schemas/Error" } } } }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "customerBearer": { "type": "http", "scheme": "bearer", "bearerFormat": "Customer access token" }
+    },
+    "parameters": {
+      "Id": { "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 1 } }
+    },
+    "schemas": {
+      "PushTokenInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["token", "platform"],
+        "properties": {
+          "token": { "type": "string", "minLength": 1, "maxLength": 4096 },
+          "platform": { "type": "string", "enum": ["ios", "android"] },
+          "device_id": { "type": "string", "minLength": 1, "maxLength": 128 }
+        }
+      },
+      "PushToken": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "platform", "device_id", "created_at", "updated_at"],
+        "properties": {
+          "id": { "type": "integer" },
+          "platform": { "type": "string", "enum": ["ios", "android"] },
+          "device_id": { "type": ["string", "null"] },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PushTokenResult": { "type": "object", "required": ["data"], "properties": { "data": { "$ref": "#/components/schemas/PushToken" } } },
+      "Notification": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "title", "body", "action_data", "created_at", "read_at"],
+        "properties": {
+          "id": { "type": "integer" },
+          "type": { "type": "string", "maxLength": 80 },
+          "title": { "type": "string", "maxLength": 160 },
+          "body": { "type": "string", "maxLength": 1000 },
+          "action_data": { "type": ["object", "null"], "additionalProperties": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "read_at": { "type": ["string", "null"], "format": "date-time" }
+        }
+      },
+      "NotificationResult": { "type": "object", "required": ["data"], "properties": { "data": { "$ref": "#/components/schemas/Notification" } } },
+      "NotificationList": {
+        "type": "object",
+        "required": ["data", "meta"],
+        "properties": {
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Notification" } },
+          "meta": {
+            "type": "object",
+            "required": ["page", "per_page", "total", "last_page", "unread_count"],
+            "properties": {
+              "page": { "type": "integer" },
+              "per_page": { "type": "integer" },
+              "total": { "type": "integer" },
+              "last_page": { "type": "integer" },
+              "unread_count": { "type": "integer" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

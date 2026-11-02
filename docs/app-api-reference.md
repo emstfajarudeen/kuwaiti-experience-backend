@@ -1,6 +1,6 @@
 # Mobile app API reference
 
-Last checked against routes, controllers, validators and serializers: **21 October 2026**. This is the starting document for app developers and AI implementing the mobile client.
+Last checked against routes, controllers, validators and serializers: **30 October 2026**. This is the starting document for app developers and AI implementing the mobile client.
 
 ## 1. Start here
 
@@ -12,15 +12,23 @@ Last checked against routes, controllers, validators and serializers: **21 Octob
 | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | This document                                                                                                                   | Supported screens, exact endpoint map, integration order and common examples                   |
 | [Customer OpenAPI](customer-openapi.json)                                                                                       | Exact account/profile/support request and response schemas, including required/nullable fields |
-| [Saved-address OpenAPI](saved-addresses-openapi.json) | Exact customer address create/list/detail/update/delete schemas |
+| [Saved-address OpenAPI](saved-addresses-openapi.json)                                                                     | Exact customer address create/list/detail/update/delete schemas |
+| [Notifications OpenAPI](notifications-openapi.json)                                                                      | Customer FCM token and notification inbox contracts             |
+| [App configuration OpenAPI](app-config-openapi.json) | Public startup configuration and platform update settings |
 | [Explore OpenAPI](explore-openapi.json)                                                                                         | Exact place/category/bookmark/movie/showtime schemas and parameters                            |
 | [Home OpenAPI](home-openapi.json)                                                                                               | Exact Home, Home CMS, card-selection and featured-order schemas                                |
 | [Postman collection](postman/kuwaitiexperience.postman_collection.json) + [environment](postman/local.postman_environment.json) | Importable requests; [setup and execution order](postman/README.md)                            |
 | [Customer guide](customer-api.md), [profile guide](customer-profile-api.md), [Explore guide](explore-api.md)                    | More detail about the corresponding implemented flows and CMS management                       |
 
-The four standalone JSON files are OpenAPI 3.1 specifications. Their paths include mobile and, where applicable, admin operations: mobile clients use the non-admin paths listed here. Use `components.schemas` and each operation's request/response schema to define typed models. Home reuses the Explore Place/CategoryType schemas. The root [openapi.yaml](openapi.yaml) additionally includes legacy website APIs and references these files.
+The standalone JSON files are OpenAPI 3.1 specifications. Their paths include mobile and, where applicable, admin operations: mobile clients use the non-admin paths listed here. Use `components.schemas` and each operation's request/response schema to define typed models. Home reuses the Explore Place/CategoryType schemas. The root [openapi.yaml](openapi.yaml) additionally includes legacy website APIs and references these files.
 
 **Implemented means the route and backend behavior exist.** It does not mean all provider credentials and editorial content are configured. SMS delivery is pending configuration: OTP request/resend returns **503** unless a development or staging server explicitly enables `CUSTOMER_OTP_DEV_RESPONSE=true` with an OTP secret. In that mode, use fixed OTP `2580`; the code is not returned in the response. This opt-in also works with `NODE_ENV=production`, so disable it before serving real customers. Approved legal pages and venue images/copy must be supplied through the CMS.
+
+FCM inbox/token APIs are implemented. Actual push delivery requires the FCM service-account environment values and a running `node ace notifications:deliver-push --watch` worker. No ride or rental event sources are connected yet, so those workflows will not create notifications until integrated.
+
+At startup, call `GET /api/v2/config` without authentication. Set `Accept-Language` to `en` or `ar`; missing Arabic text falls back to English. `api_base_url` and `image_base_url` are origins: API paths already include `/api/v2`, and relative image paths already include `/api/v1/images`. The app compares its installed numeric `major.minor.patch` version with the relevant platform's configured `version`; a null version means no update is configured. When an older version is detected, `force` determines whether the update is mandatory. A forced update requires a store URL. `maintenance.enabled` instructs the app to show the maintenance screen; it does not block other API calls. Keep a last successful response for offline startup and provide a retry state for first launch without one.
+
+The CMS **Site settings → Mobile app configuration** page manages versions, store links, localized messages and maintenance separately in each environment. Server operators must set `APP_CONFIG_ENVIRONMENT` to `qa` or `live` to isolate settings, including when deployments share a database. Without it, the response environment is null and settings use a shared `default` entry. Set `APP_API_BASE_URL` and `APP_IMAGE_BASE_URL` to public origins; unset URLs use the configured `APP_URL` origin. These origins must be reachable by the phone. A build must contain its initial QA or live configuration endpoint to bootstrap this call. Deploy the new migration before using the endpoint.
 
 ## 2. What the app can integrate now
 
@@ -36,9 +44,10 @@ The four standalone JSON files are OpenAPI 3.1 specifications. Their paths inclu
 | Save/unsave venues and saved venue list                                              | Implemented; customer authentication required                       | Section 10                                                             |
 | Contact Us, WhatsApp, privacy/terms, logout, delete account                          | Implemented; legal/settings content prerequisites apply             | Sections 5, 6 and 11                                                   |
 | App Home hero, Explore cards and four featured carousels                             | Implemented; artwork and card choices depend on CMS                 | Section 12; `GET /api/v2/home`                                         |
-| Home search, notifications, Schedule                                                 | Pending                                                             | No API contract to integrate                                           |
-| Saved addresses (Home, Work and custom locations) | Implemented; customer authentication required | [Saved-address API reference](saved-addresses-api.md) |
-| Cab, rentals, bookings, videos/social features                      | Pending separate sections                                           | No working mobile feature contract is supplied here                    |
+| Notifications inbox and FCM token APIs                                              | Implemented; actual delivery requires Firebase credentials and the worker | [Notifications API](notifications-openapi.json); ride/rental event triggers are pending |
+| Home search and Schedule                                                           | Pending                                                                  | No API contract to integrate                                           |
+| Saved addresses (Home, Work and custom locations)                                  | Implemented; customer authentication required                             | [Saved-address API reference](saved-addresses-api.md)                  |
+| Cab, rentals, bookings, videos/social features                                     | Pending separate sections                                                 | No working mobile feature contract is supplied here                    |
 
 The website's `/api/v1/home` retains its legacy response. The app's Home Explore cards link to existing place details. A future cab flow can receive a selected place, but no cab quotation/ride-creation API is implemented in this section.
 
@@ -478,7 +487,7 @@ The browser editor is `/admin/home`; it can edit localized Home copy/hero, selec
 
 Use the existing `GET /api/v2/admin/places` picker. A card can refer to a draft for editorial preparation, but public Home shows it only when active and published. One venue can have only one Explore card. At most 50 selections can be configured. Allowed venue types are `attraction`, `restaurant`, `hotel_resort`, and `theater`. `sort_order` and `featured_order` accept integers 0–9999; lower numbers appear first and ID breaks ties. Null `featured_order` removes a venue from Home carousels without changing its publication or other content. A selected venue cannot be deleted or changed to an unsupported type until its card is removed. All changes are audited.
 
-Home API errors follow the shared `{ error: { code, message, requestId, fields? } }` envelope: common outcomes are 401 for missing/invalid admin credentials, 404 for unknown IDs, 409 for duplicate selections or referenced deletion, and 422 for invalid fields or place type. Home search, notifications, cab and rental remain pending separate sections.
+Home API errors follow the shared `{ error: { code, message, requestId, fields? } }` envelope: common outcomes are 401 for missing/invalid admin credentials, 404 for unknown IDs, 409 for duplicate selections or referenced deletion, and 422 for invalid fields or place type. Home search, cab and rental remain pending separate sections.
 
 ## 13. Error handling and screen states
 
@@ -522,7 +531,7 @@ Use each endpoint's envelope: auth wraps customer/credentials; profile returns
 Customer directly under data; lists return arrays; showtimes include related movies.
 Preserve token/proof distinctions, rotation, guest behavior, locale fallback,
 metadata joins, pagination, empty/error states and private image authentication.
-Global search, notifications, Schedule, cab/rental/bookings
+Global search, notification event integrations, Schedule, cab/rental/bookings
 and video/social APIs are pending. Do not invent their routes or treat plans as live.
 SMS is not configured, so handle the documented 503 state without a bypass.
 ```
@@ -530,6 +539,14 @@ SMS is not configured, so handle the documented 503 state without a bypass.
 Suggested implementation order: shared API client/error decoding and canonical models → guest Home and Explore/list/detail → legal/login/session handling → profile/photo → bookmarks → theater showtimes → contact/settings/account controls.
 
 The CMS/admin APIs are for editors, not mobile credentials. Their current references are in the [Customer guide](customer-api.md#cmsadmin), [Explore guide](explore-api.md#manage-place-details-in-the-cms) and [Home CMS section](#home-cms-and-admin-operations), with exact `/api/v2/admin` operations in the corresponding OpenAPI files. Older implementation plans and [website response examples](frontend-api-responses.md) are background material, not alternate mobile response contracts.
+
+### Push notifications
+
+Register the current Firebase Messaging token after sign-in with `POST /api/v2/customer/me/push-tokens`, supplying `{ "token": "<fcm-registration-token>", "platform": "ios" }` or `"android"`; an optional `device_id` lets a token refresh replace that device's previous token. Remove it on sign-out using `DELETE /api/v2/customer/me/push-tokens/{id}`. The API never echoes the token back.
+
+Load the inbox with `GET /api/v2/customer/me/notifications?page=1&per_page=20`. Notifications are newest first; `meta.unread_count` is the total unread count, independent of the current page. Mark one read with `PUT /api/v2/customer/me/notifications/{id}/read`, or all with `PUT /api/v2/customer/me/notifications/read-all`. Notification records are created only by trusted server workflows. `action_data` is nullable and currently has no app navigation contract.
+
+The durable outbox retries failed FCM sends with backoff; deliveries stop after 10 unsuccessful attempts, and invalid tokens are removed. Set `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL` and `FCM_PRIVATE_KEY` in the server's secret configuration and run one or more `node ace notifications:deliver-push --watch` workers. FCM/APNs credentials and app-side notification permission/token handling are operational prerequisites. Ride/rental notifications remain inactive until their event sources are connected.
 
 ## 15. Keeping this reference current
 

@@ -127,6 +127,13 @@ const navigation = [
         permission: 'audit_logs.view',
       },
       {
+        href: '/admin/app-config',
+        icon: '↻',
+        label: 'App configuration',
+        active: 'app-config',
+        permission: 'settings.view',
+      },
+      {
         href: '/admin/settings',
         icon: '⚙',
         label: 'Site settings',

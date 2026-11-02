@@ -15,6 +15,13 @@ export const customerAddressThrottle = limiter.define('customer-addresses', (ctx
     .usingKey(`customer-addresses:${ctx.customerIdentity.customer.id}`)
 )
 
+export const customerNotificationThrottle = limiter.define('customer-notifications', (ctx) =>
+  limiter
+    .allowRequests(120)
+    .every('1 minute')
+    .usingKey(`customer-notifications:${ctx.customerIdentity.customer.id}`)
+)
+
 export const customerPhotoThrottle = limiter.define('customer-profile-photo', (ctx) =>
   limiter
     .allowRequests(20)

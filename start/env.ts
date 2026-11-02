@@ -31,4 +31,10 @@ export default await Env.create(new URL('../', import.meta.url), {
   SMTP_PASSWORD: Env.schema.secret.optional(),
   ADMIN_PASSWORD_RESET_FROM: Env.schema.string.optional(),
   PHOTON_BASE_URL: Env.schema.string.optional({ format: 'url' }),
+  APP_CONFIG_ENVIRONMENT: Env.schema.enum.optional(['qa', 'live'] as const),
+  APP_API_BASE_URL: Env.schema.string.optional({ format: 'url', tld: false }),
+  APP_IMAGE_BASE_URL: Env.schema.string.optional({ format: 'url', tld: false }),
+  FCM_PROJECT_ID: Env.schema.string.optional(),
+  FCM_CLIENT_EMAIL: Env.schema.string.optional(),
+  FCM_PRIVATE_KEY: Env.schema.secret.optional(),
 })
