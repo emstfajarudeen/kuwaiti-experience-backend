@@ -145,7 +145,7 @@ test.group('Admin JWT authentication', (group) => {
         intent: 'save',
       })
     result.assertStatus(302)
-    assert.equal(result.header('location'), '/admin/places/saved')
+    assert.equal(result.header('location'), '/admin/places')
     const renewedAccess = result.cookie('admin_access')?.value
     assert.isString(renewedAccess)
     assert.isNotNull(await db.from('places').where('slug', 'long-form-place').first())

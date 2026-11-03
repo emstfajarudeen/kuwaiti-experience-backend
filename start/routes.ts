@@ -7,6 +7,8 @@ import {
   contactThrottle,
   customerPhotoThrottle,
   bookmarkThrottle,
+  videoActionThrottle,
+  videoCommentThrottle,
   customerAddressThrottle,
   customerNotificationThrottle,
   notificationBroadcastThrottle,
@@ -27,6 +29,8 @@ const AdminAppConfigController = () => import('#controllers/admin/app_config_con
 const AdminContactsController = () => import('#controllers/api/admin_contacts_controller')
 const ContactsController = () => import('#controllers/admin/contacts_controller')
 const PublicController = () => import('#controllers/api/public_controller')
+const VideosController = () => import('#controllers/api/videos_controller')
+const AdminVideosController = () => import('#controllers/admin/videos_controller')
 const ExploreController = () => import('#controllers/api/explore_controller')
 const HomeController = () => import('#controllers/api/home_controller')
 const AdminHomeController = () => import('#controllers/api/admin_home_controller')
@@ -101,6 +105,23 @@ router
     router
       .post('/notifications/check-connection', [AdminNotificationsController, 'checkConnection'])
       .use(pushConnectionCheckThrottle)
+    router.get('/videos', [AdminVideosController, 'index'])
+    router.get('/videos/new', [AdminVideosController, 'create'])
+    router.get('/videos/reports', [AdminVideosController, 'reports'])
+    router
+      .get('/videos/address-search', [AdminAddressSearchController, 'search'])
+      .as('cms.videos.address_search')
+    router
+      .get('/videos/address-reverse', [AdminAddressSearchController, 'reverse'])
+      .as('cms.videos.address_reverse')
+    router.post('/videos/reports/:id/status', [AdminVideosController, 'updateReport'])
+    router.post('/videos/comments/:id/status', [AdminVideosController, 'updateComment'])
+    router.get('/video-files/:key', [VideosController, 'adminFile'])
+    router.post('/videos', [AdminVideosController, 'save']).as('cms.videos.create')
+    router.get('/videos/:id/edit', [AdminVideosController, 'edit'])
+    router.post('/videos/:id/save', [AdminVideosController, 'save']).as('cms.videos.update')
+    router.post('/videos/:id/status', [AdminVideosController, 'updateStatus'])
+    router.post('/videos/:id/delete', [AdminVideosController, 'destroy'])
     router.get('/users', [AdminUsersController, 'index'])
     router.get('/users/new', [AdminUsersController, 'create'])
     router.post('/users', [AdminUsersController, 'save']).as('cms.users.create')
@@ -181,6 +202,7 @@ router
     router.get('/transport/locations', [PublicController, 'locations'])
     router.post('/transport/enquiry-link', [PublicController, 'enquiry']).use(enquiryThrottle)
     router.get('/images/:key', [ImagesController, 'show'])
+    router.get('/video-files/:key', [VideosController, 'file'])
   })
   .prefix('/api/v1')
 
@@ -261,6 +283,10 @@ router
     router
       .get('/places/:slug', [ExploreController, 'place'])
       .as('explore.ExploreController.get.places_slug')
+    router.get('/videos', [VideosController, 'index'])
+    router.get('/videos/report-reasons', [VideosController, 'reasons'])
+    router.get('/videos/:id', [VideosController, 'show'])
+    router.get('/videos/:id/comments', [VideosController, 'comments'])
     router.post('/customer/auth/otp', [CustomerAuthController, 'request']).use(customerAuthThrottle)
     router
       .post('/customer/auth/otp/:id/resend', [CustomerAuthController, 'resend'])
@@ -314,6 +340,29 @@ router
         router
           .delete('/customer/me/saved-places/:id', [ExploreController, 'unsave'])
           .use(bookmarkThrottle)
+        router.get('/customer/me/saved-videos', [VideosController, 'saved'])
+        router
+          .put('/customer/me/saved-videos/:id', [VideosController, 'save'])
+          .use(videoActionThrottle)
+        router
+          .delete('/customer/me/saved-videos/:id', [VideosController, 'unsave'])
+          .use(videoActionThrottle)
+        router.put('/videos/:id/like', [VideosController, 'like']).use(videoActionThrottle)
+        router.delete('/videos/:id/like', [VideosController, 'unlike']).use(videoActionThrottle)
+        router.post('/videos/:id/share', [VideosController, 'share']).use(videoActionThrottle)
+        router
+          .post('/videos/:id/comments', [VideosController, 'addComment'])
+          .use(videoCommentThrottle)
+        router
+          .delete('/video-comments/:id', [VideosController, 'deleteComment'])
+          .use(videoActionThrottle)
+        router
+          .put('/video-comments/:id/like', [VideosController, 'likeComment'])
+          .use(videoActionThrottle)
+        router
+          .delete('/video-comments/:id/like', [VideosController, 'unlikeComment'])
+          .use(videoActionThrottle)
+        router.post('/videos/:id/report', [VideosController, 'report']).use(videoCommentThrottle)
         router.patch('/customer/me', [CustomerProfileController, 'update'])
         router.get('/customer/me/photo', [CustomerProfileController, 'photo'])
         router

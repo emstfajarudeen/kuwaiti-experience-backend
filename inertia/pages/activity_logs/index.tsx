@@ -1,3 +1,4 @@
+import { router } from '@inertiajs/react'
 import AdminLayout from '../../layouts/admin_layout'
 import TableToolbar, { useServerFilters } from '../../components/table_toolbar'
 
@@ -53,7 +54,7 @@ export default function ActivityLogsIndex({ adminName, csrfToken, logs, filters,
   function goToPage(targetPage: number) {
     const query = new URLSearchParams(window.location.search)
     query.set('page', String(targetPage))
-    window.location.assign(`/admin/activity-logs?${query.toString()}`)
+    router.visit(`/admin/activity-logs?${query.toString()}`)
   }
 
   return (

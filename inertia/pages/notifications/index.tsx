@@ -252,7 +252,7 @@ export default function NotificationsPage({
 
   function changePage(pagination: TablePaginationConfig) {
     if (pagination.current && pagination.current !== meta.page)
-      window.location.assign(`/admin/notifications?page=${pagination.current}`)
+      router.visit(`/admin/notifications?page=${pagination.current}`)
   }
 
   const delayed = queue.overdue > 0 || queue.stalledBroadcasts > 0

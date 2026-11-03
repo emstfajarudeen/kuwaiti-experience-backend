@@ -16,6 +16,10 @@ type Props = {
   longitude: number | null
   onAddressEdited: () => void
   onPlaceSelected: (address: string, latitude: number, longitude: number) => void
+  /** Form field name of the address input. */
+  name?: string
+  searchUrl?: string
+  reverseUrl?: string
 }
 
 export default function OpenMapAddressSearch({
@@ -25,6 +29,9 @@ export default function OpenMapAddressSearch({
   longitude,
   onAddressEdited,
   onPlaceSelected,
+  name = 'addressEn',
+  searchUrl = '/admin/places/address-search',
+  reverseUrl = '/admin/places/address-reverse',
 }: Props) {
   const [results, setResults] = useState<AddressResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -57,7 +64,7 @@ export default function OpenMapAddressSearch({
     setSearched(false)
     try {
       const response = await fetch(
-        `/admin/places/address-search?q=${encodeURIComponent(trimmed)}`,
+        `${searchUrl}?q=${encodeURIComponent(trimmed)}`,
         {
           credentials: 'same-origin',
           headers: { Accept: 'application/json' },
@@ -116,7 +123,7 @@ export default function OpenMapAddressSearch({
     setError(null)
     try {
       const response = await fetch(
-        `/admin/places/address-reverse?lat=${encodeURIComponent(selectedLatitude)}&lon=${encodeURIComponent(selectedLongitude)}`,
+        `${reverseUrl}?lat=${encodeURIComponent(selectedLatitude)}&lon=${encodeURIComponent(selectedLongitude)}`,
         { credentials: 'same-origin', headers: { Accept: 'application/json' } }
       )
       const data = (await response.json()) as { result?: AddressResult | null; error?: string }
@@ -163,7 +170,7 @@ export default function OpenMapAddressSearch({
         <Input.Search
           id="place-address"
           aria-label="Address"
-          name="addressEn"
+          name={name}
           maxLength={300}
           placeholder="Search for a place or address"
           enterButton="Search map"

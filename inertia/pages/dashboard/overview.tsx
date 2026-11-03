@@ -81,9 +81,6 @@ export default function Overview({
   const totalCustomers = analytics?.totalCustomers ?? 0
   const verifiedCustomers = analytics?.verifiedCustomers ?? 0
   const activeCategories = analytics?.activeCategories ?? 0
-  const featuredCount = analytics?.featuredCount ?? 0
-  const geocodedCount = analytics?.geocodedCount ?? 0
-  const geocodedRate = analytics?.geocodedRate ?? 0
   const totalContacts = analytics?.totalContacts ?? newContactsCount
   const resolvedContacts = analytics?.resolvedContacts ?? 0
   const contactsResolutionRate = analytics?.contactsResolutionRate ?? 0

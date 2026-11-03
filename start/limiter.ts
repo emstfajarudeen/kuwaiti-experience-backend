@@ -8,6 +8,20 @@ export const bookmarkThrottle = limiter.define('customer-bookmarks', (ctx) =>
     .usingKey(`bookmarks:${ctx.customerIdentity.customer.id}`)
 )
 
+export const videoActionThrottle = limiter.define('video-actions', (ctx) =>
+  limiter
+    .allowRequests(120)
+    .every('1 minute')
+    .usingKey(`video-actions:${ctx.customerIdentity.customer.id}`)
+)
+
+export const videoCommentThrottle = limiter.define('video-comments', (ctx) =>
+  limiter
+    .allowRequests(20)
+    .every('1 minute')
+    .usingKey(`video-comments:${ctx.customerIdentity.customer.id}`)
+)
+
 export const customerAddressThrottle = limiter.define('customer-addresses', (ctx) =>
   limiter
     .allowRequests(120)

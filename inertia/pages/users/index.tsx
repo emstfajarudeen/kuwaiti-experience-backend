@@ -5,7 +5,7 @@ import AdminLayout from '../../layouts/admin_layout'
 import RowActionMenu from '../../components/row_action_menu'
 import ConfirmModal from '../../components/confirm_modal'
 import TableToolbar, { useServerFilters } from '../../components/table_toolbar'
-import { usePage } from '@inertiajs/react'
+import { usePage, router } from '@inertiajs/react'
 
 type StaffRole = { id: number; slug: string; name: string }
 
@@ -96,7 +96,7 @@ export default function UsersIndex({
 
   function changePage(pagination: TablePaginationConfig) {
     if (pagination.current && pagination.current !== meta.page) {
-      window.location.assign(usersUrl(pagination.current, filters))
+      router.visit(usersUrl(pagination.current, filters))
     }
   }
 

@@ -11,6 +11,7 @@ const imageColumns = [
   { table: 'home_content', column: 'hero_image_key' },
   { table: 'site_settings', column: 'logo_image_key' },
   { table: 'movies', column: 'poster_image_key' },
+  { table: 'videos', column: 'thumbnail_key' },
 ] as const
 
 const imagePermissionModules: Record<(typeof imageColumns)[number]['table'], string> = {
@@ -20,6 +21,7 @@ const imagePermissionModules: Record<(typeof imageColumns)[number]['table'], str
   home_content: 'home',
   site_settings: 'settings',
   movies: 'movies',
+  videos: 'videos',
 }
 
 export async function allImageKeys() {
@@ -69,6 +71,12 @@ export async function isPublicImage(key: string) {
     (await db.from('category_types').where('image_key', key).first()) ||
     (await db.from('home_content').where('hero_image_key', key).first()) ||
     (await db.from('site_settings').where('logo_image_key', key).first()) ||
+    (await db
+      .from('videos')
+      .where('thumbnail_key', key)
+      .where('status', 'published')
+      .where('published_at', '<=', new Date())
+      .first()) ||
     (await db
       .from('movies')
       .where('poster_image_key', key)

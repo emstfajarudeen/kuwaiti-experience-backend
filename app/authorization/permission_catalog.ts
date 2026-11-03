@@ -56,6 +56,12 @@ const permissionDefinitions = [
   })),
   { key: 'settings.view', module: 'settings', action: 'view', label: 'View site settings' },
   { key: 'settings.update', module: 'settings', action: 'update', label: 'Update site settings' },
+  ...(['view', 'create', 'update', 'delete', 'publish', 'moderate'] as const).map((action) => ({
+    key: `videos.${action}` as const,
+    module: 'videos',
+    action,
+    label: `${action[0].toUpperCase()}${action.slice(1)} videos`,
+  })),
   {
     key: 'customers.view',
     module: 'customers',

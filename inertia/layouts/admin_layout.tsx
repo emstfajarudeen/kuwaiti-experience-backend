@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react'
+import { Head, Link } from '@inertiajs/react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import AdminProfileMenu from '../components/admin_profile_menu'
 import Notice from '../components/notice'
@@ -56,6 +56,13 @@ const navigation = [
         label: 'Category types',
         active: 'category-types',
         permission: 'category_types.view',
+      },
+      {
+        href: '/admin/videos',
+        icon: '▶',
+        label: 'Videos',
+        active: 'videos',
+        permission: 'videos.view',
       },
       {
         href: '/admin/countries',
@@ -239,7 +246,7 @@ export default function AdminLayout({
           id="cms-sidebar"
           aria-label="Main sidebar navigation"
         >
-          <a
+          <Link
             href={auth?.landingUrl ?? '/admin/account'}
             className="brand tw:flex tw:items-center tw:gap-3 tw:px-2 tw:pb-6 tw:pt-2 tw:font-bebas tw:text-[22px] tw:leading-[0.9] tw:tracking-[0.03em] tw:text-white"
             aria-label="Kuwaiti Experience dashboard"
@@ -255,7 +262,7 @@ export default function AdminLayout({
                 THE KUWAITI EXPERIENCE
               </span>
             </span>
-          </a>
+          </Link>
           {visibleNavigation.map((section) => (
             <div key={section.label}>
               <div className="sidebar-label tw:mx-2 tw:mb-2 tw:mt-5 tw:text-[11px] tw:font-bold tw:uppercase tw:tracking-[0.14em] tw:text-[#8da4b8]">
@@ -266,9 +273,11 @@ export default function AdminLayout({
                 className="cms-nav tw:flex tw:flex-col tw:gap-[3px]"
               >
                 {section.links.map((link) => (
-                  <a
+                  <Link
                     key={link.href}
                     href={link.href}
+                    prefetch="hover"
+                    onClick={() => setMenuOpen(false)}
                     className={`tw:flex tw:min-h-10 tw:items-center tw:gap-3 tw:rounded-cms-sm tw:px-3 tw:py-[10px] tw:text-[13px] tw:font-semibold tw:text-[#c4d7e6] tw:transition-[background,color] tw:duration-150 tw:hover:bg-white/10 tw:hover:text-white ${active === link.active ? 'active tw:bg-brand-gold tw:font-bold tw:text-brand-navy-deep' : ''}`}
                     aria-current={active === link.active ? 'page' : undefined}
                   >
@@ -279,7 +288,7 @@ export default function AdminLayout({
                       {link.icon}
                     </span>
                     {link.label}
-                  </a>
+                  </Link>
                 ))}
               </nav>
             </div>

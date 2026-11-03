@@ -15,6 +15,26 @@ function syncBodyClass(component: string) {
 router.on('navigate', (event) => syncBodyClass(event.detail.page.component))
 router.on('success', (event) => syncBodyClass(event.detail.page.component))
 
+// Plain links and Ant Design buttons with an href would reload the whole page (a white
+// flash while the bundle loads again). Send every in-app CMS link through Inertia instead.
+const nativePaths = ['/admin/images/', '/admin/video-files/', '/admin/logout']
+document.addEventListener('click', (event) => {
+  if (event.defaultPrevented || event.button !== 0) return
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  const link = (event.target as Element | null)?.closest?.('a')
+  if (!link || !link.hasAttribute('href')) return
+  if ((link.target && link.target !== '_self') || link.hasAttribute('download')) return
+  if (link.dataset.nativeLink !== undefined) return
+  const url = new URL(link.href, window.location.href)
+  if (url.origin !== window.location.origin || !url.pathname.startsWith('/admin')) return
+  if (nativePaths.some((path) => url.pathname.startsWith(path))) return
+  if (url.pathname === window.location.pathname && url.search === window.location.search) {
+    if (url.hash) return
+  }
+  event.preventDefault()
+  router.visit(url.pathname + url.search + url.hash)
+})
+
 void createInertiaApp({
   resolve: resolvePage,
   setup({ el, App, props }) {

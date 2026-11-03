@@ -388,6 +388,20 @@ add(
   ['places.view', 'places.update', 'home.view', 'home.update']
 )
 
+add('GET', ['/admin/videos', '/admin/video-files/:key'], ['videos.view'])
+add('GET', ['/admin/videos/new'], ['videos.view', 'videos.create'])
+add('GET', ['/admin/videos/address-search', '/admin/videos/address-reverse'], ['videos.view'])
+add('GET', ['/admin/videos/:id/edit'], ['videos.view', 'videos.update'])
+add('POST', ['/admin/videos'], ['videos.view', 'videos.create'])
+add('POST', ['/admin/videos/:id/save'], ['videos.view', 'videos.update'])
+add('POST', ['/admin/videos/:id/status'], ['videos.view', 'videos.publish'])
+add('POST', ['/admin/videos/:id/delete'], ['videos.view', 'videos.delete'])
+add('GET', ['/admin/videos/reports'], ['videos.view', 'videos.moderate'])
+add(
+  'POST',
+  ['/admin/videos/reports/:id/status', '/admin/videos/comments/:id/status'],
+  ['videos.view', 'videos.moderate']
+)
 add('GET', ['/admin/customers'], ['customers.view'])
 add('POST', ['/admin/customers/:id/status'], ['customers.view', 'customers.update'])
 add('GET', ['/admin/notifications'], ['notifications.view'])

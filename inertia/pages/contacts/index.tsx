@@ -1,3 +1,4 @@
+import { router } from '@inertiajs/react'
 import { Table } from 'antd'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import RowActionMenu from '../../components/row_action_menu'
@@ -173,7 +174,7 @@ export default function ContactInbox({
 
   function changePage(pagination: TablePaginationConfig) {
     if (pagination.current && pagination.current !== meta.page) {
-      window.location.assign(pageUrl(pagination.current, status, q))
+      router.visit(pageUrl(pagination.current, status, q))
     }
   }
 

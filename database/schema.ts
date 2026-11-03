@@ -939,3 +939,125 @@ export class UserSchema extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
 }
+
+export class VideoCommentLikeSchema extends BaseModel {
+  static $columns = ['commentId', 'createdAt', 'customerId'] as const
+  $columns = VideoCommentLikeSchema.$columns
+  @column({ isPrimary: true })
+  declare commentId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare customerId: number
+}
+
+export class VideoCommentSchema extends BaseModel {
+  static $columns = ['body', 'createdAt', 'customerId', 'id', 'likeCount', 'status', 'videoId'] as const
+  $columns = VideoCommentSchema.$columns
+  @column()
+  declare body: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare customerId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare likeCount: number
+  @column()
+  declare status: string
+  @column()
+  declare videoId: number
+}
+
+export class VideoLikeSchema extends BaseModel {
+  static $columns = ['createdAt', 'customerId', 'videoId'] as const
+  $columns = VideoLikeSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare customerId: number
+  @column({ isPrimary: true })
+  declare videoId: number
+}
+
+export class VideoReportSchema extends BaseModel {
+  static $columns = ['createdAt', 'customerId', 'id', 'note', 'reason', 'reviewedAt', 'status', 'videoId'] as const
+  $columns = VideoReportSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare customerId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare note: string | null
+  @column()
+  declare reason: string
+  @column.dateTime()
+  declare reviewedAt: DateTime | null
+  @column()
+  declare status: string
+  @column()
+  declare videoId: number
+}
+
+export class VideoSaveSchema extends BaseModel {
+  static $columns = ['createdAt', 'customerId', 'videoId'] as const
+  $columns = VideoSaveSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare customerId: number
+  @column({ isPrimary: true })
+  declare videoId: number
+}
+
+export class VideoSchema extends BaseModel {
+  static $columns = ['captionAr', 'captionEn', 'categoryId', 'commentCount', 'createdAt', 'createdBy', 'id', 'latitude', 'likeCount', 'locationNameAr', 'locationNameEn', 'longitude', 'phoneE164', 'placeId', 'publishedAt', 'saveCount', 'shareCount', 'sizeBytes', 'status', 'thumbnailKey', 'updatedAt', 'videoKey'] as const
+  $columns = VideoSchema.$columns
+  @column()
+  declare captionAr: string | null
+  @column()
+  declare captionEn: string
+  @column()
+  declare categoryId: number | null
+  @column()
+  declare commentCount: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare createdBy: number | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare latitude: string | null
+  @column()
+  declare likeCount: number
+  @column()
+  declare locationNameAr: string | null
+  @column()
+  declare locationNameEn: string | null
+  @column()
+  declare longitude: string | null
+  @column()
+  declare phoneE164: string | null
+  @column()
+  declare placeId: number | null
+  @column.dateTime()
+  declare publishedAt: DateTime | null
+  @column()
+  declare saveCount: number
+  @column()
+  declare shareCount: number
+  @column()
+  declare sizeBytes: number
+  @column()
+  declare status: string
+  @column()
+  declare thumbnailKey: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare videoKey: string
+}

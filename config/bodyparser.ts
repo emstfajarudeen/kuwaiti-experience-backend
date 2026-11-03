@@ -88,6 +88,8 @@ const bodyParserConfig = defineConfig({
       '/api/v1/admin/settings/logo',
       '/api/v2/customer/me/photo',
       '/admin/movies',
+      '/admin/videos',
+      '/admin/videos/:id/save',
       '/admin/movies/:id/save',
       '/api/v2/admin/movies/:id/poster',
       '/api/v2/admin/home/hero-image',
@@ -112,9 +114,9 @@ const bodyParserConfig = defineConfig({
 
     /**
      * Maximum limit of data to parse including all files
-     * and fields. Sized for up to five 5 MB images plus form fields.
+     * and fields. Sized for a 25 MB video with a 5 MB cover image plus form fields (or five 5 MB images).
      */
-    limit: '26mb',
+    limit: '32mb',
 
     /**
      * Content types that should be parsed as multipart form data.

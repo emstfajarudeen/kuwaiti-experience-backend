@@ -11,6 +11,7 @@ const destinations = [
   ['contact_requests.view', '/admin/contact-requests'],
   ['home.view', '/admin/home'],
   ['settings.view', '/admin/settings'],
+  ['videos.view', '/admin/videos'],
   ['customers.view', '/admin/customers'],
   ['notifications.view', '/admin/notifications'],
   ['staff.view', '/admin/users'],

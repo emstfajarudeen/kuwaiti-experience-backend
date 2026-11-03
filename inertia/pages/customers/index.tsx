@@ -132,7 +132,7 @@ export default function CustomersIndex({
 
   function changePage(pagination: TablePaginationConfig) {
     if (pagination.current && pagination.current !== meta.page) {
-      window.location.assign(userUrl(pagination.current, query))
+      router.visit(userUrl(pagination.current, query))
     }
   }
 
