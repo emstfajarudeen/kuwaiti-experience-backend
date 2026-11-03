@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { router } from '@inertiajs/react'
-import { App, Button, Form, Input, Radio, Table } from 'antd'
+import { App, Button, Form, Input, Radio, Select, Table } from 'antd'
+import { ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import AdminLayout from '../../layouts/admin_layout'
 import { postCmsForm } from '../../lib/cms_form'
@@ -12,6 +13,8 @@ type Broadcast = {
   id: number
   title: string
   body: string
+  title_ar: string | null
+  body_ar: string | null
   audience: Audience
   status: 'queued' | 'processing' | 'completed' | 'failed'
   recipients: number
@@ -31,6 +34,7 @@ type Props = {
   success: string | null
   error: string | null
   canSend: boolean
+  customers: Array<{ value: number; label: string }>
   requestKey: string
   overview: {
     configured: boolean
@@ -41,7 +45,14 @@ type Props = {
   meta: { page: number; per_page: number; total: number; last_page: number }
 }
 
-type Values = { audience: Audience; customer_phone?: string; title: string; body: string }
+type Values = {
+  audience: Audience
+  customer_id?: number
+  title: string
+  body: string
+  title_ar?: string
+  body_ar?: string
+}
 
 const audienceLabel: Record<Audience, string> = {
   all: 'Everyone',
@@ -66,6 +77,7 @@ export default function NotificationsPage({
   success,
   error,
   canSend,
+  customers,
   requestKey,
   overview,
   broadcasts,
@@ -79,12 +91,14 @@ export default function NotificationsPage({
   const audience = Form.useWatch('audience', form) ?? 'customer'
   const title = Form.useWatch('title', form)
   const body = Form.useWatch('body', form)
+  const titleAr = Form.useWatch('title_ar', form)
+  const bodyAr = Form.useWatch('body_ar', form)
   const { audiences, queue, configured } = overview
 
   // Every render of this page carries a fresh idempotency key. After a successful send,
   // clear the message so it can't be sent twice by accident.
   useEffect(() => {
-    if (submitted.current && success) form.resetFields(['title', 'body', 'customer_phone'])
+    if (submitted.current && success) form.resetFields(['title', 'body', 'title_ar', 'body_ar', 'customer_id'])
     submitted.current = false
   }, [requestKey])
 
@@ -104,9 +118,11 @@ export default function NotificationsPage({
         data: {
           request_key: requestKey,
           audience: values.audience,
-          customer_phone: values.audience === 'customer' ? (values.customer_phone ?? '') : '',
+          customer_id: values.audience === 'customer' ? (values.customer_id ?? '') : '',
           title: values.title,
           body: values.body,
+          title_ar: values.title_ar ?? '',
+          body_ar: values.body_ar ?? '',
         },
       })
     }
@@ -120,7 +136,16 @@ export default function NotificationsPage({
     })
   }
 
-  function checkConnection() {
+  // Reloads the page data. Staff who can send also re-check the push connection, which
+  // redirects back here with the result and fresh numbers.
+  function refresh() {
+    if (!canSend) {
+      router.reload({
+        onStart: () => setChecking(true),
+        onFinish: () => setChecking(false),
+      })
+      return
+    }
     router.post(
       '/admin/notifications/check-connection',
       { _csrf: csrfToken },
@@ -152,6 +177,16 @@ export default function NotificationsPage({
         <div className="place-title-wrap tw:[display:flex] tw:[flex-direction:column]">
           <strong>{row.title}</strong>
           <small className="tw:max-w-[420px] tw:whitespace-normal">{row.body}</small>
+          {row.title_ar && (
+            <>
+              <strong dir="rtl" lang="ar" className="tw:mt-2 tw:block">
+                {row.title_ar}
+              </strong>
+              <small dir="rtl" lang="ar" className="tw:max-w-[420px] tw:whitespace-normal">
+                {row.body_ar}
+              </small>
+            </>
+          )}
         </div>
       ),
     },
@@ -231,15 +266,8 @@ export default function NotificationsPage({
       success={success}
       error={error}
     >
-      <div className="page-head form-page-head tw:mb-6 tw:flex tw:flex-wrap tw:items-start tw:justify-between tw:gap-4">
-        <div>
-          <h1>Notifications</h1>
-        </div>
-        {canSend && (
-          <Button className="button secondary" onClick={checkConnection} loading={checking}>
-            Check push connection
-          </Button>
-        )}
+      <div className="page-head form-page-head tw:mb-6">
+        <h1>Notifications</h1>
       </div>
 
       <section className={panel}>
@@ -247,10 +275,23 @@ export default function NotificationsPage({
         <div className="tw:mt-4 tw:grid tw:grid-cols-4 tw:gap-3 tw:max-[900px]:grid-cols-2 tw:max-[560px]:grid-cols-1">
           <div className={tile}>
             <span className={tileLabel}>Push service</span>
-            <span className="tw:flex tw:items-center tw:gap-2">
+            <span className="tw:flex tw:items-center tw:justify-between tw:gap-2">
               <span className={`status ${configured ? 'published' : 'archived'}`}>
                 {configured ? 'Configured' : 'Not configured'}
               </span>
+              <Button
+                size="small"
+                className="button secondary tw:!min-w-8 tw:!px-0"
+                aria-label="Refresh status"
+                title={
+                  canSend
+                    ? 'Refresh status and check the push connection'
+                    : 'Refresh status'
+                }
+                icon={<ReloadOutlined />}
+                onClick={refresh}
+                loading={checking}
+              />
             </span>
           </div>
           <div className={tile}>
@@ -300,7 +341,7 @@ export default function NotificationsPage({
           id="notification-composer"
           form={form}
           layout="vertical"
-          initialValues={{ audience: 'customer', title: '', body: '', customer_phone: '' }}
+          initialValues={{ audience: 'customer', title: '', body: '', title_ar: '', body_ar: '' }}
           onFinish={send}
         >
           <section className={panel}>
@@ -321,34 +362,86 @@ export default function NotificationsPage({
                 </Form.Item>
                 {audience === 'customer' && (
                   <Form.Item
-                    name="customer_phone"
-                    label="User phone number"
-                    extra="International format, for example +96550000000. The user must have signed in to the app."
-                    rules={[
-                      { required: true, message: 'Enter the phone number of a registered user' },
-                      {
-                        pattern: /^\+[1-9][\d\s().-]{6,20}$/,
-                        message: 'Use international format, e.g. +96550000000',
-                      },
-                    ]}
+                    name="customer_id"
+                    label="User"
+                    extra="Search by name or phone number. Only users who have signed in to the app are listed."
+                    rules={[{ required: true, message: 'Select a user' }]}
                   >
-                    <Input inputMode="tel" maxLength={24} placeholder="+965…" />
+                    <Select
+                      showSearch
+                      optionFilterProp="label"
+                      placeholder="Select a user"
+                      options={customers}
+                      notFoundContent="No matching users"
+                    />
                   </Form.Item>
                 )}
                 <Form.Item
                   name="title"
-                  label="Title"
+                  label="Title (English)"
                   rules={[{ required: true, whitespace: true, message: 'Enter a title' }]}
                 >
                   <Input maxLength={100} showCount />
                 </Form.Item>
                 <Form.Item
                   name="body"
-                  label="Message"
+                  label="Message (English)"
                   rules={[{ required: true, whitespace: true, message: 'Enter a message' }]}
                 >
                   <Input.TextArea rows={4} maxLength={500} showCount />
                 </Form.Item>
+                <div className="tw:mb-6 tw:border-t tw:border-brand-line-subtle tw:pt-5">
+                  <span className={tileLabel}>Arabic (optional)</span>
+                  <p className="tw:mb-4 tw:mt-1 tw:text-[13px] tw:text-brand-muted">
+                    Sent together with the English text. The app shows the language the user has
+                    chosen in the app. Leave both empty to send English only.
+                  </p>
+                  <Form.Item
+                    name="title_ar"
+                    label="Title (Arabic)"
+                    dependencies={['body_ar']}
+                    rules={[
+                      ({ getFieldValue }) => ({
+                        validator: (_, value) =>
+                          String(getFieldValue('body_ar') ?? '').trim() &&
+                          !String(value ?? '').trim()
+                            ? Promise.reject(new Error('Enter the Arabic title too'))
+                            : Promise.resolve(),
+                      }),
+                    ]}
+                  >
+                    <Input
+                      dir="rtl"
+                      lang="ar"
+                      maxLength={100}
+                      showCount
+                      placeholder="عنوان الإشعار بالعربية…"
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    name="body_ar"
+                    label="Message (Arabic)"
+                    dependencies={['title_ar']}
+                    rules={[
+                      ({ getFieldValue }) => ({
+                        validator: (_, value) =>
+                          String(getFieldValue('title_ar') ?? '').trim() &&
+                          !String(value ?? '').trim()
+                            ? Promise.reject(new Error('Enter the Arabic message too'))
+                            : Promise.resolve(),
+                      }),
+                    ]}
+                  >
+                    <Input.TextArea
+                      dir="rtl"
+                      lang="ar"
+                      rows={4}
+                      maxLength={500}
+                      showCount
+                      placeholder="اكتب محتوى الرسالة هنا…"
+                    />
+                  </Form.Item>
+                </div>
                 <Button
                   className="button primary"
                   htmlType="submit"
@@ -359,7 +452,7 @@ export default function NotificationsPage({
                 </Button>
               </div>
               <div aria-label="Notification preview">
-                <span className={tileLabel}>Preview</span>
+                <span className={tileLabel}>Preview · English</span>
                 <div className="tw:mt-2 tw:flex tw:gap-3 tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-[#f4f7fa] tw:p-4">
                   <span
                     className="tw:grid tw:size-10 tw:min-w-10 tw:place-items-center tw:rounded-cms tw:bg-brand-navy tw:font-playfair tw:text-[22px] tw:italic tw:text-brand-gold"
@@ -376,6 +469,31 @@ export default function NotificationsPage({
                     </span>
                   </div>
                 </div>
+                {(titleAr?.trim() || bodyAr?.trim()) && (
+                  <>
+                    <span className={`${tileLabel} tw:mt-4 tw:block`}>Preview · Arabic</span>
+                    <div
+                      dir="rtl"
+                      lang="ar"
+                      className="tw:mt-2 tw:flex tw:gap-3 tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-[#f4f7fa] tw:p-4"
+                    >
+                      <span
+                        className="tw:grid tw:size-10 tw:min-w-10 tw:place-items-center tw:rounded-cms tw:bg-brand-navy tw:font-playfair tw:text-[22px] tw:italic tw:text-brand-gold"
+                        aria-hidden="true"
+                      >
+                        K
+                      </span>
+                      <div className="tw:min-w-0">
+                        <strong className="tw:block tw:break-words">
+                          {titleAr?.trim() || 'عنوان الإشعار'}
+                        </strong>
+                        <span className="tw:block tw:whitespace-pre-wrap tw:break-words tw:text-[13px] tw:text-brand-muted">
+                          {bodyAr?.trim() || 'ستظهر رسالتك هنا.'}
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </section>

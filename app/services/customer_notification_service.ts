@@ -12,6 +12,9 @@ export type NotificationInput = {
   type: string
   title: string
   body: string
+  /** Optional Arabic text, sent together with the English text. */
+  title_ar?: string | null
+  body_ar?: string | null
   action_data?: Record<string, unknown> | null
 }
 
@@ -82,13 +85,23 @@ async function sendPush(input: {
   type: string
   title: string
   body: string
+  titleAr?: string | null
+  bodyAr?: string | null
   actionData: unknown
 }) {
   const { projectId } = pushConfig()
   const bearer = await accessToken()
+  // Both languages travel together so the app can show the one that matches its own
+  // language setting. The visible `notification` block below stays English.
   const data: Record<string, string> = {
     notification_id: String(input.notificationId),
     type: input.type,
+    title_en: input.title,
+    body_en: input.body,
+  }
+  if (input.titleAr && input.bodyAr) {
+    data.title_ar = input.titleAr
+    data.body_ar = input.bodyAr
   }
   if (input.actionData !== null && input.actionData !== undefined)
     data.action_data = JSON.stringify(input.actionData)
@@ -266,6 +279,8 @@ export async function createCustomerNotification(customerId: number, input: Noti
       type: input.type,
       title: input.title,
       body: input.body,
+      title_ar: input.title_ar ?? null,
+      body_ar: input.body_ar ?? null,
       action_data: input.action_data ?? null,
       created_at: new Date(),
     })
@@ -317,6 +332,8 @@ async function deliverOne(row: Row) {
       type: row.type,
       title: row.title,
       body: row.body,
+      titleAr: row.title_ar ?? null,
+      bodyAr: row.body_ar ?? null,
       actionData:
         row.action_data === null || row.action_data === undefined
           ? null
@@ -365,6 +382,8 @@ export async function deliverPushBatch() {
       'n.type',
       'n.title',
       'n.body',
+      'n.title_ar',
+      'n.body_ar',
       'n.action_data',
       't.token'
     )

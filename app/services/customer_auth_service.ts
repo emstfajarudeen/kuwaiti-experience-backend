@@ -77,6 +77,16 @@ export async function requestOtp(
       const taken = await trx.from('customers').where('phone_e164', row.phone_e164).first()
       if (taken) throw new ApiError(409, 'PHONE_IN_USE', 'This phone number is already registered')
     }
+    if (!identity) {
+      // Do not send an SMS to a deactivated account.
+      const owner = await trx
+        .from('customers')
+        .where('phone_e164', row.phone_e164)
+        .select('active')
+        .first()
+      if (owner && !owner.active)
+        throw new ApiError(403, 'ACCOUNT_DISABLED', 'This account has been deactivated')
+    }
     const inWindow = Date.now() - new Date(row.send_window_at).getTime() < sendWindowMs
     if (!expired(row.resend_available_at) || (inWindow && row.send_count >= sendLimit)) {
       throw new ApiError(

@@ -237,12 +237,14 @@ export class CustomerNotificationOutboxSchema extends BaseModel {
 }
 
 export class CustomerNotificationSchema extends BaseModel {
-  static $columns = ['actionData', 'body', 'broadcastId', 'createdAt', 'customerId', 'id', 'readAt', 'title', 'type'] as const
+  static $columns = ['actionData', 'body', 'bodyAr', 'broadcastId', 'createdAt', 'customerId', 'id', 'readAt', 'title', 'titleAr', 'type'] as const
   $columns = CustomerNotificationSchema.$columns
   @column()
   declare actionData: any | null
   @column()
   declare body: string
+  @column()
+  declare bodyAr: string | null
   @column()
   declare broadcastId: number | null
   @column.dateTime({ autoCreate: true })
@@ -255,6 +257,8 @@ export class CustomerNotificationSchema extends BaseModel {
   declare readAt: DateTime | null
   @column()
   declare title: string
+  @column()
+  declare titleAr: string | null
   @column()
   declare type: string
 }
@@ -390,8 +394,10 @@ export class CustomerSessionSchema extends BaseModel {
 }
 
 export class CustomerSchema extends BaseModel {
-  static $columns = ['createdAt', 'email', 'firstName', 'id', 'lastName', 'phoneE164', 'phoneVerifiedAt', 'profilePhotoId', 'updatedAt'] as const
+  static $columns = ['active', 'createdAt', 'email', 'firstName', 'id', 'lastName', 'phoneE164', 'phoneVerifiedAt', 'profilePhotoId', 'updatedAt'] as const
   $columns = CustomerSchema.$columns
+  @column()
+  declare active: boolean
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column()
@@ -488,12 +494,14 @@ export class MovieSchema extends BaseModel {
 }
 
 export class NotificationBroadcastSchema extends BaseModel {
-  static $columns = ['audience', 'body', 'completedAt', 'createdAt', 'createdBy', 'cursorCustomerId', 'customerId', 'id', 'lastError', 'lockedAt', 'pushCount', 'recipientCount', 'requestKey', 'status', 'title'] as const
+  static $columns = ['audience', 'body', 'bodyAr', 'completedAt', 'createdAt', 'createdBy', 'cursorCustomerId', 'customerId', 'id', 'lastError', 'lockedAt', 'pushCount', 'recipientCount', 'requestKey', 'status', 'title', 'titleAr'] as const
   $columns = NotificationBroadcastSchema.$columns
   @column()
   declare audience: string
   @column()
   declare body: string
+  @column()
+  declare bodyAr: string | null
   @column.dateTime()
   declare completedAt: DateTime | null
   @column.dateTime({ autoCreate: true })
@@ -520,6 +528,8 @@ export class NotificationBroadcastSchema extends BaseModel {
   declare status: string
   @column()
   declare title: string
+  @column()
+  declare titleAr: string | null
 }
 
 export class PageTranslationSchema extends BaseModel {

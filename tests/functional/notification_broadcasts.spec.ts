@@ -11,6 +11,7 @@ import Tokens from 'csrf'
 import {
   checkPushConnection,
   deliverPushBatch,
+  listNotifications,
   registerPushToken,
 } from '#services/customer_notification_service'
 import {
@@ -415,5 +416,104 @@ test.group('CMS push notifications', (group) => {
     } finally {
       rejected.restore()
     }
+  })
+
+  test('sends the Arabic text together with the English text', async ({ client, assert }) => {
+    const firebase = fakeFirebase()
+    try {
+      const admin = await createAdmin()
+      const user = await createCustomer(['android'])
+      const arabic = { title_ar: 'أهلاً بعودتك', body_ar: 'أماكن جديدة بانتظارك.' }
+
+      await expectStatus(
+        send(client, admin, valid({ audience: 'customer', customer_id: user.id, ...arabic })),
+        302
+      )
+      await processPendingBroadcasts()
+      while (await deliverPushBatch()) {
+        // drain
+      }
+
+      const stored = await db.from('customer_notifications').firstOrFail()
+      assert.include(stored, { title: 'Welcome back', ...arabic })
+
+      const inbox = await listNotifications(user.id, {})
+      assert.include(inbox.data[0], { title: 'Welcome back', ...arabic })
+
+      const [push] = firebase.calls.filter((call) => !call.body.validate_only)
+      assert.include(push.body.message.data, {
+        title_en: 'Welcome back',
+        body_en: 'New places are waiting for you.',
+        ...arabic,
+      })
+
+      const page = await client.get('/admin/notifications').cookie('admin_access', admin)
+      assert.include(initialPage(page).props.broadcasts[0], arabic)
+    } finally {
+      firebase.restore()
+    }
+  })
+
+  test('English-only sends leave the Arabic text empty, and Arabic must come as a pair', async ({
+    client,
+    assert,
+  }) => {
+    const admin = await createAdmin()
+    const user = await createCustomer([])
+    await expectStatus(send(client, admin, valid()), 302)
+    await processPendingBroadcasts()
+    const row = await db.from('customer_notifications').where('customer_id', user.id).firstOrFail()
+    assert.isNull(row.title_ar)
+    assert.isNull(row.body_ar)
+    assert.isNull((await listNotifications(user.id, {})).data[0].title_ar)
+
+    const before = await countRows('notification_broadcasts')
+    for (const bad of [
+      valid({ title_ar: 'عنوان' }), // message missing
+      valid({ body_ar: 'رسالة' }), // title missing
+      valid({ title_ar: 'x'.repeat(101), body_ar: 'رسالة' }),
+      valid({ title_ar: 'عنوان', body_ar: 'bell\u0007' }),
+    ]) {
+      await limiter.clear()
+      await expectStatus(send(client, admin, bad), 302)
+    }
+    assert.equal(await countRows('notification_broadcasts'), before)
+
+    // Empty Arabic fields from the form count as "not provided".
+    await limiter.clear()
+    await expectStatus(send(client, admin, valid({ title_ar: '', body_ar: '  ' })), 302)
+    assert.equal(await countRows('notification_broadcasts'), before + 1)
+  })
+
+  test('single-user sends pick the user from the dropdown list', async ({ client, assert }) => {
+    const admin = await createAdmin()
+    const target = await createCustomer(['ios'])
+    await createCustomer(['ios'])
+
+    const page = await client.get('/admin/notifications').cookie('admin_access', admin)
+    const options = initialPage(page).props.customers as Array<{ value: number; label: string }>
+    assert.lengthOf(options, 2)
+    const option = options.find((item) => item.value === target.id)!
+    assert.include(option.label, target.phone)
+
+    await expectStatus(
+      send(client, admin, valid({ audience: 'customer', customer_id: target.id })),
+      302
+    )
+    await processPendingBroadcasts()
+    const inbox = await db.from('customer_notifications').select('customer_id')
+    assert.deepEqual(
+      inbox.map((row) => row.customer_id),
+      [target.id]
+    )
+
+    await limiter.clear()
+    await expectStatus(send(client, admin, valid({ audience: 'customer', customer_id: 99999 })), 302)
+    assert.equal(await countRows('notification_broadcasts'), 1)
+
+    // Staff without the send permission never receive the user list.
+    const viewer = await createStaff('viewer-only@example.com', ['notifications.view'])
+    const viewerPage = await client.get('/admin/notifications').cookie('admin_access', viewer)
+    assert.deepEqual(initialPage(viewerPage).props.customers, [])
   })
 })

@@ -8,6 +8,7 @@ import {
   createBroadcast,
   dispatchBroadcast,
   listBroadcasts,
+  notificationCustomerOptions,
   notificationOverview,
 } from '#services/notification_broadcast_service'
 import { validationErrorBag } from '#services/validation_error_bag'
@@ -15,9 +16,11 @@ import { notificationBroadcastValidator } from '#validators/notification_broadca
 
 export default class AdminNotificationsController {
   async index({ inertia, request, session, admin, authorization }: HttpContext) {
-    const [overview, history] = await Promise.all([
+    const canSend = can(authorization, 'notifications.send')
+    const [overview, history, customers] = await Promise.all([
       notificationOverview(),
       listBroadcasts(request.input('page', 1)),
+      canSend ? notificationCustomerOptions() : [],
     ])
     return inertia.render(
       'notifications/index',
@@ -26,7 +29,8 @@ export default class AdminNotificationsController {
         csrfToken: request.csrfToken,
         success: session.flashMessages.get('success') ?? null,
         error: session.flashMessages.get('error') ?? null,
-        canSend: can(authorization, 'notifications.send'),
+        canSend,
+        customers,
         // Fresh per page render; consumed by the first successful send.
         requestKey: randomUUID().replaceAll('-', ''),
         overview,
@@ -38,11 +42,29 @@ export default class AdminNotificationsController {
   }
 
   async send({ request, response, session, admin }: HttpContext) {
-    const values = request.only(['request_key', 'title', 'body', 'audience', 'customer_phone'])
+    const values = request.only([
+      'request_key',
+      'title',
+      'body',
+      'title_ar',
+      'body_ar',
+      'audience',
+      'customer_id',
+      'customer_phone',
+    ])
     // Tolerate "+965 5000-0000" style input; the validator then enforces strict E.164.
     if (typeof values.customer_phone === 'string')
       values.customer_phone = values.customer_phone.replace(/[\s().-]/g, '')
-    if (values.audience !== 'customer' || !values.customer_phone) delete values.customer_phone
+    // Optional fields that were left empty are simply not sent.
+    for (const field of ['title_ar', 'body_ar', 'customer_id', 'customer_phone'] as const) {
+      const value = values[field]
+      if (value === null || value === undefined || (typeof value === 'string' && !value.trim()))
+        delete values[field]
+    }
+    if (values.audience !== 'customer') {
+      delete values.customer_id
+      delete values.customer_phone
+    }
     try {
       const input = await notificationBroadcastValidator.validate(values)
       const result = await createBroadcast(input, admin.id)

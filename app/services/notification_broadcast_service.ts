@@ -11,7 +11,10 @@ export type BroadcastInput = {
   request_key: string
   title: string
   body: string
+  title_ar?: string | null
+  body_ar?: string | null
   audience: BroadcastAudience
+  customer_id?: number | null
   customer_phone?: string | null
 }
 
@@ -37,18 +40,18 @@ const placeholders = (values: unknown[]) => values.map(() => '?').join(',')
 export async function createBroadcast(input: BroadcastInput, adminId: number) {
   let customerId: number | null = null
   if (input.audience === 'customer') {
-    const customer = input.customer_phone
-      ? await db.from('customers').where('phone_e164', input.customer_phone).select('id').first()
-      : null
+    const lookup = input.customer_id
+      ? db.from('customers').where('id', input.customer_id)
+      : input.customer_phone
+        ? db.from('customers').where('phone_e164', input.customer_phone)
+        : null
+    const customer = lookup ? await lookup.select('id').first() : null
     if (!customer) {
-      throw new ApiError(
-        422,
-        'CUSTOMER_NOT_FOUND',
-        'No registered app user has that phone number',
-        {
-          customer_phone: ['No registered app user has that phone number'],
-        }
-      )
+      const field = input.customer_id || !input.customer_phone ? 'customer_id' : 'customer_phone'
+      const message = input.customer_phone && !input.customer_id
+        ? 'No registered app user has that phone number'
+        : 'Select a registered app user'
+      throw new ApiError(422, 'CUSTOMER_NOT_FOUND', message, { [field]: [message] })
     }
     customerId = Number(customer.id)
   }
@@ -59,6 +62,8 @@ export async function createBroadcast(input: BroadcastInput, adminId: number) {
         request_key: input.request_key,
         title: input.title,
         body: input.body,
+        title_ar: input.title_ar ?? null,
+        body_ar: input.body_ar ?? null,
         audience: input.audience,
         customer_id: customerId,
         status: 'queued',
@@ -74,6 +79,7 @@ export async function createBroadcast(input: BroadcastInput, adminId: number) {
           audience: input.audience,
           customer_id: customerId,
           title: input.title,
+          has_arabic: Boolean(input.title_ar),
         }),
         created_at: new Date(),
       })
@@ -149,9 +155,18 @@ export async function processBroadcast(id: number) {
       await db.transaction(async (trx) => {
         await trx.rawQuery(
           `INSERT IGNORE INTO customer_notifications
-             (customer_id, type, title, body, action_data, created_at, broadcast_id)
-           SELECT id, ?, ?, ?, NULL, ?, ? FROM customers WHERE id IN (${placeholders(customers)})`,
-          [BROADCAST_NOTIFICATION_TYPE, broadcast.title, broadcast.body, now, id, ...customers]
+             (customer_id, type, title, body, title_ar, body_ar, action_data, created_at, broadcast_id)
+           SELECT id, ?, ?, ?, ?, ?, NULL, ?, ? FROM customers WHERE id IN (${placeholders(customers)})`,
+          [
+            BROADCAST_NOTIFICATION_TYPE,
+            broadcast.title,
+            broadcast.body,
+            broadcast.title_ar ?? null,
+            broadcast.body_ar ?? null,
+            now,
+            id,
+            ...customers,
+          ]
         )
         await trx.rawQuery(
           `INSERT IGNORE INTO customer_notification_outbox (notification_id, push_token_id, available_at)
@@ -290,6 +305,8 @@ export async function listBroadcasts(pageValue: unknown) {
       'b.id',
       'b.title',
       'b.body',
+      'b.title_ar',
+      'b.body_ar',
       'b.audience',
       'b.status',
       'b.recipient_count',
@@ -307,6 +324,8 @@ export async function listBroadcasts(pageValue: unknown) {
         id: Number(row.id),
         title: String(row.title),
         body: String(row.body),
+        title_ar: row.title_ar ? String(row.title_ar) : null,
+        body_ar: row.body_ar ? String(row.body_ar) : null,
         audience: String(row.audience) as BroadcastAudience,
         status: String(row.status) as 'queued' | 'processing' | 'completed' | 'failed',
         recipients: Number(row.recipient_count),
@@ -371,4 +390,23 @@ export async function notificationOverview() {
       stalledBroadcasts: count(queuedBroadcasts),
     },
   }
+}
+
+/**
+ * Registered app users for the single-user dropdown (newest first). The list is capped so
+ * the page stays light; the dropdown filters it by name or phone number in the browser.
+ */
+export async function notificationCustomerOptions(limit = 1000) {
+  const rows = await db
+    .from('customers')
+    .orderBy('id', 'desc')
+    .limit(limit)
+    .select('id', 'first_name', 'last_name', 'phone_e164')
+  return rows.map((row) => {
+    const name = [row.first_name, row.last_name].filter(Boolean).join(' ').trim()
+    return {
+      value: Number(row.id),
+      label: name ? `${name} · ${row.phone_e164}` : String(row.phone_e164),
+    }
+  })
 }
