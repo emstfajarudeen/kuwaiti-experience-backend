@@ -62,6 +62,8 @@ export type PlaceImageChanges = {
   cover?: PreparedImage | 'remove'
   galleryAdd?: PreparedImage[]
   galleryAltEn?: string | null
+  /** Optional sort positions for `galleryAdd`, in the same order. */
+  galleryAddOrder?: number[]
   galleryItems?: GalleryItemChange[]
 }
 
@@ -208,7 +210,7 @@ async function applyGalleryChanges(
       place_id: placeId,
       storage_key: key,
       alt_en: changes.galleryAltEn || defaultAlt,
-      sort_order: start + index,
+      sort_order: changes.galleryAddOrder?.[index] ?? start + index,
       created_at: new Date(),
     }))
   )

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button, Checkbox, Form, Input, Switch, message } from 'antd'
 import AdminLayout from '../../layouts/admin_layout'
 import ImageUpload from '../../components/image_upload'
+import GallerySorter from '../../components/gallery_sorter'
 import FormSelect from '../../components/form_select'
 import RequiredMark from '../../components/required_mark'
 import OpenMapAddressSearch from '../../components/open_map_address_search'
@@ -82,7 +83,6 @@ export default function PlaceEdit({
         ? false
         : place?.status === 'published'
   )
-  const [removedGalleryImages, setRemovedGalleryImages] = useState<number[]>([])
   const [antdForm] = Form.useForm()
   useEffect(() => {
     if (error) void message.error(error)
@@ -349,7 +349,8 @@ export default function PlaceEdit({
           </section>
           <section className="cms-form-section">
             <h2>Images</h2>
-            <div className="tw:[margin-top:12px]">
+            <div className="image-block">
+              <span className="image-block-label">Cover image</span>
               <ImageUpload
                 name="coverImage"
                 currentImageUrl={coverUrl}
@@ -360,129 +361,8 @@ export default function PlaceEdit({
                 disabledRemoveReason="Deactivate this place before removing its cover image."
               />
             </div>
-            {gallery.length > 0 && (
-              <div className="gallery-editor tw:[margin-top:16px] tw:max-[900px]:[grid-template-columns:1fr] tw:[display:grid] tw:[grid-template-columns:repeat(2,_minmax(0,_1fr))] tw:[gap:var(--space-4)] tw:[margin-bottom:var(--space-5)]">
-                {gallery.map((image, index) => (
-                  <article className="gallery-item" key={image.id}>
-                    <input type="hidden" name={`gallery[${index}][id]`} value={image.id} />
-                    <input
-                      type="hidden"
-                      name={`gallery[${index}][remove]`}
-                      value={removedGalleryImages.includes(image.id) ? 'on' : ''}
-                    />
-                    <div className="image-upload-current gallery-image-current">
-                      {image.url && (
-                        <div className="image-upload-current-preview">
-                          <img
-                            src={image.url}
-                            alt={image.alt_en || 'Gallery image'}
-                            loading="lazy"
-                          />
-                        </div>
-                      )}
-                      <div className="image-upload-content">
-                        <div className="image-upload-status">
-                          <span className="image-upload-status-dot" />
-                          {removedGalleryImages.includes(image.id)
-                            ? 'Marked for removal'
-                            : 'Current gallery image'}
-                        </div>
-                        {removedGalleryImages.includes(image.id) ? (
-                          <div className="image-upload-removed" role="status">
-                            <span>Removed when you save.</span>
-                            <Button
-                              size="small"
-                              htmlType="button"
-                              onClick={() =>
-                                setRemovedGalleryImages((current) =>
-                                  current.filter((id) => id !== image.id)
-                                )
-                              }
-                            >
-                              Undo
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            danger
-                            htmlType="button"
-                            onClick={() =>
-                              setRemovedGalleryImages((current) => [...current, image.id])
-                            }
-                          >
-                            Remove image
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="form-grid two tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
-                      <label>
-                        English alt
-                        <Input
-                          name={`gallery[${index}][altEn]`}
-                          defaultValue={image.alt_en || ''}
-                          maxLength={255}
-                        />
-                      </label>
-                      <label>
-                        Arabic alt
-                        <Input
-                          name={`gallery[${index}][altAr]`}
-                          lang="ar"
-                          dir="rtl"
-                          defaultValue={image.alt_ar || ''}
-                          maxLength={255}
-                        />
-                      </label>
-                      <label>
-                        English caption
-                        <Input
-                          name={`gallery[${index}][captionEn]`}
-                          defaultValue={image.caption_en || ''}
-                          maxLength={255}
-                        />
-                      </label>
-                      <label>
-                        Arabic caption
-                        <Input
-                          name={`gallery[${index}][captionAr]`}
-                          lang="ar"
-                          dir="rtl"
-                          defaultValue={image.caption_ar || ''}
-                          maxLength={255}
-                        />
-                      </label>
-                      <label>
-                        Order
-                        <Input
-                          name={`gallery[${index}][sortOrder]`}
-                          type="number"
-                          min={0}
-                          max={999}
-                          defaultValue={image.sort_order}
-                        />
-                      </label>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-            <div className="form-grid tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4">
-              <ImageUpload
-                name="galleryImages[]"
-                label="Add gallery images"
-                multiple
-                maxFiles={maxUploads}
-              />
-              <label>
-                Alt text for new images
-                <Input
-                  name="galleryAltEn"
-                  defaultValue={value('galleryAltEn', '')}
-                  maxLength={255}
-                  placeholder="Kuwait Towers view"
-                />
-              </label>
+            <div className="image-block">
+              <GallerySorter images={gallery} maxFiles={maxUploads} />
             </div>
           </section>
           <section className="cms-form-section">

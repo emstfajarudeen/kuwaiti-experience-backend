@@ -58,6 +58,16 @@ function galleryItemsFrom(value: unknown) {
     }))
 }
 
+/** Sort positions of newly uploaded gallery images, parallel to the files. */
+function galleryAddOrderFrom(value: unknown, count: number) {
+  const list = Array.isArray(value) ? value : value === undefined ? [] : [value]
+  const numbers = list.map((item) => Number(item))
+  if (numbers.length !== count || numbers.some((n) => !Number.isInteger(n) || n < 0 || n > 10000)) {
+    return undefined
+  }
+  return numbers
+}
+
 import { formatKuwaitDateTime } from '../../services/date_service.js'
 
 export default class AdminPlacesPageController {
@@ -418,6 +428,10 @@ export default class AdminPlacesPageController {
           cover: images.cover[0] ?? (request.input('removeCover') === 'on' ? 'remove' : undefined),
           galleryAdd: images.gallery,
           galleryAltEn,
+          galleryAddOrder: galleryAddOrderFrom(
+            request.input('galleryNewOrder'),
+            images.gallery.length
+          ),
           galleryItems,
         },
       })
