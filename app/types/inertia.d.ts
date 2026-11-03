@@ -5,6 +5,7 @@ declare module '@adonisjs/inertia/types' {
       csrfToken: string
       success: string | null
       status: string | null
+      q: string
       contacts: Array<{
         id: number
         full_name: string
