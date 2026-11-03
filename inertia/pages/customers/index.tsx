@@ -1,6 +1,9 @@
-import { Table } from 'antd'
+import { useState } from 'react'
+import { Switch, Table } from 'antd'
+import { router } from '@inertiajs/react'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import AdminLayout from '../../layouts/admin_layout'
+import { useAuthorization } from '../../lib/authorization'
 import TableToolbar, { useServerFilters } from '../../components/table_toolbar'
 
 type AppUser = {
@@ -10,12 +13,15 @@ type AppUser = {
   phone_e164: string
   email: string | null
   phone_verified_at: string | null
+  active: boolean
   created_at: string | null
 }
 
 type Props = {
   adminName: string
   csrfToken: string
+  success?: string | null
+  error?: string | null
   query: string
   users: AppUser[]
   meta: { page: number; per_page: number; total: number; last_page: number }
@@ -38,7 +44,28 @@ function initials(firstName: string, lastName: string) {
   return `${firstName.trim().charAt(0)}${lastName.trim().charAt(0)}`.toUpperCase() || '?'
 }
 
-export default function CustomersIndex({ adminName, csrfToken, query, users, meta }: Props) {
+export default function CustomersIndex({
+  adminName,
+  csrfToken,
+  success,
+  error,
+  query,
+  users,
+  meta,
+}: Props) {
+  const { can } = useAuthorization()
+  const [changing, setChanging] = useState<number | null>(null)
+  const changeStatus = (user: AppUser, active: boolean) => {
+    router.post(
+      `/admin/customers/${user.id}/status`,
+      { active, _csrf: csrfToken, returnTo: window.location.pathname + window.location.search },
+      {
+        preserveScroll: true,
+        onStart: () => setChanging(user.id),
+        onFinish: () => setChanging(null),
+      }
+    )
+  }
   const serverFilters = useServerFilters('/admin/customers', { q: query }, { q: '' })
 
   const columns: ColumnsType<AppUser> = [
@@ -78,7 +105,20 @@ export default function CustomersIndex({ adminName, csrfToken, query, users, met
     {
       title: 'Status',
       key: 'status',
-      render: () => <span className="status published">Active</span>,
+      render: (_, user) => (
+        <label className="tw:flex tw:items-center tw:gap-2">
+          <Switch
+            aria-label={`${user.active ? 'Deactivate' : 'Activate'} ${user.first_name} ${user.last_name}`}
+            checked={user.active}
+            loading={changing === user.id}
+            disabled={!can('customers.update') || changing !== null}
+            onChange={(checked) => changeStatus(user, checked)}
+          />
+          <span className="tw:text-[13px] tw:font-semibold">
+            {user.active ? 'Active' : 'Inactive'}
+          </span>
+        </label>
+      ),
     },
     {
       title: 'Registered',
@@ -97,7 +137,14 @@ export default function CustomersIndex({ adminName, csrfToken, query, users, met
   }
 
   return (
-    <AdminLayout title="App users" active="customers" adminName={adminName} csrfToken={csrfToken}>
+    <AdminLayout
+      title="App users"
+      active="customers"
+      adminName={adminName}
+      csrfToken={csrfToken}
+      success={success}
+      error={error}
+    >
       <div className="page-head tw:mb-6 tw:flex tw:flex-wrap tw:items-start tw:justify-between tw:gap-4">
         <div>
           <h1>Registered app users</h1>

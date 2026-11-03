@@ -1,4 +1,5 @@
 import db from '@adonisjs/lucid/services/db'
+import { ApiError } from './api_error.js'
 
 const pageSize = 20
 
@@ -31,6 +32,7 @@ export async function listCustomers(queryValue: string, pageValue: number) {
       'phone_e164',
       'email',
       'phone_verified_at',
+      'active',
       'created_at'
     )
     .orderBy('created_at', 'desc')
@@ -46,8 +48,36 @@ export async function listCustomers(queryValue: string, pageValue: number) {
       phone_e164: String(row.phone_e164),
       email: row.email ? String(row.email) : null,
       phone_verified_at: row.phone_verified_at,
+      active: Boolean(row.active),
       created_at: row.created_at,
     })),
     meta: { page: currentPage, per_page: pageSize, total, last_page: lastPage },
   }
+}
+
+export async function setCustomerActive(id: unknown, active: boolean, actorId: number) {
+  const customerId = Number(id)
+  if (!Number.isSafeInteger(customerId) || customerId < 1)
+    throw new ApiError(404, 'NOT_FOUND', 'App user not found')
+  await db.transaction(async (trx) => {
+    const customer = await trx.from('customers').where('id', customerId).forUpdate().first()
+    if (!customer) throw new ApiError(404, 'NOT_FOUND', 'App user not found')
+    if (Boolean(customer.active) === active) return
+    await trx.from('customers').where('id', customerId).update({ active, updated_at: new Date() })
+    if (!active) {
+      // Sign the user out everywhere.
+      await trx
+        .from('customer_sessions')
+        .where('customer_id', customerId)
+        .whereNull('revoked_at')
+        .update({ revoked_at: new Date() })
+    }
+    await trx.table('audit_logs').insert({
+      actor_id: actorId,
+      action: active ? 'customer.activated' : 'customer.deactivated',
+      entity_type: 'customer',
+      entity_id: String(customerId),
+      created_at: new Date(),
+    })
+  })
 }

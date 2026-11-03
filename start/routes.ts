@@ -93,6 +93,7 @@ router
     router.get('/account', [AdminAuthController, 'account'])
     router.post('/account/password', [AdminAuthController, 'password'])
     router.get('/customers', [AdminCustomersController, 'index'])
+    router.post('/customers/:id/status', [AdminCustomersController, 'updateStatus'])
     router.get('/notifications', [AdminNotificationsController, 'index'])
     router
       .post('/notifications', [AdminNotificationsController, 'send'])

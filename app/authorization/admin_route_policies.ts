@@ -389,6 +389,7 @@ add(
 )
 
 add('GET', ['/admin/customers'], ['customers.view'])
+add('POST', ['/admin/customers/:id/status'], ['customers.view', 'customers.update'])
 add('GET', ['/admin/notifications'], ['notifications.view'])
 add(
   'POST',

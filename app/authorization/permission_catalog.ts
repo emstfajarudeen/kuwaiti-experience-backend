@@ -63,6 +63,12 @@ const permissionDefinitions = [
     label: 'View registered app users',
   },
   {
+    key: 'customers.update',
+    module: 'customers',
+    action: 'update',
+    label: 'Activate or deactivate app users',
+  },
+  {
     key: 'notifications.view',
     module: 'notifications',
     action: 'view',

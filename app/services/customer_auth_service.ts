@@ -246,6 +246,8 @@ export async function exchangeVerification(token: string, registration?: Registr
       throw new ApiError(409, 'CUSTOMER_EXISTS', 'Sign in using the verified phone')
     if (!registration && !row)
       throw new ApiError(409, 'REGISTRATION_REQUIRED', 'Create an account using the verified phone')
+    if (row && !row.active)
+      throw new ApiError(403, 'ACCOUNT_DISABLED', 'This account has been deactivated')
     if (registration) {
       await assertEmailFree(trx, registration.email)
       const [id] = await trx.table('customers').insert({
@@ -279,6 +281,7 @@ export async function authenticateCustomer(token: string) {
     .select('c.*', 's.id as session_id', 's.authenticated_at')
     .first()
   if (!row) throw new ApiError(401, 'UNAUTHENTICATED', 'Customer authentication required')
+  if (!row.active) throw new ApiError(403, 'ACCOUNT_DISABLED', 'This account has been deactivated')
   return {
     customer: customer(row),
     session_id: String(row.session_id),
@@ -305,6 +308,8 @@ export async function refreshCustomer(token: string) {
       .forUpdate()
       .first()
     if (!old || old.revoked_at || expired(old.expires_at)) return null
+    const owner = await trx.from('customers').where('id', old.customer_id).select('active').first()
+    if (!owner?.active) return null
     if (old.consumed_at) {
       await trx
         .from('customer_sessions')
