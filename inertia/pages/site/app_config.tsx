@@ -1,7 +1,8 @@
-import { Button, Checkbox, Form, Input } from 'antd'
+import { Button, Checkbox, ConfigProvider, Form, Input } from 'antd'
 import { useState } from 'react'
 import AdminLayout from '../../layouts/admin_layout'
 import { postCmsForm } from '../../lib/cms_form'
+import RequiredMark from '../../components/required_mark'
 
 type AppConfig = {
   ios_version: string | null
@@ -30,11 +31,15 @@ type Props = {
   config: AppConfig
 }
 
-const grid = 'form-grid two tw:mt-4 tw:grid tw:grid-cols-2 tw:gap-4 tw:max-[900px]:grid-cols-1'
+const grid = 'tw:mt-4 tw:grid tw:grid-cols-2 tw:items-start tw:gap-x-6 tw:max-[900px]:grid-cols-1'
 
 export default function AppConfigPage({ adminName, csrfToken, success, error, config }: Props) {
   const [form] = Form.useForm<AppConfig>()
   const [processing, setProcessing] = useState(false)
+  const forced = {
+    ios: Form.useWatch('ios_force', form),
+    android: Form.useWatch('android_force', form),
+  }
   return (
     <AdminLayout
       title="App configuration"
@@ -44,104 +49,185 @@ export default function AppConfigPage({ adminName, csrfToken, success, error, co
       success={success}
       error={error}
     >
-      <Form
-        id="app-config-editor"
-        form={form}
-        layout="vertical"
-        initialValues={config}
-        onFinish={(values) =>
-          postCmsForm({ action: '/admin/app-config', csrfToken, form, setProcessing, data: values })
-        }
-      >
-        <div className="panel form-panel tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-6">
-          <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-4">
-            <h2>App configuration</h2>
-            <Button className="button primary" htmlType="submit" loading={processing}>
-              Save configuration
-            </Button>
-          </div>
-          <section className="cms-form-section tw:mt-6">
-            <h2>App versions</h2>
-            <div className={grid}>
-              {(['ios', 'android'] as const).map((platform) => (
-                <div key={platform}>
-                  <h3>{platform === 'ios' ? 'iOS' : 'Android'}</h3>
-                  <Form.Item name={`${platform}_version`} label="Latest version">
-                    <Input placeholder="1.0.0" />
+      <ConfigProvider theme={{ components: { Form: { itemMarginBottom: 24 } } }}>
+        <Form
+          id="app-config-editor"
+          noValidate
+          form={form}
+          layout="vertical"
+          initialValues={config}
+          onFinish={(values) =>
+            postCmsForm({
+              action: '/admin/app-config',
+              csrfToken,
+              form,
+              setProcessing,
+              data: values,
+            })
+          }
+        >
+          <div className="panel form-panel tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-6">
+            <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-4">
+              <h2>App configuration</h2>
+            </div>
+            <section className="cms-form-section tw:mt-6">
+              <div className={grid}>
+                {(['ios', 'android'] as const).map((platform) => (
+                  <div key={platform}>
+                    <h3 className="tw:mb-3">{platform === 'ios' ? 'iOS' : 'Android'}</h3>
+                    <Form.Item
+                      name={`${platform}_version`}
+                      label={
+                        <>
+                          Latest version{forced[platform] && <RequiredMark />}
+                        </>
+                      }
+                      dependencies={[`${platform}_force`]}
+                      rules={[
+                        ({ getFieldValue }) => ({
+                          validator: (_, value) =>
+                            getFieldValue(`${platform}_force`) && !String(value ?? '').trim()
+                              ? Promise.reject(new Error('Enter a version to require an update.'))
+                              : Promise.resolve(),
+                        }),
+                        {
+                          pattern: /^\d+\.\d+\.\d+$/,
+                          message: 'Use the format 1.2.3 (numbers separated by dots).',
+                        },
+                        { max: 32, message: 'Version must be 32 characters or fewer.' },
+                      ]}
+                    >
+                      <Input placeholder="1.0.0" />
+                    </Form.Item>
+                    <Form.Item
+                      name={`${platform}_store_url`}
+                      label={
+                        <>
+                          Store link{forced[platform] && <RequiredMark />}
+                        </>
+                      }
+                      dependencies={[`${platform}_force`]}
+                      rules={[
+                        ({ getFieldValue }) => ({
+                          validator: (_, value) =>
+                            getFieldValue(`${platform}_force`) && !String(value ?? '').trim()
+                              ? Promise.reject(new Error('Enter a store link to require an update.'))
+                              : Promise.resolve(),
+                        }),
+                        { type: 'url', message: 'Enter a valid link starting with https://' },
+                        {
+                          pattern: /^https?:\/\//i,
+                          message: 'The link must start with http:// or https://',
+                        },
+                        { max: 500, message: 'Link must be 500 characters or fewer.' },
+                      ]}
+                    >
+                      <Input placeholder="https://..." />
+                    </Form.Item>
+                    <Form.Item name={`${platform}_force`} valuePropName="checked">
+                      <Checkbox>Require an update for older versions</Checkbox>
+                    </Form.Item>
+                  </div>
+                ))}
+              </div>
+            </section>
+            <section className="cms-form-section">
+              <h2>Update message</h2>
+              <div className={grid}>
+                <div>
+                  <Form.Item
+                    name="update_title_en"
+                    label="Title · English"
+                    rules={[
+                      { required: true, whitespace: true, message: 'Enter the English title.' },
+                      { max: 200, message: 'Title must be 200 characters or fewer.' },
+                    ]}
+                  >
+                    <Input />
                   </Form.Item>
-                  <Form.Item name={`${platform}_store_url`} label="Store link">
-                    <Input type="url" placeholder="https://..." />
-                  </Form.Item>
-                  <Form.Item name={`${platform}_force`} valuePropName="checked">
-                    <Checkbox>Require an update for older versions</Checkbox>
+                  <Form.Item
+                    name="update_message_en"
+                    label="Message · English"
+                    rules={[
+                      { required: true, whitespace: true, message: 'Enter the English message.' },
+                      { max: 2000, message: 'Message must be 2,000 characters or fewer.' },
+                    ]}
+                  >
+                    <Input.TextArea rows={4} />
                   </Form.Item>
                 </div>
-              ))}
+                <div>
+                  <Form.Item
+                    name="update_title_ar"
+                    label="Title · Arabic"
+                    rules={[{ max: 200, message: 'Title must be 200 characters or fewer.' }]}
+                  >
+                    <Input dir="rtl" />
+                  </Form.Item>
+                  <Form.Item
+                    name="update_message_ar"
+                    label="Message · Arabic"
+                    rules={[{ max: 2000, message: 'Message must be 2,000 characters or fewer.' }]}
+                  >
+                    <Input.TextArea rows={4} dir="rtl" />
+                  </Form.Item>
+                </div>
+              </div>
+            </section>
+            <section className="cms-form-section">
+              <h2>Maintenance</h2>
+              <Form.Item name="maintenance_enabled" valuePropName="checked">
+                <Checkbox>Show maintenance screen in the app</Checkbox>
+              </Form.Item>
+              <div className={grid}>
+                <div>
+                  <Form.Item
+                    name="maintenance_title_en"
+                    label="Title · English"
+                    rules={[
+                      { required: true, whitespace: true, message: 'Enter the English title.' },
+                      { max: 200, message: 'Title must be 200 characters or fewer.' },
+                    ]}
+                  >
+                    <Input />
+                  </Form.Item>
+                  <Form.Item
+                    name="maintenance_message_en"
+                    label="Message · English"
+                    rules={[
+                      { required: true, whitespace: true, message: 'Enter the English message.' },
+                      { max: 2000, message: 'Message must be 2,000 characters or fewer.' },
+                    ]}
+                  >
+                    <Input.TextArea rows={4} />
+                  </Form.Item>
+                </div>
+                <div>
+                  <Form.Item
+                    name="maintenance_title_ar"
+                    label="Title · Arabic"
+                    rules={[{ max: 200, message: 'Title must be 200 characters or fewer.' }]}
+                  >
+                    <Input dir="rtl" />
+                  </Form.Item>
+                  <Form.Item
+                    name="maintenance_message_ar"
+                    label="Message · Arabic"
+                    rules={[{ max: 2000, message: 'Message must be 2,000 characters or fewer.' }]}
+                  >
+                    <Input.TextArea rows={4} dir="rtl" />
+                  </Form.Item>
+                </div>
+              </div>
+            </section>
+            <div className="cms-form-actions">
+              <Button type="primary" htmlType="submit" loading={processing}>
+                Save configuration
+              </Button>
             </div>
-          </section>
-          <section className="cms-form-section">
-            <h2>Update message</h2>
-            <div className={grid}>
-              <div>
-                <Form.Item
-                  name="update_title_en"
-                  label="Title · English"
-                  rules={[{ required: true }]}
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  name="update_message_en"
-                  label="Message · English"
-                  rules={[{ required: true }]}
-                >
-                  <Input.TextArea rows={4} />
-                </Form.Item>
-              </div>
-              <div>
-                <Form.Item name="update_title_ar" label="Title · Arabic">
-                  <Input dir="rtl" />
-                </Form.Item>
-                <Form.Item name="update_message_ar" label="Message · Arabic">
-                  <Input.TextArea rows={4} dir="rtl" />
-                </Form.Item>
-              </div>
-            </div>
-          </section>
-          <section className="cms-form-section">
-            <h2>Maintenance</h2>
-            <Form.Item name="maintenance_enabled" valuePropName="checked">
-              <Checkbox>Show maintenance screen in the app</Checkbox>
-            </Form.Item>
-            <div className={grid}>
-              <div>
-                <Form.Item
-                  name="maintenance_title_en"
-                  label="Title · English"
-                  rules={[{ required: true }]}
-                >
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  name="maintenance_message_en"
-                  label="Message · English"
-                  rules={[{ required: true }]}
-                >
-                  <Input.TextArea rows={4} />
-                </Form.Item>
-              </div>
-              <div>
-                <Form.Item name="maintenance_title_ar" label="Title · Arabic">
-                  <Input dir="rtl" />
-                </Form.Item>
-                <Form.Item name="maintenance_message_ar" label="Message · Arabic">
-                  <Input.TextArea rows={4} dir="rtl" />
-                </Form.Item>
-              </div>
-            </div>
-          </section>
-        </div>
-      </Form>
+          </div>
+        </Form>
+      </ConfigProvider>
     </AdminLayout>
   )
 }

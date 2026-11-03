@@ -10,7 +10,8 @@ import {
 export default class ContactsController {
   async index({ request, inertia, session, admin }: HttpContext) {
     const status = request.input('status') as string | undefined
-    const result = await listContacts(Number(request.input('page', 1)), status)
+    const q = String(request.input('q', '')).trim().slice(0, 120)
+    const result = await listContacts(Number(request.input('page', 1)), status, q)
     return inertia.render(
       'contacts/index',
       {
@@ -18,6 +19,7 @@ export default class ContactsController {
         csrfToken: request.csrfToken,
         success: (session.flashMessages.get('success') as string | undefined) ?? null,
         status: status ?? null,
+        q,
         contacts: result.data.map(
           ({ id, full_name, email, phone_number, inquiry_type, status: state, created_at }) => ({
             id,

@@ -400,7 +400,6 @@ export default function NotificationsPage({
             showTotal: () => `Page ${meta.page} of ${meta.last_page}`,
           }}
           onChange={changePage}
-          scroll={{ x: 900 }}
           locale={{ emptyText: 'No notifications have been sent yet.' }}
         />
       </section>

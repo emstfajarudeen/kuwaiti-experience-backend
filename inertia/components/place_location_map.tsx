@@ -94,7 +94,7 @@ export default function PlaceLocationMap({ latitude, longitude, onSelectLocation
     <div
       ref={element}
       aria-label="Place location on OpenStreetMap"
-      className="tw:mt-3 tw:h-[240px] tw:w-full tw:overflow-hidden tw:rounded-lg tw:border tw:border-brand-line"
+      className="tw:relative tw:isolate tw:z-0 tw:mt-3 tw:h-[240px] tw:w-full tw:overflow-hidden tw:rounded-lg tw:border tw:border-brand-line"
     />
   )
 }

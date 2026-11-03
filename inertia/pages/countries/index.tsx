@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Input, Select, Switch, Table } from 'antd'
+import { Switch, Table } from 'antd'
 import { router } from '@inertiajs/react'
 import AdminLayout from '../../layouts/admin_layout'
 import RowActionMenu from '../../components/row_action_menu'
 import ConfirmModal from '../../components/confirm_modal'
+import TableToolbar, { useLocalFilters } from '../../components/table_toolbar'
 import { useAuthorization } from '../../lib/authorization'
 
 type Country = {
@@ -24,8 +25,7 @@ type Props = {
 
 export default function CountriesIndex({ adminName, csrfToken, success, error, rows }: Props) {
   const { can } = useAuthorization()
-  const [search, setSearch] = useState('')
-  const [status, setStatus] = useState('all')
+  const filters = useLocalFilters({ q: '', status: '' })
   const [deleting, setDeleting] = useState<Country | null>(null)
   const [changingStatus, setChangingStatus] = useState<string | null>(null)
   const changeStatus = (country: Country, active: boolean) => {
@@ -40,16 +40,16 @@ export default function CountriesIndex({ adminName, csrfToken, success, error, r
     )
   }
   const visibleRows = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase()
+    const query = filters.values.q.trim().toLocaleLowerCase()
     return rows.filter(
       (row) =>
-        (status === 'all' || (status === 'active') === row.active) &&
+        (!filters.values.status || (filters.values.status === 'active') === row.active) &&
         (!query ||
           [row.code, row.name_en, row.name_ar ?? ''].some((value) =>
             value.toLocaleLowerCase().includes(query)
           ))
     )
-  }, [rows, search, status])
+  }, [rows, filters.values])
 
   return (
     <AdminLayout
@@ -74,33 +74,33 @@ export default function CountriesIndex({ adminName, csrfToken, success, error, r
             </a>
           )}
         </div>
-        <div className="tw:flex tw:flex-wrap tw:gap-3 tw:border-b tw:border-brand-line-subtle tw:px-6 tw:py-4">
-          <Input.Search
-            aria-label="Search countries"
-            placeholder="Search name or code"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            allowClear
-            className="tw:max-w-[320px]"
-          />
-          <Select
-            aria-label="Filter countries by status"
-            value={status}
-            onChange={setStatus}
-            className="tw:min-w-[160px]"
-            options={[
-              { value: 'all', label: 'All statuses' },
-              { value: 'active', label: 'Active' },
-              { value: 'inactive', label: 'Inactive' },
-            ]}
-          />
-        </div>
-        <div className="table-scroll tw:overflow-x-auto">
+        <TableToolbar
+          search={{
+            label: 'Search countries',
+            placeholder: 'Search name or code',
+            value: filters.values.q,
+            onChange: (value) => filters.set('q', value),
+          }}
+          selects={[
+            {
+              key: 'status',
+              value: filters.values.status,
+              placeholder: 'All statuses',
+              onChange: (value) => filters.set('status', value),
+              options: [
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+              ],
+            },
+          ]}
+          active={filters.active}
+          onReset={filters.reset}
+        />
+        <div className="table-scroll">
           <Table<Country>
             rowKey="code"
             dataSource={visibleRows}
             pagination={{ pageSize: 20, showSizeChanger: false, hideOnSinglePage: true }}
-            scroll={{ x: 650 }}
             locale={{
               emptyText: rows.length
                 ? 'No countries match these filters.'

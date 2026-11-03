@@ -3,9 +3,8 @@ import AdminLayout from '../../layouts/admin_layout'
 import RowActionMenu from '../../components/row_action_menu'
 import ConfirmModal from '../../components/confirm_modal'
 import { Switch, Table } from 'antd'
-import { Input } from 'antd'
 import { router } from '@inertiajs/react'
-import FormSelect from '../../components/form_select'
+import TableToolbar, { useServerFilters } from '../../components/table_toolbar'
 
 type Place = {
   id: number
@@ -58,9 +57,12 @@ export default function PlacesIndex({
 }: Props) {
   const [deleting, setDeleting] = useState<Place | null>(null)
   const [changingStatus, setChangingStatus] = useState<number | null>(null)
-  const [typeFilter, setTypeFilter] = useState(selectedType)
-  const [statusFilter, setStatusFilter] = useState(selectedStatus)
-  const [sortFilter, setSortFilter] = useState(selectedSort)
+  const defaults = { q: '', type: '', status: '', sort: 'updated_desc' }
+  const serverFilters = useServerFilters(
+    '/admin/places',
+    { q: searchQuery, type: selectedType, status: selectedStatus, sort: selectedSort },
+    defaults
+  )
   const pageUrl = (page: number) =>
     `/admin/places?${new URLSearchParams({ page: String(page), q: filters.q, type: filters.type, status: filters.status, sort: filters.sort })}`
   const changeStatus = (place: Place, checked: boolean) => {
@@ -86,79 +88,6 @@ export default function PlacesIndex({
       <div className="page-head tw:mb-6 tw:flex tw:flex-wrap tw:items-start tw:justify-between tw:gap-4">
         <h1>Places</h1>
       </div>
-      <form
-        className="filter-bar cms-filter-grid panel tw:mb-5"
-        action="/admin/places"
-        method="GET"
-      >
-        <div className="filter-search">
-          <label htmlFor="places-search">Search</label>
-          <Input
-            id="places-search"
-            type="search"
-            name="q"
-            defaultValue={searchQuery}
-            placeholder="Search places by name, slug or address..."
-            aria-label="Search places"
-          />
-        </div>
-        <div className="filter-group">
-          <label htmlFor="places-type-filter">Type:</label>
-          <FormSelect
-            id="places-type-filter"
-            name="type"
-            value={typeFilter}
-            onChange={setTypeFilter}
-            placeholder="All types"
-            options={types.map((type) => ({ value: type.code, label: type.name_en }))}
-          />
-        </div>
-        <div className="filter-group">
-          <label htmlFor="places-status-filter">Status:</label>
-          <FormSelect
-            id="places-status-filter"
-            name="status"
-            value={statusFilter}
-            onChange={setStatusFilter}
-            placeholder="All statuses"
-            options={[
-              { value: 'published', label: 'Published' },
-              { value: 'draft', label: 'Draft' },
-              { value: 'archived', label: 'Archived' },
-            ]}
-          />
-        </div>
-        <div className="filter-group">
-          <label htmlFor="places-sort-filter">Sort:</label>
-          <FormSelect
-            id="places-sort-filter"
-            name="sort"
-            value={sortFilter}
-            required
-            onChange={setSortFilter}
-            options={[
-              { value: 'updated_desc', label: 'Recently edited' },
-              { value: 'updated_asc', label: 'Oldest edited' },
-              { value: 'title_asc', label: 'Title (A–Z)' },
-              { value: 'title_desc', label: 'Title (Z–A)' },
-              { value: 'status', label: 'Status' },
-            ]}
-          />
-        </div>
-        <div className="filter-actions tw:[margin-left:auto] tw:[display:flex] tw:[align-items:center] tw:[gap:var(--space-2)]">
-          <button type="submit" className="button secondary">
-            Filter
-          </button>
-          {(searchQuery || selectedType || selectedStatus || selectedSort !== 'updated_desc') && (
-            <a
-              href="/admin/places"
-              className="text-button tw:[display:inline-flex] tw:[align-items:center] tw:[gap:6px] tw:[padding:8px_12px] tw:[background:transparent] tw:[border:none] tw:[color:var(--navy)] tw:[font-size:14px] tw:[font-weight:600] tw:[cursor:pointer] tw:[border-radius:var(--radius-sm)] tw:[transition:all_0.15s_ease]"
-            >
-              Reset
-            </a>
-          )}
-        </div>
-      </form>
       <section className="panel table-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:overflow-hidden tw:p-0">
         <div className="panel-heading tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-brand-line-subtle tw:bg-white tw:px-6 tw:py-5">
           <h2>
@@ -170,13 +99,56 @@ export default function PlacesIndex({
             + Add place
           </a>
         </div>
+        <TableToolbar
+          search={{
+            label: 'Search places',
+            placeholder: 'Search name, slug or address',
+            value: serverFilters.values.q,
+            onChange: (value) => serverFilters.setSearch('q', value),
+          }}
+          selects={[
+            {
+              key: 'type',
+              value: serverFilters.values.type,
+              placeholder: 'All types',
+              onChange: (value) => serverFilters.setSelect('type', value),
+              options: types.map((type) => ({ value: type.code, label: type.name_en })),
+            },
+            {
+              key: 'status',
+              value: serverFilters.values.status,
+              placeholder: 'All statuses',
+              onChange: (value) => serverFilters.setSelect('status', value),
+              options: [
+                { value: 'published', label: 'Published' },
+                { value: 'draft', label: 'Draft' },
+                { value: 'archived', label: 'Archived' },
+              ],
+            },
+            {
+              key: 'sort',
+              value: serverFilters.values.sort,
+              placeholder: 'Sort by',
+              required: true,
+              onChange: (value) => serverFilters.setSelect('sort', value),
+              options: [
+                { value: 'updated_desc', label: 'Recently edited' },
+                { value: 'updated_asc', label: 'Oldest edited' },
+                { value: 'title_asc', label: 'Title (A–Z)' },
+                { value: 'title_desc', label: 'Title (Z–A)' },
+                { value: 'status', label: 'Status' },
+              ],
+            },
+          ]}
+          active={serverFilters.active}
+          onReset={serverFilters.reset}
+        />
         {rows.length ? (
           <>
-            <div className="table-scroll tw:overflow-x-auto">
+            <div className="table-scroll">
               <Table<Place>
                 rowKey="id"
                 pagination={false}
-                scroll={{ x: 850 }}
                 dataSource={rows}
                 columns={[
                   {
@@ -194,7 +166,7 @@ export default function PlacesIndex({
                     ),
                   },
                   {
-                    title: 'Place',
+                    title: 'Business/Place',
                     key: 'place',
                     render: (_: unknown, row) => (
                       <div className="place-cell tw:[display:flex] tw:[align-items:center] tw:[gap:var(--space-3)] tw:[min-width:220px]">
@@ -240,6 +212,10 @@ export default function PlacesIndex({
                             label: 'Preview',
                             href: `/admin/places/${row.id}/preview`,
                             target: '_blank',
+                          },
+                          {
+                            label: 'Explore details & hours',
+                            href: `/admin/places/${row.id}/explore`,
                           },
                           { label: 'Delete', danger: true, onClick: () => setDeleting(row) },
                         ]}

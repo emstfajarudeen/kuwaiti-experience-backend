@@ -212,6 +212,18 @@ type Registration = {
   email?: string | null
 }
 
+async function assertEmailFree(
+  trx: Pick<typeof db, 'from'>,
+  email: string | null | undefined,
+  exceptId?: number
+) {
+  if (!email) return
+  const query = trx.from('customers').where('email', email.toLowerCase())
+  if (exceptId) query.whereNot('id', exceptId)
+  if (await query.first())
+    throw new ApiError(409, 'EMAIL_IN_USE', 'This email is already registered')
+}
+
 export async function exchangeVerification(token: string, registration?: Registration) {
   return db.transaction(async (trx) => {
     const challenge = await trx
@@ -235,6 +247,7 @@ export async function exchangeVerification(token: string, registration?: Registr
     if (!registration && !row)
       throw new ApiError(409, 'REGISTRATION_REQUIRED', 'Create an account using the verified phone')
     if (registration) {
+      await assertEmailFree(trx, registration.email)
       const [id] = await trx.table('customers').insert({
         phone_e164: challenge.phone_e164,
         first_name: registration.first_name,
@@ -407,7 +420,10 @@ export async function updateCustomerProfile(identity: CustomerIdentity, input: P
     const fields: Record<string, unknown> = { updated_at: new Date() }
     if (input.first_name !== undefined) fields.first_name = input.first_name
     if (input.last_name !== undefined) fields.last_name = input.last_name
-    if (input.email !== undefined) fields.email = input.email?.toLowerCase() ?? null
+    if (input.email !== undefined) {
+      await assertEmailFree(trx, input.email, row.id)
+      fields.email = input.email?.toLowerCase() ?? null
+    }
     if (input.phone_e164 && input.phone_e164 !== row.phone_e164 && !proof) {
       throw new ApiError(
         422,

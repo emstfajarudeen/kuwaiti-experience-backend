@@ -43,9 +43,6 @@ export default function CountryEdit({ adminName, csrfToken, error, form, country
         <a className="back-link tw:inline-flex" href="/admin/countries">
           ← Back to countries
         </a>
-        <Button type="primary" htmlType="submit" form="country-editor" loading={processing}>
-          Save country
-        </Button>
       </div>
       <section className="panel form-panel tw:w-full tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-6 tw:shadow-[0_4px_14px_rgba(0,23,46,0.06)]">
         <h2>Country details</h2>
@@ -121,10 +118,15 @@ export default function CountryEdit({ adminName, csrfToken, error, form, country
             name="active"
             label="Active"
             valuePropName="checked"
-            extra="Inactive countries stay in the directory."
           >
             <Switch />
           </Form.Item>
+          <div className="cms-form-actions">
+            <Button href="/admin/countries">Cancel</Button>
+            <Button type="primary" htmlType="submit" loading={processing}>
+              Save country
+            </Button>
+          </div>
         </Form>
       </section>
     </AdminLayout>

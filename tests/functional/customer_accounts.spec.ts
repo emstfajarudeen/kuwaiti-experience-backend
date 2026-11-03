@@ -229,6 +229,30 @@ test.group('Customer accounts and support', (group) => {
     assert.lengthOf(stored, 0)
   })
 
+  test('an email already used by another customer cannot register again', async ({
+    client,
+    assert,
+  }) => {
+    await db.table('customers').insert({
+      phone_e164: '+96599990000',
+      first_name: 'Existing',
+      last_name: 'Owner',
+      email: 'shared@example.com',
+      phone_verified_at: new Date(),
+      created_at: new Date(),
+    })
+    const { outcome } = await verify(client)
+    const result = await client.post(`${base}/customers`).json({
+      verification_token: outcome.verification_token,
+      first_name: 'A',
+      last_name: 'B',
+      email: 'Shared@Example.com',
+    })
+    result.assertStatus(409)
+    assert.equal(result.body().error?.code ?? result.body().code, 'EMAIL_IN_USE')
+    assert.lengthOf(await db.from('customers').where('email', 'shared@example.com'), 1)
+  })
+
   test('existing phone signs in and verification credential is one use', async ({
     client,
     assert,

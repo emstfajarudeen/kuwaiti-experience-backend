@@ -29,8 +29,6 @@ export default function Account({ adminName, csrfToken, error, success }: Props)
         <div>
           <h1>My account</h1>
         </div>
-        <div className="form-page-actions"><Button type="primary" htmlType="submit" form="cms-account-password" loading={processing}>Update password</Button>
-        </div>
       </div>
 
       <div className="tw:w-full">
@@ -86,6 +84,11 @@ export default function Account({ adminName, csrfToken, error, success }: Props)
                   placeholder="New password"
                 />
               </Form.Item>
+            </div>
+            <div className="cms-form-actions">
+              <Button type="primary" htmlType="submit" loading={processing}>
+                Update password
+              </Button>
             </div>
           </Form>
         </section>

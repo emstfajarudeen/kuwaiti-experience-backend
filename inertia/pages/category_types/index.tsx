@@ -3,6 +3,7 @@ import AdminLayout from '../../layouts/admin_layout'
 import RowActionMenu from '../../components/row_action_menu'
 import ConfirmModal from '../../components/confirm_modal'
 import { Table } from 'antd'
+import TableToolbar, { useLocalFilters } from '../../components/table_toolbar'
 
 type CategoryType = {
   code: string
@@ -21,6 +22,15 @@ type Props = {
 
 export default function CategoryTypesIndex({ adminName, csrfToken, success, error, rows }: Props) {
   const [deleting, setDeleting] = useState<CategoryType | null>(null)
+  const filters = useLocalFilters({ q: '' })
+  const needle = filters.values.q.trim().toLocaleLowerCase()
+  const visibleRows = needle
+    ? rows.filter((row) =>
+        [row.code, row.name_en, row.name_ar ?? ''].some((v) =>
+          v.toLocaleLowerCase().includes(needle)
+        )
+      )
+    : rows
   return (
     <AdminLayout
       title="Category types"
@@ -40,14 +50,78 @@ export default function CategoryTypesIndex({ adminName, csrfToken, success, erro
             + Add category type
           </a>
         </div>
+        <TableToolbar
+          search={{
+            label: 'Search category types',
+            placeholder: 'Search name or code',
+            value: filters.values.q,
+            onChange: (value) => filters.set('q', value),
+          }}
+          active={filters.active}
+          onReset={filters.reset}
+        />
         {rows.length ? (
-          <div className="table-scroll tw:overflow-x-auto"><Table<CategoryType> rowKey="code" pagination={false} scroll={{ x: 700 }} dataSource={rows} columns={[
-            { title: 'Edit', key: 'edit', width: 64, render: (_: unknown, row) => <a href={`/admin/category-types/${encodeURIComponent(row.code)}/edit`} className="action-pencil-btn" aria-label={`Edit ${row.name_en}`}>✎</a> },
-            { title: 'Type', key: 'type', render: (_: unknown, row) => <div className="tw:flex tw:items-center tw:gap-3">{row.imageUrl ? <img src={row.imageUrl} alt={row.name_en} className="tw:size-11 tw:rounded-cms-sm tw:object-cover" /> : <div className="place-avatar" aria-hidden="true">{row.name_en.slice(0, 1).toUpperCase()}</div>}<div><strong>{row.name_en}</strong><small className="tw:block"><code>{row.code}</code></small></div></div> },
-            { title: 'Arabic name', dataIndex: 'name_ar', render: (name: string | null) => <span dir="rtl">{name || '—'}</span> },
-            { title: 'Display order', dataIndex: 'sort_order' },
-            { title: 'Actions', key: 'actions', render: (_: unknown, row) => <RowActionMenu label={`More actions for ${row.name_en}`} actions={[{ label: 'Delete', danger: true, onClick: () => setDeleting(row) }]} /> },
-          ]} /></div>
+          <div className="table-scroll">
+            <Table<CategoryType>
+              rowKey="code"
+              pagination={false}
+              dataSource={visibleRows}
+              locale={{ emptyText: 'No category types match these filters.' }}
+              columns={[
+                {
+                  title: 'Edit',
+                  key: 'edit',
+                  width: 64,
+                  render: (_: unknown, row) => (
+                    <a
+                      href={`/admin/category-types/${encodeURIComponent(row.code)}/edit`}
+                      className="action-pencil-btn"
+                      aria-label={`Edit ${row.name_en}`}
+                    >
+                      ✎
+                    </a>
+                  ),
+                },
+                {
+                  title: 'Type',
+                  key: 'type',
+                  render: (_: unknown, row) => (
+                    <div className="tw:flex tw:items-center tw:gap-3">
+                      {row.imageUrl && (
+                        <img
+                          src={row.imageUrl}
+                          alt={row.name_en}
+                          className="tw:size-11 tw:rounded-cms-sm tw:object-cover"
+                        />
+                      )}
+                      <div>
+                        <strong>{row.name_en}</strong>
+                        <small className="tw:block">
+                          <code>{row.code}</code>
+                        </small>
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  title: 'Arabic name',
+                  dataIndex: 'name_ar',
+                  render: (name: string | null) => <span dir="rtl">{name || '—'}</span>,
+                },
+                { title: 'Display order', dataIndex: 'sort_order' },
+                {
+                  title: 'Actions',
+                  key: 'actions',
+                  render: (_: unknown, row) => (
+                    <RowActionMenu
+                      label={`More actions for ${row.name_en}`}
+                      actions={[{ label: 'Delete', danger: true, onClick: () => setDeleting(row) }]}
+                    />
+                  ),
+                },
+              ]}
+            />
+          </div>
         ) : (
           <div className="empty-state tw:[padding:var(--space-10)_var(--space-6)] tw:[text-align:center] tw:[color:var(--muted)] tw:[display:flex] tw:[flex-direction:column] tw:[align-items:center] tw:[gap:var(--space-3)]">
             <p>No category types configured.</p>

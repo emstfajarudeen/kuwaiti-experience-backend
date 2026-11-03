@@ -8,7 +8,7 @@ const userFields = {
 export const createAdminUserValidator = vine.compile(
   vine.object({
     ...userFields,
-    password: vine.string().minLength(14).maxLength(200),
+    password: vine.string().minLength(1).maxLength(200),
     roleIds: vine
       .array(
         vine

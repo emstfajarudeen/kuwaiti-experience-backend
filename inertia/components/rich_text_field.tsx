@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react'
-import { Form } from 'antd'
 
 type Props = {
   id: string
@@ -121,19 +120,23 @@ export default function RichTextField({
       <input ref={formatRef} type="hidden" name={formatName} defaultValue={format} />
       <input ref={sourceRef} type="hidden" id={`${id}-source`} name={name} defaultValue={value} />
       {hint && <p className="tw:m-0 tw:text-sm tw:text-brand-muted">{hint}</p>}
-      <Form.Item
-        className="tw:!mb-0"
-        validateStatus={error ? 'error' : undefined}
-        help={error || undefined}
-      >
-        <div
-          ref={editorRef}
-          id={id}
-          className="rich-editor tw:min-h-[250px] tw:rounded-b-cms-sm tw:bg-white tw:text-[15px]"
-          aria-label={`${rtl ? 'Arabic' : 'English'} page body editor`}
-          aria-invalid={error ? true : undefined}
-        />
-      </Form.Item>
+      <div
+        ref={editorRef}
+        id={id}
+        className="rich-editor tw:min-h-[250px] tw:rounded-b-cms-sm tw:bg-white tw:text-[15px]"
+        aria-label={`${rtl ? 'Arabic' : 'English'} page body editor`}
+        aria-invalid={error ? true : undefined}
+      />
+      {error && (
+        <p
+          id={`${id}-error`}
+          role="alert"
+          className="rich-field-error tw:m-0 tw:text-sm"
+          style={{ color: '#9e2a2b' }}
+        >
+          {error}
+        </p>
+      )}
     </div>
   )
 }

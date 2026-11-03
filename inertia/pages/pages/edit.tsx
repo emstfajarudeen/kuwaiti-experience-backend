@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, Form, Input } from 'antd'
 import AdminLayout from '../../layouts/admin_layout'
 import ConfirmModal from '../../components/confirm_modal'
@@ -48,6 +48,21 @@ export default function PageEdit({
   const [bodyContent, setBodyContent] = useState(initialBody)
   const [antdForm] = Form.useForm()
   const action = page ? `/admin/pages/${page.id}/save` : '/admin/pages'
+  // Inertia reuses this component when the server redirects back to the same page,
+  // so copy the server's field errors into state whenever they change.
+  useEffect(() => {
+    setTitleError(fieldErrors?.titleEn?.[0] ?? '')
+    setSlugError(fieldErrors?.slug?.[0] ?? '')
+    setBodyError(fieldErrors?.bodyEn?.[0] ?? '')
+  }, [fieldErrors])
+  // Show server-side errors for fields that do not have their own error state.
+  useEffect(() => {
+    const extra = Object.entries(fieldErrors ?? {}).filter(
+      ([key]) => !['titleEn', 'slug', 'bodyEn'].includes(key)
+    )
+    if (extra.length)
+      antdForm.setFields(extra.map(([name, errors]) => ({ name, errors: errors.slice(0, 1) })))
+  }, [fieldErrors, antdForm])
   const placeholderCopy = (body: string) =>
     /Gheyar Seller App|demo placeholder|placeholder content|Draft demo content/i.test(body)
   const bodyHasText = (body: string) => {
@@ -58,6 +73,22 @@ export default function PageEdit({
       : Boolean(body.trim())
   }
   const bodyLength = (body: string) => body.length
+  const currentBodyValue = () =>
+    (document.getElementById('page-body-en-source') as HTMLInputElement | null)?.value ??
+    bodyContent
+  /** Returns true when the English body is valid; otherwise shows the error under the editor. */
+  const checkBody = () => {
+    const body = currentBodyValue()
+    if (!bodyHasText(body)) {
+      setBodyError('Enter the page content.')
+      return false
+    }
+    if (bodyLength(body) > 50000) {
+      setBodyError('Page content must be 50,000 characters or fewer.')
+      return false
+    }
+    return true
+  }
   const focusBody = () => {
     const editor = document.querySelector(
       '#page-body-en .ql-editor[contenteditable="true"]'
@@ -100,18 +131,15 @@ export default function PageEdit({
             titleAr: value('titleAr', ar?.title),
             eyebrowAr: value('eyebrowAr', ar?.eyebrow),
           }}
+          noValidate
+          onFinishFailed={({ errorFields }) => {
+            // Show the body error together with the other field errors.
+            checkBody()
+            const first = errorFields[0]
+            if (first) antdForm.scrollToField(first.name, { focus: true })
+          }}
           onFinish={() => {
-            const bodyInput = document.getElementById(
-              'page-body-en-source'
-            ) as HTMLInputElement | null
-            const currentBody = bodyInput?.value ?? bodyContent
-            if (page?.status === 'published' && !bodyHasText(currentBody)) {
-              setBodyError('A published page must keep English content. Add text before saving.')
-              focusBody()
-              return
-            }
-            if (bodyLength(currentBody) > 50000) {
-              setBodyError('Page content must be 50,000 characters or fewer.')
+            if (!checkBody()) {
               focusBody()
               return
             }

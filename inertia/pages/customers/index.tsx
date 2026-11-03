@@ -1,7 +1,7 @@
-import { useState } from 'react'
-import { Button, Form, Input, Table } from 'antd'
+import { Table } from 'antd'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import AdminLayout from '../../layouts/admin_layout'
+import TableToolbar, { useServerFilters } from '../../components/table_toolbar'
 
 type AppUser = {
   id: number
@@ -39,8 +39,7 @@ function initials(firstName: string, lastName: string) {
 }
 
 export default function CustomersIndex({ adminName, csrfToken, query, users, meta }: Props) {
-  const [form] = Form.useForm<{ q?: string }>()
-  const [searching, setSearching] = useState(false)
+  const serverFilters = useServerFilters('/admin/customers', { q: query }, { q: '' })
 
   const columns: ColumnsType<AppUser> = [
     {
@@ -91,11 +90,6 @@ export default function CustomersIndex({ adminName, csrfToken, query, users, met
     },
   ]
 
-  function applySearch(values: { q?: string }) {
-    setSearching(true)
-    window.location.assign(userUrl(1, values.q ?? ''))
-  }
-
   function changePage(pagination: TablePaginationConfig) {
     if (pagination.current && pagination.current !== meta.page) {
       window.location.assign(userUrl(pagination.current, query))
@@ -110,31 +104,20 @@ export default function CustomersIndex({ adminName, csrfToken, query, users, met
         </div>
       </div>
 
-      <section className="panel cms-filter-panel tw:mb-5">
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{ q: query }}
-          onFinish={applySearch}
-          className="tw:flex tw:flex-wrap tw:items-end tw:gap-3"
-        >
-          <Form.Item name="q" label="Search" className="tw:mb-0 tw:min-w-[260px] tw:flex-1">
-            <Input
-              allowClear
-              maxLength={120}
-              placeholder="Name, phone, or email"
-              aria-label="Search app users"
-            />
-          </Form.Item>
-          <Button htmlType="submit" loading={searching}>
-            Search
-          </Button>
-        </Form>
-      </section>
       <section className="panel table-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-0">
         <div className="panel-heading tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-brand-line-subtle tw:bg-white tw:px-6 tw:py-5">
           <h2>Users ({meta.total})</h2>
         </div>
+        <TableToolbar
+          search={{
+            label: 'Search app users',
+            placeholder: 'Search name, phone or email',
+            value: serverFilters.values.q,
+            onChange: (value) => serverFilters.setSearch('q', value),
+          }}
+          active={serverFilters.active}
+          onReset={serverFilters.reset}
+        />
         <Table<AppUser>
           className="cms-antd-table"
           rowKey="id"
@@ -149,7 +132,6 @@ export default function CustomersIndex({ adminName, csrfToken, query, users, met
             showTotal: () => `Page ${meta.page} of ${meta.last_page}`,
           }}
           onChange={changePage}
-          scroll={{ x: 720 }}
           locale={{
             emptyText: query ? 'No app users match this search.' : 'No registered app users yet.',
           }}

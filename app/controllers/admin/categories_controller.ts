@@ -36,9 +36,6 @@ export default class AdminCategoriesPageController {
       )
       .orderBy('c.type')
       .orderBy('c.sort_order')
-    if (selectedType) {
-      query.where('c.type', selectedType)
-    }
     const rows = await query
     return inertia.render(
       'categories/index',

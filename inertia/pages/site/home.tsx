@@ -3,6 +3,7 @@ import AdminLayout from '../../layouts/admin_layout'
 import ImageUpload from '../../components/image_upload'
 import { Button, Form, Input } from 'antd'
 import { postCmsForm } from '../../lib/cms_form'
+import RequiredMark from '../../components/required_mark'
 type Home = {
   hero_eyebrow: string | null
   hero_title: string | null
@@ -52,7 +53,6 @@ export default function HomePage({
         <a href="/admin/home?locale=ar" className={locale === 'ar' ? 'selected' : ''}>
           العربية (Arabic)
         </a>
-        <div className="form-page-actions"><Button className="button primary" htmlType="submit" form="cms-home-editor" loading={processing}>Save homepage</Button></div>
       </div>
       <Form
         id="cms-home-editor"
@@ -72,31 +72,52 @@ export default function HomePage({
           ),
           discovery_description: value(
             'discovery_description',
-            home?.discovery_description ?? 'Start with a ride, then make the city yours. Find the best of Kuwait by category.'
+            home?.discovery_description ??
+              'Start with a ride, then make the city yours. Find the best of Kuwait by category.'
           ),
         }}
         onFinish={() => {
           const element = document.getElementById('cms-home-editor') as HTMLFormElement | null
-          if (element) postCmsForm({ action: '/admin/home', csrfToken, form: homeForm, setProcessing, data: new FormData(element) })
+          if (element)
+            postCmsForm({
+              action: '/admin/home',
+              csrfToken,
+              form: homeForm,
+              setProcessing,
+              data: new FormData(element),
+            })
         }}
         action="/admin/home"
         method="POST"
+        noValidate
         encType="multipart/form-data"
         className="editor-grid tw:grid tw:items-start tw:gap-4"
       >
         <input type="hidden" name="_csrf" value={csrfToken} />
         <input type="hidden" name="locale" value={locale} />
-        <div className="editor-main tw:flex tw:flex-col">
-          <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
+        <div className="editor-main panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
+          <section className="cms-form-section">
             <h2>Hero headline &amp; image</h2>
             <div className="form-grid tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4">
               <label>
                 Hero label
-                <Form.Item name="hero_eyebrow" rules={[{ required: true, message: 'Enter a hero label.' }]}><Input name="hero_eyebrow" /></Form.Item>
+                <RequiredMark />
+                <Form.Item
+                  name="hero_eyebrow"
+                  rules={[{ required: true, whitespace: true, message: 'Enter a hero label.' }]}
+                >
+                  <Input name="hero_eyebrow" />
+                </Form.Item>
               </label>
               <label>
                 Hero headline
-                <Form.Item name="hero_title" rules={[{ required: true, message: 'Enter a hero headline.' }]}><Input name="hero_title" /></Form.Item>
+                <RequiredMark />
+                <Form.Item
+                  name="hero_title"
+                  rules={[{ required: true, whitespace: true, message: 'Enter a hero headline.' }]}
+                >
+                  <Input name="hero_title" />
+                </Form.Item>
               </label>
               <ImageUpload
                 name="heroImage"
@@ -108,23 +129,51 @@ export default function HomePage({
               />
             </div>
           </section>
-          <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
+          <section className="cms-form-section">
             <h2>Discovery section</h2>
             <div className="form-grid tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4">
               <label>
                 Section label
-                <Form.Item name="discovery_eyebrow" rules={[{ required: true, message: 'Enter a section label.' }]}><Input name="discovery_eyebrow" /></Form.Item>
+                <RequiredMark />
+                <Form.Item
+                  name="discovery_eyebrow"
+                  rules={[{ required: true, whitespace: true, message: 'Enter a section label.' }]}
+                >
+                  <Input name="discovery_eyebrow" />
+                </Form.Item>
               </label>
               <label>
                 Section heading
-                <Form.Item name="discovery_title" rules={[{ required: true, message: 'Enter a section heading.' }]}><Input name="discovery_title" /></Form.Item>
+                <RequiredMark />
+                <Form.Item
+                  name="discovery_title"
+                  rules={[{ required: true, whitespace: true, message: 'Enter a section heading.' }]}
+                >
+                  <Input name="discovery_title" />
+                </Form.Item>
               </label>
               <label>
                 Section description
-                <Form.Item name="discovery_description" rules={[{ required: true, message: 'Enter a section description.' }]}><Input.TextArea name="discovery_description" rows={3} /></Form.Item>
+                <RequiredMark />
+                <Form.Item
+                  name="discovery_description"
+                  rules={[{ required: true, whitespace: true, message: 'Enter a section description.' }]}
+                >
+                  <Input.TextArea name="discovery_description" rows={3} />
+                </Form.Item>
               </label>
             </div>
           </section>
+          <div className="cms-form-actions">
+            <Button
+              className="button primary"
+              type="primary"
+              htmlType="submit"
+              loading={processing}
+            >
+              Save homepage
+            </Button>
+          </div>
         </div>
       </Form>
     </AdminLayout>

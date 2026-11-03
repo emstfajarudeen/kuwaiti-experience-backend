@@ -2,6 +2,7 @@ import { Table } from 'antd'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import RowActionMenu from '../../components/row_action_menu'
 import AdminLayout from '../../layouts/admin_layout'
+import TableToolbar, { useServerFilters } from '../../components/table_toolbar'
 import { formatCmsDateTime } from '../../lib/date_time'
 
 type Contact = {
@@ -19,6 +20,7 @@ type Props = {
   csrfToken: string
   success: string | null
   status: string | null
+  q: string
   contacts: Contact[]
   meta: {
     page: number
@@ -28,9 +30,10 @@ type Props = {
   }
 }
 
-function pageUrl(page: number, status: string | null) {
+function pageUrl(page: number, status: string | null, q: string) {
   const query = new URLSearchParams({ page: String(page) })
   if (status) query.set('status', status)
+  if (q) query.set('q', q)
   return `/admin/contact-requests?${query.toString()}`
 }
 
@@ -58,9 +61,15 @@ export default function ContactInbox({
   csrfToken,
   success,
   status,
+  q,
   contacts,
   meta,
 }: Props) {
+  const serverFilters = useServerFilters(
+    '/admin/contact-requests',
+    { q, status: status ?? '' },
+    { q: '', status: '' }
+  )
   const columns: ColumnsType<Contact> = [
     {
       title: 'View',
@@ -164,7 +173,7 @@ export default function ContactInbox({
 
   function changePage(pagination: TablePaginationConfig) {
     if (pagination.current && pagination.current !== meta.page) {
-      window.location.assign(pageUrl(pagination.current, status))
+      window.location.assign(pageUrl(pagination.current, status, q))
     }
   }
 
@@ -186,6 +195,29 @@ export default function ContactInbox({
         <div className="panel-heading tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-brand-line-subtle tw:bg-white tw:px-6 tw:py-5">
           <h2>Messages ({meta.total})</h2>
         </div>
+        <TableToolbar
+          search={{
+            label: 'Search contact requests',
+            placeholder: 'Search name, email, phone or message',
+            value: serverFilters.values.q,
+            onChange: (value) => serverFilters.setSearch('q', value),
+          }}
+          selects={[
+            {
+              key: 'status',
+              value: serverFilters.values.status,
+              placeholder: 'All statuses',
+              onChange: (value) => serverFilters.setSelect('status', value),
+              options: [
+                { value: 'new', label: 'New' },
+                { value: 'in_progress', label: 'In progress' },
+                { value: 'resolved', label: 'Resolved' },
+              ],
+            },
+          ]}
+          active={serverFilters.active}
+          onReset={serverFilters.reset}
+        />
         <Table<Contact>
           className="cms-antd-table"
           rowKey="id"
@@ -200,8 +232,12 @@ export default function ContactInbox({
             showTotal: () => `Page ${meta.page} of ${meta.last_page}`,
           }}
           onChange={changePage}
-          scroll={{ x: 760 }}
-          locale={{ emptyText: 'No contact inquiries received yet.' }}
+          locale={{
+            emptyText:
+              q || status
+                ? 'No contact requests match these filters.'
+                : 'No contact inquiries received yet.',
+          }}
         />
       </section>
     </AdminLayout>

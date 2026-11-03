@@ -116,7 +116,7 @@ export default function Overview({
               {totalPlaces}
             </strong>
             <span className="tw:text-[11px] tw:font-medium tw:text-brand-gold-deep">
-              {publishedRate}% live catalog
+              {publishedRate}% are live
             </span>
           </a>
         )}
@@ -134,7 +134,7 @@ export default function Overview({
               {publishedCount}
             </strong>
             <span className="tw:text-[11px] tw:font-medium tw:text-brand-muted">
-              Live on app & web
+              Visible in the app
             </span>
           </a>
         )}
@@ -152,7 +152,7 @@ export default function Overview({
               {draftCount}
             </strong>
             <span className="tw:text-[11px] tw:font-medium tw:text-brand-muted">
-              Awaiting review
+              Not published yet
             </span>
           </a>
         )}
@@ -170,7 +170,7 @@ export default function Overview({
               {archivedCount}
             </strong>
             <span className="tw:text-[11px] tw:font-medium tw:text-brand-muted">
-              Archived records
+              Turned off
             </span>
           </a>
         )}
@@ -203,160 +203,10 @@ export default function Overview({
             {activeCategories}
           </strong>
           <span className="tw:text-[11px] tw:font-medium tw:text-brand-muted">
-            Active taxonomies
+            In use
           </span>
         </a>
       </div>
-
-      {/* Action / Attention Items */}
-      {(visibility.places || visibility.contacts) && (
-        <div className="attention-grid tw:mb-6 tw:grid tw:grid-cols-2 tw:gap-4 tw:max-[900px]:grid-cols-1">
-          {visibility.places && (
-            <div
-              className={`attention-card group tw:relative tw:flex tw:items-center tw:justify-between tw:gap-4 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-5 tw:shadow-sm tw:transition-all tw:duration-150 hover:-tw:translate-y-0.5 hover:tw:shadow-md hover:tw:border-brand-line-strong ${
-                draftCount > 0
-                  ? 'tw:border-l-4 tw:border-l-brand-gold'
-                  : 'tw:border-l-4 tw:border-l-brand-line-strong'
-              }`}
-            >
-              <div className="tw:flex tw:items-center tw:gap-3.5 tw:min-w-0">
-                <div
-                  className={`tw:flex tw:size-11 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-xl tw:transition-transform group-hover:tw:scale-105 ${
-                    draftCount > 0
-                      ? 'tw:bg-brand-gold-subtle tw:text-brand-gold-deep tw:border tw:border-brand-gold-border/70'
-                      : 'tw:bg-brand-surface-subtle tw:text-brand-muted tw:border tw:border-brand-line'
-                  }`}
-                  aria-hidden="true"
-                >
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                  </svg>
-                </div>
-                <div className="tw:min-w-0">
-                  <h3 className="tw:m-0 tw:text-sm tw:font-bold tw:text-brand-ink">Draft Places</h3>
-                  <p className="tw:m-0 tw:mt-0.5 tw:text-xs tw:text-brand-muted">
-                    Places in draft mode
-                  </p>
-                </div>
-              </div>
-              <div className="tw:flex tw:items-center tw:gap-3 tw:shrink-0">
-                <span
-                  className={`tw:inline-flex tw:min-w-9 tw:h-9 tw:items-center tw:justify-center tw:rounded-cms-sm tw:px-3 tw:text-base tw:font-bold ${
-                    draftCount > 0
-                      ? 'tw:bg-brand-warning-bg tw:border tw:border-brand-warning-border tw:text-brand-warning-text'
-                      : 'tw:bg-brand-surface-subtle tw:border tw:border-brand-line tw:text-brand-muted'
-                  }`}
-                >
-                  {draftCount}
-                </span>
-                <a
-                  href="/admin/places?status=draft"
-                  className="button secondary tw:min-h-9 tw:px-4 tw:py-1.5 tw:text-xs tw:font-semibold tw:gap-1.5 group-hover:tw:border-brand-navy group-hover:tw:text-brand-navy"
-                >
-                  <span>Review drafts</span>
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                    className="tw:transition-transform group-hover:tw:translate-x-0.5"
-                  >
-                    <path d="M5 12h14" />
-                    <path d="m12 5 7 7-7 7" />
-                  </svg>
-                </a>
-              </div>
-            </div>
-          )}
-          {visibility.contacts && (
-            <div
-              className={`attention-card group tw:relative tw:flex tw:items-center tw:justify-between tw:gap-4 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-5 tw:shadow-sm tw:transition-all tw:duration-150 hover:-tw:translate-y-0.5 hover:tw:shadow-md hover:tw:border-brand-line-strong ${
-                newContactsCount > 0
-                  ? 'tw:border-l-4 tw:border-l-brand-navy'
-                  : 'tw:border-l-4 tw:border-l-brand-line-strong'
-              }`}
-            >
-              <div className="tw:flex tw:items-center tw:gap-3.5 tw:min-w-0">
-                <div
-                  className={`tw:flex tw:size-11 tw:shrink-0 tw:items-center tw:justify-center tw:rounded-xl tw:transition-transform group-hover:tw:scale-105 ${
-                    newContactsCount > 0
-                      ? 'tw:bg-brand-navy-surface tw:text-brand-navy tw:border tw:border-brand-navy-subtle/30'
-                      : 'tw:bg-brand-surface-subtle tw:text-brand-muted tw:border tw:border-brand-line'
-                  }`}
-                  aria-hidden="true"
-                >
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect width="20" height="16" x="2" y="4" rx="2" />
-                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                  </svg>
-                </div>
-                <div className="tw:min-w-0">
-                  <h3 className="tw:m-0 tw:text-sm tw:font-bold tw:text-brand-ink">
-                    Contact Requests
-                  </h3>
-                  <p className="tw:m-0 tw:mt-0.5 tw:text-xs tw:text-brand-muted">New messages</p>
-                </div>
-              </div>
-              <div className="tw:flex tw:items-center tw:gap-3 tw:shrink-0">
-                <span
-                  className={`tw:inline-flex tw:min-w-9 tw:h-9 tw:items-center tw:justify-center tw:rounded-cms-sm tw:px-3 tw:text-base tw:font-bold ${
-                    newContactsCount > 0
-                      ? 'tw:bg-brand-navy-surface tw:border tw:border-brand-navy-subtle/30 tw:text-brand-navy'
-                      : 'tw:bg-brand-surface-subtle tw:border tw:border-brand-line tw:text-brand-muted'
-                  }`}
-                >
-                  {newContactsCount}
-                </span>
-                <a
-                  href="/admin/contact-requests"
-                  className="button secondary tw:min-h-9 tw:px-4 tw:py-1.5 tw:text-xs tw:font-semibold tw:gap-1.5 group-hover:tw:border-brand-navy group-hover:tw:text-brand-navy"
-                >
-                  <span>View inbox</span>
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                    className="tw:transition-transform group-hover:tw:translate-x-0.5"
-                  >
-                    <path d="M5 12h14" />
-                    <path d="m12 5 7 7-7 7" />
-                  </svg>
-                </a>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Analytics & Insights 3-Column Panels */}
       <div className="analytics-grid tw:mb-6 tw:grid tw:grid-cols-3 tw:gap-6 tw:max-[1024px]:grid-cols-1">
@@ -416,26 +266,6 @@ export default function Overview({
             </div>
           </div>
 
-          {/* Quality & Enrichment metrics */}
-          <div className="tw:mt-4 tw:space-y-2.5 tw:border-t tw:border-brand-line-subtle tw:pt-4">
-            <div className="tw:flex tw:items-center tw:justify-between tw:text-xs">
-              <span className="tw:flex tw:items-center tw:gap-1.5 tw:text-brand-muted">
-                <span className="tw:text-sm">📍</span> GPS Map Coordinates
-              </span>
-              <span className="tw:font-bold tw:text-brand-ink">
-                {geocodedCount}{' '}
-                <span className="tw:font-normal tw:text-brand-muted">({geocodedRate}%)</span>
-              </span>
-            </div>
-            <div className="tw:flex tw:items-center tw:justify-between tw:text-xs">
-              <span className="tw:flex tw:items-center tw:gap-1.5 tw:text-brand-muted">
-                <span className="tw:text-sm">⭐</span> Featured Highlights
-              </span>
-              <span className="tw:font-bold tw:text-brand-ink">
-                {featuredCount} <span className="tw:font-normal tw:text-brand-muted">curated</span>
-              </span>
-            </div>
-          </div>
         </div>
 
         {/* Panel 2: Top Categories Breakdown */}
@@ -514,26 +344,6 @@ export default function Overview({
             </div>
           </div>
 
-          {/* Customer Community Summary */}
-          <div className="tw:mt-auto tw:border-t tw:border-brand-line-subtle tw:pt-4">
-            <span className="tw:text-[11px] tw:font-bold tw:uppercase tw:tracking-wider tw:text-brand-muted">
-              Registered App Community
-            </span>
-            <div className="tw:mt-2.5 tw:grid tw:grid-cols-2 tw:gap-3">
-              <div className="tw:rounded-cms-sm tw:bg-brand-surface-subtle tw:border tw:border-brand-line tw:p-3">
-                <span className="tw:text-xs tw:text-brand-muted">Total Users</span>
-                <div className="tw:text-xl tw:font-bold tw:text-brand-ink tw:mt-0.5">
-                  {totalCustomers}
-                </div>
-              </div>
-              <div className="tw:rounded-cms-sm tw:bg-brand-surface-subtle tw:border tw:border-brand-line tw:p-3">
-                <span className="tw:text-xs tw:text-brand-muted">Verified</span>
-                <div className="tw:text-xl tw:font-bold tw:text-emerald-700 tw:mt-0.5">
-                  {verifiedCustomers}
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </AdminLayout>

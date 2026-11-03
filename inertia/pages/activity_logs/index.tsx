@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import AdminLayout from '../../layouts/admin_layout'
+import TableToolbar, { useServerFilters } from '../../components/table_toolbar'
 
 type ActivityLog = {
   id: number
@@ -32,7 +32,6 @@ type Props = {
 }
 
 const entityTypes = [
-  { value: '', label: 'All entity types' },
   { value: 'place', label: 'Places' },
   { value: 'category', label: 'Categories' },
   { value: 'category_type', label: 'Category Types' },
@@ -45,20 +44,11 @@ const entityTypes = [
 ]
 
 export default function ActivityLogsIndex({ adminName, csrfToken, logs, filters, meta }: Props) {
-  const [q, setQ] = useState(filters.q || '')
-  const [entityType, setEntityType] = useState(filters.entity_type || '')
-
-  function handleFilter(e: React.FormEvent) {
-    e.preventDefault()
-    const query = new URLSearchParams()
-    if (q.trim()) query.set('q', q.trim())
-    if (entityType) query.set('entity_type', entityType)
-    window.location.assign(`/admin/activity-logs?${query.toString()}`)
-  }
-
-  function handleReset() {
-    window.location.assign('/admin/activity-logs')
-  }
+  const serverFilters = useServerFilters(
+    '/admin/activity-logs',
+    { q: filters.q || '', entity_type: filters.entity_type || '' },
+    { q: '', entity_type: '' }
+  )
 
   function goToPage(targetPage: number) {
     const query = new URLSearchParams(window.location.search)
@@ -85,50 +75,6 @@ export default function ActivityLogsIndex({ adminName, csrfToken, logs, filters,
         </span>
       </div>
 
-      {/* Filter Bar */}
-      <form
-        onSubmit={handleFilter}
-        className="tw:mb-6 tw:flex tw:flex-wrap tw:items-center tw:gap-3 tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-4 tw:shadow-sm"
-      >
-        <div className="tw:flex-1 tw:min-w-[200px]">
-          <input
-            type="search"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search by action, actor, or entity ID..."
-            className="tw:w-full tw:rounded-cms-sm tw:border tw:border-brand-line tw:bg-white tw:px-3.5 tw:py-2 tw:text-xs tw:text-brand-ink placeholder:tw:text-brand-muted focus:tw:border-brand-navy focus:tw:outline-none"
-          />
-        </div>
-
-        <div className="tw:min-w-[170px]">
-          <select
-            value={entityType}
-            onChange={(e) => setEntityType(e.target.value)}
-            className="tw:w-full tw:rounded-cms-sm tw:border tw:border-brand-line tw:bg-white tw:px-3.5 tw:py-2 tw:text-xs tw:text-brand-ink focus:tw:border-brand-navy focus:tw:outline-none"
-          >
-            {entityTypes.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <button type="submit" className="button primary tw:min-h-9 tw:px-4 tw:py-1.5 tw:text-xs">
-          Filter
-        </button>
-
-        {(filters.q || filters.entity_type) && (
-          <button
-            type="button"
-            onClick={handleReset}
-            className="button secondary tw:min-h-9 tw:px-3.5 tw:py-1.5 tw:text-xs"
-          >
-            Reset
-          </button>
-        )}
-      </form>
-
       {/* Logs Table / List Panel */}
       <section className="panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-sm">
         <div className="panel-heading tw:flex tw:items-center tw:justify-between tw:border-b tw:border-brand-line-subtle tw:bg-white tw:px-6 tw:py-4">
@@ -138,6 +84,25 @@ export default function ActivityLogsIndex({ adminName, csrfToken, logs, filters,
           </span>
         </div>
 
+        <TableToolbar
+          search={{
+            label: 'Search activity logs',
+            placeholder: 'Search action, actor or entity ID',
+            value: serverFilters.values.q,
+            onChange: (value) => serverFilters.setSearch('q', value),
+          }}
+          selects={[
+            {
+              key: 'entity_type',
+              value: serverFilters.values.entity_type,
+              placeholder: 'All entity types',
+              onChange: (value) => serverFilters.setSelect('entity_type', value),
+              options: entityTypes,
+            },
+          ]}
+          active={serverFilters.active}
+          onReset={serverFilters.reset}
+        />
         {logs.length > 0 ? (
           <div className="activity-list tw:divide-y tw:divide-brand-line-subtle">
             {logs.map((log) => (

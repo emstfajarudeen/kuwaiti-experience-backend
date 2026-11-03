@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Button, Form, Input, Select, Table } from 'antd'
+import { Table } from 'antd'
 import type { ColumnType, ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import AdminLayout from '../../layouts/admin_layout'
 import RowActionMenu from '../../components/row_action_menu'
 import ConfirmModal from '../../components/confirm_modal'
+import TableToolbar, { useServerFilters } from '../../components/table_toolbar'
 import { usePage } from '@inertiajs/react'
 
 type StaffRole = { id: number; slug: string; name: string }
@@ -80,13 +81,18 @@ export default function UsersIndex({
   const page = usePage()
   const auth = (page.props as unknown as { auth?: { isFullAccessAdmin?: boolean } }).auth
   const canManage = Boolean(auth?.isFullAccessAdmin)
-  const [filterForm] = Form.useForm<FilterValues>()
+  const serverFilters = useServerFilters(
+    '/admin/users',
+    {
+      q: filters.q ?? '',
+      status: filters.status ?? '',
+      reset: filters.reset ?? '',
+      role: filters.role ? String(filters.role) : '',
+    },
+    { q: '', status: '', reset: '', role: '' }
+  )
   const [deleting, setDeleting] = useState<User | null>(null)
   const [resetting, setResetting] = useState<User | null>(null)
-
-  function applyFilters(values: FilterValues) {
-    window.location.assign(usersUrl(1, values))
-  }
 
   function changePage(pagination: TablePaginationConfig) {
     if (pagination.current && pagination.current !== meta.page) {
@@ -179,55 +185,6 @@ export default function UsersIndex({
         </div>
       </div>
 
-      <section className="panel cms-filter-panel tw:mb-6">
-        <Form<FilterValues>
-          form={filterForm}
-          layout="vertical"
-          initialValues={{
-            q: filters.q,
-            status: filters.status ?? undefined,
-            reset: filters.reset ?? undefined,
-            role: filters.role ?? undefined,
-          }}
-          onFinish={applyFilters}
-          className="cms-filter-grid"
-        >
-          <Form.Item label="Search" name="q" className="tw:mb-0">
-            <Input allowClear placeholder="Name or email" />
-          </Form.Item>
-          <Form.Item label="Access" name="status" className="tw:mb-0">
-            <Select
-              allowClear
-              placeholder="All access"
-              options={[
-                { value: 'active', label: 'Active' },
-                { value: 'inactive', label: 'Inactive' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item label="Password status" name="reset" className="tw:mb-0">
-            <Select
-              allowClear
-              placeholder="Any status"
-              options={[
-                { value: 'current', label: 'Current' },
-                { value: 'required', label: 'Change required' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item label="Role" name="role" className="tw:mb-0">
-            <Select
-              allowClear
-              placeholder="All roles"
-              options={roles.map((role) => ({ value: role.id, label: role.name }))}
-            />
-          </Form.Item>
-          <Button className="button secondary tw:mb-0" htmlType="submit">
-            Apply filters
-          </Button>
-        </Form>
-      </section>
-
       <section className="panel table-panel tw:overflow-hidden tw:p-0">
         <div className="panel-heading tw:flex tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-brand-line-subtle tw:px-6 tw:py-5">
           <h2>
@@ -239,6 +196,45 @@ export default function UsersIndex({
             </a>
           )}
         </div>
+        <TableToolbar
+          search={{
+            label: 'Search staff',
+            placeholder: 'Search name or email',
+            value: serverFilters.values.q,
+            onChange: (value) => serverFilters.setSearch('q', value),
+          }}
+          selects={[
+            {
+              key: 'status',
+              value: serverFilters.values.status,
+              placeholder: 'All access',
+              onChange: (value) => serverFilters.setSelect('status', value),
+              options: [
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+              ],
+            },
+            {
+              key: 'reset',
+              value: serverFilters.values.reset,
+              placeholder: 'Any password status',
+              onChange: (value) => serverFilters.setSelect('reset', value),
+              options: [
+                { value: 'current', label: 'Current' },
+                { value: 'required', label: 'Change required' },
+              ],
+            },
+            {
+              key: 'role',
+              value: serverFilters.values.role,
+              placeholder: 'All roles',
+              onChange: (value) => serverFilters.setSelect('role', value),
+              options: roles.map((role) => ({ value: String(role.id), label: role.name })),
+            },
+          ]}
+          active={serverFilters.active}
+          onReset={serverFilters.reset}
+        />
         <Table<User>
           className="cms-antd-table"
           rowKey="id"
@@ -253,7 +249,6 @@ export default function UsersIndex({
             showTotal: () => `Page ${meta.page} of ${meta.last_page}`,
           }}
           onChange={changePage}
-          scroll={{ x: 900 }}
           locale={{ emptyText: 'No staff members match these filters.' }}
         />
       </section>

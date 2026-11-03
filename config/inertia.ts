@@ -35,6 +35,10 @@ export default defineConfig({
       'explore/place',
       'site/home',
       'site/settings',
+      'site/app_config',
+      'countries/index',
+      'countries/edit',
+      'customers/index',
     ],
   },
 })

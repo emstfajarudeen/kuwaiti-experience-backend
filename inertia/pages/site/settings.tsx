@@ -105,6 +105,7 @@ export default function Settings({ adminName, csrfToken, success, error, form, s
         }}
         action="/admin/settings"
         method="POST"
+        noValidate
         className="editor-grid tw:grid tw:items-start tw:gap-4"
       >
         <input type="hidden" name="_csrf" value={csrfToken} />
@@ -147,13 +148,27 @@ export default function Settings({ adminName, csrfToken, success, error, form, s
               <div className="form-grid two tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
                 <label>
                   App Store URL (iOS)
-                  <Form.Item name="appStoreUrl">
+                  <Form.Item
+                    name="appStoreUrl"
+                    rules={[
+                      { type: 'url', message: 'Enter a valid link starting with https://' },
+                      { pattern: /^https?:\/\//i, message: 'The link must start with http:// or https://' },
+                      { max: 500, message: 'Link must be 500 characters or fewer.' },
+                    ]}
+                  >
                     <Input name="appStoreUrl" type="url" placeholder="https://apps.apple.com/..." />
                   </Form.Item>
                 </label>
                 <label>
                   Google Play URL (Android)
-                  <Form.Item name="playStoreUrl">
+                  <Form.Item
+                    name="playStoreUrl"
+                    rules={[
+                      { type: 'url', message: 'Enter a valid link starting with https://' },
+                      { pattern: /^https?:\/\//i, message: 'The link must start with http:// or https://' },
+                      { max: 500, message: 'Link must be 500 characters or fewer.' },
+                    ]}
+                  >
                     <Input
                       name="playStoreUrl"
                       type="url"

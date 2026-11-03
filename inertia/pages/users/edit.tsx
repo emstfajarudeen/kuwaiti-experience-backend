@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Checkbox, Form, Input, Select } from 'antd'
+import { Button, Form, Input, Select, Switch } from 'antd'
 import AdminLayout from '../../layouts/admin_layout'
 import ConfirmModal from '../../components/confirm_modal'
 import { postCmsForm } from '../../lib/cms_form'
@@ -14,7 +14,13 @@ type User = {
   created_at: string | null
 }
 type StaffRole = { id: number; slug: string; name: string; is_system: boolean }
-type FormData = { fullName: string; email: string; password?: string; active?: boolean; roleIds: string[] }
+type FormData = {
+  fullName: string
+  email: string
+  password?: string
+  active?: boolean
+  roleIds: string[]
+}
 
 type Props = {
   adminName: string
@@ -23,10 +29,23 @@ type Props = {
   user: User | null
   roles: StaffRole[]
   currentAdminId: number
-  form: { fullName: string | null; email: string | null; active: string | null; roleIds: string[] } | null
+  form: {
+    fullName: string | null
+    email: string | null
+    active: string | null
+    roleIds: string[]
+  } | null
 }
 
-export default function UserEditor({ adminName, csrfToken, error, user, roles, currentAdminId, form }: Props) {
+export default function UserEditor({
+  adminName,
+  csrfToken,
+  error,
+  user,
+  roles,
+  currentAdminId,
+  form,
+}: Props) {
   const [userForm] = Form.useForm<FormData>()
   const [processing, setProcessing] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
@@ -68,7 +87,6 @@ export default function UserEditor({ adminName, csrfToken, error, user, roles, c
       </a>
       <div className="page-head form-page-head tw:mb-6">
         <h1>{isNew ? 'Add staff member' : user?.full_name}</h1>
-        <div className="form-page-actions"><a className="button secondary" href="/admin/users">Cancel</a><Button className="button primary" type="primary" htmlType="submit" form="cms-staff-editor" loading={processing}>{isNew ? 'Create staff member' : 'Save changes'}</Button></div>
       </div>
       <div className="cms-form-workspace tw:grid tw:gap-4">
         <section className="panel tw:p-6">
@@ -111,28 +129,48 @@ export default function UserEditor({ adminName, csrfToken, error, user, roles, c
                   name="password"
                   rules={[
                     { required: true, message: 'Enter an initial password.' },
-                    { min: 14, message: 'Use at least 14 characters.' },
                     { max: 200, message: 'Password must be 200 characters or fewer.' },
                   ]}
                 >
                   <Input.Password autoComplete="new-password" maxLength={200} />
                 </Form.Item>
               )}
-              <Form.Item className="full tw:col-span-full" label="Roles" name="roleIds" rules={[{ required: true, message: 'Assign at least one role.' }]}>
-                <Select mode="multiple" disabled={!isNew && user?.id === currentAdminId} options={roles.map((role) => ({ value: String(role.id), label: role.name }))} placeholder="Choose one or more roles" />
+              <Form.Item
+                className="full tw:col-span-full"
+                label="Roles"
+                name="roleIds"
+                rules={[{ required: true, message: 'Assign at least one role.' }]}
+              >
+                <Select
+                  mode="multiple"
+                  disabled={!isNew && user?.id === currentAdminId}
+                  options={roles.map((role) => ({ value: String(role.id), label: role.name }))}
+                  placeholder="Choose one or more roles"
+                />
               </Form.Item>
               {!isNew && (
-                <Form.Item className="full tw:col-span-full" name="active" valuePropName="checked">
-                  <Checkbox disabled={user?.id === currentAdminId}>Allow this staff member to sign in</Checkbox>
+                <Form.Item
+                  className="full tw:col-span-full"
+                  name="active"
+                  label="Active"
+                  valuePropName="checked"
+                  extra="Allow this staff member to sign in."
+                >
+                  <Switch disabled={user?.id === currentAdminId} />
                 </Form.Item>
               )}
+            </div>
+            <div className="cms-form-actions">
+              <Button href="/admin/users">Cancel</Button>
+              <Button type="primary" htmlType="submit" loading={processing}>
+                {isNew ? 'Create staff member' : 'Save changes'}
+              </Button>
             </div>
           </Form>
         </section>
         {!isNew && user && (
           <aside className="tw:flex tw:flex-col tw:gap-5">
             <section className="panel tw:p-6">
-              <p className="eyebrow">ACCOUNT RECOVERY</p>
               <h2 className="tw:mb-3">Reset password</h2>
               <p className="tw:mb-5 tw:text-sm tw:leading-6 tw:text-brand-muted">
                 {user.active
@@ -146,12 +184,6 @@ export default function UserEditor({ adminName, csrfToken, error, user, roles, c
               >
                 Send reset link
               </Button>
-            </section>
-            <section className="panel tw:p-6">
-              <p className="eyebrow">ACCOUNT STATUS</p>
-              <p className="tw:mb-0 tw:text-sm tw:text-brand-muted">
-                Created {user.created_at ? new Date(user.created_at).toLocaleDateString() : '—'}
-              </p>
             </section>
           </aside>
         )}

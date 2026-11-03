@@ -3,6 +3,7 @@ import { Button, Checkbox, Form, Input, Switch, message } from 'antd'
 import AdminLayout from '../../layouts/admin_layout'
 import ImageUpload from '../../components/image_upload'
 import FormSelect from '../../components/form_select'
+import RequiredMark from '../../components/required_mark'
 import OpenMapAddressSearch from '../../components/open_map_address_search'
 import ConfirmModal from '../../components/confirm_modal'
 import { postCmsForm } from '../../lib/cms_form'
@@ -71,9 +72,7 @@ export default function PlaceEdit({
   const [selectedCategory, setSelectedCategory] = useState(
     String(form?.categoryId ?? place?.category_id ?? '')
   )
-  const [priceMode, setPriceMode] = useState(
-    String(form?.priceMode ?? place?.price_mode ?? 'unknown')
-  )
+  const [priceMode] = useState(String(form?.priceMode ?? place?.price_mode ?? 'unknown'))
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [active, setActive] = useState(
@@ -123,31 +122,6 @@ export default function PlaceEdit({
         <div className="tw:[display:flex] tw:[align-items:center] tw:[gap:12px] tw:[flex-wrap:wrap]">
           <h1>{place ? en?.title || 'Edit place' : 'Create a new place'}</h1>
         </div>
-        <div className="form-page-actions place-form-actions">
-          {place && (
-            <div className="page-head-actions tw:flex tw:flex-wrap tw:items-center tw:gap-3">
-              <a className="button secondary" href={`/admin/places/${place.id}/explore`}>
-                Explore details &amp; hours
-              </a>
-            </div>
-          )}
-          <Button
-            className="button primary"
-            htmlType="submit"
-            form="cms-place-editor"
-            loading={processing}
-          >
-            {active
-              ? place?.status === 'published'
-                ? 'Save changes'
-                : 'Save and activate'
-              : place?.status === 'published'
-                ? 'Save and deactivate'
-                : place
-                  ? 'Save changes'
-                  : 'Save draft'}
-          </Button>
-        </div>
       </div>
       <Form
         id="cms-place-editor"
@@ -155,6 +129,7 @@ export default function PlaceEdit({
         form={antdForm}
         layout="vertical"
         initialValues={{
+          type: selectedType,
           titleEn: value('titleEn', en?.title),
           slug: value('slug', place?.slug),
           addressEn: value('addressEn', en?.address),
@@ -204,11 +179,12 @@ export default function PlaceEdit({
         action={action}
         method="POST"
         encType="multipart/form-data"
+        noValidate
         className="editor-grid tw:grid tw:items-start tw:gap-4"
       >
         <input type="hidden" name="_csrf" value={csrfToken} />
-        <div className="editor-main tw:flex tw:flex-col">
-          <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
+        <div className="editor-main panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
+          <section className="cms-form-section">
             <div className="place-details-heading">
               <h2>Place details</h2>
               <label className="place-form-active-toggle tw:flex tw:items-center tw:gap-2 tw:text-sm tw:font-semibold">
@@ -223,26 +199,33 @@ export default function PlaceEdit({
             </div>
             <div className="form-grid two tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
               <label>
-                Place type
-                <FormSelect
+                <span>
+                  Place type <RequiredMark />
+                </span>
+                <Form.Item
                   name="type"
-                  required
-                  value={selectedType}
-                  placeholder="Select a place type"
-                  options={types.map((type) => ({ value: type.code, label: type.name_en }))}
-                  onChange={(next) => {
-                    setSelectedType(next)
-                    if (
-                      selectedCategory &&
-                      !categories.some(
-                        (category) =>
-                          String(category.id) === selectedCategory &&
-                          (!next || category.type === next)
+                  rules={[{ required: true, message: 'Select a place type.' }]}
+                >
+                  <FormSelect
+                    name="type"
+                    required
+                    value={selectedType}
+                    placeholder="Select a place type"
+                    options={types.map((type) => ({ value: type.code, label: type.name_en }))}
+                    onChange={(next) => {
+                      setSelectedType(next)
+                      if (
+                        selectedCategory &&
+                        !categories.some(
+                          (category) =>
+                            String(category.id) === selectedCategory &&
+                            (!next || category.type === next)
+                        )
                       )
-                    )
-                      setSelectedCategory('')
-                  }}
-                />
+                        setSelectedCategory('')
+                    }}
+                  />
+                </Form.Item>
               </label>
               <label>
                 Category
@@ -258,7 +241,9 @@ export default function PlaceEdit({
                 />
               </label>
               <label>
-                English title
+                <span>
+                  English title <RequiredMark />
+                </span>
                 <Form.Item
                   name="titleEn"
                   rules={[
@@ -270,7 +255,9 @@ export default function PlaceEdit({
                 </Form.Item>
               </label>
               <label>
-                URL slug
+                <span>
+                  URL slug <RequiredMark />
+                </span>
                 <Form.Item
                   name="slug"
                   rules={[
@@ -291,7 +278,9 @@ export default function PlaceEdit({
                 </Form.Item>
               </label>
               <label className="full tw:col-span-full">
-                Address
+                <span>
+                  Address <RequiredMark />
+                </span>
                 <Form.Item
                   name="addressEn"
                   rules={[
@@ -323,84 +312,15 @@ export default function PlaceEdit({
                   />
                 </Form.Item>
               </label>
-            </div>
-          </section>
-          <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
-            <h2>Arabic translation</h2>
-            <div className="form-grid two tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
-              <label>
-                Arabic title
-                <Form.Item name="titleAr">
-                  <Input name="titleAr" lang="ar" dir="rtl" placeholder="أبراج الكويت" />
-                </Form.Item>
-              </label>
-              <label>
-                Arabic address
-                <Form.Item name="addressAr">
-                  <Input
-                    name="addressAr"
-                    lang="ar"
-                    dir="rtl"
-                    placeholder="شارع الخليج العربي، الشرق"
-                  />
-                </Form.Item>
-              </label>
-              <label className="full tw:col-span-full">
-                Arabic body
-                <Form.Item name="bodyAr">
-                  <Input.TextArea name="bodyAr" lang="ar" dir="rtl" rows={5} />
-                </Form.Item>
-              </label>
-            </div>
-          </section>
-          <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
-            <h2>Visit information</h2>
-            <div className="form-grid two tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
-              <label>
-                Price type
-                <FormSelect
-                  name="priceMode"
-                  value={priceMode}
-                  required
-                  onChange={setPriceMode}
-                  options={[
-                    { value: 'unknown', label: 'Unknown / Contact venue' },
-                    { value: 'free', label: 'Free admission' },
-                    { value: 'from', label: 'Starts from' },
-                    { value: 'fixed', label: 'Fixed price' },
-                  ]}
-                />
-              </label>
-              <label>
-                Price in KWD
-                <Form.Item name="priceAmount">
-                  <Input name="priceAmount" inputMode="decimal" placeholder="3.000" />
-                </Form.Item>
-              </label>
-              <label>
-                Price unit
-                <Form.Item name="priceUnitEn">
-                  <Input name="priceUnitEn" placeholder="per person / per night" />
-                </Form.Item>
-              </label>
-              <label>
-                Hours summary
-                <Form.Item name="hoursNoteEn">
-                  <Input name="hoursNoteEn" placeholder="Daily 9:00 AM – 11:00 PM" />
-                </Form.Item>
-              </label>
-              <label>
-                Latitude
-                <Form.Item name="latitude">
-                  <Input name="latitude" inputMode="decimal" placeholder="29.3897" />
-                </Form.Item>
-              </label>
-              <label>
-                Longitude
-                <Form.Item name="longitude">
-                  <Input name="longitude" inputMode="decimal" placeholder="47.9984" />
-                </Form.Item>
-              </label>
+              {/* Kept so saving never wipes values set elsewhere; coordinates come from the map. */}
+              <input type="hidden" name="priceMode" value={priceMode} />
+              {['priceAmount', 'priceUnitEn', 'hoursNoteEn', 'latitude', 'longitude'].map(
+                (name) => (
+                  <Form.Item key={name} name={name} hidden>
+                    <Input name={name} />
+                  </Form.Item>
+                )
+              )}
               <label className="full tw:col-span-full">
                 Website URL
                 <Form.Item
@@ -427,48 +347,23 @@ export default function PlaceEdit({
               </label>
             </div>
           </section>
-          <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
-            <h2>Search &amp; homepage</h2>
-            <div className="form-grid two tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
-              <label>
-                SEO title
-                <Form.Item name="seoTitleEn">
-                  <Input name="seoTitleEn" placeholder="Kuwait Towers" />
-                </Form.Item>
-              </label>
-              <label>
-                Home display order
-                <Form.Item name="featured_order">
-                  <Input name="featured_order" type="number" min={0} max={9999} />
-                </Form.Item>
-              </label>
-              <div className="full tw:col-span-full">
-                <Checkbox
-                  name="featured"
-                  defaultChecked={
-                    form ? form.featured === 'on' : Boolean(place && place.featured_order !== null)
-                  }
-                >
-                  Feature this venue on the homepage
-                </Checkbox>
-              </div>
-              <label className="full tw:col-span-full">
-                SEO description
-                <Form.Item name="seoDescriptionEn">
-                  <Input.TextArea name="seoDescriptionEn" rows={2} />
-                </Form.Item>
-              </label>
+          <section className="cms-form-section">
+            <h2>Images</h2>
+            <div className="tw:[margin-top:12px]">
+              <ImageUpload
+                name="coverImage"
+                currentImageUrl={coverUrl}
+                currentImageAlt="Current cover"
+                removeName="removeCover"
+                initiallyRemoved={form?.removeCover === 'on'}
+                allowRemove={place?.status !== 'published' || !active}
+                disabledRemoveReason="Deactivate this place before removing its cover image."
+              />
             </div>
-          </section>
-          <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
-            <h2>Gallery</h2>
             {gallery.length > 0 && (
               <div className="gallery-editor tw:[margin-top:16px] tw:max-[900px]:[grid-template-columns:1fr] tw:[display:grid] tw:[grid-template-columns:repeat(2,_minmax(0,_1fr))] tw:[gap:var(--space-4)] tw:[margin-bottom:var(--space-5)]">
                 {gallery.map((image, index) => (
-                  <article
-                    className="gallery-item"
-                    key={image.id}
-                  >
+                  <article className="gallery-item" key={image.id}>
                     <input type="hidden" name={`gallery[${index}][id]`} value={image.id} />
                     <input
                       type="hidden"
@@ -590,45 +485,92 @@ export default function PlaceEdit({
               </label>
             </div>
           </section>
-          <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
-            <h2>Explore &amp; weekly schedule</h2>
-            {place ? (
-              <div className="tw:[margin-top:16px]">
-                <a className="button secondary" href={`/admin/places/${place.id}/explore`}>
-                  Open Explore details &amp; hours editor
-                </a>
-              </div>
-            ) : (
-              <p className="tw:[margin-top:12px] tw:[color:var(--muted)] tw:[font-size:13px]">
-                Save this place first to configure its Explore details and weekly hours.
-              </p>
-            )}
-          </section>
-        </div>
-        <aside className="editor-aside tw:sticky tw:top-[76px] tw:flex tw:flex-col tw:max-[1024px]:static">
-          <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
-            <h2>Cover image</h2>
-            <div className="tw:[margin-top:12px]">
-              <ImageUpload
-                name="coverImage"
-                currentImageUrl={coverUrl}
-                currentImageAlt="Current cover"
-                removeName="removeCover"
-                initiallyRemoved={form?.removeCover === 'on'}
-                allowRemove={place?.status !== 'published' || !active}
-                disabledRemoveReason="Deactivate this place before removing its cover image."
-              />
+          <section className="cms-form-section">
+            <h2>Arabic translation</h2>
+            <div className="form-grid two tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
+              <label>
+                Arabic title
+                <Form.Item name="titleAr">
+                  <Input name="titleAr" lang="ar" dir="rtl" placeholder="أبراج الكويت" />
+                </Form.Item>
+              </label>
+              <label>
+                Arabic address
+                <Form.Item name="addressAr">
+                  <Input
+                    name="addressAr"
+                    lang="ar"
+                    dir="rtl"
+                    placeholder="شارع الخليج العربي، الشرق"
+                  />
+                </Form.Item>
+              </label>
+              <label className="full tw:col-span-full">
+                Arabic body
+                <Form.Item name="bodyAr">
+                  <Input.TextArea name="bodyAr" lang="ar" dir="rtl" rows={5} />
+                </Form.Item>
+              </label>
             </div>
           </section>
-        </aside>
-      </Form>
-      {place && (
-        <div className="form-delete-actions">
-          <button className="button danger" type="button" onClick={() => setConfirmDelete(true)}>
-            Delete permanently
-          </button>
+          <section className="cms-form-section">
+            <h2>Search &amp; homepage</h2>
+            <div className="form-grid two tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
+              <label>
+                SEO title
+                <Form.Item name="seoTitleEn">
+                  <Input name="seoTitleEn" placeholder="Kuwait Towers" />
+                </Form.Item>
+              </label>
+              <label>
+                Home display order
+                <Form.Item name="featured_order">
+                  <Input name="featured_order" type="number" min={0} max={9999} />
+                </Form.Item>
+              </label>
+              <div className="full tw:col-span-full">
+                <Checkbox
+                  name="featured"
+                  defaultChecked={
+                    form ? form.featured === 'on' : Boolean(place && place.featured_order !== null)
+                  }
+                >
+                  Feature this venue on the homepage
+                </Checkbox>
+              </div>
+              <label className="full tw:col-span-full">
+                SEO description
+                <Form.Item name="seoDescriptionEn">
+                  <Input.TextArea name="seoDescriptionEn" rows={2} />
+                </Form.Item>
+              </label>
+            </div>
+          </section>
+          <div className="cms-form-actions">
+            {place && (
+              <Button
+                danger
+                className="cms-form-actions-start"
+                onClick={() => setConfirmDelete(true)}
+              >
+                Delete permanently
+              </Button>
+            )}
+            <Button href="/admin/places">Cancel</Button>
+            <Button type="primary" htmlType="submit" loading={processing}>
+              {active
+                ? place?.status === 'published'
+                  ? 'Save changes'
+                  : 'Save and activate'
+                : place?.status === 'published'
+                  ? 'Save and deactivate'
+                  : place
+                    ? 'Save changes'
+                    : 'Save draft'}
+            </Button>
+          </div>
         </div>
-      )}
+      </Form>
       <ConfirmModal
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}

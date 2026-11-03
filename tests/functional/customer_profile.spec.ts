@@ -20,7 +20,7 @@ async function signIn(client: ApiClient, phone = originalPhone) {
       phone_e164: phone,
       first_name: 'Mariam',
       last_name: 'Al-Khaled',
-      email: 'old@example.com',
+      email: `old-${phone.slice(-4)}@example.com`,
       phone_verified_at: new Date(),
       created_at: new Date(),
     })

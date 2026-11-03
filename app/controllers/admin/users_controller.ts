@@ -142,12 +142,12 @@ export default class AdminUsersController {
           password: request.input('password'),
           roleIds,
         })
-        const userId = await createStaff(admin, { ...input, roleIds: input.roleIds })
+        await createStaff(admin, { ...input, roleIds: input.roleIds })
         session.flash(
           'success',
           'Staff member created. They must set a new password before using the CMS.'
         )
-        return response.redirect('/admin/users/' + userId + '/edit')
+        return response.redirect('/admin/users')
       }
       const input = await updateAdminUserValidator.validate({ ...form, roleIds })
       await updateStaff(admin, id, input)
@@ -160,7 +160,7 @@ export default class AdminUsersController {
       session.flash('userForm', { ...form, password: undefined })
       return response.redirect(redirectPath)
     }
-    return response.redirect(redirectPath)
+    return response.redirect('/admin/users')
   }
 
   async sendReset({ params, response, session, admin }: HttpContext) {

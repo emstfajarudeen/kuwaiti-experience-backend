@@ -37,9 +37,6 @@ export default function ForgotPassword({ csrfToken, submitted, error }: Props) {
           <div className="login-brand tw:font-bebas tw:text-2xl tw:leading-none tw:tracking-[0.05em] tw:text-brand-gold">
             THE KUWAITI EXPERIENCE
           </div>
-          <h1 className="tw:m-0 tw:font-playfair tw:text-[32px] tw:font-medium tw:leading-[1.25] tw:text-white">
-            Account recovery
-          </h1>
         </section>
         <section className="login-panel tw:flex tw:flex-col tw:justify-center tw:px-8 tw:py-10 tw:max-[480px]:px-5 tw:max-[480px]:py-6">
           <h2 className="tw:mb-2 tw:mt-1 tw:text-2xl tw:font-bold tw:text-brand-ink">

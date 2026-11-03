@@ -54,17 +54,28 @@ export default function CategoryTypeEdit({
       </a>
       <div className="page-head form-page-head tw:mb-6 tw:flex tw:flex-wrap tw:items-start tw:justify-between tw:gap-4">
         <h1>{categoryType?.name_en || 'Create category type'}</h1>
-        <div className="form-page-actions"><Button className="button primary" htmlType="submit" form="category-type-editor" loading={processing}>Save {categoryType ? 'changes' : 'category type'}</Button></div>
       </div>
       <Form
         form={antdForm}
         component="form"
         id="category-type-editor"
         layout="vertical"
-        initialValues={{ code: form?.code ?? '', nameEn: form?.nameEn ?? categoryType?.name_en ?? '', nameAr: form?.nameAr ?? categoryType?.name_ar ?? '', sortOrder: Number(form?.sortOrder ?? categoryType?.sort_order ?? nextOrder) }}
+        initialValues={{
+          code: form?.code ?? '',
+          nameEn: form?.nameEn ?? categoryType?.name_en ?? '',
+          nameAr: form?.nameAr ?? categoryType?.name_ar ?? '',
+          sortOrder: Number(form?.sortOrder ?? categoryType?.sort_order ?? nextOrder),
+        }}
         onFinish={() => {
           const element = document.getElementById('category-type-editor') as HTMLFormElement | null
-          if (element) postCmsForm({ action, csrfToken, form: antdForm, setProcessing, data: new FormData(element) })
+          if (element)
+            postCmsForm({
+              action,
+              csrfToken,
+              form: antdForm,
+              setProcessing,
+              data: new FormData(element),
+            })
         }}
         action={action}
         method="POST"
@@ -78,14 +89,54 @@ export default function CategoryTypeEdit({
             <div className="form-grid two tw:mt-4 tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
               <div>
                 {categoryType ? (
-                  <Form.Item label="Code"><Input value={categoryType.code} readOnly /></Form.Item>
+                  <Form.Item label="Code">
+                    <Input value={categoryType.code} readOnly />
+                  </Form.Item>
                 ) : (
-                  <Form.Item name="code" label="Code" rules={[{ required: true, message: 'Enter a code.' }, { pattern: /^[a-z0-9]+(_[a-z0-9]+)*$/, message: 'Use lowercase letters, numbers, and underscores.' }, { max: 32, message: 'Code must be 32 characters or fewer.' }]}><Input name="code" maxLength={32} placeholder="museum" /></Form.Item>
+                  <Form.Item
+                    name="code"
+                    label="Code"
+                    rules={[
+                      { required: true, message: 'Enter a code.' },
+                      {
+                        pattern: /^[a-z0-9]+(_[a-z0-9]+)*$/,
+                        message: 'Use lowercase letters, numbers, and underscores.',
+                      },
+                      { max: 32, message: 'Code must be 32 characters or fewer.' },
+                    ]}
+                  >
+                    <Input name="code" maxLength={32} placeholder="museum" />
+                  </Form.Item>
                 )}
               </div>
-              <Form.Item name="sortOrder" label="Display order" rules={[{ required: true, message: 'Enter a display order.' }]}><InputNumber name="sortOrder" className="tw:w-full" precision={0} /></Form.Item>
-              <Form.Item name="nameEn" label="English name" rules={[{ required: true, min: 2, max: 160, message: 'Enter an English name between 2 and 160 characters.' }]}><Input name="nameEn" maxLength={160} placeholder="Museums" /></Form.Item>
-              <Form.Item name="nameAr" label="Arabic name" rules={[{ max: 160, message: 'Arabic name must be 160 characters or fewer.' }]}><Input name="nameAr" dir="rtl" lang="ar" maxLength={160} placeholder="المتاحف" /></Form.Item>
+              <Form.Item
+                name="sortOrder"
+                label="Display order"
+                rules={[{ required: true, message: 'Enter a display order.' }]}
+              >
+                <InputNumber name="sortOrder" className="tw:w-full" precision={0} />
+              </Form.Item>
+              <Form.Item
+                name="nameEn"
+                label="English name"
+                rules={[
+                  {
+                    required: true,
+                    min: 2,
+                    max: 160,
+                    message: 'Enter an English name between 2 and 160 characters.',
+                  },
+                ]}
+              >
+                <Input name="nameEn" maxLength={160} placeholder="Museums" />
+              </Form.Item>
+              <Form.Item
+                name="nameAr"
+                label="Arabic name"
+                rules={[{ max: 160, message: 'Arabic name must be 160 characters or fewer.' }]}
+              >
+                <Input name="nameAr" dir="rtl" lang="ar" maxLength={160} placeholder="المتاحف" />
+              </Form.Item>
               <Form.Item label="Image" className="full tw:col-span-full">
                 <ImageUpload
                   name="image"
@@ -96,16 +147,24 @@ export default function CategoryTypeEdit({
                 />
               </Form.Item>
             </div>
+            <div className="cms-form-actions">
+              {categoryType && (
+                <Button
+                  danger
+                  className="cms-form-actions-start"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  Delete category type
+                </Button>
+              )}
+              <Button href="/admin/category-types">Cancel</Button>
+              <Button type="primary" htmlType="submit" loading={processing}>
+                Save {categoryType ? 'changes' : 'category type'}
+              </Button>
+            </div>
           </section>
         </div>
       </Form>
-      {categoryType && (
-        <div className="form-delete-actions">
-          <button type="button" className="button danger" onClick={() => setConfirmDelete(true)}>
-            Delete category type
-          </button>
-        </div>
-      )}
       <ConfirmModal
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}
