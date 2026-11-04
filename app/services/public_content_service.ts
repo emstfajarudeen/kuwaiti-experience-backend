@@ -273,7 +273,6 @@ export async function showPage(slug: string, locale: 'en' | 'ar') {
     })
     .where('p.slug', slug)
     .where('p.status', 'published')
-    .where('p.published_at', '<=', db.raw('CURRENT_TIMESTAMP'))
     .select(
       'p.slug',
       db.raw(`${localizedSql('title', locale)} as title`),

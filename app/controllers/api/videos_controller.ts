@@ -12,9 +12,24 @@ function id(value: unknown, label: string) {
   return parsed
 }
 
+/**
+ * Public video reads must work for guests. A missing, malformed, expired or revoked
+ * customer token (e.g. a stale "Bearer ..." header left by a signed-out app) is treated
+ * as a guest instead of failing the whole feed with 401. Actions that need a user
+ * (like, save, comment) still use the strict auth middleware.
+ */
+async function viewer(ctx: HttpContext) {
+  try {
+    return await optionalCustomer(ctx)
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) return undefined
+    throw error
+  }
+}
+
 export default class VideosController {
   async index(ctx: HttpContext) {
-    const identity = await optionalCustomer(ctx)
+    const identity = await viewer(ctx)
     ctx.response.header('Cache-Control', 'no-store')
     return videos.feed(
       ctx.request.qs(),
@@ -24,7 +39,7 @@ export default class VideosController {
   }
 
   async show(ctx: HttpContext) {
-    const identity = await optionalCustomer(ctx)
+    const identity = await viewer(ctx)
     ctx.response.header('Cache-Control', 'no-store')
     return videos.showVideo(
       id(ctx.params.id, 'Video'),
@@ -38,7 +53,7 @@ export default class VideosController {
   }
 
   async comments(ctx: HttpContext) {
-    const identity = await optionalCustomer(ctx)
+    const identity = await viewer(ctx)
     ctx.response.header('Cache-Control', 'no-store')
     return videos.comments(id(ctx.params.id, 'Video'), ctx.request.qs(), identity?.customer.id)
   }

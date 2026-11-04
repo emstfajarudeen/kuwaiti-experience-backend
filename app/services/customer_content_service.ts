@@ -37,8 +37,9 @@ export async function canonicalPage(
   const query = connection
     .from('pages')
     .where('slug', slug)
+    // Pages have no scheduling in the CMS: status alone decides visibility. Comparing
+    // published_at here hid published pages whose date was empty or shifted by timezone.
     .where('status', 'published')
-    .where('published_at', '<=', new Date())
   if (trx) query.forUpdate()
   const page = await query.first()
   if (!page) throw new ApiError(404, 'NOT_FOUND', 'Page not found')
