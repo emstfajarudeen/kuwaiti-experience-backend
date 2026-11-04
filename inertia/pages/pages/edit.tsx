@@ -113,7 +113,11 @@ export default function PageEdit({
           ← Back to pages
         </a>
         {page && (
-          <span className={`status ${page.status} tw:shrink-0 tw:capitalize`}>{page.status}</span>
+          <span
+            className={`status ${page.status === 'published' ? 'published' : 'draft'} tw:shrink-0 tw:capitalize`}
+          >
+            {page.status === 'published' ? 'published' : 'draft'}
+          </span>
         )}
       </div>
       <div className="panel form-panel tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)]">
@@ -293,11 +297,11 @@ export default function PageEdit({
         <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-3 tw:border-t tw:border-brand-line tw:px-6 tw:py-5">
           {page && (
             <div className="form-delete-actions tw:!m-0">
+              {page.status !== 'published' && (
               <form
-                action={`/admin/pages/${page.id}/${page.status === 'published' ? 'archive' : 'publish'}`}
+                action={`/admin/pages/${page.id}/publish`}
                 method="POST"
                 onSubmit={(event) => {
-                  if (page.status === 'published') return
                   const title = String(antdForm.getFieldValue('titleEn') ?? '').trim()
                   if (title.length < 2) {
                     event.preventDefault()
@@ -328,11 +332,10 @@ export default function PageEdit({
               >
                 <input type="hidden" name="_csrf" value={csrfToken} />
                 <button className="button secondary" type="submit">
-                  {page.status === 'published'
-                    ? 'Set status to Archived'
-                    : 'Set status to Published'}
+                  Set status to Published
                 </button>
               </form>
+              )}
               <button
                 className="button danger"
                 type="button"

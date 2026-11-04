@@ -7,6 +7,8 @@ import { Table } from 'antd'
 import TableToolbar, { useLocalFilters } from '../../components/table_toolbar'
 
 type PageRow = { id: number; slug: string; status: string; title: string | null }
+// Pages are either Published or Draft; legacy archived pages are shown as Draft.
+const displayStatus = (status: string) => (status === 'published' ? 'published' : 'draft')
 type Props = {
   adminName: string
   csrfToken: string
@@ -29,7 +31,7 @@ export default function PagesIndex({
   const needle = filters.values.q.trim().toLocaleLowerCase()
   const visibleRows = rows.filter(
     (row) =>
-      (!filters.values.status || row.status === filters.values.status) &&
+      (!filters.values.status || displayStatus(row.status) === filters.values.status) &&
       (!needle || [row.title ?? '', row.slug].some((v) => v.toLocaleLowerCase().includes(needle)))
   )
   return (
@@ -47,11 +49,6 @@ export default function PagesIndex({
       <section className="panel table-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:overflow-hidden tw:p-0">
         <div className="panel-heading tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-brand-line-subtle tw:bg-white tw:px-6 tw:py-5">
           <h2>Pages ({rows.length})</h2>
-          {can('pages.create') && (
-            <a className="button primary" href="/admin/pages/new">
-              + Create page
-            </a>
-          )}
         </div>
         <TableToolbar
           search={{
@@ -69,7 +66,6 @@ export default function PagesIndex({
               options: [
                 { value: 'published', label: 'Published' },
                 { value: 'draft', label: 'Draft' },
-                { value: 'archived', label: 'Archived' },
               ],
             },
           ]}
@@ -124,8 +120,8 @@ export default function PagesIndex({
                   title: 'Status',
                   dataIndex: 'status',
                   render: (status: string) => (
-                    <span className={`status ${status}`}>
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    <span className={`status ${displayStatus(status)}`}>
+                      {displayStatus(status) === 'published' ? 'Published' : 'Draft'}
                     </span>
                   ),
                 },
@@ -159,8 +155,7 @@ export default function PagesIndex({
           </div>
         ) : (
           <div className="empty-state tw:[padding:var(--space-10)_var(--space-6)] tw:[text-align:center] tw:[color:var(--muted)] tw:[display:flex] tw:[flex-direction:column] tw:[align-items:center] tw:[gap:var(--space-3)]">
-            <p>No content pages created yet.</p>
-            {can('pages.create') && <a href="/admin/pages/new">Create page</a>}
+            <p>No content pages yet.</p>
           </div>
         )}
       </section>
