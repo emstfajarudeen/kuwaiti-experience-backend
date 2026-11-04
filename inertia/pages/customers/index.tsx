@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Switch, Table } from 'antd'
+import { Avatar, Switch, Table } from 'antd'
 import { router } from '@inertiajs/react'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import AdminLayout from '../../layouts/admin_layout'
@@ -14,6 +14,7 @@ type AppUser = {
   email: string | null
   phone_verified_at: string | null
   active: boolean
+  photo_url: string | null
   created_at: string | null
 }
 
@@ -74,12 +75,15 @@ export default function CustomersIndex({
       key: 'name',
       render: (_, user) => (
         <div className="tw:flex tw:min-w-[240px] tw:items-center tw:gap-3">
-          <span
-            className="tw:grid tw:size-10 tw:shrink-0 tw:place-items-center tw:rounded-full tw:bg-brand-navy tw:text-sm tw:font-bold tw:text-brand-gold"
-            aria-hidden="true"
+          {/* Shows the photo uploaded from the app; falls back to initials when none or it fails to load. */}
+          <Avatar
+            size={40}
+            src={user.photo_url ?? undefined}
+            alt={`${user.first_name} ${user.last_name}`}
+            style={{ backgroundColor: '#00172e', color: '#c99d42', fontWeight: 700, flexShrink: 0 }}
           >
             {initials(user.first_name, user.last_name)}
-          </span>
+          </Avatar>
           <div className="tw:flex tw:flex-col">
             <strong>
               {user.first_name} {user.last_name}
@@ -178,6 +182,7 @@ export default function CustomersIndex({
             hideOnSinglePage: true,
             showTotal: () => `Page ${meta.page} of ${meta.last_page}`,
           }}
+          scroll={{ x: 'max-content' }}
           onChange={changePage}
           locale={{
             emptyText: query ? 'No app users match this search.' : 'No registered app users yet.',

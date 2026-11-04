@@ -33,6 +33,7 @@ export async function listCustomers(queryValue: string, pageValue: number) {
       'email',
       'phone_verified_at',
       'active',
+      'profile_photo_id',
       'created_at'
     )
     .orderBy('created_at', 'desc')
@@ -49,6 +50,7 @@ export async function listCustomers(queryValue: string, pageValue: number) {
       email: row.email ? String(row.email) : null,
       phone_verified_at: row.phone_verified_at,
       active: Boolean(row.active),
+      profile_photo_id: row.profile_photo_id ? String(row.profile_photo_id) : null,
       created_at: row.created_at,
     })),
     meta: { page: currentPage, per_page: pageSize, total, last_page: lastPage },

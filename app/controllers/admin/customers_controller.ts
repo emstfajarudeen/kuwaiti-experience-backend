@@ -1,6 +1,9 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { ApiError } from '../../services/api_error.js'
+import db from '@adonisjs/lucid/services/db'
+import drive from '@adonisjs/drive/services/main'
 import { listCustomers, setCustomerActive } from '../../services/customer_management_service.js'
+import { profilePhotoKey } from '../../services/customer_photo_service.js'
 
 function dateValue(value: unknown) {
   return value instanceof Date ? value.toISOString() : value ? String(value) : null
@@ -21,8 +24,10 @@ export default class AdminCustomersController {
         success: (session.flashMessages.get('success') as string | undefined) ?? null,
         error: (session.flashMessages.get('error') as string | undefined) ?? null,
         query,
-        users: result.rows.map((user) => ({
+        users: result.rows.map(({ profile_photo_id: photoId, ...user }) => ({
           ...user,
+          // The id doubles as a cache-buster: a new upload from the app gets a new id.
+          photo_url: photoId ? `/admin/customers/${user.id}/photo?v=${photoId}` : null,
           phone_verified_at: dateValue(user.phone_verified_at),
           created_at: dateValue(user.created_at),
         })),
@@ -30,6 +35,23 @@ export default class AdminCustomersController {
       },
       { bodyClass: 'cms-body' }
     )
+  }
+
+  /** Streams the photo an app user uploaded from the mobile app. */
+  async photo({ params, response }: HttpContext) {
+    const row = await db
+      .from('customers')
+      .where('id', Number(params.id))
+      .select('profile_photo_id')
+      .first()
+    if (!row?.profile_photo_id) throw new ApiError(404, 'NOT_FOUND', 'Profile photo not found')
+    const disk = drive.use('local')
+    const key = profilePhotoKey(String(row.profile_photo_id))
+    if (!(await disk.exists(key))) throw new ApiError(404, 'NOT_FOUND', 'Profile photo not found')
+    response.header('Content-Type', 'image/webp')
+    response.header('X-Content-Type-Options', 'nosniff')
+    response.header('Cache-Control', 'private, max-age=300')
+    return response.stream(await disk.getStream(key))
   }
 
   async updateStatus({ params, request, response, session, admin }: HttpContext) {

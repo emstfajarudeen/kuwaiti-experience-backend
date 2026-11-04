@@ -97,6 +97,7 @@ router
     router.get('/account', [AdminAuthController, 'account'])
     router.post('/account/password', [AdminAuthController, 'password'])
     router.get('/customers', [AdminCustomersController, 'index'])
+    router.get('/customers/:id/photo', [AdminCustomersController, 'photo'])
     router.post('/customers/:id/status', [AdminCustomersController, 'updateStatus'])
     router.get('/notifications', [AdminNotificationsController, 'index'])
     router
