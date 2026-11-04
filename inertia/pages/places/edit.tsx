@@ -81,12 +81,22 @@ export default function PlaceEdit({
       ? true
       : form?.deactivate === '1'
         ? false
-        : place?.status === 'published'
+        : place
+          ? place.status === 'published'
+          : true
   )
   const [antdForm] = Form.useForm()
+  const [cover, setCover] = useState({ hasFile: false, removed: Boolean(form?.removeCover === 'on') })
+  const [coverError, setCoverError] = useState<string | null>(null)
+  const hasCover = cover.hasFile || (Boolean(coverUrl) && !cover.removed)
+  // A shared key makes repeated identical errors replace the previous toast instead of being skipped.
+  const toastError = (content: string) => void message.error({ content, key: 'place-form-error' })
   useEffect(() => {
-    if (error) void message.error(error)
+    if (error) toastError(error)
   }, [error])
+  useEffect(() => {
+    if (hasCover) setCoverError(null)
+  }, [hasCover])
   const watchedLatitude = Form.useWatch('latitude', antdForm)
   const watchedLongitude = Form.useWatch('longitude', antdForm)
   const mapLatitude =
@@ -107,7 +117,7 @@ export default function PlaceEdit({
   const action = place ? `/admin/places/${place.id}/save` : '/admin/places'
   return (
     <AdminLayout
-      title={place ? 'Edit place' : 'New place'}
+      title={place ? 'Edit business/place' : 'New business/place'}
       active="places"
       adminName={adminName}
       csrfToken={csrfToken}
@@ -116,11 +126,11 @@ export default function PlaceEdit({
         className="back-link tw:[display:inline-flex] tw:[align-items:center] tw:[gap:6px] tw:[color:var(--muted)] tw:[font-size:13px] tw:[font-weight:600] tw:[margin-bottom:var(--space-3)] tw:[transition:color_0.15s_ease]"
         href="/admin/places"
       >
-        ← Back to places
+        ← Back to Business/Places
       </a>
       <div className="page-head form-page-head tw:mb-6 tw:flex tw:flex-wrap tw:items-start tw:justify-between tw:gap-4">
         <div className="tw:[display:flex] tw:[align-items:center] tw:[gap:12px] tw:[flex-wrap:wrap]">
-          <h1>{place ? en?.title || 'Edit place' : 'Create a new place'}</h1>
+          <h1>{place ? en?.title || 'Edit business/place' : 'Create a new business/place'}</h1>
         </div>
       </div>
       <Form
@@ -149,7 +159,13 @@ export default function PlaceEdit({
         }}
         onFinish={() => {
           if (!selectedType) {
-            void message.error('Select a place type.')
+            toastError('Select a place type.')
+            return
+          }
+          if (active && !hasCover) {
+            setCoverError('Add a cover image before activating this business/place.')
+            toastError('Add a cover image before activating this business/place.')
+            document.getElementById('coverImage-field')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
             return
           }
           const element = document.getElementById('cms-place-editor') as HTMLFormElement | null
@@ -163,7 +179,13 @@ export default function PlaceEdit({
               form: antdForm,
               setProcessing,
               data,
+              onSuccess: (page) => {
+                const flashed = page.props.error
+                if (typeof flashed === 'string' && flashed) toastError(flashed)
+              },
               onError: (errors) => {
+                const firstMessage = Object.values(errors)[0]
+                if (firstMessage) toastError(String(firstMessage))
                 const firstField = Object.keys(errors)[0]
                 if (firstField) antdForm.scrollToField(firstField, { focus: true })
               },
@@ -173,7 +195,8 @@ export default function PlaceEdit({
         onFinishFailed={({ errorFields }) => {
           const first = errorFields[0]
           if (!first) return
-          void message.error(first.errors[0] ?? 'Check the highlighted fields.')
+          toastError(first.errors[0] ?? 'Fix the highlighted fields.')
+          if (active && !hasCover) setCoverError('Add a cover image before activating this business/place.')
           antdForm.scrollToField(first.name, { focus: true })
         }}
         action={action}
@@ -350,7 +373,9 @@ export default function PlaceEdit({
           <section className="cms-form-section">
             <h2>Images</h2>
             <div className="image-block">
-              <span className="image-block-label">Cover image</span>
+              <span className="image-block-label">
+                Cover image {active && <RequiredMark />}
+              </span>
               <ImageUpload
                 name="coverImage"
                 currentImageUrl={coverUrl}
@@ -359,6 +384,9 @@ export default function PlaceEdit({
                 initiallyRemoved={form?.removeCover === 'on'}
                 allowRemove={place?.status !== 'published' || !active}
                 disabledRemoveReason="Deactivate this place before removing its cover image."
+                invalid={Boolean(coverError)}
+                errorMessage={coverError}
+                onStateChange={setCover}
               />
             </div>
             <div className="image-block">

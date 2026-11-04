@@ -13,6 +13,9 @@ type Props = {
   initiallyRemoved?: boolean
   allowRemove?: boolean
   disabledRemoveReason?: string
+  invalid?: boolean
+  errorMessage?: string | null
+  onStateChange?: (state: { hasFile: boolean; removed: boolean }) => void
 }
 const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
@@ -27,11 +30,19 @@ export default function ImageUpload({
   initiallyRemoved = false,
   allowRemove = true,
   disabledRemoveReason,
+  invalid = false,
+  errorMessage,
+  onStateChange,
 }: Props) {
   const nativeInput = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<UploadFile[]>([])
   const [removed, setRemoved] = useState(initiallyRemoved)
   const [selectedPreview, setSelectedPreview] = useState<string | null>(null)
+
+  useEffect(() => {
+    onStateChange?.({ hasFile: files.length > 0, removed })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files.length, removed])
 
   useEffect(() => {
     setRemoved(allowRemove && initiallyRemoved)
@@ -106,7 +117,11 @@ export default function ImageUpload({
   )
 
   return (
-    <div className="image-upload">
+    <div
+      className="image-upload"
+      id={`${name}-field`}
+      style={invalid ? { border: '1px solid #9e2a2b', borderRadius: 8, padding: 8 } : undefined}
+    >
       {Boolean(label) && <span className="image-upload-label">{label}</span>}
       {hasPreview ? (
         <div className="image-upload-current">
@@ -201,6 +216,11 @@ export default function ImageUpload({
         tabIndex={-1}
         aria-hidden="true"
       />
+      {invalid && errorMessage && (
+        <p role="alert" id={`${name}-error`} style={{ color: '#9e2a2b', margin: '8px 0 0', fontSize: 14 }}>
+          {errorMessage}
+        </p>
+      )}
       {removeName && <input type="hidden" name={removeName} value={removed ? 'on' : ''} />}
     </div>
   )

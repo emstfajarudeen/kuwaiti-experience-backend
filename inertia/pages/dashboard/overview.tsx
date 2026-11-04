@@ -64,7 +64,6 @@ export default function Overview({
   csrfToken,
   totalPlaces,
   publishedCount,
-  draftCount,
   archivedCount,
   newContactsCount,
   visibility,
@@ -73,8 +72,6 @@ export default function Overview({
   const publishedRate =
     analytics?.publishedRate ??
     (totalPlaces > 0 ? Math.round((publishedCount / totalPlaces) * 100) : 0)
-  const draftRate =
-    analytics?.draftRate ?? (totalPlaces > 0 ? Math.round((draftCount / totalPlaces) * 100) : 0)
   const archivedRate =
     analytics?.archivedRate ??
     (totalPlaces > 0 ? Math.round((archivedCount / totalPlaces) * 100) : 0)
@@ -125,7 +122,7 @@ export default function Overview({
             className="stat-card tw:relative tw:flex tw:flex-col tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-5 tw:shadow-sm tw:transition-all hover:tw:-translate-y-0.5 hover:tw:shadow-md"
           >
             <span className="stat-label tw:text-[11px] tw:font-bold tw:uppercase tw:tracking-wider tw:text-brand-muted">
-              Published
+              Active
             </span>
             <strong className="stat-value tw:my-2 tw:text-3xl tw:font-bold tw:leading-none tw:text-brand-success-text">
               {publishedCount}
@@ -136,28 +133,10 @@ export default function Overview({
           </a>
         )}
 
-        {/* Drafts */}
-        {visibility.places && (
-          <a
-            href="/admin/places?status=draft"
-            className="stat-card tw:relative tw:flex tw:flex-col tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-5 tw:shadow-sm tw:transition-all hover:tw:-translate-y-0.5 hover:tw:shadow-md"
-          >
-            <span className="stat-label tw:text-[11px] tw:font-bold tw:uppercase tw:tracking-wider tw:text-brand-muted">
-              Drafts
-            </span>
-            <strong className="stat-value tw:my-2 tw:text-3xl tw:font-bold tw:leading-none tw:text-brand-warning-text">
-              {draftCount}
-            </strong>
-            <span className="tw:text-[11px] tw:font-medium tw:text-brand-muted">
-              Not published yet
-            </span>
-          </a>
-        )}
-
         {/* Inactive */}
         {visibility.places && (
           <a
-            href="/admin/places?status=archived"
+            href="/admin/places?status=inactive"
             className="stat-card tw:relative tw:flex tw:flex-col tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-5 tw:shadow-sm tw:transition-all hover:tw:-translate-y-0.5 hover:tw:shadow-md"
           >
             <span className="stat-label tw:text-[11px] tw:font-bold tw:uppercase tw:tracking-wider tw:text-brand-muted">
@@ -167,7 +146,7 @@ export default function Overview({
               {archivedCount}
             </strong>
             <span className="tw:text-[11px] tw:font-medium tw:text-brand-muted">
-              Turned off
+              Turned off or not yet activated
             </span>
           </a>
         )}
@@ -220,40 +199,29 @@ export default function Overview({
           <div className="tw:mb-3">
             <div className="tw:mb-1.5 tw:flex tw:justify-between tw:text-xs">
               <span className="tw:font-medium tw:text-brand-ink">Publication Ratio</span>
-              <span className="tw:font-bold tw:text-brand-success-text">{publishedRate}% Live</span>
+              <span className="tw:font-bold tw:text-brand-success-text">{publishedRate}% Active</span>
             </div>
             <div className="tw:flex tw:h-3 tw:w-full tw:overflow-hidden tw:rounded-full tw:bg-brand-surface-subtle tw:border tw:border-brand-line">
               <div
                 style={{ width: `${publishedRate}%` }}
                 className="tw:bg-brand-success-text tw:transition-all tw:duration-500"
-                title={`Published: ${publishedCount} (${publishedRate}%)`}
-              />
-              <div
-                style={{ width: `${draftRate}%` }}
-                className="tw:bg-brand-gold tw:transition-all tw:duration-500"
-                title={`Draft: ${draftCount} (${draftRate}%)`}
+                title={`Active: ${publishedCount} (${publishedRate}%)`}
               />
               <div
                 style={{ width: `${archivedRate}%` }}
                 className="tw:bg-brand-danger-border tw:transition-all tw:duration-500"
-                title={`Archived: ${archivedCount} (${archivedRate}%)`}
+                title={`Inactive: ${archivedCount} (${archivedRate}%)`}
               />
             </div>
           </div>
 
           {/* Legend items */}
-          <div className="tw:grid tw:grid-cols-3 tw:gap-2 tw:pt-2 tw:border-t tw:border-brand-line-subtle tw:text-xs">
+          <div className="tw:grid tw:grid-cols-2 tw:gap-2 tw:pt-2 tw:border-t tw:border-brand-line-subtle tw:text-xs">
             <div className="tw:flex tw:flex-col">
               <span className="tw:flex tw:items-center tw:gap-1.5 tw:text-brand-muted">
-                <span className="tw:size-2 tw:rounded-full tw:bg-brand-success-text" /> Published
+                <span className="tw:size-2 tw:rounded-full tw:bg-brand-success-text" /> Active
               </span>
               <span className="tw:font-bold tw:text-brand-ink tw:mt-0.5">{publishedCount}</span>
-            </div>
-            <div className="tw:flex tw:flex-col">
-              <span className="tw:flex tw:items-center tw:gap-1.5 tw:text-brand-muted">
-                <span className="tw:size-2 tw:rounded-full tw:bg-brand-gold" /> Drafts
-              </span>
-              <span className="tw:font-bold tw:text-brand-ink tw:mt-0.5">{draftCount}</span>
             </div>
             <div className="tw:flex tw:flex-col">
               <span className="tw:flex tw:items-center tw:gap-1.5 tw:text-brand-muted">

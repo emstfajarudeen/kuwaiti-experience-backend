@@ -4,7 +4,7 @@ Read the [mobile app API reference](../app-api-reference.md) for supported scree
 
 Import both files using Postman's **Import** control:
 
-- `kuwaitiexperience.postman_collection.json` — requests covering the four website footer pages, customer/profile/support, saved addresses, Explore/bookmarks, Home and related CMS APIs.
+- `kuwaitiexperience.postman_collection.json` — requests covering the four website footer pages, customer/profile/support, saved addresses, Explore/bookmarks, Home, Videos, related CMS APIs and the legacy v1 website/CMS API.
 - `local.postman_environment.json` — select **Kuwaiti Experience — Local** after importing.
 
 Set `base_url` to your running backend (default `http://localhost:3333`, without a trailing slash). Start the local server with `npm run dev` if needed. Sample phone numbers are placeholders; replace `phone_e164` and `new_phone_e164` with numbers you control. This collection does not configure the backend or SMS provider.
@@ -46,6 +46,8 @@ Challenge IDs and phone verification proof are stored automatically. Successful 
 - Folders 07–09 cover Explore public browsing, customer bookmarks and CMS feature/movie/showtime management. Folder 09A covers the app Home and CMS controls. See the flows below.
 - Folder 08A contains saved-address create/list/detail/update/delete requests. Send **Save address** first with a customer token to capture `saved_address_id`, then use the remaining requests. See [saved-address integration](../saved-addresses-api.md).
 - Folder 08B contains FCM token registration/removal and the customer notification inbox/read requests. Set the secret `fcm_registration_token` from the app's Firebase SDK before registering a device. No ride/rental events currently create inbox items; delivery also requires Firebase server credentials and the background worker. See [notification API](../notifications-openapi.json).
+- Folder 11 contains the Videos API: feed, detail, comments, saved videos, like, save, share, comment, comment likes, report and video file streaming. See [Videos testing](#videos-testing) and the [Videos API reference](../videos-api-reference.md).
+- Folder 12 contains the legacy v1 website and CMS JSON API from [openapi.yaml](../openapi.yaml), so every route is recorded. The mobile app does not use it.
 - Folder 10 contains logout and permanent account deletion. Send these individually after testing. Logout invalidates the current session; deletion removes the customer and owned data and requires OTP sign-in within the past 10 minutes. Both clear captured customer credentials on success. Use a disposable account for deletion.
 
 ## Explore testing
@@ -69,3 +71,17 @@ Send requests individually. A full Collection Runner run is unsuitable: sign-in 
 Tokens, proofs, OTP codes and the admin password are marked secret in the environment. Do not share populated environment exports; keep the checked-in template empty of credentials. A failing HTTP assertion shows an unmet prerequisite or API error; inspect the response's `error.code` and `error.message`.
 
 Contract details: [app API reference](../app-api-reference.md), [customer API](../customer-api.md), [Edit Profile](../customer-profile-api.md), [customer OpenAPI](../customer-openapi.json), [Explore API](../explore-api.md), [Explore OpenAPI](../explore-openapi.json), [Home OpenAPI](../home-openapi.json), [Notifications OpenAPI](../notifications-openapi.json).
+
+## Videos testing
+
+Folder 11 covers the app's video feed. Add demo content first with `node ace db:seed --files database/seeders/video_seeder.ts` (development only), or publish a video in CMS → Videos.
+
+1. Send **Report reasons** to capture `video_report_reason`.
+2. Send **List video feed (first page)**. It captures `video_id` and `video_file_path` from the first video and `video_next_cursor` for **List video feed (next page)**. The customer token is optional on reads; set the request's Auth to No Auth to test as a guest (`viewer` is then always false).
+3. **Video file (stream with Range)** requests the first kilobyte of `video_file_path` and expects 206. Remove the `Range` header to download the whole file.
+4. Like, save, share, comment and report need a customer token from folder 02. Like and save are idempotent, so repeating them is safe. Share adds one each time.
+5. **Add comment** captures `video_comment_id` for **Like comment**, **Unlike comment** and **Delete my comment**. Comments and reports write real records; reports appear in CMS → Videos → Reports.
+
+## Legacy v1 testing
+
+Folder 12 is split into Public website (v1), CMS auth (v1) and CMS content (v1). Sign in with **Admin sign in** in folder 06 or **Start an admin session** in folder 12; both capture `admin_access_token` and `admin_refresh_token`. Create requests capture `legacy_place_id`, `legacy_page_id`, `category_id` and `transport_location_id`; set `image_key`, `place_slug` and `page_slug` yourself. Image uploads need a file selected under Body → form-data. Every CMS write, delete, publish and archive request changes real data, so send them individually. Change password also needs `admin_new_password` and revokes all sessions.

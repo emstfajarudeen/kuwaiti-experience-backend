@@ -70,7 +70,7 @@ export default class AdminDashboardController {
         ? db.from('places').where('status', 'published').count('* as count').first()
         : null,
       showPlaces ? db.from('places').where('status', 'draft').count('* as count').first() : null,
-      showPlaces ? db.from('places').where('status', 'archived').count('* as count').first() : null,
+      showPlaces ? db.from('places').whereIn('status', ['draft', 'archived']).count('* as count').first() : null,
       showPlaces
         ? db.from('places').whereNotNull('featured_order').count('* as count').first()
         : null,
@@ -165,6 +165,7 @@ export default class AdminDashboardController {
     const totalPlaces = Number(totalPlacesRes?.count ?? 0)
     const publishedCount = Number(publishedPlacesRes?.count ?? 0)
     const draftCount = Number(draftPlacesRes?.count ?? 0)
+    // The CMS only has Active/Inactive; never-activated drafts count as Inactive.
     const archivedCount = Number(archivedPlacesRes?.count ?? 0)
     const featuredCount = Number(featuredPlacesRes?.count ?? 0)
     const geocodedCount = Number(geocodedPlacesRes?.count ?? 0)
@@ -193,7 +194,7 @@ export default class AdminDashboardController {
       : []
 
     const publishedRate = totalPlaces > 0 ? Math.round((publishedCount / totalPlaces) * 100) : 0
-    const draftRate = totalPlaces > 0 ? Math.round((draftCount / totalPlaces) * 100) : 0
+    const draftRate = 0
     const archivedRate = totalPlaces > 0 ? Math.round((archivedCount / totalPlaces) * 100) : 0
     const geocodedRate = totalPlaces > 0 ? Math.round((geocodedCount / totalPlaces) * 100) : 0
     const contactsResolutionRate =

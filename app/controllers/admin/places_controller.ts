@@ -85,7 +85,7 @@ export default class AdminPlacesPageController {
         ? requestedType
         : ''
 
-    const validStatuses = ['published', 'draft', 'archived']
+    const validStatuses = ['published', 'inactive', 'draft', 'archived']
     const selectedStatus =
       typeof requestedStatus === 'string' && validStatuses.includes(requestedStatus)
         ? requestedStatus
@@ -103,7 +103,8 @@ export default class AdminPlacesPageController {
         q.where('p.type', selectedType)
       }
       if (selectedStatus) {
-        q.where('p.status', selectedStatus)
+        if (selectedStatus === 'inactive') q.whereIn('p.status', ['draft', 'archived'])
+        else q.where('p.status', selectedStatus)
       }
       if (searchQuery) {
         q.where((builder) => {

@@ -39,6 +39,7 @@ export default defineConfig({
       'countries/index',
       'countries/edit',
       'customers/index',
+      'notifications/index',
     ],
   },
 })

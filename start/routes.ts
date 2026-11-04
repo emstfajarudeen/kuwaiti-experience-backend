@@ -308,6 +308,9 @@ router
           .post('/customer/me/push-tokens', [CustomerNotificationsController, 'registerToken'])
           .use(customerNotificationThrottle)
         router
+          .patch('/customer/me/push-tokens/:id', [CustomerNotificationsController, 'updateToken'])
+          .use(customerNotificationThrottle)
+        router
           .delete('/customer/me/push-tokens/:id', [CustomerNotificationsController, 'removeToken'])
           .use(customerNotificationThrottle)
         router.get('/customer/me/notifications', [CustomerNotificationsController, 'index'])

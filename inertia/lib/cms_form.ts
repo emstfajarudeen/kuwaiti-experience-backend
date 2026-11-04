@@ -17,8 +17,9 @@ export function postCmsForm<T extends object>(options: {
   form: FormInstance<T>
   setProcessing: (processing: boolean) => void
   onError?: (errors: Record<string, string>) => void
+  onSuccess?: (page: { props: Record<string, unknown> }) => void
 }) {
-  const { action, csrfToken, data, form, setProcessing, onError } = options
+  const { action, csrfToken, data, form, setProcessing, onError, onSuccess } = options
   if (data instanceof FormData) data.set('_csrf', csrfToken)
   else data._csrf = csrfToken
 
@@ -26,6 +27,7 @@ export function postCmsForm<T extends object>(options: {
     forceFormData: data instanceof FormData,
     headers: { 'X-CSRF-TOKEN': csrfToken },
     onStart: () => setProcessing(true),
+    onSuccess: (page) => onSuccess?.(page as { props: Record<string, unknown> }),
     onError: (errors) => {
       form.setFields(
         Object.entries(errors).map(([field, message]) => ({

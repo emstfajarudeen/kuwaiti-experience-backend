@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AutoComplete, Input } from 'antd'
+import { AutoComplete, Form, Input } from 'antd'
 import PlaceLocationMap from './place_location_map'
 
 type AddressResult = {
@@ -145,9 +145,12 @@ export default function OpenMapAddressSearch({
     }
   }
 
+  const { status: fieldStatus } = Form.Item.useStatus()
+  const invalid = fieldStatus === 'error' ? 'error' : undefined
   return (
     <div>
       <AutoComplete
+        status={invalid}
         value={value ?? ''}
         open={open}
         options={results.map((result) => ({ value: result.label, label: result.label }))}
@@ -168,6 +171,7 @@ export default function OpenMapAddressSearch({
         className="tw:w-full"
       >
         <Input.Search
+          status={invalid}
           id="place-address"
           aria-label="Address"
           name={name}

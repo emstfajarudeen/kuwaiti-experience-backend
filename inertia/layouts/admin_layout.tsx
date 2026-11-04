@@ -32,7 +32,7 @@ const navigation = [
       {
         href: '/admin/places',
         icon: '⌁',
-        label: 'Places',
+        label: 'Business/Places',
         active: 'places',
         permission: 'places.view',
       },

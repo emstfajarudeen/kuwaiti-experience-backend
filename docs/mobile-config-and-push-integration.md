@@ -10,6 +10,7 @@ The backend implements these APIs. The mobile app still needs to integrate them.
 | --- | --- | --- |
 | App configuration | `GET /api/v2/config` | No |
 | Register or refresh an FCM token | `POST /api/v2/customer/me/push-tokens` | Yes |
+| Change the language of a registered device | `PATCH /api/v2/customer/me/push-tokens/{id}` | Yes |
 | Remove a registered FCM token | `DELETE /api/v2/customer/me/push-tokens/{id}` | Yes |
 | List notifications and unread count | `GET /api/v2/customer/me/notifications` | Yes |
 | Mark one notification as read | `PUT /api/v2/customer/me/notifications/{id}/read` | Yes |
@@ -127,11 +128,12 @@ Content-Type: application/json
 {
   "token": "<fcm-registration-token>",
   "platform": "android",
-  "device_id": "<app-generated-installation-id>"
+  "device_id": "<app-generated-installation-id>",
+  "language": "ar"
 }
 ```
 
-`platform` must be `ios` or `android`. `device_id` is optional, 1–128 characters; `token` is required, 1–4096 characters. Example `201 Created` response:
+`platform` must be `ios` or `android`. `device_id` is optional, 1–128 characters; `token` is required, 1–4096 characters. `language` is optional, `en` or `ar`: send the app's current language so push notifications arrive in it (see "Push language" below). Example `201 Created` response:
 
 ```json
 {
@@ -139,6 +141,7 @@ Content-Type: application/json
     "id": 42,
     "platform": "android",
     "device_id": "<app-generated-installation-id>",
+    "language": "ar",
     "created_at": "2026-10-30T10:00:00.000Z",
     "updated_at": "2026-10-30T10:00:00.000Z"
   }
@@ -146,6 +149,25 @@ Content-Type: application/json
 ```
 
 The FCM token itself is not returned. On each successful registration, replace the locally stored record ID with `data.id`; token rotation can create a new record. Invalid input returns 422. An expired or invalid customer session returns 401.
+
+### Push language
+
+The backend stores one language (`en` or `ar`) for each registered device and uses it to choose the text of every push. Arabic is used only when the notification has both an Arabic title and an Arabic message; otherwise English is sent. A device that never sends a language receives English.
+
+1. Send the app's current language as `language` whenever you register the token (first launch after sign-in, token rotation, new sign-in). Registering again without `language` keeps the saved value.
+2. When the user changes the app language, update the saved record with the call below. Do not wait for the next token refresh.
+
+```http
+PATCH <api_base_url>/api/v2/customer/me/push-tokens/42
+Authorization: Bearer <customer_access_token>
+Content-Type: application/json
+```
+
+```json
+{ "language": "ar" }
+```
+
+`42` is the record ID from registration. `language` is required and must be `en` or `ar`, otherwise `422`. Success is `200 OK` with the same record shape as registration. A record that does not belong to the current customer returns `404`. The language belongs to the device, not the account, so a customer signed in on two phones can use different languages.
 
 ### Remove the current device token
 
@@ -192,7 +214,7 @@ Authorization: Bearer <customer_access_token>
 
 - `data` is an array, including when empty. `action_data` is an object or `null`. `read_at: null` means unread; otherwise it is an ISO timestamp. `created_at` is an ISO timestamp: the app can format it as “now”, “2 min”, or a date in the device's timezone.
 - `meta.unread_count` is for all of the customer's notifications, not just the current page. Use it for a badge. Invalid pagination returns 422.
-- Notification `title` and `body` are stored as supplied by the future backend event source. The notification inbox does not currently select translations using `Accept-Language`. Do not assume `type` values or a navigation destination from this example.
+- Each item also has `title_ar` and `body_ar`, which are `null` when no Arabic text was provided. `title` and `body` are always English. Show the Arabic pair when the app language is Arabic and both values are non-empty; otherwise show `title` and `body`. The inbox does not use `Accept-Language`. Do not assume `type` values or a navigation destination from this example.
 
 ### Mark one as read
 
@@ -214,14 +236,20 @@ No body is needed. Success returns `204 No Content` and no JSON body. Refresh th
 
 ## 7. Receiving an FCM message
 
-The backend sends an FCM notification with `title` and `body`, plus string data values:
+The backend sends an FCM notification with `title` and `body` in the device's saved push language (see "Push language"), plus string data values:
 
 ```json
 {
   "notification_id": "17",
-  "type": "example_event"
+  "type": "example_event",
+  "title_en": "Example notification",
+  "body_en": "Your update is available.",
+  "title_ar": "إشعار تجريبي",
+  "body_ar": "تحديثك متاح."
 }
 ```
+
+`title_ar` and `body_ar` are present only when the notification has Arabic text. Both languages are always in the data, so a foreground handler can also choose its own.
 
 If a backend event includes `action_data`, the FCM data payload also includes an `action_data` **JSON string**. In the inbox API the corresponding value is an object or `null`. Handle absent fields and invalid JSON safely. These are the data fields, not the entire Firebase SDK message object.
 
@@ -248,6 +276,7 @@ Implement foreground, background and terminated-app handling according to the mo
 - [ ] Compare numeric version components correctly, including `1.10.0` versus `1.9.0`; handle a missing store URL without inventing a link.
 - [ ] Handle offline startup, refresh on foreground, and language changes. Agree on the server caching policy before implementing an offline configuration cache; keep any approved caches separate by environment.
 - [ ] Request notification permission at the agreed point, register after login, re-register on token refresh and account changes, and remove the saved token ID before logout.
+- [ ] Send `language` when registering the token and call `PATCH /customer/me/push-tokens/{id}` whenever the user changes the app language; verify an Arabic device receives Arabic text and an English device English.
 - [ ] Build inbox pagination, empty/error/loading states, read state and unread badge from the documented response. Correctly handle 200, 204, 401, 404, 422 and 429.
 - [ ] Verify foreground and background push handling on real iOS and Android devices once FCM/APNs and the backend worker are configured. Use a backend-coordinated test notification; there is currently no public API to create one.
 - [ ] Keep notification tap navigation disabled or generic until a destination contract is agreed. Confirm with the backend team when ride/rental events are connected.

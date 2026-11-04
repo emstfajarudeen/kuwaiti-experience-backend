@@ -78,7 +78,7 @@ export default function PlacesIndex({
   }
   return (
     <AdminLayout
-      title="Places"
+      title="Business/Places"
       active="places"
       adminName={adminName}
       csrfToken={csrfToken}
@@ -86,22 +86,22 @@ export default function PlacesIndex({
       error={error}
     >
       <div className="page-head tw:mb-6 tw:flex tw:flex-wrap tw:items-start tw:justify-between tw:gap-4">
-        <h1>Places</h1>
+        <h1>Business/Places</h1>
       </div>
       <section className="panel table-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:overflow-hidden tw:p-0">
         <div className="panel-heading tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-brand-line-subtle tw:bg-white tw:px-6 tw:py-5">
           <h2>
             {pagination.total
-              ? `Showing ${(pagination.page - 1) * pagination.perPage + 1}–${Math.min(pagination.page * pagination.perPage, pagination.total)} of ${pagination.total} places`
-              : '0 places found'}
+              ? `Showing ${(pagination.page - 1) * pagination.perPage + 1}–${Math.min(pagination.page * pagination.perPage, pagination.total)} of ${pagination.total} business/places`
+              : '0 business/places found'}
           </h2>
           <a className="button primary" href="/admin/places/new">
-            + Add place
+            + Add business/place
           </a>
         </div>
         <TableToolbar
           search={{
-            label: 'Search places',
+            label: 'Search business/places',
             placeholder: 'Search name, slug or address',
             value: serverFilters.values.q,
             onChange: (value) => serverFilters.setSearch('q', value),
@@ -120,9 +120,8 @@ export default function PlacesIndex({
               placeholder: 'All statuses',
               onChange: (value) => serverFilters.setSelect('status', value),
               options: [
-                { value: 'published', label: 'Published' },
-                { value: 'draft', label: 'Draft' },
-                { value: 'archived', label: 'Archived' },
+                { value: 'published', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
               ],
             },
             {
@@ -227,7 +226,7 @@ export default function PlacesIndex({
             </div>
             <div className="pagination-bar tw:[display:flex] tw:[justify-content:space-between] tw:[align-items:center] tw:[flex-wrap:wrap] tw:[gap:var(--space-3)] tw:[padding:var(--space-4)_var(--space-6)] tw:[border-top:1px_solid_var(--line-subtle)] tw:[background:var(--surface)] tw:[font-size:13px] tw:[color:var(--muted)]">
               <span>
-                Page {pagination.page} of {pagination.lastPage} ({pagination.total} total places)
+                Page {pagination.page} of {pagination.lastPage} ({pagination.total} total business/places)
               </span>
               <div className="pagination-links tw:[display:flex] tw:[align-items:center] tw:[gap:6px]">
                 {pagination.hasPrev ? (
@@ -272,12 +271,12 @@ export default function PlacesIndex({
             </span>
             {searchQuery || selectedType || selectedStatus ? (
               <>
-                <p>No places match your search or filter criteria.</p>
+                <p>No business/places match your search or filter criteria.</p>
                 <a href="/admin/places">Clear all filters</a>
               </>
             ) : (
               <>
-                <p>No places in your collection yet.</p>
+                <p>No business/places in your collection yet.</p>
                 <a href="/admin/places/new">Add the first place</a>
               </>
             )}
@@ -287,7 +286,7 @@ export default function PlacesIndex({
       <ConfirmModal
         open={Boolean(deleting)}
         onClose={() => setDeleting(null)}
-        title="Delete place"
+        title="Delete business/place"
         message={`Are you sure you want to permanently delete "${deleting?.title ?? ''}"?`}
         action={deleting ? `/admin/places/${deleting.id}/delete` : ''}
         csrfToken={csrfToken}

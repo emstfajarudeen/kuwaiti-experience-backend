@@ -18,7 +18,7 @@ export default function PlacePreview({ adminName, csrfToken, place, status }: Pr
     .trim()
     .startsWith(place.summary.trim())
   return (
-    <AdminLayout title="Place preview" active="places" adminName={adminName} csrfToken={csrfToken}>
+    <AdminLayout title="Business/Place preview" active="places" adminName={adminName} csrfToken={csrfToken}>
       <a
         className="back-link tw:[display:inline-flex] tw:[align-items:center] tw:[gap:6px] tw:[color:var(--muted)] tw:[font-size:13px] tw:[font-weight:600] tw:[margin-bottom:var(--space-3)] tw:[transition:color_0.15s_ease]"
         href={`/admin/places/${place.id}/edit`}

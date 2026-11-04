@@ -7,7 +7,24 @@ import { pagination, positiveId } from './explore_read_service.js'
 import { customerNotification } from '../serializers/customer_notification.js'
 import type { Row } from '../serializers/customer.js'
 
-type PushTokenInput = { token: string; platform: 'ios' | 'android'; device_id?: string }
+export type PushLanguage = 'en' | 'ar'
+type PushTokenInput = {
+  token: string
+  platform: 'ios' | 'android'
+  device_id?: string
+  language?: PushLanguage
+}
+
+function pushTokenData(row: Row) {
+  return {
+    id: Number(row.id),
+    platform: row.platform,
+    device_id: row.device_id ?? null,
+    language: row.language === 'ar' ? 'ar' : 'en',
+    created_at: new Date(row.created_at).toISOString(),
+    updated_at: new Date(row.updated_at).toISOString(),
+  }
+}
 export type NotificationInput = {
   type: string
   title: string
@@ -87,12 +104,19 @@ async function sendPush(input: {
   body: string
   titleAr?: string | null
   bodyAr?: string | null
+  /** The device's saved app language; decides the text the system shows in the tray. */
+  language?: PushLanguage
   actionData: unknown
 }) {
   const { projectId } = pushConfig()
   const bearer = await accessToken()
-  // Both languages travel together so the app can show the one that matches its own
-  // language setting. The visible `notification` block below stays English.
+  // Both languages travel in `data` so the app can still pick its own. The visible
+  // `notification` block (what the system shows while the app is in the background) uses the
+  // device's saved language: Arabic only when this device is Arabic and both Arabic texts exist.
+  const arabic = input.language === 'ar' && Boolean(input.titleAr?.trim() && input.bodyAr?.trim())
+  const visible = arabic
+    ? { title: input.titleAr as string, body: input.bodyAr as string }
+    : { title: input.title, body: input.body }
   const data: Record<string, string> = {
     notification_id: String(input.notificationId),
     type: input.type,
@@ -114,7 +138,7 @@ async function sendPush(input: {
       body: JSON.stringify({
         message: {
           token: input.token,
-          notification: { title: input.title, body: input.body },
+          notification: visible,
           data,
         },
       }),
@@ -189,6 +213,7 @@ export async function registerPushToken(customerId: number, input: PushTokenInpu
         token_hash: tokenHash,
         platform: input.platform,
         device_id: input.device_id ?? null,
+        language: input.language ?? 'en',
         created_at: new Date(),
         updated_at: new Date(),
       })
@@ -197,19 +222,26 @@ export async function registerPushToken(customerId: number, input: PushTokenInpu
         customer_id: customerId,
         platform: input.platform,
         device_id: input.device_id ?? null,
+        // Registering again without a language keeps the one already saved for this device.
+        ...(input.language ? { language: input.language } : {}),
         updated_at: new Date(),
       })
     const row = await trx.from('customer_push_tokens').where('token_hash', tokenHash).firstOrFail()
-    return {
-      data: {
-        id: Number(row.id),
-        platform: row.platform,
-        device_id: row.device_id ?? null,
-        created_at: new Date(row.created_at).toISOString(),
-        updated_at: new Date(row.updated_at).toISOString(),
-      },
-    }
+    return { data: pushTokenData(row) }
   })
+}
+
+/** The app calls this when the user switches language, so later pushes use it. */
+export async function updatePushTokenLanguage(
+  customerId: number,
+  id: unknown,
+  language: PushLanguage
+) {
+  const key = { customer_id: customerId, id: positiveId(id) }
+  const existing = await db.from('customer_push_tokens').where(key).first()
+  if (!existing) throw new ApiError(404, 'NOT_FOUND', 'Push token not found')
+  await db.from('customer_push_tokens').where(key).update({ language, updated_at: new Date() })
+  return { data: pushTokenData(await db.from('customer_push_tokens').where(key).firstOrFail()) }
 }
 
 export async function removePushToken(customerId: number, id: unknown) {
@@ -334,6 +366,7 @@ async function deliverOne(row: Row) {
       body: row.body,
       titleAr: row.title_ar ?? null,
       bodyAr: row.body_ar ?? null,
+      language: row.language === 'ar' ? 'ar' : 'en',
       actionData:
         row.action_data === null || row.action_data === undefined
           ? null
@@ -385,7 +418,8 @@ export async function deliverPushBatch() {
       'n.title_ar',
       'n.body_ar',
       'n.action_data',
-      't.token'
+      't.token',
+      't.language'
     )
   // Rows are independent, so deliver with bounded concurrency: a broadcast to thousands
   // of devices would otherwise crawl at one sequential FCM round trip at a time.
