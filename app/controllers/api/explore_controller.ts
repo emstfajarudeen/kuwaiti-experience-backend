@@ -3,6 +3,7 @@ import db from '@adonisjs/lucid/services/db'
 import { optionalCustomer } from '../../middleware/customer_auth_middleware.js'
 import * as read from '../../services/explore_read_service.js'
 import * as write from '../../services/explore_write_service.js'
+import { savedFeed } from '../../services/video_public_service.js'
 import { localizePublicData, publicLanguage } from '../../services/public_localization.js'
 
 export default class ExploreController {
@@ -58,9 +59,11 @@ export default class ExploreController {
   }
   async saved({ request, customerIdentity }: HttpContext) {
     const locale = publicLanguage(request.header('accept-language'))
-    const [result, hub] = await Promise.all([
+    const [result, hub, videos] = await Promise.all([
       read.places(request.qs(), customerIdentity.customer.id, false, true),
       read.exploreHub(),
+      // Saved videos travel with saved places so one Saved screen can show both.
+      savedFeed({ limit: 50 }, locale, customerIdentity.customer.id),
     ])
     const images = new Map(
       [...result.meta.images, ...hub.meta.images].map((image) => [image.storage_key, image])
@@ -70,6 +73,7 @@ export default class ExploreController {
       data: {
         category_types: localizePublicData(hub.data.category_types, locale),
         places: localizePublicData(result.data, locale),
+        videos: videos.data,
       },
       meta: {
         ...result.meta,

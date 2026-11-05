@@ -8,7 +8,9 @@ export default class HomeController {
     const identity = await optionalCustomer(ctx)
     ctx.response.header('Cache-Control', 'no-store')
     const locale = publicLanguage(ctx.request.header('accept-language'))
-    const result = await homePage(identity?.customer.id)
+    const requested = Number(ctx.request.input('feed_limit', 10))
+    const feedLimit = Number.isInteger(requested) ? Math.min(Math.max(requested, 1), 30) : 10
+    const result = await homePage(identity?.customer.id, locale, feedLimit)
     return { ...result, data: localizePublicData(result.data, locale) }
   }
 }

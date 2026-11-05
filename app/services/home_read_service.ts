@@ -5,13 +5,14 @@ import { hydratePlaces, imageLinks, pagination, positiveId } from './explore_rea
 import * as explore from '../serializers/explore.js'
 import * as home from '../serializers/home.js'
 import type { Row } from '../serializers/customer.js'
-import { publicLocale } from './public_localization.js'
+import { publicLocale, type PublicLocale } from './public_localization.js'
+import { feed as videoFeed } from './video_public_service.js'
 
 export const HOME_TYPES = ['attraction', 'restaurant', 'hotel_resort', 'theater'] as const
 
 export const homeLocale = publicLocale
 
-export async function homePage(customerId?: number) {
+export async function homePage(customerId?: number, locale: PublicLocale = 'en', feedLimit = 10) {
   const at = DateTime.now()
   const [content, types] = await Promise.all([
     db.from('home_content').orderBy('locale'),
@@ -62,6 +63,8 @@ export async function homePage(customerId?: number) {
     for (const row of extra) selected.set(Number(row.id), row)
   }
   const places = await hydratePlaces([...selected.values()], customerId, false, at)
+  // Latest explore feed (same item model as GET /api/v2/videos) shown on the home page.
+  const feedItems = (await videoFeed({ limit: feedLimit }, locale, customerId)).data
   const images = imageLinks([
     ...content.map((row) => row.hero_image_key),
     ...types.map((row) => row.image_key),
@@ -70,7 +73,11 @@ export async function homePage(customerId?: number) {
     data: {
       home_content: content.map(home.homeContent),
       category_types: types.map(explore.categoryType),
-      home_explore_cards: cards.map(home.homeExploreCard),
+      // Curated place cards (type "place") followed by the latest explore feed items (type "video").
+      home_explore_cards: [
+        ...cards.map((card) => ({ type: 'place' as const, ...home.homeExploreCard(card) })),
+        ...feedItems.map((item) => ({ type: 'video' as const, ...item })),
+      ],
       places: places.data,
     },
     meta: {
