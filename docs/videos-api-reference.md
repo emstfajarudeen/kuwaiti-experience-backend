@@ -116,7 +116,9 @@ All paths are relative to `{BASE_URL}/api/v2`. Auth is **Guest** (token optional
 
 ### GET /videos
 
-Query: `limit` (1–30, default 10), `cursor`, `category_id`, `place_id`. Filters must be positive integers, otherwise `422 INVALID_FILTER`; a bad cursor returns `422 INVALID_CURSOR`.
+Query: `limit` (1–30, default 10), `cursor`, `category_id`, `place_id`, `video_id` (see below). Filters must be positive integers, otherwise `422 INVALID_FILTER`; a bad cursor returns `422 INVALID_CURSOR`.
+
+**Opening a shared video.** Send `video_id` to make that video the first item, followed by the normal newest-first feed: `GET /videos?video_id=42&limit=10`. The pinned video is extra, so the first page can hold `limit + 1` items. It is left out of the rest of the feed, so it never repeats. Keep sending the same `video_id` together with `cursor` on later pages (it is only pinned on the first page and only used to avoid repeats after that). `meta.pinned_video_found` is `true` or `false` on the first page; if the video is hidden, unpublished or deleted it is `false` and the normal feed is returned, so an old link still opens the feed. A malformed `video_id` returns `422 INVALID_FILTER`. The pinned video ignores `category_id` and `place_id`.
 
 ```json
 {

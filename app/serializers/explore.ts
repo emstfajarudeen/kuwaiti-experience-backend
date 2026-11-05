@@ -49,20 +49,7 @@ export function feature(row: Row) {
   }
 }
 
-export function hour(row: Row) {
-  return {
-    id: Number(row.id),
-    place_id: Number(row.place_id),
-    weekday: Number(row.weekday),
-    interval_index: Number(row.interval_index),
-    opens_at: time(row.opens_at),
-    closes_at: time(row.closes_at),
-    closes_next_day: Boolean(row.closes_next_day),
-    closed: Boolean(row.closed),
-  }
-}
-
-export function place(row: Row, translations: Row[], hours: Row[], images: Row[], features: Row[]) {
+export function place(row: Row, translations: Row[], images: Row[], features: Row[]) {
   return {
     id: Number(row.id),
     type: row.type,
@@ -100,7 +87,6 @@ export function place(row: Row, translations: Row[], hours: Row[], images: Row[]
       seo_title: t.seo_title ?? null,
       seo_description: t.seo_description ?? null,
     })),
-    place_hours: hours.map(hour),
     place_images: images.map((i) => ({
       id: Number(i.id),
       place_id: Number(i.place_id),

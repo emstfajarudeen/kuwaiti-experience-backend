@@ -1,8 +1,5 @@
-import { useState } from 'react'
 import AdminLayout from '../../layouts/admin_layout'
-import RowActionMenu from '../../components/row_action_menu'
 import { useAuthorization } from '../../lib/authorization'
-import ConfirmModal from '../../components/confirm_modal'
 import { Table } from 'antd'
 import TableToolbar, { useLocalFilters } from '../../components/table_toolbar'
 
@@ -24,12 +21,11 @@ export default function PagesIndex({
   rows,
 }: Props) {
   const { can } = useAuthorization()
-  const [deleting, setDeleting] = useState<PageRow | null>(null)
   const filters = useLocalFilters({ q: '' })
   const needle = filters.values.q.trim().toLocaleLowerCase()
   const visibleRows = rows.filter(
     (row) =>
-      (!needle || [row.title ?? '', row.slug].some((v) => v.toLocaleLowerCase().includes(needle)))
+      !needle || [row.title ?? '', row.slug].some((v) => v.toLocaleLowerCase().includes(needle))
   )
   return (
     <AdminLayout
@@ -101,31 +97,6 @@ export default function PagesIndex({
                     </a>
                   ),
                 },
-                ...(can('pages.delete')
-                  ? [
-                      {
-                        title: 'Actions',
-                        key: 'actions',
-                        render: (_: unknown, row: PageRow) => (
-                          <RowActionMenu
-                            label={`More actions for ${row.title || 'page'}`}
-                            actions={[
-                              ...(row.status === 'published'
-                                ? [
-                                    {
-                                      label: 'View page',
-                                      href: `${publicSiteUrl.replace(/\/$/, '')}/${encodeURIComponent(row.slug)}`,
-                                      target: '_blank' as const,
-                                    },
-                                  ]
-                                : []),
-                              { label: 'Delete', danger: true, onClick: () => setDeleting(row) },
-                            ]}
-                          />
-                        ),
-                      },
-                    ]
-                  : []),
               ]}
             />
           </div>
@@ -135,16 +106,6 @@ export default function PagesIndex({
           </div>
         )}
       </section>
-      <ConfirmModal
-        open={Boolean(deleting)}
-        onClose={() => setDeleting(null)}
-        title="Delete page"
-        message={`Are you sure you want to permanently delete "${deleting?.title || deleting?.slug || ''}"?`}
-        action={deleting ? `/admin/pages/${deleting.id}/delete` : ''}
-        csrfToken={csrfToken}
-        confirmLabel="Delete"
-        danger
-      />
     </AdminLayout>
   )
 }

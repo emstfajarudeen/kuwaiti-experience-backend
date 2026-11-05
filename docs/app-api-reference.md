@@ -39,7 +39,7 @@ The CMS **Site settings → Mobile app configuration** page manages versions, st
 | Edit Profile, photo, verified phone change                                           | Implemented; phone OTP uses the same delivery or development option | Section 6                                                              |
 | Explore hub and category filters                                                     | Implemented                                                         | Section 7                                                              |
 | Attractions, Dine In, Stay, Theaters list/detail                                     | Implemented                                                         | Shared Place model on every endpoint                                   |
-| Venue phone, highlights/amenities, stay check-in/out, theater screen count, Open Now | Implemented; values depend on CMS content                           | Section 8                                                              |
+| Venue phone, highlights/amenities, stay check-in/out, theater screen count | Implemented; values depend on CMS content                           | Section 8                                                              |
 | Movies and upcoming showtimes                                                        | Implemented; CMS maintained                                         | Section 9                                                              |
 | Save/unsave venues and saved venue list                                              | Implemented; customer authentication required                       | Section 10                                                             |
 | Contact Us, WhatsApp, privacy/terms, logout, delete account                          | Implemented; legal/settings content prerequisites apply             | Sections 5, 6 and 11                                                   |
@@ -101,7 +101,7 @@ curl --request GET 'http://localhost:3333/api/v2/places?type=attraction&page=1&p
 
 Read `data.category_types` for the Explore hub. Choose a type's `code`, fetch its categories/features, then fetch `/places?type=<code>`. Use a place's **slug** for detail/showtimes; use its numeric **id** for bookmark writes. Never substitute a category ID or transport-location ID for a Place ID.
 
-An empty list is a valid result. Do not hardcode sample IDs, assume a featured venue always exists, or fill missing images/hours/prices with invented values.
+An empty list is a valid result. Do not hardcode sample IDs, assume a featured venue always exists, or fill missing images/prices with invented values.
 
 ## 5. Login and registration
 
@@ -228,13 +228,12 @@ Types are CMS-managed and may include additional codes. Read the hub rather than
 | `category`       | Category **slug**; omitted or `all` means all, including uncategorized places |
 | `feature`        | Feature **code**, e.g. `family-friendly`                                      |
 | `q`              | Within-type English/Arabic title/summary search; max 80 characters            |
-| `open_now`       | `true` restricts to currently open; omitted/`false` disables that restriction |
 | `page`           | Default 1, range 1–10000                                                      |
 | `per_page`       | Default 12, range 1–50                                                        |
 
 Filters combine with AND. Use server `meta.total`/`last_page` for pagination; reset to page 1 when filters change. Unknown category/feature codes produce an empty list; invalid type/pagination/filter syntax returns 422. Existing within-type `q` works; the **Home cross-type search flow remains pending**.
 
-Public results exclude drafts, archives and future publications. Category and feature labels come from their own resources; feature `kind` is `highlight`, `amenity` or `capability`. Do not make Open Now an editable feature chip record.
+Public results exclude drafts, archives and future publications. Category and feature labels come from their own resources; feature `kind` is `highlight`, `amenity` or `capability`.
 
 ## 8. Place response and screen mapping
 
@@ -279,13 +278,12 @@ This complete illustrative English list response shows all required Place keys. 
           "seo_description": null
         }
       ],
-      "place_hours": [],
       "place_images": [],
       "place_features": []
     }
   ],
   "meta": {
-    "viewer": [{ "place_id": 1, "saved": false, "open_now": null }],
+    "viewer": [{ "place_id": 1, "saved": false }],
     "images": [],
     "evaluated_at": "2026-10-20T07:00:00.000Z",
     "page": 1,
@@ -302,10 +300,9 @@ This complete illustrative English list response shows all required Place keys. 
 | Cover                                      | `cover_image_key` matched to `meta.images[].storage_key`; resolve its `url` against API origin               |
 | Gallery                                    | Ordered `place_images`; match each `storage_key` to the same image metadata                                  |
 | Bookmark icon                              | Match `meta.viewer[].place_id` to `place.id`, then read `saved`                                              |
-| Open Now                                   | Same viewer match, then `open_now`: true=open, false=closed, null=unknown                                    |
 | Phone Call                                 | Native `tel:` action using `phone_e164`; hide/disable when null                                              |
 | Price                                      | `price_mode` (`unknown`, `free`, `from`, `fixed`), `price_amount`, `price_currency`, translated `price_unit` |
-| Opening-hours note                         | Translated `hours_note`; structured schedule is `place_hours`                                                |
+| Opening-hours note                         | Translated `hours_note` (free text)                                                |
 | Stay check-in/out                          | Nullable `check_in_time`/`check_out_time`, for `hotel_resort`                                                |
 | Highlights/amenities                       | Localized `place_features` labels, grouped by `kind`                                                         |
 | Theater screens                            | Nullable `screen_count`; movie sessions use section 9                                                        |
@@ -313,7 +310,6 @@ This complete illustrative English list response shows all required Place keys. 
 
 Derived viewer/image metadata is outside Place. Do not add `is_saved`, `cover`, `hoursNote` or nested `price.amount` aliases to the wire model. Presentation/view models can format these values locally.
 
-Open Now uses `Asia/Kuwait`, split/overnight hours and opening-inclusive/closing-exclusive boundaries. Unknown hours are null; do not display Closed for null. Check-in/out and text notes do not establish Open Now. The API computes the state; clients should not implement a conflicting clock calculation.
 
 For public editorial images use returned URLs such as `/api/v1/images/<key>.webp`. The v1 prefix here is intentional image delivery, not a legacy Place contract. Render a placeholder on null/missing/unavailable images. Customer photos use the separate authenticated endpoint in section 6.
 
@@ -380,7 +376,7 @@ All require Customer authentication. `{id}` is the numeric Place ID. The server 
 
 | Method and path                                | Request/query                                                     | Success                                               |
 | ---------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------- |
-| `GET /api/v2/customer/me/saved-places`         | Optional `type`, `category`, `feature`, `q`, `open_now`, `page`, `per_page`; `category` is a slug from `/api/v2/categories?type={type}`; omit it or use `all` for every category | 200, `data.category_types`, `data.places`, and viewer/pagination metadata |
+| `GET /api/v2/customer/me/saved-places`         | Optional `type`, `category`, `feature`, `q`, `page`, `per_page`; `category` is a slug from `/api/v2/categories?type={type}`; omit it or use `all` for every category | 200, `data.category_types`, `data.places`, and viewer/pagination metadata |
 | `PUT /api/v2/customer/me/saved-places/{id}`    | No body                                                           | 200, `data: SavedPlace`                               |
 | `DELETE /api/v2/customer/me/saved-places/{id}` | No body                                                           | 204, empty body                                       |
 
@@ -419,9 +415,9 @@ SiteSettings keys: `id`, `brand_name`, nullable `direct_phone_number`, `direct_p
 | `data.home_explore_cards` | Up to eight active cards with localized `caption`. Each `place_id` points into `data.places`. |
 | `data.places`             | Places for selected cards and featured sections, with one selected translation row and localized paired fields. |
 | `meta.home_sections`      | Ordered `{ type, place_ids, has_more }[]` for the four configured venue types. Each `place_ids` list has at most eight IDs. Empty sections have `[]`.                           |
-| `meta.viewer`             | `{ place_id, saved, open_now }[]` keyed by place ID. `saved` is false for guests; `open_now` can be null when hours cannot determine it.                                        |
+| `meta.viewer`             | `{ place_id, saved }[]` keyed by place ID. `saved` is false for guests.                                        |
 | `meta.images`             | `{ storage_key, url }[]`. Resolve `hero_image_key`, `image_key`, `cover_image_key`, and gallery `storage_key` here. Null/missing keys have no URL.                              |
-| `meta.evaluated_at`       | UTC ISO timestamp used for publication and Open Now evaluation.                                                                                                                 |
+| `meta.evaluated_at`       | UTC ISO timestamp used for publication evaluation.                                                                                                                 |
 
 Other table-backed entity properties use their database column names. Protocol containers and computed metadata are named separately.
 
@@ -463,7 +459,7 @@ The skeleton shows valid empty arrays, not promised production content. When the
 
 1. Use `home_content` for hero text/art. The wide **Explore Kuwait** tile and its heading arrow open the existing `/api/v2/explore` hub.
 2. For each `home_explore_cards` row, find the matching `Place` by `place_id`. Use `caption` if present; otherwise use the selected `place_translations[0].title`. Render the place's cover from `meta.images`. Tap opens `/api/v2/places/{slug}`.
-3. For a carousel, walk its `place_ids` in order and look up the full `Place` in `data.places`. Use `meta.viewer` for bookmark/Open Now state. The section arrow opens `/api/v2/places?type=<type>`; `restaurant` is the stored code for the Dine In label, and `hotel_resort` for Stay.
+3. For a carousel, walk its `place_ids` in order and look up the full `Place` in `data.places`. Use `meta.viewer` for bookmark state. The section arrow opens `/api/v2/places?type=<type>`; `restaurant` is the stored code for the Dine In label, and `hotel_resort` for Stay.
 4. Missing copy or image is an empty/null content state. Saved state is customer-specific.
 
 `has_more` says additional **featured** rows existed past the eight-card Home cap; the category listing is independently paginated and may also contain non-featured places. The website's `/api/v1/home` retains its legacy response and is not the mobile Home contract.

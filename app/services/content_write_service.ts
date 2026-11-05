@@ -2,7 +2,6 @@ import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { ApiError } from './api_error.js'
 import { assertPlaceType } from './category_type_service.js'
-import { validateHours } from './explore_write_service.js'
 import {
   MAX_GALLERY_IMAGES,
   deleteImages,
@@ -33,14 +32,6 @@ type PlaceInput = {
   longitude?: number | null
   featured?: boolean
   featured_order?: number | null
-  hours?: Array<{
-    weekday: number
-    intervalIndex: number
-    opensAt?: string | null
-    closesAt?: string | null
-    closesNextDay?: boolean
-    closed?: boolean
-  }>
 }
 
 export type GalleryItemChange = {
@@ -108,32 +99,6 @@ async function validatePlace(input: PlaceInput) {
       if (error instanceof ApiError) throw error
       throw new ApiError(422, 'INVALID_URL', 'Website URL must be a valid HTTP or HTTPS address')
     }
-  }
-  const hours = input.hours ?? []
-  validateHours(
-    hours.map((h) => ({
-      weekday: h.weekday,
-      interval_index: h.intervalIndex,
-      opens_at: h.opensAt ?? null,
-      closes_at: h.closesAt ?? null,
-      closed: h.closed ?? false,
-      closes_next_day: h.closesNextDay ?? false,
-    }))
-  )
-  const slots = new Set<string>()
-  for (const hour of hours) {
-    const key = `${hour.weekday}:${hour.intervalIndex}`
-    if (
-      slots.has(key) ||
-      (hour.closed ? Boolean(hour.opensAt || hour.closesAt) : !hour.opensAt || !hour.closesAt)
-    ) {
-      throw new ApiError(
-        422,
-        'INVALID_HOURS',
-        'Opening hours contain a duplicate or incomplete interval'
-      )
-    }
-    slots.add(key)
   }
 }
 
@@ -330,21 +295,6 @@ export async function savePlace(
           .delete()
       }
       await applyGalleryChanges(trx, placeId, changes, galleryKeys, input.titleEn, released)
-      if (input.hours !== undefined) {
-        await trx.from('place_hours').where('place_id', placeId).delete()
-        if (input.hours.length)
-          await trx.table('place_hours').insert(
-            input.hours.map((hour) => ({
-              place_id: placeId,
-              weekday: hour.weekday,
-              interval_index: hour.intervalIndex,
-              opens_at: hour.opensAt ?? null,
-              closes_at: hour.closesAt ?? null,
-              closes_next_day: hour.closesNextDay ?? false,
-              closed: hour.closed ?? false,
-            }))
-          )
-      }
       if (options.publish) {
         if (!coverKey || !input.titleEn || !input.summaryEn || !input.addressEn) {
           throw new ApiError(

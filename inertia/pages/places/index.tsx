@@ -208,7 +208,7 @@ export default function PlacesIndex({
                         label={`More actions for ${row.title}`}
                         actions={[
                           {
-                            label: 'Explore details & hours',
+                            label: 'Explore details',
                             href: `/admin/places/${row.id}/explore`,
                           },
                           { label: 'Delete', danger: true, onClick: () => setDeleting(row) },

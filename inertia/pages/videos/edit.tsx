@@ -170,7 +170,7 @@ export default function VideoEdit({
   )
   const place = options.places.find((item) => item.id === placeId)
   const canPublish = can('videos.publish')
-  const [active, setActive] = useState(video?.status === 'published')
+  const [active, setActive] = useState(video ? video.status === 'published' : canPublish)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const action = video ? `/admin/videos/${video.id}/save` : '/admin/videos'
 

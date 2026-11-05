@@ -137,12 +137,6 @@ export async function showPlace(
     .orderBy('sort_order')
     .orderBy('id')
     .limit(20)
-  const hours = await db
-    .from('place_hours')
-    .where('place_id', card.id)
-    .select('weekday', 'opens_at', 'closes_at', 'closes_next_day', 'closed')
-    .orderBy('weekday')
-    .orderBy('interval_index')
   return {
     data: {
       ...placeCard(card, imageUrl),
@@ -162,7 +156,6 @@ export async function showPlace(
               latitude: Number(place.latitude),
               longitude: Number(place.longitude),
             },
-      hours,
       gallery: gallery.map((image) => ({
         id: image.id,
         url: imageUrl(image.storage_key),

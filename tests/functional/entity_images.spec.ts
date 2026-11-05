@@ -95,7 +95,7 @@ test.group('Entity images', (group) => {
   }) => {
     const token = await signIn()
     const created = await cmsPost(client, '/admin/places', token)
-      .fields({ ...placeFields, intent: 'publish', hoursJson: '[]' })
+      .fields({ ...placeFields, intent: 'publish' })
       .file('coverImage', await png(), { filename: 'cover.png', contentType: 'image/png' })
       .file('galleryImages[]', await png('teal'), { filename: 'a.png', contentType: 'image/png' })
       .file('galleryImages[]', await png('gold'), { filename: 'b.png', contentType: 'image/png' })
@@ -117,7 +117,7 @@ test.group('Entity images', (group) => {
     }
 
     const edited = await cmsPost(client, `/admin/places/${place.id}/save`, token)
-      .fields({ ...placeFields, intent: 'save', hoursJson: '[]' })
+      .fields({ ...placeFields, intent: 'save' })
       .field('gallery[0][id]', String(gallery[0].id))
       .field('gallery[0][altEn]', 'Towers at dusk')
       .field('gallery[0][captionEn]', 'Seen from the corniche')
@@ -141,7 +141,6 @@ test.group('Entity images', (group) => {
     const saved = await cmsPost(client, `/admin/places/${place.id}/save`, token).fields({
       ...placeFields,
       intent: 'save',
-      hoursJson: '[]',
     })
     saved.assertStatus(200)
     const unchanged = await db.from('place_images').where('place_id', place.id).first()
@@ -194,7 +193,7 @@ test.group('Entity images', (group) => {
   test('CMS form and list can deactivate and reactivate a place', async ({ client, assert }) => {
     const token = await signIn()
     const created = await cmsPost(client, '/admin/places', token)
-      .fields({ ...placeFields, intent: 'publish', hoursJson: '[]' })
+      .fields({ ...placeFields, intent: 'publish' })
       .file('coverImage', await png(), { filename: 'cover.png', contentType: 'image/png' })
     created.assertStatus(200)
     const place = await db.from('places').where('slug', placeFields.slug).first()
@@ -204,7 +203,6 @@ test.group('Entity images', (group) => {
       ...placeFields,
       intent: 'save',
       deactivate: '1',
-      hoursJson: '[]',
     })
     deactivated.assertStatus(200)
     const inactive = await db.from('places').where('id', place.id).first()

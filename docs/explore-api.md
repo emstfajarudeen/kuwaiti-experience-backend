@@ -4,7 +4,7 @@ Start with the [mobile app API reference](app-api-reference.md) for the current 
 
 Base: `/api/v2`. Exact schemas: [explore-openapi.json](explore-openapi.json), also referenced by [openapi.yaml](openapi.yaml). The website's v1 contracts remain available. Explore v2 uses the same place, category, translation and image records. Public category and place reads localize the response; admin reads retain stored language fields.
 
-Implemented additions: place bookmarks, venue phones, highlights/amenities/capabilities, stay check-in/out, theater screen counts, CMS-maintained movies/posters/showtimes, and computed Open Now. Schedule remains pending. These APIs do not create cab rides, hotel reservations or cinema ticket bookings.
+Implemented additions: place bookmarks, venue phones, highlights/amenities/capabilities, stay check-in/out, theater screen counts, CMS-maintained movies/posters/showtimes. Schedule remains pending. These APIs do not create cab rides, hotel reservations or cinema ticket bookings.
 
 ## Browse
 
@@ -19,7 +19,7 @@ Implemented additions: place bookmarks, venue phones, highlights/amenities/capab
 
 Types are CMS-managed codes; defaults are `attraction`, `restaurant`, `hotel_resort`, `theater`. Do not rename these to UI labels such as Dine In or Stay. `type` is required for public place/category/feature lists; saved and admin place lists may omit it.
 
-Place-list filters: optional `category` slug, `feature` code, `q` (maximum 80 characters), `open_now=true|false`. Filters combine with AND. Omit category or use `all` for all published places, including uncategorized ones. Feature filtering selects assigned active definitions of the matching type. Unknown category/feature codes produce an empty list. Search matches stored English/Arabic title or summary, with SQL wildcard characters escaped. `open_now=false` disables the open-only restriction; it does not mean “closed only.” Page defaults to 1, `per_page` to 12, maximum 50; page is capped at 10000. Counts are filtered before pagination. Sorting uses featured order then ID; saved lists use newest save then place ID.
+Place-list filters: optional `category` slug, `feature` code, `q` (maximum 80 characters). Filters combine with AND. Omit category or use `all` for all published places, including uncategorized ones. Feature filtering selects assigned active definitions of the matching type. Unknown category/feature codes produce an empty list. Search matches stored English/Arabic title or summary, with SQL wildcard characters escaped. Page defaults to 1, `per_page` to 12, maximum 50; page is capped at 10000. Counts are filtered before pagination. Sorting uses featured order then ID; saved lists use newest save then place ID.
 
 ### Canonical Place
 
@@ -30,7 +30,7 @@ id, type, category_id, slug, status, cover_image_key,
 latitude, longitude, price_amount, price_currency, price_mode, website_url,
 featured_order, phone_e164, check_in_time, check_out_time, screen_count,
 published_at, created_at, updated_at,
-place_translations, place_hours, place_images, place_features
+place_translations, place_images, place_features
 ```
 
 These are DB column names and table-named relation containers. Scalars that have no value are present as `null`; collections are always arrays. There are no `cover`, `hoursNote` or `price.amount` aliases. Relations are batch-loaded per page, including the bounded gallery, rather than queried separately for each card.
@@ -43,7 +43,7 @@ List/detail metadata includes:
 
 ```json
 {
-  "viewer": [{ "place_id": 12, "saved": false, "open_now": null }],
+  "viewer": [{ "place_id": 12, "saved": false }],
   "images": [
     { "storage_key": "<owned-image-key>.webp", "url": "/api/v1/images/<owned-image-key>.webp" }
   ],
@@ -54,12 +54,6 @@ List/detail metadata includes:
 Lists additionally have `page`, `per_page`, `total`, `last_page`. Image URLs are derived protocol data, not aliases replacing DB keys. Join relative URLs to the API origin. Admin metadata uses authenticated image routes.
 
 Browse as a guest without Authorization; send a customer access bearer token to receive that customer's save state. Invalid supplied tokens are rejected. Guests receive `saved: false`. v2 responses use `Cache-Control: no-store`, including personalized and time-dependent results.
-
-### Open Now
-
-Calculated from `place_hours` in `Asia/Kuwait`. Weekday 0 is Sunday. Intervals are opening-inclusive, closing-exclusive; split hours, overnight intervals and Saturday-to-Sunday spill are supported. Previous-day overnight hours can keep a place open after midnight. Closed rows explicitly declare no opening interval for their day. Missing hours for the current day return `open_now: null` unless an overnight interval is currently open. Hours notes and stay check-in/out times do not establish opening hours. Holiday/special-date overrides are not implemented.
-
-The open-only SQL filter and returned state use the same request timestamp and interval rules before count/pagination. CMS/API writes reject duplicate slots, overlapping intervals, contradictory closures and backward times without overnight marking. A 24-hour day is `00:00` to `00:00` with `closes_next_day: true`.
 
 ## Bookmarks
 
@@ -73,13 +67,12 @@ The unique customer/place key prevents duplicates. No customer ID is accepted fr
 
 ## Manage place details in the CMS
 
-Open **Places → Edit → Manage Explore details, features and opening hours** at `/admin/places/:id/explore`.
+Open **Places → Edit → Manage Explore details and features** at `/admin/places/:id/explore`.
 
 - Venue phone: international `phone_e164`; blank hides the Call action. Native dialing is app behavior and needs no call endpoint.
 - Stay: nullable `check_in_time` and `check_out_time`, shown only for `hotel_resort`.
 - Theater: nullable integer `screen_count` (1–1000), shown only for `theater`; link to manage sessions.
 - Features: checkboxes for definitions belonging to this place type; maximum 50 assignments. Inactive definitions remain manageable but are hidden publicly.
-- Weekly hours: choose a day per row, interval order, opening/closing time, next-day and closed flags. Unused rows are ignored. Remove all rows for a day to make it unknown; use one Closed row to mark it closed. Up to 70 intervals are supported; the editor keeps existing rows and offers spare rows on subsequent saves.
 
 Existing place text, price, cover and gallery editors remain available. A place's type cannot change while it has feature assignments, stay/theater-specific values or showtimes; clear those first. New Explore fields use exact DB names in CMS form payloads and v2 JSON APIs.
 
@@ -88,30 +81,20 @@ Matching admin bearer endpoints:
 | Request                                      | Behavior                                                                                                                                  |
 | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET /admin/places`, `GET /admin/places/:id` | Canonical Place entities, including drafts for authorized admins.                                                                         |
-| `PATCH /admin/places/:id/explore`            | Partial update of `phone_e164`, `check_in_time`, `check_out_time`, `screen_count`, `feature_ids`, `place_hours`; returns canonical Place. |
+| `PATCH /admin/places/:id/explore`            | Partial update of `phone_e164`, `check_in_time`, `check_out_time`, `screen_count`, `feature_ids`; returns canonical Place. |
 
-Omitted fields stay unchanged; scalar null clears a value; `feature_ids: []` unassigns all features; `place_hours: []` clears hours. `feature_ids` is a relationship-update instruction, not a renamed persisted response attribute. Example:
+Omitted fields stay unchanged; scalar null clears a value; `feature_ids: []` unassigns all features. `feature_ids` is a relationship-update instruction, not a renamed persisted response attribute. Example:
 
 ```json
 {
   "phone_e164": "+96590987788",
-  "feature_ids": [3, 7],
-  "place_hours": [
-    {
-      "weekday": 1,
-      "interval_index": 0,
-      "opens_at": "09:00",
-      "closes_at": "22:00",
-      "closes_next_day": false,
-      "closed": false
-    }
-  ]
+  "feature_ids": [3, 7]
 }
 ```
 
 ## Manage features
 
-Sidebar **Place features** (`/admin/place-features`) supports add/edit/delete, English/Arabic labels, type, code, display order, visibility and `kind`: `highlight`, `amenity`, `capability`. Codes are lowercase hyphenated identifiers such as `sea-view` or `imax`; unique per type. Open Now is computed, not an editable feature. Up to 500 definitions per type are allowed; public lists filter to one type. Admin feature reads return at most 1000 records; use their `type` filter for a larger multi-type library.
+Sidebar **Place features** (`/admin/place-features`) supports add/edit/delete, English/Arabic labels, type, code, display order, visibility and `kind`: `highlight`, `amenity`, `capability`. Codes are lowercase hyphenated identifiers such as `sea-view` or `imax`; unique per type. Up to 500 definitions per type are allowed; public lists filter to one type. Admin feature reads return at most 1000 records; use their `type` filter for a larger multi-type library.
 
 Admin bearer API: `GET/POST /admin/place-features`, `PUT/DELETE /admin/place-features/:id`. GET accepts optional `type`. POST returns 201; PUT returns 200; both return the same Feature schema. Assigned definitions cannot be deleted or moved to another type (409 `FEATURE_IN_USE`); hide or unassign them first. Feature writes/deletes are audited.
 
@@ -138,9 +121,9 @@ Public showtime reads default to today's Kuwait date, exclude already started se
 
 ## Errors, migration and scope
 
-Errors retain `{ error: { code, message, requestId, fields? } }`. Common domain codes: `INVALID_HOURS`, `INVALID_PLACE_DETAILS`, `INVALID_FEATURE`, `INVALID_FILTER`, `INVALID_PAGINATION`, `INVALID_DATE`, `INVALID_TIME`, `INVALID_SHOWTIME`, `EMPTY_UPDATE`, `FEATURE_EXISTS`, `FEATURE_IN_USE`, `FEATURE_LIMIT`, `MOVIE_IN_USE`, `SHOWTIME_EXISTS`, `POSTER_REQUIRED`, `PLACE_TYPE_IN_USE`. Unknown/hidden resources return 404. Admin writes are transactional/audited; CMS forms use authenticated cookies and CSRF; APIs require bearer credentials.
+Errors retain `{ error: { code, message, requestId, fields? } }`. Common domain codes: `INVALID_PLACE_DETAILS`, `INVALID_FEATURE`, `INVALID_FILTER`, `INVALID_PAGINATION`, `INVALID_DATE`, `INVALID_TIME`, `INVALID_SHOWTIME`, `EMPTY_UPDATE`, `FEATURE_EXISTS`, `FEATURE_IN_USE`, `FEATURE_LIMIT`, `MOVIE_IN_USE`, `SHOWTIME_EXISTS`, `POSTER_REQUIRED`, `PLACE_TYPE_IN_USE`. Unknown/hidden resources return 404. Admin writes are transactional/audited; CMS forms use authenticated cookies and CSRF; APIs require bearer credentials.
 
-Migration `1760000000009_add_explore_content` adds four nullable place columns plus `place_features`, `place_feature_assignments`, `customer_saved_places`, `movies`, `theater_showtimes`. New timestamps retain millisecond precision so immediate publication reads do not race rounded future timestamps. Existing place content is preserved; no new venue, hours, rate, feature or movie content is seeded. The schema requires the entity-owned image migration `1760000000008_replace_media_with_entity_images` to be handled first. That earlier migration removes old media links and is a separate deployment decision; do not blindly run all pending migrations on existing content.
+Migration `1760000000009_add_explore_content` adds four nullable place columns plus `place_features`, `place_feature_assignments`, `customer_saved_places`, `movies`, `theater_showtimes`. New timestamps retain millisecond precision so immediate publication reads do not race rounded future timestamps. Existing place content is preserved; no new venue, rate, feature or movie content is seeded. The schema requires the entity-owned image migration `1760000000008_replace_media_with_entity_images` to be handled first. That earlier migration removes old media links and is a separate deployment decision; do not blindly run all pending migrations on existing content.
 
 CMS bookmarks are not editorial data: admins manage the places that can be saved, while customers own their saves. No general CMS browsing/editing of private customer bookmarks is added. Book a Cab remains the previously agreed future native-flow destination handoff; actual ride APIs and Schedule are not implemented here. Share uses the app's eventual public/deep-link configuration.
 

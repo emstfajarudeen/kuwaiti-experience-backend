@@ -629,27 +629,6 @@ export class PlaceFeatureSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
-export class PlaceHourSchema extends BaseModel {
-  static $columns = ['closed', 'closesAt', 'closesNextDay', 'id', 'intervalIndex', 'opensAt', 'placeId', 'weekday'] as const
-  $columns = PlaceHourSchema.$columns
-  @column()
-  declare closed: boolean
-  @column()
-  declare closesAt: string | null
-  @column()
-  declare closesNextDay: boolean
-  @column({ isPrimary: true })
-  declare id: number
-  @column()
-  declare intervalIndex: number
-  @column()
-  declare opensAt: string | null
-  @column()
-  declare placeId: number
-  @column()
-  declare weekday: number
-}
-
 export class PlaceImageSchema extends BaseModel {
   static $columns = ['altAr', 'altEn', 'captionAr', 'captionEn', 'createdAt', 'id', 'placeId', 'sortOrder', 'storageKey'] as const
   $columns = PlaceImageSchema.$columns

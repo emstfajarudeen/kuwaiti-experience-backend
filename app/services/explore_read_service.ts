@@ -5,7 +5,6 @@ import * as serialize from '../serializers/explore.js'
 import type { Row } from '../serializers/customer.js'
 import { publicImageUrl, adminApiImageUrl } from './image_storage_service.js'
 import { assertPlaceType } from './category_type_service.js'
-import { openNow, openNowSql } from './explore_hours.js'
 
 export function positiveId(value: unknown) {
   const id = Number(value)
@@ -96,9 +95,8 @@ export async function hydratePlaces(
   const ids = rows.map((r) => Number(r.id))
   if (!ids.length)
     return { data: [], meta: { viewer: [], images: [], evaluated_at: at.toUTC().toISO() } }
-  const [translations, hours, images, assigned, saves] = await Promise.all([
+  const [translations, images, assigned, saves] = await Promise.all([
     db.from('place_translations').whereIn('place_id', ids).orderBy('locale'),
-    db.from('place_hours').whereIn('place_id', ids).orderBy('weekday').orderBy('interval_index'),
     db.from('place_images').whereIn('place_id', ids).orderBy('sort_order').orderBy('id'),
     db
       .from('place_feature_assignments as a')
@@ -116,7 +114,6 @@ export async function hydratePlaces(
     serialize.place(
       r,
       translations.filter((t) => Number(t.place_id) === Number(r.id)),
-      hours.filter((h) => Number(h.place_id) === Number(r.id)),
       images.filter((i) => Number(i.place_id) === Number(r.id)),
       assigned.filter((f) => Number(f.place_id) === Number(r.id) && (admin || f.active))
     )
@@ -127,7 +124,6 @@ export async function hydratePlaces(
       viewer: data.map((p) => ({
         place_id: p.id,
         saved: saved.has(p.id),
-        open_now: openNow(p.place_hours, at),
       })),
       images: imageLinks(
         [...rows.map((r) => r.cover_image_key), ...images.map((i) => i.storage_key)],
@@ -183,14 +179,6 @@ export async function places(input: Row, customerId?: number, admin = false, sav
           builder.where('t.title', 'like', term).orWhere('t.summary', 'like', term)
         )
     )
-  }
-  if (input.open_now !== undefined) {
-    if (!['true', 'false'].includes(String(input.open_now)))
-      throw new ApiError(422, 'INVALID_FILTER', 'open_now must be true or false')
-    if (String(input.open_now) === 'true') {
-      const predicate = openNowSql(at)
-      query.whereRaw(predicate.sql, predicate.bindings)
-    }
   }
   if (savedOnly)
     query

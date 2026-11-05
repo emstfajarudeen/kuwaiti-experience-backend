@@ -98,16 +98,11 @@ export default class AdminPlacesController {
     if (!place) throw new ApiError(404, 'NOT_FOUND', 'Place not found')
     const fields = { ...place }
     delete fields.cover_image_key
-    const [translations, images, hours] = await Promise.all([
+    const [translations, images] = await Promise.all([
       db.from('place_translations').where('place_id', place.id),
       placeImages(place.id),
-      db
-        .from('place_hours')
-        .where('place_id', place.id)
-        .orderBy('weekday')
-        .orderBy('interval_index'),
     ])
-    return { data: { ...fields, ...images, translations, hours } }
+    return { data: { ...fields, ...images, translations } }
   }
 
   async preview({ params, request }: HttpContext) {

@@ -121,7 +121,7 @@ test.group('Explore and CMS extensions', (group) => {
     assert.strictEqual(expected.price_amount, '3.000')
     assert.isNull(expected.check_in_time)
     assert.isNull(expected.screen_count)
-    assert.isArray(expected.place_hours)
+    assert.notProperty(expected, 'place_hours')
     assert.isArray(expected.place_images)
     assert.isBoolean(expected.place_features[0].active)
     assert.notProperty(expected, 'hoursNote')
@@ -189,47 +189,18 @@ test.group('Explore and CMS extensions', (group) => {
     assert.isNull(await db.from('customer_saved_places').where('customer_id', a.id).first())
   })
 
-  test('calculates Open Now before pagination and preserves unknown schedules', async ({
+  test('rejects an oversized page and no longer offers an Open Now filter', async ({
     client,
     assert,
   }) => {
-    const open = await place()
-    const unknown = await place()
-    const closed = await place()
-    const today = DateTime.now().setZone('Asia/Kuwait').weekday % 7
-    for (const p of [open, closed]) {
-      const response = await client
-        .patch(`${base}/admin/places/${p.id}/explore`)
-        .header('Authorization', auth)
-        .json({
-          place_hours: [
-            {
-              weekday: today,
-              interval_index: 0,
-              opens_at: p === open ? '00:00' : null,
-              closes_at: p === open ? '00:00' : null,
-              closes_next_day: p === open,
-              closed: p === closed,
-            },
-          ],
-        })
-      response.assertStatus(200)
-    }
-    const filtered = await client.get(`${base}/places?type=attraction&open_now=true&per_page=1`)
-    filtered.assertStatus(200)
-    assert.equal(filtered.body().meta.total, 1)
-    assert.equal(filtered.body().data[0].id, open.id)
-    assert.isTrue(filtered.body().meta.viewer[0].open_now)
-    const detail = await client.get(`${base}/places/${unknown.slug}`)
-    assert.isNull(detail.body().meta.viewer[0].open_now)
-    expectStatus(await client.get(`${base}/places?type=attraction&open_now=yes`), 422)
+    const p = await place()
     expectStatus(await client.get(`${base}/places?type=attraction&per_page=999`), 422)
+    const detail = await client.get(`${base}/places/${p.slug}`)
+    detail.assertStatus(200)
+    assert.notProperty(detail.body().meta.viewer[0], 'open_now')
   })
 
-  test('validates type-specific fields, features and structured hours atomically', async ({
-    client,
-    assert,
-  }) => {
+  test('validates type-specific fields and features atomically', async ({ client, assert }) => {
     const p = await place()
     const stay = await place('hotel_resort')
     const theater = await place('theater')
@@ -243,18 +214,6 @@ test.group('Explore and CMS extensions', (group) => {
       { check_in_time: '14:00' },
       { phone_e164: 'bad' },
       { feature_ids: [feature.body().data.id] },
-      {
-        place_hours: [
-          {
-            weekday: 1,
-            interval_index: 0,
-            opens_at: '10:00',
-            closes_at: '09:00',
-            closes_next_day: false,
-            closed: false,
-          },
-        ],
-      },
     ]) {
       expectStatus(
         await client

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button, Form, Input } from 'antd'
 import AdminLayout from '../../layouts/admin_layout'
-import ConfirmModal from '../../components/confirm_modal'
 import RichTextField from '../../components/rich_text_field'
 import { postCmsForm } from '../../lib/cms_form'
 
@@ -40,7 +39,6 @@ export default function PageEdit({
   const initialTitle = value('titleEn', en?.title)
   const initialSlug = value('slug', page?.slug)
   const initialBody = value('bodyEn', en?.body)
-  const [confirmDelete, setConfirmDelete] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [titleError, setTitleError] = useState(fieldErrors?.titleEn?.[0] ?? '')
   const [slugError, setSlugError] = useState(fieldErrors?.slug?.[0] ?? '')
@@ -298,51 +296,44 @@ export default function PageEdit({
           {page && (
             <div className="form-delete-actions tw:!m-0">
               {page.status !== 'published' && (
-              <form
-                action={`/admin/pages/${page.id}/publish`}
-                method="POST"
-                onSubmit={(event) => {
-                  const title = String(antdForm.getFieldValue('titleEn') ?? '').trim()
-                  if (title.length < 2) {
-                    event.preventDefault()
-                    setTitleError('Enter an English page title before publishing.')
-                    antdForm.scrollToField('titleEn')
-                    return
-                  }
-                  if (!bodyHasText(bodyContent)) {
-                    event.preventDefault()
-                    setBodyError('Add English page content before publishing.')
-                    focusBody()
-                    return
-                  }
-                  if (bodyLength(bodyContent) > 50000) {
-                    event.preventDefault()
-                    setBodyError('Page content must be 50,000 characters or fewer.')
-                    focusBody()
-                    return
-                  }
-                  if (placeholderCopy(bodyContent)) {
-                    event.preventDefault()
-                    setBodyError(
-                      'Replace the demo text with approved page copy, save the page, then publish again.'
-                    )
-                    focusBody()
-                  }
-                }}
-              >
-                <input type="hidden" name="_csrf" value={csrfToken} />
-                <button className="button secondary" type="submit">
-                  Set status to Published
-                </button>
-              </form>
+                <form
+                  action={`/admin/pages/${page.id}/publish`}
+                  method="POST"
+                  onSubmit={(event) => {
+                    const title = String(antdForm.getFieldValue('titleEn') ?? '').trim()
+                    if (title.length < 2) {
+                      event.preventDefault()
+                      setTitleError('Enter an English page title before publishing.')
+                      antdForm.scrollToField('titleEn')
+                      return
+                    }
+                    if (!bodyHasText(bodyContent)) {
+                      event.preventDefault()
+                      setBodyError('Add English page content before publishing.')
+                      focusBody()
+                      return
+                    }
+                    if (bodyLength(bodyContent) > 50000) {
+                      event.preventDefault()
+                      setBodyError('Page content must be 50,000 characters or fewer.')
+                      focusBody()
+                      return
+                    }
+                    if (placeholderCopy(bodyContent)) {
+                      event.preventDefault()
+                      setBodyError(
+                        'Replace the demo text with approved page copy, save the page, then publish again.'
+                      )
+                      focusBody()
+                    }
+                  }}
+                >
+                  <input type="hidden" name="_csrf" value={csrfToken} />
+                  <button className="button secondary" type="submit">
+                    Set status to Published
+                  </button>
+                </form>
               )}
-              <button
-                className="button danger"
-                type="button"
-                onClick={() => setConfirmDelete(true)}
-              >
-                Delete permanently
-              </button>
             </div>
           )}
           <Button
@@ -355,16 +346,6 @@ export default function PageEdit({
           </Button>
         </div>
       </div>
-      <ConfirmModal
-        open={confirmDelete}
-        onClose={() => setConfirmDelete(false)}
-        title="Delete page"
-        message="Permanently delete this page?"
-        action={page ? `/admin/pages/${page.id}/delete` : ''}
-        csrfToken={csrfToken}
-        confirmLabel="Delete"
-        danger
-      />
     </AdminLayout>
   )
 }

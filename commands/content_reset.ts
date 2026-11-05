@@ -14,7 +14,6 @@ const tables = [
   'place_feature_assignments',
   'place_features',
   'place_images',
-  'place_hours',
   'place_translations',
   'places',
   'category_translations',

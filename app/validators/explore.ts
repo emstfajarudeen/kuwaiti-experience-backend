@@ -14,19 +14,6 @@ export const placeExploreValidator = vine.compile(
     check_out_time: clock().nullable().optional(),
     screen_count: vine.number().withoutDecimals().min(1).max(1000).nullable().optional(),
     feature_ids: vine.array(vine.number().positive().withoutDecimals()).maxLength(50).optional(),
-    place_hours: vine
-      .array(
-        vine.object({
-          weekday: vine.number().withoutDecimals().range([0, 6]),
-          interval_index: vine.number().withoutDecimals().min(0).max(9),
-          opens_at: clock().nullable().optional(),
-          closes_at: clock().nullable().optional(),
-          closes_next_day: vine.boolean(),
-          closed: vine.boolean(),
-        })
-      )
-      .maxLength(70)
-      .optional(),
   })
 )
 

@@ -343,8 +343,6 @@ export default class AdminPlacesPageController {
   async save(ctx: HttpContext) {
     const { request, response, session, admin, params } = ctx
     try {
-      const rawHours = request.input('hoursJson')
-      const hours = rawHours === undefined ? undefined : JSON.parse(String(rawHours))
       const previousTranslations = params.id
         ? await db.from('place_translations').where('place_id', Number(params.id))
         : []
@@ -390,7 +388,6 @@ export default class AdminPlacesPageController {
         featured: request.input('featured') === 'on',
         featured_order:
           request.input('featured') === 'on' ? Number(request.input('featured_order', 0)) : null,
-        ...(hours === undefined ? {} : { hours }),
       })
       const { items: galleryItems } = await galleryItemsValidator.validate({
         items: galleryItemsFrom(request.input('gallery')),

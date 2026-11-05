@@ -106,7 +106,7 @@ test.group('CMS migrated content browser', (group) => {
     assert.equal(publishedPage.status, 'published')
   })
 
-  test('saves a place with FilePond images and structured Explore hours', async ({
+  test('saves a place with FilePond images and Explore details', async ({
     visit,
     assert,
   }) => {
@@ -153,27 +153,14 @@ test.group('CMS migrated content browser', (group) => {
     assert.equal(galleryImages.length, 1)
 
     await page.goto(new URL(`/admin/places/${place.id}/explore`, page.url()).toString())
-    const sunday = page.locator('[data-weekday="0"]')
-    await sunday.getByRole('button', { name: 'Open', exact: true }).click()
-    await sunday.getByRole('button', { name: '+ Add split interval for Sunday' }).click()
-    await sunday.locator('input[name$="[opens_at]"]').nth(1).fill('23:00')
-    await sunday.locator('input[name$="[closes_at]"]').nth(1).fill('01:00')
-    await sunday.getByLabel('Closes next day (overnight)').nth(1).check()
-    const monday = page.locator('[data-weekday="1"]')
-    await monday.getByRole('button', { name: 'Closed', exact: true }).click()
+    await page.getByLabel('Venue phone').fill('+96590987788')
     await page.getByRole('button', { name: 'Save Explore details' }).click()
     await page
       .locator('.ant-notification-notice')
       .filter({ hasText: 'Changes saved.' })
       .waitFor({ state: 'visible' })
-    const hours = await db
-      .from('place_hours')
-      .where('place_id', place.id)
-      .orderBy('weekday')
-      .orderBy('interval_index')
-    assert.equal(hours.length, 3)
-    assert.equal(hours[1].closes_next_day, 1)
-    assert.equal(hours[2].closed, 1)
+    const explored = await db.from('places').where('id', place.id).first()
+    assert.equal(explored.phone_e164, '+96590987788')
   })
 
   test('manages movie and theater showtime forms', async ({ visit, assert }) => {

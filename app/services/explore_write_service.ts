@@ -23,59 +23,9 @@ async function audit(
   })
 }
 
-export function validateHours(hours: Row[]) {
-  const slots = new Set<string>()
-  const dayRows = new Map<number, Row[]>()
-  const intervals: Array<[number, number]> = []
-  const minutes = (v: string) => Number(v.slice(0, 2)) * 60 + Number(v.slice(3, 5))
-  for (const h of hours) {
-    const key = `${h.weekday}:${h.interval_index}`
-    const rows = dayRows.get(h.weekday) ?? []
-    if (
-      slots.has(key) ||
-      (h.closed && (h.opens_at || h.closes_at || h.closes_next_day)) ||
-      (!h.closed && (!h.opens_at || !h.closes_at))
-    ) {
-      throw new ApiError(
-        422,
-        'INVALID_HOURS',
-        'Each interval needs distinct day/order and valid opening/closing times, or a closed day'
-      )
-    }
-    slots.add(key)
-    rows.push(h)
-    dayRows.set(h.weekday, rows)
-    if (!h.closed) {
-      const start = minutes(h.opens_at)
-      const end = minutes(h.closes_at)
-      if (h.closes_next_day ? end > start : end <= start)
-        throw new ApiError(
-          422,
-          'INVALID_HOURS',
-          'Closing time must follow opening time; overnight intervals must end by the next opening clock time'
-        )
-      const absoluteStart = h.weekday * 1440 + start
-      const absoluteEnd = h.weekday * 1440 + end + (h.closes_next_day ? 1440 : 0)
-      intervals.push([absoluteStart, absoluteEnd])
-    }
-  }
-  for (const rows of dayRows.values())
-    if (rows.some((h) => h.closed) && rows.length > 1)
-      throw new ApiError(422, 'INVALID_HOURS', 'A closed day cannot also contain opening intervals')
-  const week = 7 * 1440
-  for (let i = 0; i < intervals.length; i++)
-    for (let j = i + 1; j < intervals.length; j++) {
-      const [a, b] = intervals[i]
-      const [c, d] = intervals[j]
-      if ([0, week, -week].some((offset) => a < d + offset && c + offset < b))
-        throw new ApiError(422, 'INVALID_HOURS', 'Opening intervals cannot overlap')
-    }
-}
-
 export async function updatePlaceExplore(id: number, input: Row, actorId: number) {
   if (!Object.keys(input).length)
     throw new ApiError(422, 'EMPTY_UPDATE', 'Provide at least one field')
-  if (input.place_hours) validateHours(input.place_hours)
   await db.transaction(async (trx) => {
     const place = await trx.from('places').where('id', id).forUpdate().first()
     if (!place) throw new ApiError(404, 'NOT_FOUND', 'Place not found')
@@ -102,21 +52,6 @@ export async function updatePlaceExplore(id: number, input: Row, actorId: number
     for (const key of ['phone_e164', 'check_in_time', 'check_out_time', 'screen_count'])
       if (input[key] !== undefined) fields[key] = input[key]
     await trx.from('places').where('id', id).update(fields)
-    if (input.place_hours !== undefined) {
-      await trx.from('place_hours').where('place_id', id).delete()
-      if (input.place_hours.length)
-        await trx.table('place_hours').insert(
-          input.place_hours.map((h: Row) => ({
-            place_id: id,
-            weekday: h.weekday,
-            interval_index: h.interval_index,
-            opens_at: h.opens_at ?? null,
-            closes_at: h.closes_at ?? null,
-            closes_next_day: h.closes_next_day,
-            closed: h.closed,
-          }))
-        )
-    }
     await audit(trx, actorId, 'place.explore', id, 'updated')
   })
 }

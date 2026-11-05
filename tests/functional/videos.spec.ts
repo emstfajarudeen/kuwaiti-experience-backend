@@ -94,6 +94,43 @@ test.group('Videos', (group) => {
     assert.isNull(second.meta.next_cursor)
   })
 
+  test('feed pins a shared video first, then continues without repeating it', async ({
+    assert,
+  }) => {
+    const { insertVideo } = await seed()
+    const ids = [await insertVideo(1), await insertVideo(2), await insertVideo(3)]
+    const draft = await insertVideo(4, 'draft')
+    const first = await pub.feed({ limit: 1, video_id: ids[2] }, 'en')
+    assert.deepEqual(
+      first.data.map((v) => v.id),
+      [ids[2], ids[0]]
+    )
+    assert.isTrue(first.meta.pinned_video_found)
+    const second = await pub.feed(
+      { limit: 1, video_id: ids[2], cursor: first.meta.next_cursor },
+      'en'
+    )
+    assert.deepEqual(
+      second.data.map((v) => v.id),
+      [ids[1]]
+    )
+    assert.isUndefined(second.meta.pinned_video_found)
+    assert.isNull(second.meta.next_cursor)
+    const missing = await pub.feed({ limit: 2, video_id: draft }, 'en')
+    assert.deepEqual(
+      missing.data.map((v) => v.id),
+      [ids[0], ids[1]]
+    )
+    assert.isFalse(missing.meta.pinned_video_found)
+    let code = ''
+    try {
+      await pub.feed({ video_id: 'abc' }, 'en')
+    } catch (error) {
+      code = (error as { code?: string }).code ?? ''
+    }
+    assert.equal(code, 'INVALID_FILTER')
+  })
+
   test('a video of an unpublished business is hidden; a published one shows as the creator', async ({
     assert,
   }) => {

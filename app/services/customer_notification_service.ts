@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
+import logger from '@adonisjs/core/services/logger'
 import { ApiError } from './api_error.js'
 import { pagination, positiveId } from './explore_read_service.js'
 import { customerNotification } from '../serializers/customer_notification.js'
@@ -140,6 +141,12 @@ async function sendPush(input: {
           token: input.token,
           notification: visible,
           data,
+          // Explicit platform settings so idle/locked devices still show the banner promptly.
+          android: { priority: 'HIGH', notification: { sound: 'default' } },
+          apns: {
+            headers: { 'apns-priority': '10', 'apns-push-type': 'alert' },
+            payload: { aps: { sound: 'default' } },
+          },
         },
       }),
       signal: AbortSignal.timeout(15_000),
@@ -153,7 +160,9 @@ async function sendPush(input: {
   const invalidToken =
     error === 'UNREGISTERED' ||
     result.error?.details?.some((detail) => detail.errorCode === 'UNREGISTERED')
-  throw Object.assign(new Error(`FCM delivery failed: ${error}`), { invalidToken })
+  // Keep FCM's own explanation (e.g. SENDER_ID_MISMATCH, THIRD_PARTY_AUTH_ERROR) so failures are diagnosable.
+  const detail = result.error?.message ? ` - ${result.error.message}` : ''
+  throw Object.assign(new Error(`FCM delivery failed: ${error}${detail}`), { invalidToken })
 }
 
 /**
@@ -383,6 +392,10 @@ async function deliverOne(row: Row) {
     const invalidToken = Boolean((error as { invalidToken?: boolean }).invalidToken)
     const exhausted = attempts >= MAX_DELIVERY_ATTEMPTS || invalidToken
     const message = error instanceof Error ? error.message.slice(0, 1000) : 'Unknown FCM error'
+    logger.warn(
+      { outboxId: row.outbox_id, pushTokenId: row.push_token_id, attempts, invalidToken },
+      `Push delivery failed: ${message}`
+    )
     await db
       .from('customer_notification_outbox')
       .where('id', row.outbox_id)

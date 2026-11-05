@@ -70,27 +70,6 @@ export const placeValidator = vine.compile(
     longitude: vine.number().range([-180, 180]).nullable().optional(),
     featured: vine.boolean().optional(),
     featured_order: vine.number().withoutDecimals().min(0).max(9999).nullable().optional(),
-    hours: vine
-      .array(
-        vine.object({
-          weekday: vine.number().range([0, 6]).withoutDecimals(),
-          intervalIndex: vine.number().min(0).withoutDecimals(),
-          opensAt: vine
-            .string()
-            .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
-            .nullable()
-            .optional(),
-          closesAt: vine
-            .string()
-            .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
-            .nullable()
-            .optional(),
-          closesNextDay: vine.boolean().optional(),
-          closed: vine.boolean().optional(),
-        })
-      )
-      .maxLength(70)
-      .optional(),
   })
 )
 

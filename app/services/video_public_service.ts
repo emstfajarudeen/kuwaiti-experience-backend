@@ -168,7 +168,11 @@ function positiveInt(value: unknown) {
   return number
 }
 
-/** Newest-first feed with cursor paging. */
+/**
+ * Newest-first feed with cursor paging.
+ * `video_id` pins one video to the top of the first page (a shared link); it is then
+ * left out of every page, so the feed continues without showing it twice.
+ */
 export async function feed(
   params: Record<string, unknown>,
   locale: PublicLocale,
@@ -177,8 +181,10 @@ export async function feed(
   const limit = Math.min(Math.max(positiveInt(params.limit) ?? 10, 1), 30)
   const categoryId = positiveInt(params.category_id)
   const placeId = positiveInt(params.place_id)
+  const pinnedId = positiveInt(params.video_id)
   const cursor = decodeCursor(params.cursor)
   const query = visible(db.from('videos')).select('videos.*')
+  if (pinnedId) query.whereNot('videos.id', pinnedId)
   if (categoryId) query.where('videos.category_id', categoryId)
   if (placeId) query.where('videos.place_id', placeId)
   if (cursor) {
@@ -195,9 +201,21 @@ export async function feed(
     .orderBy('videos.id', 'desc')
     .limit(limit + 1)) as Row[]
   const page = rows.slice(0, limit)
+  // Only the first page (no cursor) carries the pinned video. A video that is a draft,
+  // hidden or deleted is simply skipped, so an old shared link still opens the normal feed.
+  const pinned =
+    pinnedId && !cursor
+      ? ((await visible(db.from('videos'))
+          .where('videos.id', pinnedId)
+          .select('videos.*')
+          .first()) as Row | undefined)
+      : undefined
   return {
-    data: await hydrate(page, locale, customerId),
-    meta: { next_cursor: rows.length > limit ? encodeCursor(page[page.length - 1]) : null },
+    data: await hydrate(pinned ? [pinned, ...page] : page, locale, customerId),
+    meta: {
+      next_cursor: rows.length > limit ? encodeCursor(page[page.length - 1]) : null,
+      ...(pinnedId && !cursor ? { pinned_video_found: Boolean(pinned) } : {}),
+    },
   }
 }
 
@@ -368,15 +386,13 @@ export async function addComment(videoId: number, customerId: number, rawBody: u
     )
   }
   return withVideo(videoId, customerId, async (trx, video) => {
-    const [id] = await trx
-      .table('video_comments')
-      .insert({
-        video_id: videoId,
-        customer_id: customerId,
-        body,
-        status: 'visible',
-        created_at: new Date(),
-      })
+    const [id] = await trx.table('video_comments').insert({
+      video_id: videoId,
+      customer_id: customerId,
+      body,
+      status: 'visible',
+      created_at: new Date(),
+    })
     await trx
       .from('videos')
       .where('id', videoId)

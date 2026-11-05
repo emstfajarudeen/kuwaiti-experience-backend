@@ -724,7 +724,6 @@ components:
         bodyAr: { type: [string, 'null'] }
         priceMode: { type: string, enum: [unknown, free, from, fixed] }
         priceAmount: { type: [string, 'null'], pattern: '^\\d{1,7}(?:\\.\\d{1,3})?$' }
-        hours: { type: array, items: { type: object } }
     PlaceImages:
       type: object
       description: Place-owned images; URLs are admin preview URLs (`/api/v1/admin/images/{key}`)

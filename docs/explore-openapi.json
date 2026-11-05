@@ -494,14 +494,6 @@
             }
           },
           {
-            "name": "open_now",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            }
-          },
-          {
             "name": "page",
             "in": "query",
             "required": false,
@@ -1338,7 +1330,7 @@
     },
     "/api/v2/admin/places/{id}/explore": {
       "patch": {
-        "summary": "Update venue phone, stay/theater details, feature assignments and hours",
+        "summary": "Update venue phone, stay/theater details, feature assignments",
         "tags": ["Explore v2"],
         "responses": {
           "200": {
@@ -3172,7 +3164,7 @@
 
       "LocalizedCategoryType": {"type":"object","additionalProperties":false,"required":["code","name","image_key","sort_order","updated_at"],"properties":{"code":{"type":"string"},"name":{"type":"string"},"image_key":{"type":["string","null"]},"sort_order":{"type":"integer"},"updated_at":{"type":["string","null"],"format":"date-time"}}},
       "LocalizedCategory": {"type":"object","additionalProperties":false,"required":["id","type","slug","sort_order","active","created_at","updated_at","category_translations"],"properties":{"id":{"type":"integer"},"type":{"type":"string"},"slug":{"type":"string"},"sort_order":{"type":"integer"},"active":{"type":"boolean"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":["string","null"],"format":"date-time"},"category_translations":{"type":"array","items":{"$ref":"#/components/schemas/CategoryTranslation"},"maxItems":1}}},
-      "LocalizedPlace": {"type":"object","additionalProperties":false,"required":["id","type","category_id","slug","status","cover_image_key","latitude","longitude","price_amount","price_currency","price_mode","website_url","featured_order","phone_e164","check_in_time","check_out_time","screen_count","published_at","created_at","updated_at","place_translations","place_hours","place_images","place_features"],"properties":{"id":{"type":"integer"},"type":{"type":"string"},"category_id":{"type":["integer","null"]},"slug":{"type":"string"},"status":{"type":"string","enum":["draft","published","archived"]},"cover_image_key":{"type":["string","null"]},"latitude":{"type":["number","null"]},"longitude":{"type":["number","null"]},"price_amount":{"type":["string","null"],"pattern":"^\\d+\\.\\d{3}$"},"price_currency":{"type":"string"},"price_mode":{"type":"string","enum":["unknown","free","from","fixed"]},"website_url":{"type":["string","null"]},"featured_order":{"type":["integer","null"]},"phone_e164":{"type":["string","null"],"pattern":"^\\+[1-9]\\d{7,14}$"},"check_in_time":{"type":["string","null"],"pattern":"^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$"},"check_out_time":{"type":["string","null"],"pattern":"^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$"},"screen_count":{"type":["integer","null"]},"published_at":{"type":["string","null"],"format":"date-time"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":["string","null"],"format":"date-time"},"place_translations":{"type":"array","items":{"$ref":"#/components/schemas/PlaceTranslation"},"maxItems":1},"place_hours":{"type":"array","items":{"$ref":"#/components/schemas/PlaceHour"}},"place_images":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedPlaceImage"}},"place_features":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedFeature"}}}},
+      "LocalizedPlace": {"type":"object","additionalProperties":false,"required":["id","type","category_id","slug","status","cover_image_key","latitude","longitude","price_amount","price_currency","price_mode","website_url","featured_order","phone_e164","check_in_time","check_out_time","screen_count","published_at","created_at","updated_at","place_translations","place_images","place_features"],"properties":{"id":{"type":"integer"},"type":{"type":"string"},"category_id":{"type":["integer","null"]},"slug":{"type":"string"},"status":{"type":"string","enum":["draft","published","archived"]},"cover_image_key":{"type":["string","null"]},"latitude":{"type":["number","null"]},"longitude":{"type":["number","null"]},"price_amount":{"type":["string","null"],"pattern":"^\\d+\\.\\d{3}$"},"price_currency":{"type":"string"},"price_mode":{"type":"string","enum":["unknown","free","from","fixed"]},"website_url":{"type":["string","null"]},"featured_order":{"type":["integer","null"]},"phone_e164":{"type":["string","null"],"pattern":"^\\+[1-9]\\d{7,14}$"},"check_in_time":{"type":["string","null"],"pattern":"^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$"},"check_out_time":{"type":["string","null"],"pattern":"^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$"},"screen_count":{"type":["integer","null"]},"published_at":{"type":["string","null"],"format":"date-time"},"created_at":{"type":"string","format":"date-time"},"updated_at":{"type":["string","null"],"format":"date-time"},"place_translations":{"type":"array","items":{"$ref":"#/components/schemas/PlaceTranslation"},"maxItems":1},"place_images":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedPlaceImage"}},"place_features":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedFeature"}}}},
       "LocalizedPlaceList": {"type":"object","additionalProperties":false,"required":["data","meta"],"properties":{"data":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedPlace"}},"meta":{"type":"object","additionalProperties":false,"required":["viewer","images","evaluated_at","page","per_page","total","last_page"],"properties":{"viewer":{"type":"array","items":{"$ref":"#/components/schemas/Viewer"}},"images":{"type":"array","items":{"$ref":"#/components/schemas/ImageLink"}},"evaluated_at":{"type":"string","format":"date-time"},"page":{"type":"integer"},"per_page":{"type":"integer"},"total":{"type":"integer"},"last_page":{"type":"integer"}}}}},
       "SavedPlaceList": {"type":"object","additionalProperties":false,"required":["data","meta"],"properties":{"data":{"type":"object","additionalProperties":false,"required":["category_types","places"],"properties":{"category_types":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedCategoryType"}},"places":{"type":"array","items":{"$ref":"#/components/schemas/LocalizedPlace"}}}},"meta":{"type":"object","additionalProperties":false,"required":["viewer","images","evaluated_at","page","per_page","total","last_page"],"properties":{"viewer":{"type":"array","items":{"$ref":"#/components/schemas/Viewer"}},"images":{"type":"array","items":{"$ref":"#/components/schemas/ImageLink"}},"evaluated_at":{"type":"string","format":"date-time"},"page":{"type":"integer"},"per_page":{"type":"integer"},"total":{"type":"integer"},"last_page":{"type":"integer"}}}}},
 
@@ -3371,50 +3363,6 @@
           }
         }
       },
-      "PlaceHour": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "id",
-          "place_id",
-          "weekday",
-          "interval_index",
-          "opens_at",
-          "closes_at",
-          "closes_next_day",
-          "closed"
-        ],
-        "properties": {
-          "id": {
-            "type": "integer"
-          },
-          "place_id": {
-            "type": "integer"
-          },
-          "weekday": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 6
-          },
-          "interval_index": {
-            "type": "integer"
-          },
-          "opens_at": {
-            "type": ["string", "null"],
-            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$"
-          },
-          "closes_at": {
-            "type": ["string", "null"],
-            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$"
-          },
-          "closes_next_day": {
-            "type": "boolean"
-          },
-          "closed": {
-            "type": "boolean"
-          }
-        }
-      },
       "PlaceImage": {
         "type": "object",
         "additionalProperties": false,
@@ -3485,7 +3433,6 @@
           "created_at",
           "updated_at",
           "place_translations",
-          "place_hours",
           "place_images",
           "place_features"
         ],
@@ -3563,12 +3510,6 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PlaceTranslation"
-            }
-          },
-          "place_hours": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PlaceHour"
             }
           },
           "place_images": {
@@ -3722,16 +3663,13 @@
       "Viewer": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["place_id", "saved", "open_now"],
+        "required": ["place_id", "saved"],
         "properties": {
           "place_id": {
             "type": "integer"
           },
           "saved": {
             "type": "boolean"
-          },
-          "open_now": {
-            "type": ["boolean", "null"]
           }
         }
       },
@@ -4012,41 +3950,6 @@
             },
             "uniqueItems": true,
             "maxItems": 50
-          },
-          "place_hours": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": ["weekday", "interval_index", "closes_next_day", "closed"],
-              "properties": {
-                "weekday": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 6
-                },
-                "interval_index": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 9
-                },
-                "opens_at": {
-                  "type": ["string", "null"],
-                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(?::00)?$"
-                },
-                "closes_at": {
-                  "type": ["string", "null"],
-                  "pattern": "^([01]\\d|2[0-3]):[0-5]\\d(?::00)?$"
-                },
-                "closes_next_day": {
-                  "type": "boolean"
-                },
-                "closed": {
-                  "type": "boolean"
-                }
-              }
-            },
-            "maxItems": 70
           }
         },
         "minProperties": 1

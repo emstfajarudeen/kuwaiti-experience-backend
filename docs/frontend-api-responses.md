@@ -10,7 +10,7 @@ This document describes the currently implemented visitor-facing `/api/v1` respo
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | Landing page                      | `GET /api/v1/home?locale=en`                                                                                                 | Hero, ordered category type tiles, featured place groups, and app store links. |
 | Place listing for a selected type | `GET /api/v1/categories?type={type}&locale=en` and `GET /api/v1/places?type={type}&category=all&page=1&perPage=12&locale=en` | Category filters and paginated place cards.                                    |
-| Place detail                      | `GET /api/v1/places/{slug}?locale=en`                                                                                        | Full place content, gallery, hours, and visit details.                         |
+| Place detail                      | `GET /api/v1/places/{slug}?locale=en`                                                                                        | Full place content, gallery, and visit details.                         |
 | Static content page               | `GET /api/v1/pages/{slug}?locale=en`                                                                                         | CMS page title and body.                                                       |
 | Shared branding/contact           | `GET /api/v1/site`                                                                                                           | Brand name, logo, contact email, WhatsApp availability, and store links.       |
 | Cab enquiry                       | `GET /api/v1/transport/locations?locale=en`, then `POST /api/v1/transport/enquiry-link`                                      | Pickup/destination choices and a WhatsApp enquiry URL.                         |
@@ -149,15 +149,6 @@ This endpoint is only for the first landing page. It does not provide category f
     "hoursNote": null,
     "price": { "mode": "free", "amount": null, "currency": "KWD", "unit": null },
     "coordinates": { "latitude": 29.3759, "longitude": 47.9774 },
-    "hours": [
-      {
-        "weekday": 0,
-        "opens_at": "09:00:00",
-        "closes_at": "18:00:00",
-        "closes_next_day": 0,
-        "closed": 0
-      }
-    ],
     "gallery": [
       {
         "id": 15,
@@ -172,7 +163,7 @@ This endpoint is only for the first landing page. It does not provide category f
 }
 ```
 
-`websiteUrl` is the CMS website URL, or `null` when none is set. `coordinates` can be `null`; `hours` and `gallery` can be empty. Gallery items are ordered; `id` identifies the gallery image within its place, and Arabic `alt`/`caption` fall back to English. `price.mode` is `unknown`, `free`, `from`, or `fixed`. `price.amount` is a three-decimal string when set. The `hours` keys currently use database-style snake case, and its boolean fields may be returned as database booleans or `0`/`1` depending on the driver. `cabDestination` identifies this place for display; its `placeId` is not a transport location ID.
+`websiteUrl` is the CMS website URL, or `null` when none is set. `coordinates` can be `null`; `gallery` can be empty. Gallery items are ordered; `id` identifies the gallery image within its place, and Arabic `alt`/`caption` fall back to English. `price.mode` is `unknown`, `free`, `from`, or `fixed`. `price.amount` is a three-decimal string when set. `cabDestination` identifies this place for display; its `placeId` is not a transport location ID.
 
 ## Other public endpoints
 

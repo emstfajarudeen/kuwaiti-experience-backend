@@ -14,20 +14,6 @@ export function validationErrorBag(error: unknown): Record<string, string[]> | n
 
 /** Turn internal validator paths into labels that make sense in the CMS UI. */
 export function readableValidationError(field: string, message: string): string {
-  const hoursMatch = field.match(/^hours\.(\d+)\.(opensAt|closesAt|closed|closesNextDay)$/)
-  if (hoursMatch) {
-    const row = Number(hoursMatch[1]) + 1
-    const label =
-      hoursMatch[2] === 'opensAt'
-        ? 'opening time'
-        : hoursMatch[2] === 'closesAt'
-          ? 'closing time'
-          : hoursMatch[2] === 'closesNextDay'
-            ? 'overnight setting'
-            : 'closed setting'
-    return `Weekly hours row ${row}: ${label} is invalid. Use a time such as 09:00.`
-  }
-
   const labels: Record<string, string> = {
     websiteUrl: 'Website URL',
     titleEn: 'English title',
