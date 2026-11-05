@@ -6,7 +6,6 @@ import {
   placeValidator,
 } from '../../validators/content.js'
 import { deletePlace, savePlace, setPlaceStatus } from '../../services/content_write_service.js'
-import { showPlace } from '../../services/public_content_service.js'
 import { categoryTypes } from '../../services/category_type_service.js'
 import { ApiError } from '../../services/api_error.js'
 import {
