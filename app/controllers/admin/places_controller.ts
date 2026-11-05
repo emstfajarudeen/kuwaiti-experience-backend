@@ -307,27 +307,6 @@ export default class AdminPlacesPageController {
     )
   }
 
-  async preview({ params, request, inertia, admin, response }: HttpContext) {
-    const place = await db.from('places').where('id', params.id).select('slug', 'status').first()
-    if (!place) return response.redirect('/admin/places')
-    const result = await showPlace(
-      place.slug,
-      request.input('locale') === 'ar' ? 'ar' : 'en',
-      true,
-      cmsImageUrl
-    )
-    return inertia.render(
-      'places/preview',
-      {
-        adminName: admin.fullName,
-        csrfToken: request.csrfToken,
-        place: result.data,
-        status: place.status,
-      },
-      { bodyClass: 'cms-body' }
-    )
-  }
-
   private formValues(value: unknown) {
     if (!value || typeof value !== 'object') return null
     const form = value as Record<string, unknown>
@@ -372,6 +351,10 @@ export default class AdminPlacesPageController {
         : []
       const previousEn = previousTranslations.find((translation) => translation.locale === 'en')
       const previousAr = previousTranslations.find((translation) => translation.locale === 'ar')
+      // Price and hours notes are no longer edited on this form; keep whatever is stored.
+      const previousPlace = params.id
+        ? await db.from('places').where('id', Number(params.id)).first()
+        : null
       const bodyEn = request.input('bodyEn') || null
       const bodyAr = request.input('bodyAr') || null
       const input = await placeValidator.validate({
@@ -386,8 +369,8 @@ export default class AdminPlacesPageController {
             : briefText(bodyEn, request.input('titleEn'))),
         addressEn: request.input('addressEn'),
         bodyEn,
-        hoursNoteEn: request.input('hoursNoteEn') || null,
-        priceUnitEn: request.input('priceUnitEn') || null,
+        hoursNoteEn: request.input('hoursNoteEn') ?? previousEn?.hours_note ?? null,
+        priceUnitEn: request.input('priceUnitEn') ?? previousEn?.price_unit ?? null,
         seoTitleEn: request.input('seoTitleEn') || null,
         seoDescriptionEn: request.input('seoDescriptionEn') || null,
         titleAr: request.input('titleAr') || null,
@@ -400,8 +383,8 @@ export default class AdminPlacesPageController {
             : null),
         addressAr: request.input('addressAr') || null,
         bodyAr,
-        priceMode: request.input('priceMode') || 'unknown',
-        priceAmount: request.input('priceAmount') || null,
+        priceMode: request.input('priceMode') || previousPlace?.price_mode || 'unknown',
+        priceAmount: request.input('priceAmount') ?? previousPlace?.price_amount ?? null,
         websiteUrl: normalizeWebsiteUrl(request.input('websiteUrl')),
         latitude: optionalNumber(request.input('latitude')),
         longitude: optionalNumber(request.input('longitude')),

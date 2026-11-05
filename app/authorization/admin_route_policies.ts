@@ -78,7 +78,6 @@ moduleRoutes(
     '/places/address-search',
     '/places/address-reverse',
     '/places/:id/edit',
-    '/places/:id/preview',
     '/places/:id/explore',
     '/places/:id',
     '/places/:id/save',

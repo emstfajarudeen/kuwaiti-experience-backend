@@ -7,8 +7,6 @@ import { Table } from 'antd'
 import TableToolbar, { useLocalFilters } from '../../components/table_toolbar'
 
 type PageRow = { id: number; slug: string; status: string; title: string | null }
-// Pages are either Published or Draft; legacy archived pages are shown as Draft.
-const displayStatus = (status: string) => (status === 'published' ? 'published' : 'draft')
 type Props = {
   adminName: string
   csrfToken: string
@@ -27,11 +25,10 @@ export default function PagesIndex({
 }: Props) {
   const { can } = useAuthorization()
   const [deleting, setDeleting] = useState<PageRow | null>(null)
-  const filters = useLocalFilters({ q: '', status: '' })
+  const filters = useLocalFilters({ q: '' })
   const needle = filters.values.q.trim().toLocaleLowerCase()
   const visibleRows = rows.filter(
     (row) =>
-      (!filters.values.status || displayStatus(row.status) === filters.values.status) &&
       (!needle || [row.title ?? '', row.slug].some((v) => v.toLocaleLowerCase().includes(needle)))
   )
   return (
@@ -57,18 +54,6 @@ export default function PagesIndex({
             value: filters.values.q,
             onChange: (value) => filters.set('q', value),
           }}
-          selects={[
-            {
-              key: 'status',
-              value: filters.values.status,
-              placeholder: 'All statuses',
-              onChange: (value) => filters.set('status', value),
-              options: [
-                { value: 'published', label: 'Published' },
-                { value: 'draft', label: 'Draft' },
-              ],
-            },
-          ]}
           active={filters.active}
           onReset={filters.reset}
         />
@@ -114,15 +99,6 @@ export default function PagesIndex({
                     >
                       <code>/{slug}</code>
                     </a>
-                  ),
-                },
-                {
-                  title: 'Status',
-                  dataIndex: 'status',
-                  render: (status: string) => (
-                    <span className={`status ${displayStatus(status)}`}>
-                      {displayStatus(status) === 'published' ? 'Published' : 'Draft'}
-                    </span>
                   ),
                 },
                 ...(can('pages.delete')

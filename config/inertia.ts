@@ -31,7 +31,6 @@ export default defineConfig({
       'pages/edit',
       'places/index',
       'places/edit',
-      'places/preview',
       'explore/place',
       'site/home',
       'site/settings',

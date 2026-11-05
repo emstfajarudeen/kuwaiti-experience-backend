@@ -208,11 +208,6 @@ export default function PlacesIndex({
                         label={`More actions for ${row.title}`}
                         actions={[
                           {
-                            label: 'Preview',
-                            href: `/admin/places/${row.id}/preview`,
-                            target: '_blank',
-                          },
-                          {
                             label: 'Explore details & hours',
                             href: `/admin/places/${row.id}/explore`,
                           },

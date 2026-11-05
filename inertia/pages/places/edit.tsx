@@ -73,7 +73,6 @@ export default function PlaceEdit({
   const [selectedCategory, setSelectedCategory] = useState(
     String(form?.categoryId ?? place?.category_id ?? '')
   )
-  const [priceMode] = useState(String(form?.priceMode ?? place?.price_mode ?? 'unknown'))
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [active, setActive] = useState(
@@ -147,9 +146,6 @@ export default function PlaceEdit({
           titleAr: value('titleAr', ar?.title),
           addressAr: value('addressAr', ar?.address),
           bodyAr: value('bodyAr', ar?.body),
-          priceAmount: value('priceAmount', place?.price_amount),
-          priceUnitEn: value('priceUnitEn', en?.price_unit),
-          hoursNoteEn: value('hoursNoteEn', en?.hours_note),
           latitude: value('latitude', place?.latitude),
           longitude: value('longitude', place?.longitude),
           websiteUrl: value('websiteUrl', place?.website_url),
@@ -335,9 +331,8 @@ export default function PlaceEdit({
                   />
                 </Form.Item>
               </label>
-              {/* Kept so saving never wipes values set elsewhere; coordinates come from the map. */}
-              <input type="hidden" name="priceMode" value={priceMode} />
-              {['priceAmount', 'priceUnitEn', 'hoursNoteEn', 'latitude', 'longitude'].map(
+              {/* Coordinates come from the map. */}
+              {['latitude', 'longitude'].map(
                 (name) => (
                   <Form.Item key={name} name={name} hidden>
                     <Input name={name} />

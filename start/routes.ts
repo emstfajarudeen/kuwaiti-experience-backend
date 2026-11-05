@@ -87,7 +87,6 @@ router
     router.get('/places/address-reverse', [AdminAddressSearchController, 'reverse'])
     router.post('/places', [AdminPlacesPageController, 'save']).as('cms.places.create')
     router.get('/places/:id/edit', [AdminPlacesPageController, 'edit'])
-    router.get('/places/:id/preview', [AdminPlacesPageController, 'preview'])
     router
       .get('/places/:id/explore', [ExplorePageController, 'place'])
       .as('explore.ExplorePageController.get.places_id_explore')
