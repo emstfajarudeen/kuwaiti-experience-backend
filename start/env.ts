@@ -37,4 +37,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   FCM_PROJECT_ID: Env.schema.string.optional(),
   FCM_CLIENT_EMAIL: Env.schema.string.optional(),
   FCM_PRIVATE_KEY: Env.schema.secret.optional(),
+  MYFATOORAH_API_KEY: Env.schema.secret.optional(),
+  MYFATOORAH_BASE_URL: Env.schema.string.optional({ format: 'url', tld: false }),
+  RENTAL_PAYMENT_RETURN_URL: Env.schema.string.optional(),
 })

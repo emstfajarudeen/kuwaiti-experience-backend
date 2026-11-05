@@ -12,6 +12,8 @@ const destinations = [
   ['home.view', '/admin/home'],
   ['settings.view', '/admin/settings'],
   ['videos.view', '/admin/videos'],
+  ['rental_bookings.view', '/admin/rentals/bookings'],
+  ['rentals.view', '/admin/rentals/vehicles'],
   ['customers.view', '/admin/customers'],
   ['notifications.view', '/admin/notifications'],
   ['staff.view', '/admin/users'],

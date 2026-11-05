@@ -47,7 +47,8 @@ The CMS **Site settings → Mobile app configuration** page manages versions, st
 | Notifications inbox and FCM token APIs                                              | Implemented; actual delivery requires Firebase credentials and the worker | [Notifications API](notifications-openapi.json); ride/rental event triggers are pending |
 | Home search and Schedule                                                           | Pending                                                                  | No API contract to integrate                                           |
 | Saved addresses (Home, Work and custom locations)                                  | Implemented; customer authentication required                             | [Saved-address API reference](saved-addresses-api.md)                  |
-| Cab, rentals, bookings, videos/social features                                     | Pending separate sections                                                 | No working mobile feature contract is supplied here                    |
+| Car rental search, detail, quote, reservation, MyFatoorah booking fee, rental history | Implemented; needs CMS fleet data and MyFatoorah credentials             | [Rental API guide](rental-api.md)                                      |
+| Cab, unified cab/rental history, reviews                                            | Pending separate sections                                                 | No working mobile feature contract is supplied here                    |
 
 The website's `/api/v1/home` retains its legacy response. The app's Home Explore cards link to existing place details. A future cab flow can receive a selected place, but no cab quotation/ride-creation API is implemented in this section.
 

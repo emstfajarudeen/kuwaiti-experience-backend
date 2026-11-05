@@ -12,6 +12,9 @@ const imageColumns = [
   { table: 'site_settings', column: 'logo_image_key' },
   { table: 'movies', column: 'poster_image_key' },
   { table: 'videos', column: 'thumbnail_key' },
+  { table: 'rental_providers', column: 'logo_image_key' },
+  { table: 'rental_vehicles', column: 'cover_image_key' },
+  { table: 'rental_vehicle_images', column: 'storage_key' },
 ] as const
 
 const imagePermissionModules: Record<(typeof imageColumns)[number]['table'], string> = {
@@ -22,6 +25,9 @@ const imagePermissionModules: Record<(typeof imageColumns)[number]['table'], str
   site_settings: 'settings',
   movies: 'movies',
   videos: 'videos',
+  rental_providers: 'rentals',
+  rental_vehicles: 'rentals',
+  rental_vehicle_images: 'rentals',
 }
 
 export async function allImageKeys() {
@@ -76,6 +82,24 @@ export async function isPublicImage(key: string) {
       .where('thumbnail_key', key)
       .where('status', 'published')
       .where('published_at', '<=', new Date())
+      .first()) ||
+    (await db
+      .from('rental_providers')
+      .where('logo_image_key', key)
+      .where('active', true)
+      .first()) ||
+    (await db
+      .from('rental_vehicles')
+      .where('cover_image_key', key)
+      .where('status', 'published')
+      .where('published_at', '<=', new Date())
+      .first()) ||
+    (await db
+      .from('rental_vehicle_images as ri')
+      .join('rental_vehicles as rv', 'rv.id', 'ri.vehicle_id')
+      .where('ri.storage_key', key)
+      .where('rv.status', 'published')
+      .where('rv.published_at', '<=', new Date())
       .first()) ||
     (await db
       .from('movies')

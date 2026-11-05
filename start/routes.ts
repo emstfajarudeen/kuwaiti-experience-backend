@@ -15,6 +15,8 @@ import {
   pushConnectionCheckThrottle,
   passwordResetRequestThrottle,
   passwordResetConfirmThrottle,
+  rentalBookingThrottle,
+  rentalPaymentWebhookThrottle,
 } from '#start/limiter'
 
 const AuthController = () => import('#controllers/api/auth_controller')
@@ -33,6 +35,8 @@ const VideosController = () => import('#controllers/api/videos_controller')
 const AdminVideosController = () => import('#controllers/admin/videos_controller')
 const ExploreController = () => import('#controllers/api/explore_controller')
 const HomeController = () => import('#controllers/api/home_controller')
+const RentalsController = () => import('#controllers/api/rentals_controller')
+const AdminRentalsController = () => import('#controllers/admin/rentals_controller')
 const AdminHomeController = () => import('#controllers/api/admin_home_controller')
 const AdminExploreController = () => import('#controllers/api/admin_explore_controller')
 const ExplorePageController = () => import('#controllers/admin/explore_controller')
@@ -122,6 +126,50 @@ router
     router.post('/videos/:id/save', [AdminVideosController, 'save']).as('cms.videos.update')
     router.post('/videos/:id/status', [AdminVideosController, 'updateStatus'])
     router.post('/videos/:id/delete', [AdminVideosController, 'destroy'])
+    router.get('/rentals/bookings', [AdminRentalsController, 'bookings'])
+    router.get('/rentals/bookings/:id', [AdminRentalsController, 'booking'])
+    router.post('/rentals/bookings/:id/complete', [AdminRentalsController, 'completeBooking'])
+    router.post('/rentals/bookings/:id/cancel', [AdminRentalsController, 'cancelBooking'])
+    router.post('/rentals/bookings/:id/refund', [AdminRentalsController, 'refundBooking'])
+    router.post('/rentals/bookings/:id/verify-payment', [AdminRentalsController, 'verifyPayment'])
+    router.get('/rentals/vehicles', [AdminRentalsController, 'vehicles'])
+    router.get('/rentals/vehicles/new', [AdminRentalsController, 'newVehicle'])
+    router
+      .post('/rentals/vehicles', [AdminRentalsController, 'saveVehicle'])
+      .as('cms.rentalVehicles.create')
+    router.get('/rentals/vehicles/:id/edit', [AdminRentalsController, 'editVehicle'])
+    router
+      .post('/rentals/vehicles/:id/save', [AdminRentalsController, 'saveVehicle'])
+      .as('cms.rentalVehicles.update')
+    router.post('/rentals/vehicles/:id/status', [AdminRentalsController, 'vehicleStatus'])
+    router.post('/rentals/vehicles/:id/delete', [AdminRentalsController, 'deleteVehicle'])
+    router.post('/rentals/vehicles/:id/blocks', [AdminRentalsController, 'addBlock'])
+    router.post('/rentals/vehicles/:id/blocks/:blockId/delete', [
+      AdminRentalsController,
+      'removeBlock',
+    ])
+    router.get('/rentals/providers', [AdminRentalsController, 'providers'])
+    router.get('/rentals/providers/new', [AdminRentalsController, 'newProvider'])
+    router
+      .post('/rentals/providers', [AdminRentalsController, 'saveProvider'])
+      .as('cms.rentalProviders.create')
+    router.get('/rentals/providers/:id/edit', [AdminRentalsController, 'editProvider'])
+    router
+      .post('/rentals/providers/:id/save', [AdminRentalsController, 'saveProvider'])
+      .as('cms.rentalProviders.update')
+    router.post('/rentals/providers/:id/delete', [AdminRentalsController, 'deleteProvider'])
+    router.get('/rentals/locations', [AdminRentalsController, 'locations'])
+    router.get('/rentals/locations/new', [AdminRentalsController, 'newLocation'])
+    router
+      .post('/rentals/locations', [AdminRentalsController, 'saveLocation'])
+      .as('cms.rentalLocations.create')
+    router.get('/rentals/locations/:id/edit', [AdminRentalsController, 'editLocation'])
+    router
+      .post('/rentals/locations/:id/save', [AdminRentalsController, 'saveLocation'])
+      .as('cms.rentalLocations.update')
+    router.post('/rentals/locations/:id/delete', [AdminRentalsController, 'deleteLocation'])
+    router.get('/rentals/settings', [AdminRentalsController, 'settings'])
+    router.post('/rentals/settings', [AdminRentalsController, 'saveSettings'])
     router.get('/users', [AdminUsersController, 'index'])
     router.get('/users/new', [AdminUsersController, 'create'])
     router.post('/users', [AdminUsersController, 'save']).as('cms.users.create')
@@ -287,6 +335,15 @@ router
     router.get('/videos/report-reasons', [VideosController, 'reasons'])
     router.get('/videos/:id', [VideosController, 'show'])
     router.get('/videos/:id/comments', [VideosController, 'comments'])
+    router.get('/rentals/options', [RentalsController, 'options'])
+    router.get('/rentals/locations', [RentalsController, 'locations'])
+    router.get('/rentals/vehicles', [RentalsController, 'vehicles'])
+    router.get('/rentals/vehicles/:id', [RentalsController, 'vehicle'])
+    router.get('/rentals/vehicles/:id/quote', [RentalsController, 'quote'])
+    router.get('/rentals/payments/callback', [RentalsController, 'callback'])
+    router
+      .post('/rentals/payments/webhook', [RentalsController, 'webhook'])
+      .use(rentalPaymentWebhookThrottle)
     router.post('/customer/auth/otp', [CustomerAuthController, 'request']).use(customerAuthThrottle)
     router
       .post('/customer/auth/otp/:id/resend', [CustomerAuthController, 'resend'])
@@ -366,6 +423,29 @@ router
           .delete('/video-comments/:id/like', [VideosController, 'unlikeComment'])
           .use(videoActionThrottle)
         router.post('/videos/:id/report', [VideosController, 'report']).use(videoCommentThrottle)
+        router.get('/customer/me/rental-bookings', [RentalsController, 'index'])
+        router.get('/customer/me/rental-bookings/:id', [RentalsController, 'show'])
+        router
+          .post('/customer/me/rental-bookings', [RentalsController, 'store'])
+          .use(rentalBookingThrottle)
+        router
+          .post('/customer/me/rental-bookings/:id/cancel', [RentalsController, 'cancel'])
+          .use(rentalBookingThrottle)
+        router
+          .get('/customer/me/rental-bookings/:id/payment-methods', [
+            RentalsController,
+            'paymentMethods',
+          ])
+          .use(rentalBookingThrottle)
+        router
+          .post('/customer/me/rental-bookings/:id/payment', [RentalsController, 'pay'])
+          .use(rentalBookingThrottle)
+        router
+          .post('/customer/me/rental-bookings/:id/payment/verify', [
+            RentalsController,
+            'verifyPayment',
+          ])
+          .use(rentalBookingThrottle)
         router.patch('/customer/me', [CustomerProfileController, 'update'])
         router.get('/customer/me/photo', [CustomerProfileController, 'photo'])
         router
