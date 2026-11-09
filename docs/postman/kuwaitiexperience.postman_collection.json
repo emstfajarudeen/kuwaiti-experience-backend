@@ -4301,7 +4301,7 @@
   },
   {
    "name": "12A — Car rental",
-   "description": "Public car search and quotes, then customer bookings and booking-fee payment. Reviews need a finished rental (completed, or confirmed and past return time). Run Search vehicles first to capture rental_vehicle_id and rental_location_id. Create booking captures rental_booking_id. The payment web view must be completed in a browser before Verify payment. See docs/rental-api.md and docs/rental-openapi.json.",
+   "description": "Public car search and quotes, then customer bookings and booking-fee payment. Reviews need a finished rental (completed, or confirmed and past return time). Run Locations and Search vehicles first to capture rental_location_id and rental_vehicle_id. Create booking captures rental_booking_id. The payment web view must be completed in a browser before Verify payment. See docs/rental-api.md and docs/rental-openapi.json.",
    "item": [
     {
      "name": "Options",
@@ -4334,6 +4334,38 @@
      "response": []
     },
     {
+     "name": "Locations",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/rentals/locations",
+      "description": "Active pickup/return locations, in CMS sort order. Saves the first one as rental_location_id for Search vehicles and Create booking."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+         "const first = pm.response.json().data[0];",
+         "if (first) pm.environment.set(\"rental_location_id\", first.id);"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
      "name": "Search vehicles",
      "request": {
       "method": "GET",
@@ -4347,7 +4379,74 @@
         "value": "en"
        }
       ],
-      "url": "{{base_url}}/api/v2/rentals/vehicles?pickup_at=2026-12-20T10:00:00%2B03:00&return_at=2026-12-23T10:00:00%2B03:00&sort=price_asc&per_page=12"
+      "url": {
+       "raw": "{{base_url}}/api/v2/rentals/vehicles?pickup_at=2026-12-20T10:00:00%2B03:00&return_at=2026-12-23T10:00:00%2B03:00&sort=price_asc&per_page=12",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "v2",
+        "rentals",
+        "vehicles"
+       ],
+       "query": [
+        {
+         "key": "pickup_at",
+         "value": "2026-12-20T10:00:00%2B03:00",
+         "description": "ISO 8601 with offset; optional, but needed for prices and availability"
+        },
+        {
+         "key": "return_at",
+         "value": "2026-12-23T10:00:00%2B03:00",
+         "description": "Must be after pickup_at"
+        },
+        {
+         "key": "sort",
+         "value": "price_asc",
+         "description": "See Options > sorts (default recommended)"
+        },
+        {
+         "key": "per_page",
+         "value": "12"
+        },
+        {
+         "key": "page",
+         "value": "1",
+         "disabled": true
+        },
+        {
+         "key": "pickup_location_id",
+         "value": "{{rental_location_id}}",
+         "disabled": true,
+         "description": "Only vehicles offered at this location (run Locations first)"
+        },
+        {
+         "key": "with_driver",
+         "value": "true",
+         "disabled": true,
+         "description": "Only vehicles that offer a driver; prices include the driver rate"
+        },
+        {
+         "key": "vehicle_type",
+         "value": "sedan,suv",
+         "disabled": true,
+         "description": "Comma list; codes from Options > vehicle_types"
+        },
+        {
+         "key": "transmission",
+         "value": "automatic",
+         "disabled": true,
+         "description": "Comma list; codes from Options > transmissions"
+        },
+        {
+         "key": "seats_min",
+         "value": "5",
+         "disabled": true,
+         "description": "Minimum seats (1-60)"
+        }
+       ]
+      }
      },
      "event": [
       {
@@ -4358,7 +4457,8 @@
          "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
          "const first = pm.response.json().data[0];",
          "if (first) pm.environment.set(\"rental_vehicle_id\", first.id);",
-         "if (first) pm.environment.set(\"rental_provider_id\", first.provider.id);"
+         "if (first) pm.environment.set(\"rental_provider_id\", first.provider.id);",
+         "if (first && !pm.environment.get(\"rental_location_id\") && first.locations && first.locations[0]) pm.environment.set(\"rental_location_id\", first.locations[0].id);"
         ]
        }
       }
@@ -4465,6 +4565,64 @@
         }
        }
       }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 201 or 200\", function () { pm.expect([200, 201]).to.include(pm.response.code); });",
+         "if (pm.response.code === 201 || pm.response.code === 200) pm.environment.set(\"rental_booking_id\", pm.response.json().data.id);"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Create booking with driver and return location",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Idempotency-Key",
+        "value": "{{$guid}}"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/customer/me/rental-bookings",
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"vehicle_id\": {{rental_vehicle_id}},\n  \"pickup_at\": \"2026-12-20T10:00:00+03:00\",\n  \"return_at\": \"2026-12-23T10:00:00+03:00\",\n  \"pickup_location_id\": {{rental_location_id}},\n  \"return_location_id\": {{rental_location_id}},\n  \"with_driver\": true,\n  \"notes\": null\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      },
+      "description": "Same as Create booking, with a driver and an explicit return location. The vehicle must have with_driver_available = true (search with with_driver=true first), otherwise 422. return_location_id is optional and defaults to the pickup location. Send a new Idempotency-Key per booking; repeating a key returns the original booking with 200."
      },
      "event": [
       {
@@ -4644,7 +4802,8 @@
        "script": {
         "type": "text/javascript",
         "exec": [
-         "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });"
+         "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+         "if (pm.response.code === 201) pm.environment.set(\"rental_invoice_id\", pm.response.json().data.invoice_id);"
         ]
        }
       }
@@ -4675,6 +4834,90 @@
          "type": "string"
         }
        ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Payment callback (gateway redirect)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "text/html"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/v2/rentals/payments/callback?paymentId={{rental_payment_id}}",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "v2",
+        "rentals",
+        "payments",
+        "callback"
+       ],
+       "query": [
+        {
+         "key": "paymentId",
+         "value": "{{rental_payment_id}}",
+         "description": "MyFatoorah PaymentId from the hosted page redirect (PaymentId is also accepted)"
+        }
+       ]
+      },
+      "description": "Called by the browser after the hosted MyFatoorah page, not by the app. Syncs the payment, then redirects to RENTAL_PAYMENT_RETURN_URL with status, booking_id and reference, or returns a small HTML page when that is not set. Set rental_payment_id to the paymentId from a real redirect to replay it."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"Redirect or HTML page\", function () { pm.expect([200, 302]).to.include(pm.response.code); });"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Payment webhook (MyFatoorah)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/rentals/payments/webhook",
+      "description": "Server-to-server notification from MyFatoorah; rate limited. The body only tells the server which invoice to re-check: it pulls the real status from the gateway, so a forged webhook cannot confirm a booking. Returns processed=false for unknown invoices.",
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"EventType\": 1,\n  \"Event\": \"TransactionsStatusChanged\",\n  \"Data\": {\n    \"InvoiceId\": \"{{rental_invoice_id}}\",\n    \"TransactionStatus\": \"SUCCESS\"\n  }\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
       }
      },
      "event": [
