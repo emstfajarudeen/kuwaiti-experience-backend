@@ -1,6 +1,9 @@
-import type { ReactNode } from 'react'
-import { usePage } from '@inertiajs/react'
+import { useState, type ReactNode } from 'react'
+import { Button, Form, message } from 'antd'
+import type { FormDataConvertible } from '@inertiajs/core'
 import { useAuthorization } from '../lib/authorization'
+import { postCmsForm } from '../lib/cms_form'
+import RequiredMark from './required_mark'
 
 export type SharedProps = {
   adminName: string
@@ -17,27 +20,31 @@ const tabs = [
 ]
 
 /** Sub-navigation across the rental catalogue screens. */
-export function RentalTabs({ current }: { current: string }) {
+export function RentalTabs({ current, actions }: { current: string; actions?: ReactNode }) {
   return (
-    <nav className="tw:mb-5 tw:flex tw:flex-wrap tw:gap-2" aria-label="Rental catalogue">
-      {tabs.map((tab) => (
-        <a
-          key={tab.key}
-          href={tab.href}
-          aria-current={tab.key === current ? 'page' : undefined}
-          className={`tw:rounded-full tw:border tw:px-4 tw:py-1.5 tw:text-[13px] tw:font-semibold ${
-            tab.key === current
-              ? 'tw:border-brand-navy-deep tw:bg-brand-navy-deep tw:text-white'
-              : 'tw:border-brand-line tw:bg-white tw:text-brand-navy-deep'
-          }`}
-        >
-          {tab.label}
-        </a>
-      ))}
-    </nav>
+    <div className="tw:mb-5 tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3">
+      <nav className="tw:flex tw:flex-wrap tw:gap-2" aria-label="Rental catalogue">
+        {tabs.map((tab) => (
+          <a
+            key={tab.key}
+            href={tab.href}
+            aria-current={tab.key === current ? 'page' : undefined}
+            className={`tw:rounded-full tw:border tw:px-4 tw:py-1.5 tw:text-[13px] tw:font-semibold ${
+              tab.key === current
+                ? 'tw:border-brand-navy-deep tw:bg-brand-navy-deep tw:text-white'
+                : 'tw:border-brand-line tw:bg-white tw:text-brand-navy-deep'
+            }`}
+          >
+            {tab.label}
+          </a>
+        ))}
+      </nav>
+      {actions}
+    </div>
   )
 }
 
+/** Card used by read-only detail pages. */
 export function Panel({
   title,
   children,
@@ -60,55 +67,151 @@ export function Panel({
   )
 }
 
-export function useFieldErrors() {
-  const errors = (usePage().props as unknown as { errors?: Record<string, string | string[]> })
-    .errors
-  return (name: string) => {
-    const value = errors?.[name]
-    return Array.isArray(value) ? value[0] : value
-  }
-}
-
-export function FieldError({ message }: { message?: string }) {
-  if (!message) return null
+/** A titled block inside a form card, same look as the other CMS forms. */
+export function FormSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <p className="field-error" role="alert">
-      {message}
-    </p>
+    <section className="cms-form-section">
+      <h2>{title}</h2>
+      <div className="form-grid two tw:mt-4 tw:grid tw:grid-cols-2 tw:gap-4 tw:max-[900px]:grid-cols-1">
+        {children}
+      </div>
+    </section>
   )
 }
 
-/** Plain labelled input for native multipart forms. */
-export function Field({
+/** Label + Ant Design form item, laid out like the other CMS forms. */
+export function FormField({
   label,
   name,
-  error,
   required,
-  children,
+  message: requiredMessage,
   hint,
+  className,
+  valuePropName,
+  rules = [],
+  children,
 }: {
-  label: string
+  label?: string
   name: string
-  error?: string
   required?: boolean
+  message?: string
   hint?: string
+  className?: string
+  valuePropName?: string
+  rules?: Array<Record<string, unknown>>
   children: ReactNode
 }) {
   return (
-    <label className="tw:flex tw:flex-col tw:gap-1" htmlFor={name}>
-      <span className="tw:text-[13px] tw:font-semibold">
-        {label}
-        {required && <span className="tw:text-red-600"> *</span>}
-      </span>
-      {children}
-      {hint && <span className="tw:text-[12px] tw:text-brand-muted">{hint}</span>}
-      <FieldError message={error} />
+    <label className={className}>
+      {label && (
+        <span>
+          {label} {required && <RequiredMark />}
+        </span>
+      )}
+      <Form.Item
+        name={name}
+        valuePropName={valuePropName}
+        rules={[
+          ...(required
+            ? [{ required: true, message: requiredMessage ?? `Enter ${label ?? name}.` }]
+            : []),
+          ...rules,
+        ]}
+      >
+        {children}
+      </Form.Item>
+      {hint && <span className="tw:-mt-3 tw:block tw:text-[12px] tw:text-brand-muted">{hint}</span>}
     </label>
   )
 }
 
-export const inputClass =
-  'tw:w-full tw:rounded-cms-sm tw:border tw:border-brand-line tw:bg-white tw:px-3 tw:py-2 tw:text-[14px]'
+/**
+ * The card + action bar shared by the rental forms. Forms with files post the native form
+ * (multipart); the others post the Ant Design values as JSON.
+ */
+export function RentalFormShell({
+  id,
+  action,
+  csrfToken,
+  initialValues,
+  multipart = false,
+  cancelHref,
+  submitLabel,
+  extraActions,
+  disabled = false,
+  children,
+}: {
+  id: string
+  action: string
+  csrfToken: string
+  initialValues: Record<string, unknown>
+  multipart?: boolean
+  cancelHref: string
+  submitLabel: string
+  extraActions?: ReactNode
+  disabled?: boolean
+  children: ReactNode
+}) {
+  const [form] = Form.useForm()
+  const [processing, setProcessing] = useState(false)
+  return (
+    <Form
+      id={id}
+      component="form"
+      form={form}
+      layout="vertical"
+      initialValues={initialValues}
+      disabled={disabled}
+      noValidate
+      action={action}
+      method="POST"
+      encType={multipart ? 'multipart/form-data' : undefined}
+      onFinish={(values) => {
+        const element = document.getElementById(id) as HTMLFormElement | null
+        const data =
+          multipart && element
+            ? new FormData(element)
+            : (JSON.parse(JSON.stringify(values)) as Record<string, FormDataConvertible>)
+        postCmsForm({
+          action,
+          csrfToken,
+          form,
+          setProcessing,
+          data,
+          onError: (errors) => {
+            const first = Object.values(errors)[0]
+            if (first) void message.error({ content: String(first), key: `${id}-error` })
+            const firstField = Object.keys(errors)[0]
+            if (firstField) form.scrollToField(firstField, { focus: true })
+          },
+        })
+      }}
+      onFinishFailed={({ errorFields }) => {
+        const first = errorFields[0]
+        if (!first) return
+        void message.error({
+          content: first.errors[0] ?? 'Fix the highlighted fields.',
+          key: `${id}-error`,
+        })
+        form.scrollToField(first.name, { focus: true })
+      }}
+    >
+      <input type="hidden" name="_csrf" value={csrfToken} />
+      <div className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-6 tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)]">
+        {children}
+      </div>
+      <div className="cms-form-actions">
+        {extraActions}
+        <Button href={cancelHref}>Cancel</Button>
+        {!disabled && (
+          <Button type="primary" htmlType="submit" loading={processing}>
+            {submitLabel}
+          </Button>
+        )}
+      </div>
+    </Form>
+  )
+}
 
 const statusLabels: Record<string, string> = {
   pending_payment: 'Awaiting payment',
@@ -162,7 +265,7 @@ export function formatDateTime(value: string | null | undefined) {
   }).format(new Date(value))
 }
 
-/** Hidden CSRF field + form posting for small action forms. */
+/** Small POST form for one-click actions; keep any button inside an Ant Design `Button`. */
 export function ActionForm({
   action,
   csrfToken,

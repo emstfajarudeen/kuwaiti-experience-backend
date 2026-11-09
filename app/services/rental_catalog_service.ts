@@ -1,10 +1,9 @@
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { ApiError } from './api_error.js'
-import { pagination, positiveId } from './explore_read_service.js'
+import { imageLinks, pagination, positiveId } from './explore_read_service.js'
 import { quoteFor, toFils, kwd } from './rental_money.js'
 import type { PublicLocale } from './public_localization.js'
-import { publicImageUrl } from './image_storage_service.js'
 
 type Row = Record<string, any>
 type Client = typeof db | TransactionClientContract
@@ -243,11 +242,11 @@ function vehicleCard(
         ? kwd(toFils(row.driver_daily_rate))
         : null,
     currency: 'KWD',
-    cover_image_url: publicImageUrl(row.cover_image_key),
+    cover_image_key: row.cover_image_key ?? null,
     provider: {
       id: Number(row.provider_id),
       name: text(row.provider_name_en, row.provider_name_ar, locale),
-      logo_url: publicImageUrl(row.provider_logo_image_key),
+      logo_image_key: row.provider_logo_image_key ?? null,
     },
     quote: window
       ? quoteFor({
@@ -272,6 +271,7 @@ const providerColumns = [
 
 export async function searchOptions(locale: PublicLocale) {
   const settings = await rentalSettings()
+  const locationList = await activeLocations(locale)
   return {
     data: {
       vehicle_types: Object.entries(VEHICLE_TYPES).map(([code, names]) => ({
@@ -283,7 +283,7 @@ export async function searchOptions(locale: PublicLocale) {
         label: names[locale],
       })),
       sorts: SORTS,
-      locations: (await activeLocations(locale)).data,
+      locations: locationList.data,
       booking_fee: settings.booking_fee,
       currency: 'KWD',
       min_lead_minutes: settings.min_lead_minutes,
@@ -368,6 +368,9 @@ export async function listVehicles(input: Row, locale: PublicLocale) {
   return {
     data: rows.map((row: Row) => vehicleCard(row, locale, settings, window, withDriver)),
     meta: {
+      images: imageLinks(
+        rows.flatMap((row: Row) => [row.cover_image_key, row.provider_logo_image_key])
+      ),
       page,
       per_page: perPage,
       total,
@@ -415,12 +418,13 @@ export async function vehicleDetail(id: unknown, input: Row, locale: PublicLocal
   ])
   const available = window ? (await freeUnits(db, row, window)) > 0 : null
   const card = vehicleCard(row, locale, settings, window, withDriver)
+  const galleryKeys = [row.cover_image_key, ...images.map((image) => image.storage_key)].filter(
+    (key): key is string => Boolean(key)
+  )
   return {
     data: {
       ...card,
-      gallery: [row.cover_image_key, ...images.map((image) => image.storage_key)]
-        .filter(Boolean)
-        .map((key) => publicImageUrl(key)),
+      gallery: galleryKeys.map((storage_key) => ({ storage_key })),
       min_driver_age: Number(row.min_driver_age),
       insurance: text(row.insurance_en, row.insurance_ar, locale),
       terms: text(row.terms_en, row.terms_ar, locale),
@@ -433,6 +437,9 @@ export async function vehicleDetail(id: unknown, input: Row, locale: PublicLocal
       available,
       booking_fee: settings.booking_fee,
       cancellation_cutoff_hours: settings.cancellation_cutoff_hours,
+    },
+    meta: {
+      images: imageLinks([...galleryKeys, card.provider.logo_image_key]),
     },
   }
 }

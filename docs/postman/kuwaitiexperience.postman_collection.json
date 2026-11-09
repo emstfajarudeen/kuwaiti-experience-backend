@@ -3,7 +3,7 @@
   "_postman_id": "253811f7-4325-4b3f-a0ec-85e39fd940ad",
   "name": "Kuwaiti Experience — App, Website and CMS APIs",
   "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-  "description": "Import the companion Local environment and select it. Set base_url and your phone numbers. Requests are intended to be sent individually: login branches, optional resend, photo selection, logout and deletion require manual choices. See docs/postman/README.md. No real credentials or OTPs are included. Customer token/proof values are captured into the selected environment only after successful responses. SMS request/resend returns 503 until the configured provider adapter is available. Explore v2 browsing, bookmarks and CMS movie/feature/showtime requests are in folders 07–09; see docs/explore-api.md. Home v2 guest/customer reads and CMS management are in folder 09A; see docs/app-api-reference.md section 12. Website footer page and contact endpoints are in folders 01 and 05; see docs/website-api-reference.md. Videos (feed, comments, likes, saves, shares, reports and file streaming) are in folder 11; see docs/videos-api-reference.md. The legacy v1 website and CMS JSON API is in folder 12."
+  "description": "Import the companion Local environment and select it. Set base_url and your phone numbers. Requests are intended to be sent individually: login branches, optional resend, photo selection, logout and deletion require manual choices. See docs/postman/README.md. No real credentials or OTPs are included. Customer token/proof values are captured into the selected environment only after successful responses. SMS request/resend returns 503 until the configured provider adapter is available. Explore v2 browsing, bookmarks and CMS movie/feature/showtime requests are in folders 07–09; see docs/explore-api.md. Home v2 guest/customer reads and CMS management are in folder 09A; see docs/app-api-reference.md section 12. Website footer page and contact endpoints are in folders 01 and 05; see docs/website-api-reference.md. Videos (feed, comments, likes, saves, shares, reports and file streaming) are in folder 11; see docs/videos-api-reference.md. Car rental search, quotes, bookings and booking-fee payment are in folder 12A; see docs/rental-api.md and docs/rental-openapi.json. The legacy v1 website and CMS JSON API is in folder 12."
  },
  "item": [
   {
@@ -4291,6 +4291,450 @@
         "type": "text/javascript",
         "exec": [
          "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });"
+        ]
+       }
+      }
+     ],
+     "response": []
+    }
+   ]
+  },
+  {
+   "name": "12A — Car rental",
+   "description": "Public car search and quotes, then customer bookings and booking-fee payment. Run Search vehicles first to capture rental_vehicle_id and rental_location_id. Create booking captures rental_booking_id. The payment web view must be completed in a browser before Verify payment. See docs/rental-api.md and docs/rental-openapi.json.",
+   "item": [
+    {
+     "name": "Options",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/rentals/options"
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+         "pm.environment.set(\"rental_location_id\", pm.response.json().data.locations[0].id);"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Search vehicles",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/rentals/vehicles?pickup_at=2026-12-20T10:00:00%2B03:00&return_at=2026-12-23T10:00:00%2B03:00&sort=price_asc&per_page=12"
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+         "const first = pm.response.json().data[0];",
+         "if (first) pm.environment.set(\"rental_vehicle_id\", first.id);"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Vehicle detail with period",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/rentals/vehicles/{{rental_vehicle_id}}?pickup_at=2026-12-20T10:00:00%2B03:00&return_at=2026-12-23T10:00:00%2B03:00"
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Quote",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/rentals/vehicles/{{rental_vehicle_id}}/quote?pickup_at=2026-12-20T10:00:00%2B03:00&return_at=2026-12-23T10:00:00%2B03:00&with_driver=false"
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Create booking",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Idempotency-Key",
+        "value": "{{$guid}}"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/customer/me/rental-bookings",
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"vehicle_id\": {{rental_vehicle_id}},\n  \"pickup_at\": \"2026-12-20T10:00:00+03:00\",\n  \"return_at\": \"2026-12-23T10:00:00+03:00\",\n  \"pickup_location_id\": {{rental_location_id}},\n  \"with_driver\": false,\n  \"notes\": \"Child seat please\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 201 or 200\", function () { pm.expect([200, 201]).to.include(pm.response.code); });",
+         "if (pm.response.code === 201 || pm.response.code === 200) pm.environment.set(\"rental_booking_id\", pm.response.json().data.id);"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "List my rental bookings",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/customer/me/rental-bookings?status=active,past&page=1&per_page=12",
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Read my rental booking",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/customer/me/rental-bookings/{{rental_booking_id}}",
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Payment methods for booking fee",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/customer/me/rental-bookings/{{rental_booking_id}}/payment-methods",
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+         "const first = pm.response.json().data[0];",
+         "if (first) pm.environment.set(\"payment_method_id\", first.id);"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Start booking-fee payment",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/customer/me/rental-bookings/{{rental_booking_id}}/payment",
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"payment_method_id\": {{payment_method_id}}\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Verify payment after web view",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/customer/me/rental-bookings/{{rental_booking_id}}/payment/verify",
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Cancel booking",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/customer/me/rental-bookings/{{rental_booking_id}}/cancel",
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"reason\": \"Plans changed\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
         ]
        }
       }

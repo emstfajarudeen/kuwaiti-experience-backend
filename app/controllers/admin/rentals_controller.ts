@@ -240,6 +240,7 @@ export default class AdminRentalsController {
     const status = String(ctx.request.input('status', ''))
     const query = String(ctx.request.input('q', '')).trim().slice(0, 120)
     const providerId = optionalNumber(ctx.request.input('provider')) ?? undefined
+    const formOptions = await admin.vehicleFormOptions()
     const result = await admin.listVehicles({
       status,
       q: query,
@@ -250,7 +251,7 @@ export default class AdminRentalsController {
       status,
       query,
       providerId: providerId ?? null,
-      providers: (await admin.vehicleFormOptions()).providers,
+      providers: formOptions.providers,
       rows: result.rows.map(serializeVehicle),
       meta: {
         total: result.total,
@@ -358,7 +359,7 @@ export default class AdminRentalsController {
       await admin.setVehicleStatus(Number(ctx.params.id), status, ctx.admin.id)
       ctx.session.flash(
         'success',
-        status === 'published' ? 'Vehicle published.' : 'Vehicle moved to drafts.'
+        status === 'published' ? 'Vehicle activated.' : 'Vehicle deactivated.'
       )
     } catch (error) {
       fail(ctx, error, 'Unable to update the vehicle.')
@@ -482,6 +483,21 @@ export default class AdminRentalsController {
     }
   }
 
+  async providerStatus(ctx: HttpContext) {
+    const raw = ctx.request.input('active')
+    const active = [true, 'true', 1, '1', 'on'].includes(raw)
+    try {
+      await admin.setProviderActive(Number(ctx.params.id), active, ctx.admin.id)
+      ctx.session.flash('success', active ? 'Provider activated.' : 'Provider deactivated.')
+    } catch (error) {
+      fail(ctx, error, 'Unable to update the provider.')
+    }
+    const returnTo = String(ctx.request.input('returnTo', ''))
+    return ctx.response.redirect(
+      returnTo.startsWith('/admin/rentals/') ? returnTo : '/admin/rentals/providers'
+    )
+  }
+
   async deleteProvider(ctx: HttpContext) {
     try {
       await admin.deleteProvider(Number(ctx.params.id), ctx.admin.id)
@@ -560,6 +576,21 @@ export default class AdminRentalsController {
         id ? `/admin/rentals/locations/${id}/edit` : '/admin/rentals/locations/new'
       )
     }
+  }
+
+  async locationStatus(ctx: HttpContext) {
+    const raw = ctx.request.input('active')
+    const active = [true, 'true', 1, '1', 'on'].includes(raw)
+    try {
+      await admin.setLocationActive(Number(ctx.params.id), active, ctx.admin.id)
+      ctx.session.flash('success', active ? 'Location activated.' : 'Location deactivated.')
+    } catch (error) {
+      fail(ctx, error, 'Unable to update the location.')
+    }
+    const returnTo = String(ctx.request.input('returnTo', ''))
+    return ctx.response.redirect(
+      returnTo.startsWith('/admin/rentals/') ? returnTo : '/admin/rentals/locations'
+    )
   }
 
   async deleteLocation(ctx: HttpContext) {

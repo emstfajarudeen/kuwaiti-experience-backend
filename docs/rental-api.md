@@ -2,7 +2,14 @@
 
 Status: **implemented 5 November 2026** (App 2 Section 6). Inventory is managed in the CMS (**Rentals → Rental fleet**). The app charges only a **booking fee** through MyFatoorah. The rental amount and deposit are paid directly to the provider at pickup.
 
-All paths are under `/api/v2`. Send `Accept-Language: en|ar` for localized names, insurance and terms text. Money is a KWD string with three decimals (`"12.500"`). Times are ISO 8601 date-times with a time zone. Send Kuwait times as `+03:00`; responses are UTC (`Z`). Errors use the shared `{ error: { code, message, requestId, fields? } }` envelope.
+All paths are under `/api/v2`. Send `Accept-Language: en|ar` for localized names, insurance and terms text. Money is a KWD string with three decimals (`"12.500"`). Times are ISO 8601 date-times with a time zone. Send Kuwait times as `+03:00`; responses are UTC (`Z`). Errors use the shared `{ error: { code, message, requestId, fields? } }` envelope. Machine-readable schemas are in [rental-openapi.json](rental-openapi.json), and the importable requests are in Postman folder **12A — Car rental**.
+
+## 0. Response conventions
+
+- Keys are snake_case. Flags are booleans, IDs are integers, timestamps are ISO strings, and money is a three-decimal KWD string.
+- Lists return `data` plus `meta` with `page`, `per_page`, `total` and `last_page`.
+- Image fields hold stored **keys** (`cover_image_key`, `logo_image_key`, `gallery[].storage_key`). Resolve each key through `meta.images[]`, which is `{ storage_key, url }` with the URL relative to the API origin. Keys without a URL are `null`.
+- Booking responses include `meta.images` for the vehicle cover. Create, list, detail, cancel and verify use the same booking shape.
 
 ## 1. Flow
 

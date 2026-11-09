@@ -364,7 +364,7 @@ export default class RentalSeeder extends BaseSeeder {
             vehicle_type: camryRow.vehicle_type,
             transmission: camryRow.transmission,
             seats: camryRow.seats,
-            cover_image_url: `/api/v1/images/${camryRow.cover_image_key}`,
+            cover_image_key: camryRow.cover_image_key,
             mileage_limit_km: camryRow.mileage_limit_km,
             min_driver_age: camryRow.min_driver_age,
             insurance_en: camryRow.insurance_en,

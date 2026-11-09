@@ -9,6 +9,7 @@ import {
   latestPayment,
   ownedBooking,
   serializeBooking,
+  bookingResponse,
 } from './rental_booking_service.js'
 import { kwd, toFils } from './rental_money.js'
 import { createCustomerNotification } from './customer_notification_service.js'
@@ -254,7 +255,7 @@ export async function verifyPayment(customerId: number, bookingId: unknown, loca
   if (!payment) throw new ApiError(409, 'NO_PAYMENT', 'No payment was started for this booking')
   await syncPayment(String(payment.invoice_id), 'InvoiceId')
   const fresh = await ownedBooking(db, customerId, bookingId)
-  return { data: await serializeBooking(db, fresh, locale) }
+  return bookingResponse(await serializeBooking(db, fresh, locale))
 }
 
 /** Where the gateway's browser redirect ends. The app watches for this URL. */

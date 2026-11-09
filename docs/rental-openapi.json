@@ -1,0 +1,2240 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Kuwaiti Experience Car Rental API",
+    "version": "2.0.0",
+    "description": "Car rental search, quote, reservation and booking-fee payment for the mobile app. Inventory is managed in the CMS. The app charges only the booking fee through MyFatoorah; the rental amount and deposit are paid to the provider at pickup. Money is a three-decimal KWD string. Responses use the shared envelope; image keys are resolved through meta.images. See rental-api.md for the flow."
+  },
+  "paths": {
+    "/api/v2/rentals/options": {
+      "get": {
+        "summary": "Search options: vehicle types, transmissions, sorts, pickup locations and booking rules",
+        "tags": [
+          "Car rental"
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            },
+            "description": "Localizes names, insurance and terms. Missing Arabic text falls back to English per field."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptionsResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/rentals/locations": {
+      "get": {
+        "summary": "Active pickup and return locations",
+        "tags": [
+          "Car rental"
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            },
+            "description": "Localizes names, insurance and terms. Missing Arabic text falls back to English per field."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Location"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/rentals/vehicles": {
+      "get": {
+        "summary": "Search vehicles; with a period only vehicles with a free unit are returned",
+        "tags": [
+          "Car rental"
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            },
+            "description": "Localizes names, insurance and terms. Missing Arabic text falls back to English per field."
+          },
+          {
+            "name": "pickup_at",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Send with return_at. Kuwait times use +03:00."
+          },
+          {
+            "name": "return_at",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "with_driver",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "pickup_location_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "vehicle_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "sedan,suv"
+            },
+            "description": "Comma list: sedan, suv, hatchback, luxury, sports, van, pickup."
+          },
+          {
+            "name": "transmission",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "automatic"
+            },
+            "description": "Comma list: automatic, manual."
+          },
+          {
+            "name": "seats_min",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "recommended",
+                "price_asc",
+                "price_desc",
+                "newest"
+              ],
+              "default": "recommended"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/rentals/vehicles/{id}": {
+      "get": {
+        "summary": "Vehicle detail with gallery, insurance, terms, locations and, with a period, quote and availability",
+        "tags": [
+          "Car rental"
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            },
+            "description": "Localizes names, insurance and terms. Missing Arabic text falls back to English per field."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "pickup_at",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Send with return_at. Kuwait times use +03:00."
+          },
+          {
+            "name": "return_at",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "with_driver",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VehicleDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/rentals/vehicles/{id}/quote": {
+      "get": {
+        "summary": "Price quote and availability for a period",
+        "tags": [
+          "Car rental"
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            },
+            "description": "Localizes names, insurance and terms. Missing Arabic text falls back to English per field."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "pickup_at",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Send with return_at. Kuwait times use +03:00."
+          },
+          {
+            "name": "return_at",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "with_driver",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Quote"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/customer/me/rental-bookings": {
+      "get": {
+        "summary": "My rental bookings, newest first",
+        "tags": [
+          "Car rental bookings"
+        ],
+        "security": [
+          {
+            "customerBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            },
+            "description": "Localizes names, insurance and terms. Missing Arabic text falls back to English per field."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Groups: active, past, cancelled; or comma-separated raw statuses."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Reserve a vehicle; creates a pending_payment booking that holds one unit until hold_expires_at",
+        "tags": [
+          "Car rental bookings"
+        ],
+        "security": [
+          {
+            "customerBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            },
+            "description": "Localizes names, insurance and terms. Missing Arabic text falls back to English per field."
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 80,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            },
+            "description": "Generate one per checkout attempt and reuse it on retries."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBookingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Replay of the same Idempotency-Key and body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/customer/me/rental-bookings/{id}": {
+      "get": {
+        "summary": "My booking detail (other customers get 404)",
+        "tags": [
+          "Car rental bookings"
+        ],
+        "security": [
+          {
+            "customerBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            },
+            "description": "Localizes names, insurance and terms. Missing Arabic text falls back to English per field."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/customer/me/rental-bookings/{id}/cancel": {
+      "post": {
+        "summary": "Cancel a booking. Pending bookings can always be cancelled; confirmed bookings until the cut-off.",
+        "tags": [
+          "Car rental bookings"
+        ],
+        "security": [
+          {
+            "customerBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            },
+            "description": "Localizes names, insurance and terms. Missing Arabic text falls back to English per field."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "reason": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/customer/me/rental-bookings/{id}/payment-methods": {
+      "get": {
+        "summary": "MyFatoorah payment methods for the booking fee",
+        "tags": [
+          "Car rental payments"
+        ],
+        "security": [
+          {
+            "customerBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            },
+            "description": "Localizes names, insurance and terms. Missing Arabic text falls back to English per field."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PaymentMethod"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/customer/me/rental-bookings/{id}/payment": {
+      "post": {
+        "summary": "Start the booking-fee payment; open payment_url in a web view",
+        "tags": [
+          "Car rental payments"
+        ],
+        "security": [
+          {
+            "customerBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            },
+            "description": "Localizes names, insurance and terms. Missing Arabic text falls back to English per field."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "payment_method_id"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "payment_method_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentStart"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/customer/me/rental-bookings/{id}/payment/verify": {
+      "post": {
+        "summary": "Ask MyFatoorah for the payment status and return the booking. Call after the web view reaches the callback URL.",
+        "tags": [
+          "Car rental payments"
+        ],
+        "security": [
+          {
+            "customerBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            },
+            "description": "Localizes names, insurance and terms. Missing Arabic text falls back to English per field."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "customerBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Customer access token"
+      }
+    },
+    "schemas": {
+      "Money": {
+        "type": "string",
+        "pattern": "^\\d+\\.\\d{3}$",
+        "example": "12.500"
+      },
+      "MetaImage": {
+        "type": "object",
+        "required": [
+          "storage_key",
+          "url"
+        ],
+        "properties": {
+          "storage_key": {
+            "type": "string"
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Resolve against the API origin."
+          }
+        }
+      },
+      "Location": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "address",
+          "latitude",
+          "longitude"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string",
+            "description": "Localized name."
+          },
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "latitude": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "longitude": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        }
+      },
+      "Code": {
+        "type": "object",
+        "required": [
+          "code",
+          "label"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      },
+      "VehicleCard": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "make",
+          "model",
+          "year",
+          "vehicle_type",
+          "transmission",
+          "fuel_type",
+          "seats",
+          "doors",
+          "bags",
+          "mileage_limit_km",
+          "unlimited_mileage",
+          "daily_rate",
+          "deposit_amount",
+          "with_driver_available",
+          "driver_daily_rate",
+          "currency",
+          "cover_image_key",
+          "provider",
+          "quote"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "make": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "vehicle_type": {
+            "$ref": "#/components/schemas/Code"
+          },
+          "transmission": {
+            "$ref": "#/components/schemas/Code"
+          },
+          "fuel_type": {
+            "$ref": "#/components/schemas/Code"
+          },
+          "seats": {
+            "type": "integer"
+          },
+          "doors": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "bags": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "mileage_limit_km": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "null means unlimited mileage."
+          },
+          "unlimited_mileage": {
+            "type": "boolean"
+          },
+          "daily_rate": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{3}$",
+            "example": "12.500"
+          },
+          "deposit_amount": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{3}$",
+            "example": "12.500"
+          },
+          "with_driver_available": {
+            "type": "boolean"
+          },
+          "driver_daily_rate": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{3}$",
+                "example": "12.500"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "KWD"
+            ]
+          },
+          "cover_image_key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Resolve through meta.images."
+          },
+          "provider": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "logo_image_key"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "logo_image_key": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Resolve through meta.images."
+              }
+            }
+          },
+          "quote": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Quote"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present when pickup_at and return_at were sent."
+          }
+        }
+      },
+      "Quote": {
+        "type": "object",
+        "required": [
+          "days",
+          "daily_rate",
+          "driver_daily_rate",
+          "rental_amount",
+          "deposit_amount",
+          "booking_fee",
+          "pay_now",
+          "pay_at_pickup",
+          "currency"
+        ],
+        "properties": {
+          "days": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Each started 24 hours counts as a day."
+          },
+          "daily_rate": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{3}$",
+            "example": "12.500"
+          },
+          "driver_daily_rate": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{3}$",
+                "example": "12.500"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rental_amount": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{3}$",
+            "example": "12.500"
+          },
+          "deposit_amount": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{3}$",
+            "example": "12.500"
+          },
+          "booking_fee": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{3}$",
+            "example": "12.500"
+          },
+          "pay_now": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{3}$",
+            "example": "12.500"
+          },
+          "pay_at_pickup": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{3}$",
+            "example": "12.500"
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "KWD"
+            ]
+          }
+        }
+      },
+      "OptionsResponse": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "object",
+            "required": [
+              "vehicle_types",
+              "transmissions",
+              "sorts",
+              "locations",
+              "booking_fee",
+              "currency",
+              "min_lead_minutes",
+              "max_rental_days",
+              "hold_minutes",
+              "cancellation_cutoff_hours"
+            ],
+            "properties": {
+              "vehicle_types": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Code"
+                }
+              },
+              "transmissions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Code"
+                }
+              },
+              "sorts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "label"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "label": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "locations": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Location"
+                }
+              },
+              "booking_fee": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{3}$",
+                "example": "12.500"
+              },
+              "currency": {
+                "type": "string",
+                "enum": [
+                  "KWD"
+                ]
+              },
+              "min_lead_minutes": {
+                "type": "integer"
+              },
+              "max_rental_days": {
+                "type": "integer"
+              },
+              "hold_minutes": {
+                "type": "integer"
+              },
+              "cancellation_cutoff_hours": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "VehicleListResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VehicleCard"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "page",
+              "per_page",
+              "total",
+              "last_page",
+              "pickup_at",
+              "return_at",
+              "with_driver",
+              "images"
+            ],
+            "properties": {
+              "page": {
+                "type": "integer"
+              },
+              "per_page": {
+                "type": "integer"
+              },
+              "total": {
+                "type": "integer"
+              },
+              "last_page": {
+                "type": "integer"
+              },
+              "pickup_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "return_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "with_driver": {
+                "type": "boolean"
+              },
+              "images": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MetaImage"
+                }
+              }
+            }
+          }
+        }
+      },
+      "VehicleDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/VehicleCard"
+          },
+          {
+            "type": "object",
+            "required": [
+              "gallery",
+              "min_driver_age",
+              "insurance",
+              "terms",
+              "locations",
+              "available",
+              "booking_fee",
+              "cancellation_cutoff_hours"
+            ],
+            "properties": {
+              "gallery": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "storage_key"
+                  ],
+                  "properties": {
+                    "storage_key": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "description": "Cover first, then the gallery. Resolve through meta.images."
+              },
+              "min_driver_age": {
+                "type": "integer"
+              },
+              "insurance": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "terms": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "locations": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Location"
+                }
+              },
+              "available": {
+                "type": [
+                  "boolean",
+                  "null"
+                ],
+                "description": "null when no period was sent."
+              },
+              "booking_fee": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{3}$",
+                "example": "12.500"
+              },
+              "cancellation_cutoff_hours": {
+                "type": "integer"
+              }
+            }
+          }
+        ]
+      },
+      "VehicleDetailResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/VehicleDetail"
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "images"
+            ],
+            "properties": {
+              "images": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MetaImage"
+                }
+              }
+            }
+          }
+        }
+      },
+      "CreateBookingRequest": {
+        "type": "object",
+        "required": [
+          "vehicle_id",
+          "pickup_at",
+          "return_at",
+          "pickup_location_id"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "vehicle_id": {
+            "type": "integer"
+          },
+          "pickup_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "return_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "pickup_location_id": {
+            "type": "integer"
+          },
+          "return_location_id": {
+            "type": "integer",
+            "description": "Defaults to the pickup location."
+          },
+          "with_driver": {
+            "type": "boolean",
+            "default": false
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          }
+        }
+      },
+      "Booking": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "reference",
+          "status",
+          "pickup_at",
+          "return_at",
+          "with_driver",
+          "vehicle",
+          "provider",
+          "pickup_location",
+          "return_location",
+          "price",
+          "notes",
+          "hold_expires_at",
+          "payment",
+          "can_cancel",
+          "cancel_reason",
+          "created_at",
+          "confirmed_at",
+          "cancelled_at",
+          "completed_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "rental"
+            ]
+          },
+          "reference": {
+            "type": "string",
+            "example": "RN-KWT-28491"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending_payment",
+              "confirmed",
+              "completed",
+              "cancelled",
+              "expired",
+              "refund_required"
+            ]
+          },
+          "pickup_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "return_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "with_driver": {
+            "type": "boolean"
+          },
+          "vehicle": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "make",
+              "model",
+              "year",
+              "vehicle_type",
+              "transmission",
+              "seats",
+              "mileage_limit_km",
+              "unlimited_mileage",
+              "min_driver_age",
+              "cover_image_key",
+              "insurance",
+              "terms"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "make": {
+                "type": "string"
+              },
+              "model": {
+                "type": "string"
+              },
+              "year": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "vehicle_type": {
+                "type": "string"
+              },
+              "transmission": {
+                "type": "string"
+              },
+              "seats": {
+                "type": "integer"
+              },
+              "mileage_limit_km": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "unlimited_mileage": {
+                "type": "boolean"
+              },
+              "min_driver_age": {
+                "type": "integer"
+              },
+              "cover_image_key": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Resolve through meta.images."
+              },
+              "insurance": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "terms": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "provider": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "phone_e164",
+              "address"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "phone_e164": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "address": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "pickup_location": {
+            "$ref": "#/components/schemas/Location"
+          },
+          "return_location": {
+            "$ref": "#/components/schemas/Location"
+          },
+          "price": {
+            "type": "object",
+            "required": [
+              "days",
+              "daily_rate",
+              "driver_daily_rate",
+              "rental_amount",
+              "deposit_amount",
+              "booking_fee",
+              "pay_now",
+              "pay_at_pickup",
+              "currency"
+            ],
+            "properties": {
+              "days": {
+                "type": "integer"
+              },
+              "daily_rate": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{3}$",
+                "example": "12.500"
+              },
+              "driver_daily_rate": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d{3}$",
+                    "example": "12.500"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "rental_amount": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{3}$",
+                "example": "12.500"
+              },
+              "deposit_amount": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{3}$",
+                "example": "12.500"
+              },
+              "booking_fee": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{3}$",
+                "example": "12.500"
+              },
+              "pay_now": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{3}$",
+                "example": "12.500",
+                "description": "Charged in the app."
+              },
+              "pay_at_pickup": {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{3}$",
+                "example": "12.500",
+                "description": "Paid to the provider."
+              },
+              "currency": {
+                "type": "string",
+                "enum": [
+                  "KWD"
+                ]
+              }
+            }
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hold_expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Set only while pending_payment."
+          },
+          "payment": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "id",
+                  "status",
+                  "method",
+                  "amount",
+                  "currency",
+                  "paid_at",
+                  "refunded_at"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "initiated",
+                      "paid",
+                      "failed",
+                      "refunded"
+                    ]
+                  },
+                  "method": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "amount": {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d{3}$",
+                    "example": "12.500"
+                  },
+                  "currency": {
+                    "type": "string"
+                  },
+                  "paid_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "refunded_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "can_cancel": {
+            "type": "boolean"
+          },
+          "cancel_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "confirmed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "cancelled_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "BookingResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Booking"
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "images"
+            ],
+            "properties": {
+              "images": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MetaImage"
+                }
+              }
+            }
+          }
+        }
+      },
+      "BookingListResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Booking"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "page",
+              "per_page",
+              "total",
+              "last_page",
+              "images"
+            ],
+            "properties": {
+              "page": {
+                "type": "integer"
+              },
+              "per_page": {
+                "type": "integer"
+              },
+              "total": {
+                "type": "integer"
+              },
+              "last_page": {
+                "type": "integer"
+              },
+              "images": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MetaImage"
+                }
+              }
+            }
+          }
+        }
+      },
+      "PaymentMethod": {
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name",
+          "image_url",
+          "service_charge",
+          "total_amount",
+          "currency"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Gateway-hosted logo URL."
+          },
+          "service_charge": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{3}$",
+            "example": "12.500"
+          },
+          "total_amount": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d{3}$",
+            "example": "12.500"
+          },
+          "currency": {
+            "type": "string"
+          }
+        }
+      },
+      "PaymentStart": {
+        "type": "object",
+        "required": [
+          "invoice_id",
+          "payment_url",
+          "callback_url",
+          "hold_expires_at"
+        ],
+        "properties": {
+          "invoice_id": {
+            "type": "string"
+          },
+          "payment_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "callback_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "hold_expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+}

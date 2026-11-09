@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { ApiError } from './api_error.js'
-import { pagination, positiveId } from './explore_read_service.js'
+import { imageLinks, pagination, positiveId } from './explore_read_service.js'
 import {
   findVisibleVehicle,
   freeUnits,
@@ -12,7 +12,6 @@ import {
   type RentalSettings,
 } from './rental_catalog_service.js'
 import { quoteFor } from './rental_money.js'
-import { publicImageUrl } from './image_storage_service.js'
 import {
   BOOKING_STATUSES,
   rentalBooking,
@@ -55,6 +54,14 @@ export function customerCanCancel(row: Row, settings: RentalSettings) {
 
 export async function latestPayment(client: Client, bookingId: number) {
   return client.from('rental_payments').where('booking_id', bookingId).orderBy('id', 'desc').first()
+}
+
+/** Booking responses carry the vehicle image as a key, resolved through `meta.images`. */
+export function bookingResponse(booking: { vehicle: { cover_image_key: string | null } }) {
+  return {
+    data: booking,
+    meta: { images: imageLinks([booking.vehicle.cover_image_key]) },
+  }
 }
 
 export async function serializeBooking(
@@ -113,7 +120,7 @@ async function replay(customerId: number, key: string, hash: string, locale: Pub
       'IDEMPOTENCY_CONFLICT',
       'This Idempotency-Key was already used for a different booking request'
     )
-  return { created: false, data: await serializeBooking(db, existing, locale) }
+  return { created: false, ...bookingResponse(await serializeBooking(db, existing, locale)) }
 }
 
 function snapshotLocation(row: Row) {
@@ -213,7 +220,7 @@ export async function createBooking(
           vehicle_type: vehicle.vehicle_type,
           transmission: vehicle.transmission,
           seats: Number(vehicle.seats),
-          cover_image_url: publicImageUrl(vehicle.cover_image_key),
+          cover_image_key: vehicle.cover_image_key ?? null,
           mileage_limit_km:
             vehicle.mileage_limit_km === null ? null : Number(vehicle.mileage_limit_km),
           min_driver_age: Number(vehicle.min_driver_age),
@@ -261,7 +268,10 @@ export async function createBooking(
         updated_at: now,
       })
       const row = await trx.from('rental_bookings').where('id', id).firstOrFail()
-      return { created: true, data: await serializeBooking(trx, row, locale, settings) }
+      return {
+        created: true,
+        ...bookingResponse(await serializeBooking(trx, row, locale, settings)),
+      }
     })
   } catch (error) {
     // A concurrent request with the same key won the insert; answer as a replay.
@@ -306,9 +316,16 @@ export async function listBookings(customerId: number, input: Row, locale: Publi
     .limit(perPage)
     .offset((page - 1) * perPage)
   const settings = await rentalSettings()
+  const bookings = await Promise.all(rows.map((row) => serializeBooking(db, row, locale, settings)))
   return {
-    data: await Promise.all(rows.map((row) => serializeBooking(db, row, locale, settings))),
-    meta: { page, per_page: perPage, total, last_page: Math.max(1, Math.ceil(total / perPage)) },
+    data: bookings,
+    meta: {
+      page,
+      per_page: perPage,
+      total,
+      last_page: Math.max(1, Math.ceil(total / perPage)),
+      images: imageLinks(bookings.map((booking) => booking.vehicle.cover_image_key)),
+    },
   }
 }
 
@@ -324,7 +341,7 @@ export async function ownedBooking(client: Client, customerId: number, id: unkno
 
 export async function showBooking(customerId: number, id: unknown, locale: PublicLocale) {
   await expireStaleHolds()
-  return { data: await serializeBooking(db, await ownedBooking(db, customerId, id), locale) }
+  return bookingResponse(await serializeBooking(db, await ownedBooking(db, customerId, id), locale))
 }
 
 export async function cancelBooking(
@@ -357,6 +374,6 @@ export async function cancelBooking(
         updated_at: now,
       })
     const updated = await trx.from('rental_bookings').where('id', row.id).firstOrFail()
-    return { data: await serializeBooking(trx, updated, locale, settings) }
+    return bookingResponse(await serializeBooking(trx, updated, locale, settings))
   })
 }

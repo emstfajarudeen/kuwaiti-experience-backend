@@ -1,15 +1,12 @@
-import { Table } from 'antd'
+import { useState } from 'react'
+import { Switch, Table } from 'antd'
 import { router } from '@inertiajs/react'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import AdminLayout from '../../layouts/admin_layout'
 import TableToolbar, { useServerFilters } from '../../components/table_toolbar'
-import {
-  ActionForm,
-  RentalTabs,
-  StatusBadge,
-  useCan,
-  type SharedProps,
-} from '../../components/rental_ui'
+import ConfirmModal from '../../components/confirm_modal'
+import RowActionMenu from '../../components/row_action_menu'
+import { RentalTabs, useCan, type SharedProps } from '../../components/rental_ui'
 
 type Vehicle = {
   id: number
@@ -46,9 +43,37 @@ export default function RentalVehicles(props: Props) {
     { q: query, status, provider: providerId ? String(providerId) : '' },
     { q: '', status: '', provider: '' }
   )
-  const returnTo =
-    typeof window === 'undefined' ? '' : window.location.pathname + window.location.search
+  const [busy, setBusy] = useState<number | null>(null)
+  const [deleting, setDeleting] = useState<Vehicle | null>(null)
+  const changeStatus = (row: Vehicle, active: boolean) =>
+    router.post(
+      `/admin/rentals/vehicles/${row.id}/status`,
+      {
+        status: active ? 'published' : 'draft',
+        returnTo: window.location.pathname + window.location.search,
+        _csrf: csrfToken,
+      },
+      { preserveScroll: true, onStart: () => setBusy(row.id), onFinish: () => setBusy(null) }
+    )
   const columns: ColumnsType<Vehicle> = [
+    ...(can('rentals.update')
+      ? [
+          {
+            title: 'Edit',
+            key: 'edit',
+            width: 70,
+            render: (_: unknown, row: Vehicle) => (
+              <a
+                href={`/admin/rentals/vehicles/${row.id}/edit`}
+                className="action-pencil-btn"
+                aria-label={`Edit ${row.name_en}`}
+              >
+                ✎
+              </a>
+            ),
+          },
+        ]
+      : []),
     {
       title: 'Vehicle',
       key: 'vehicle',
@@ -86,25 +111,35 @@ export default function RentalVehicles(props: Props) {
     },
     { title: 'KWD / day', dataIndex: 'daily_rate', key: 'rate' },
     { title: 'Units', dataIndex: 'quantity', key: 'quantity' },
-    { title: 'Status', key: 'status', render: (_, row) => <StatusBadge status={row.status} /> },
     {
-      title: '',
-      key: 'actions',
-      render: (_, row) =>
-        can('rentals.publish') ? (
-          <ActionForm action={`/admin/rentals/vehicles/${row.id}/status`} csrfToken={csrfToken}>
-            <input type="hidden" name="returnTo" value={returnTo} />
-            <input
-              type="hidden"
-              name="status"
-              value={row.status === 'published' ? 'draft' : 'published'}
-            />
-            <button type="submit" className="ant-btn ant-btn-default ant-btn-sm">
-              {row.status === 'published' ? 'Unpublish' : 'Publish'}
-            </button>
-          </ActionForm>
-        ) : null,
+      title: 'Status',
+      key: 'status',
+      width: 90,
+      render: (_, row) => (
+        <Switch
+          aria-label={`${row.status === 'published' ? 'Deactivate' : 'Activate'} ${row.name_en}`}
+          checked={row.status === 'published'}
+          loading={busy === row.id}
+          disabled={!can('rentals.publish') || busy !== null}
+          onChange={(checked) => changeStatus(row, checked)}
+        />
+      ),
     },
+    ...(can('rentals.delete')
+      ? [
+          {
+            title: '',
+            key: 'more',
+            width: 90,
+            render: (_: unknown, row: Vehicle) => (
+              <RowActionMenu
+                label={`More actions for ${row.name_en}`}
+                actions={[{ label: 'Delete', danger: true, onClick: () => setDeleting(row) }]}
+              />
+            ),
+          },
+        ]
+      : []),
   ]
   const changePage = (pagination: TablePaginationConfig) => {
     if (pagination.current && pagination.current !== meta.page)
@@ -121,13 +156,17 @@ export default function RentalVehicles(props: Props) {
     >
       <div className="page-head tw:mb-4 tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-4">
         <h1>Rental fleet</h1>
-        {can('rentals.create') && (
-          <a className="ant-btn ant-btn-primary" href="/admin/rentals/vehicles/new">
-            Add vehicle
-          </a>
-        )}
       </div>
-      <RentalTabs current="vehicles" />
+      <RentalTabs
+        current="vehicles"
+        actions={
+          can('rentals.create') && (
+            <a className="button primary" href="/admin/rentals/vehicles/new">
+              + Add vehicle
+            </a>
+          )
+        }
+      />
       <section className="panel table-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-0">
         <div className="panel-heading tw:border-b tw:border-brand-line-subtle tw:px-6 tw:py-5">
           <h2>Vehicles ({meta.total})</h2>
@@ -185,6 +224,16 @@ export default function RentalVehicles(props: Props) {
           }}
         />
       </section>
+      <ConfirmModal
+        open={Boolean(deleting)}
+        onClose={() => setDeleting(null)}
+        title="Delete vehicle"
+        message={`Delete ${deleting?.name_en ?? 'this vehicle'}? Vehicles that have bookings cannot be deleted; deactivate them instead.`}
+        action={deleting ? `/admin/rentals/vehicles/${deleting.id}/delete` : ''}
+        csrfToken={csrfToken}
+        confirmLabel="Delete"
+        danger
+      />
     </AdminLayout>
   )
 }

@@ -13,7 +13,7 @@ export type BookingSnapshot = {
     vehicle_type: string
     transmission: string
     seats: number
-    cover_image_url: string | null
+    cover_image_key: string | null
     mileage_limit_km: number | null
     min_driver_age: number
     insurance_en: string | null
@@ -110,7 +110,7 @@ export function rentalBooking(
       mileage_limit_km: snapshot.vehicle.mileage_limit_km,
       unlimited_mileage: snapshot.vehicle.mileage_limit_km === null,
       min_driver_age: snapshot.vehicle.min_driver_age,
-      cover_image_url: snapshot.vehicle.cover_image_url,
+      cover_image_key: snapshot.vehicle.cover_image_key ?? null,
       insurance: pick(snapshot.vehicle.insurance_en, snapshot.vehicle.insurance_ar, locale),
       terms: pick(snapshot.vehicle.terms_en, snapshot.vehicle.terms_ar, locale),
     },

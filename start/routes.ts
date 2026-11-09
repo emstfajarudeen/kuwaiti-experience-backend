@@ -157,7 +157,14 @@ router
     router
       .post('/rentals/providers/:id/save', [AdminRentalsController, 'saveProvider'])
       .as('cms.rentalProviders.update')
+    router.post('/rentals/providers/:id/status', [AdminRentalsController, 'providerStatus'])
     router.post('/rentals/providers/:id/delete', [AdminRentalsController, 'deleteProvider'])
+    router
+      .get('/rentals/address-search', [AdminAddressSearchController, 'search'])
+      .as('cms.rentals.address_search')
+    router
+      .get('/rentals/address-reverse', [AdminAddressSearchController, 'reverse'])
+      .as('cms.rentals.address_reverse')
     router.get('/rentals/locations', [AdminRentalsController, 'locations'])
     router.get('/rentals/locations/new', [AdminRentalsController, 'newLocation'])
     router
@@ -167,6 +174,7 @@ router
     router
       .post('/rentals/locations/:id/save', [AdminRentalsController, 'saveLocation'])
       .as('cms.rentalLocations.update')
+    router.post('/rentals/locations/:id/status', [AdminRentalsController, 'locationStatus'])
     router.post('/rentals/locations/:id/delete', [AdminRentalsController, 'deleteLocation'])
     router.get('/rentals/settings', [AdminRentalsController, 'settings'])
     router.post('/rentals/settings', [AdminRentalsController, 'saveSettings'])

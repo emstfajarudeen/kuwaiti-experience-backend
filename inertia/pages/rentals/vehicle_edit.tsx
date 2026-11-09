@@ -1,15 +1,20 @@
+import { useState } from 'react'
+import { Button, Checkbox, DatePicker, Form, Input, InputNumber, Switch } from 'antd'
+import type { Dayjs } from 'dayjs'
+import { router } from '@inertiajs/react'
 import AdminLayout from '../../layouts/admin_layout'
+import ConfirmModal from '../../components/confirm_modal'
+import FormSelect from '../../components/form_select'
 import ImageUpload from '../../components/image_upload'
+import { postCmsForm } from '../../lib/cms_form'
 import {
   ActionForm,
-  Field,
-  FieldError,
+  FormField,
+  FormSection,
   formatDateTime,
-  inputClass,
   Panel,
-  StatusBadge,
+  RentalFormShell,
   useCan,
-  useFieldErrors,
   type SharedProps,
 } from '../../components/rental_ui'
 
@@ -52,10 +57,61 @@ type Props = SharedProps & {
   options: { providers: Option[]; locations: Option[] }
 }
 
-const vehicleTypes = ['sedan', 'suv', 'hatchback', 'luxury', 'sports', 'van', 'pickup']
-const transmissions = ['automatic', 'manual']
-const fuelTypes = ['petrol', 'diesel', 'hybrid', 'electric']
-const title = (value: string) => (value === 'suv' ? 'SUV' : value[0].toUpperCase() + value.slice(1))
+const label = (value: string) => (value === 'suv' ? 'SUV' : value[0].toUpperCase() + value.slice(1))
+const choices = (values: string[]) => values.map((value) => ({ value, label: label(value) }))
+const vehicleTypes = choices(['sedan', 'suv', 'hatchback', 'luxury', 'sports', 'van', 'pickup'])
+const transmissions = choices(['automatic', 'manual'])
+const fuelTypes = choices(['petrol', 'diesel', 'hybrid', 'electric'])
+const moneyRule = { pattern: /^\d{1,7}(\.\d{1,3})?$/, message: 'Use an amount like 12.500.' }
+
+/** Block all units for a period. Picked times are Kuwait time (UTC+3). */
+function BlockForm({ vehicleId, csrfToken }: { vehicleId: number; csrfToken: string }) {
+  const [form] = Form.useForm<{ range: [Dayjs, Dayjs]; reason?: string }>()
+  const [processing, setProcessing] = useState(false)
+  const stamp = (value: Dayjs) => `${value.format('YYYY-MM-DDTHH:mm')}:00+03:00`
+  return (
+    <Form
+      form={form}
+      layout="vertical"
+      className="tw:flex tw:flex-wrap tw:items-end tw:gap-4"
+      onFinish={(values) =>
+        postCmsForm({
+          action: `/admin/rentals/vehicles/${vehicleId}/blocks`,
+          csrfToken,
+          form,
+          setProcessing,
+          data: {
+            startsAt: stamp(values.range[0]),
+            endsAt: stamp(values.range[1]),
+            reason: values.reason ?? '',
+          },
+          onSuccess: () => form.resetFields(),
+        })
+      }
+    >
+      <Form.Item
+        name="range"
+        label="Period"
+        rules={[{ required: true, message: 'Choose the start and end.' }]}
+      >
+        <DatePicker.RangePicker
+          showTime={{ format: 'HH:mm' }}
+          format="DD/MM/YYYY HH:mm"
+          allowClear={false}
+          className="tw:min-w-[360px]"
+        />
+      </Form.Item>
+      <Form.Item name="reason" label="Reason">
+        <Input maxLength={200} placeholder="Maintenance" className="tw:min-w-[220px]" />
+      </Form.Item>
+      <Form.Item>
+        <Button htmlType="submit" loading={processing}>
+          Add period
+        </Button>
+      </Form.Item>
+    </Form>
+  )
+}
 
 export default function RentalVehicleEdit({
   adminName,
@@ -67,21 +123,30 @@ export default function RentalVehicleEdit({
   options,
 }: Props) {
   const can = useCan()
-  const errorFor = useFieldErrors()
-  const value = (key: string, fallback: unknown) => {
-    const flashed = form?.[key]
-    const chosen = flashed !== undefined ? flashed : fallback
-    return chosen === null || chosen === undefined ? '' : String(chosen)
-  }
-  const checked = (key: string, fallback: boolean) =>
-    form?.[key] !== undefined ? Boolean(form[key]) : fallback
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [switching, setSwitching] = useState(false)
+  const value = (key: string, fallback: unknown) =>
+    form?.[key] !== undefined ? form[key] : (fallback ?? '')
   const selectedLocations = new Set<number>(
     Array.isArray(form?.locationIds)
-      ? (form!.locationIds as number[])
+      ? (form.locationIds as number[])
       : (vehicle?.location_ids ?? [])
   )
-  const action = vehicle ? `/admin/rentals/vehicles/${vehicle.id}/save` : '/admin/rentals/vehicles'
   const canEdit = vehicle ? can('rentals.update') : can('rentals.create')
+  const changeStatus = (active: boolean) =>
+    router.post(
+      `/admin/rentals/vehicles/${vehicle!.id}/status`,
+      {
+        status: active ? 'published' : 'draft',
+        returnTo: `/admin/rentals/vehicles/${vehicle!.id}/edit`,
+        _csrf: csrfToken,
+      },
+      {
+        preserveScroll: true,
+        onStart: () => setSwitching(true),
+        onFinish: () => setSwitching(false),
+      }
+    )
 
   return (
     <AdminLayout
@@ -95,25 +160,16 @@ export default function RentalVehicleEdit({
       <a className="back-link tw:mb-4 tw:inline-flex" href="/admin/rentals/vehicles">
         ← Back to fleet
       </a>
-      <div className="page-head tw:mb-6 tw:flex tw:flex-wrap tw:items-center tw:gap-3">
+      <div className="page-head tw:mb-6 tw:flex tw:flex-wrap tw:items-center tw:gap-4">
         <h1>{vehicle ? vehicle.name_en : 'New vehicle'}</h1>
-        {vehicle && <StatusBadge status={vehicle.status} />}
-        {vehicle && can('rentals.publish') && (
-          <ActionForm action={`/admin/rentals/vehicles/${vehicle.id}/status`} csrfToken={csrfToken}>
-            <input
-              type="hidden"
-              name="returnTo"
-              value={`/admin/rentals/vehicles/${vehicle.id}/edit`}
-            />
-            <input
-              type="hidden"
-              name="status"
-              value={vehicle.status === 'published' ? 'draft' : 'published'}
-            />
-            <button type="submit" className="ant-btn ant-btn-default">
-              {vehicle.status === 'published' ? 'Unpublish' : 'Publish'}
-            </button>
-          </ActionForm>
+        {vehicle && (
+          <Switch
+            aria-label="Vehicle active"
+            checked={vehicle.status === 'published'}
+            loading={switching}
+            disabled={!can('rentals.publish') || switching}
+            onChange={changeStatus}
+          />
         )}
       </div>
 
@@ -124,417 +180,234 @@ export default function RentalVehicleEdit({
         </div>
       )}
 
-      <form method="post" action={action} encType="multipart/form-data">
-        <input type="hidden" name="_csrf" value={csrfToken} />
-        <fieldset disabled={!canEdit} className="tw:m-0 tw:border-0 tw:p-0">
-          <Panel title="Vehicle">
-            <div className="tw:grid tw:grid-cols-2 tw:gap-4 tw:max-[900px]:grid-cols-1">
-              <Field label="Provider" name="providerId" required error={errorFor('providerId')}>
-                <select
-                  id="providerId"
-                  name="providerId"
-                  className={inputClass}
-                  defaultValue={value('providerId', vehicle?.provider_id)}
-                  required
-                >
-                  <option value="">Choose a provider</option>
-                  {options.providers.map((provider) => (
-                    <option key={provider.id} value={provider.id}>
-                      {provider.name}
-                      {provider.active ? '' : ' (inactive)'}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field
-                label="Units available"
-                name="quantity"
-                required
-                error={errorFor('quantity')}
-                hint="Identical cars the provider can rent out at the same time."
-              >
-                <input
-                  id="quantity"
-                  name="quantity"
-                  type="number"
-                  min={1}
-                  max={500}
-                  className={inputClass}
-                  defaultValue={value('quantity', vehicle?.quantity ?? 1)}
-                  required
-                />
-              </Field>
-              <Field
-                label="Display name (English)"
-                name="nameEn"
-                required
-                error={errorFor('nameEn')}
-              >
-                <input
-                  id="nameEn"
-                  name="nameEn"
-                  className={inputClass}
-                  maxLength={160}
-                  defaultValue={value('nameEn', vehicle?.name_en)}
-                  required
-                />
-              </Field>
-              <Field label="Display name (Arabic)" name="nameAr" error={errorFor('nameAr')}>
-                <input
-                  id="nameAr"
-                  name="nameAr"
-                  dir="rtl"
-                  lang="ar"
-                  className={inputClass}
-                  maxLength={160}
-                  defaultValue={value('nameAr', vehicle?.name_ar)}
-                />
-              </Field>
-              <Field label="Make" name="make" required error={errorFor('make')}>
-                <input
-                  id="make"
-                  name="make"
-                  className={inputClass}
-                  maxLength={80}
-                  defaultValue={value('make', vehicle?.make)}
-                  required
-                />
-              </Field>
-              <Field label="Model" name="model" required error={errorFor('model')}>
-                <input
-                  id="model"
-                  name="model"
-                  className={inputClass}
-                  maxLength={80}
-                  defaultValue={value('model', vehicle?.model)}
-                  required
-                />
-              </Field>
-              <Field label="Year" name="year" error={errorFor('year')}>
-                <input
-                  id="year"
-                  name="year"
-                  type="number"
-                  min={1980}
-                  max={2100}
-                  className={inputClass}
-                  defaultValue={value('year', vehicle?.year)}
-                />
-              </Field>
-              <Field
-                label="Vehicle type"
-                name="vehicleType"
-                required
-                error={errorFor('vehicleType')}
-              >
-                <select
-                  id="vehicleType"
-                  name="vehicleType"
-                  className={inputClass}
-                  defaultValue={value('vehicleType', vehicle?.vehicle_type ?? 'sedan')}
-                >
-                  {vehicleTypes.map((item) => (
-                    <option key={item} value={item}>
-                      {title(item)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Gearbox" name="transmission" required error={errorFor('transmission')}>
-                <select
-                  id="transmission"
-                  name="transmission"
-                  className={inputClass}
-                  defaultValue={value('transmission', vehicle?.transmission ?? 'automatic')}
-                >
-                  {transmissions.map((item) => (
-                    <option key={item} value={item}>
-                      {title(item)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Fuel" name="fuelType" required error={errorFor('fuelType')}>
-                <select
-                  id="fuelType"
-                  name="fuelType"
-                  className={inputClass}
-                  defaultValue={value('fuelType', vehicle?.fuel_type ?? 'petrol')}
-                >
-                  {fuelTypes.map((item) => (
-                    <option key={item} value={item}>
-                      {title(item)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Seats" name="seats" required error={errorFor('seats')}>
-                <input
-                  id="seats"
-                  name="seats"
-                  type="number"
-                  min={1}
-                  max={60}
-                  className={inputClass}
-                  defaultValue={value('seats', vehicle?.seats ?? 5)}
-                  required
-                />
-              </Field>
-              <Field label="Doors" name="doors" error={errorFor('doors')}>
-                <input
-                  id="doors"
-                  name="doors"
-                  type="number"
-                  min={1}
-                  max={10}
-                  className={inputClass}
-                  defaultValue={value('doors', vehicle?.doors)}
-                />
-              </Field>
-              <Field label="Bags" name="bags" error={errorFor('bags')}>
-                <input
-                  id="bags"
-                  name="bags"
-                  type="number"
-                  min={0}
-                  max={20}
-                  className={inputClass}
-                  defaultValue={value('bags', vehicle?.bags)}
-                />
-              </Field>
-              <Field
-                label="Daily mileage limit (km)"
-                name="mileageLimitKm"
-                error={errorFor('mileageLimitKm')}
-                hint="Leave empty for unlimited mileage."
-              >
-                <input
-                  id="mileageLimitKm"
-                  name="mileageLimitKm"
-                  type="number"
-                  min={1}
-                  className={inputClass}
-                  defaultValue={value('mileageLimitKm', vehicle?.mileage_limit_km)}
-                />
-              </Field>
-              <Field
-                label="Minimum driver age"
-                name="minDriverAge"
-                required
-                error={errorFor('minDriverAge')}
-              >
-                <input
-                  id="minDriverAge"
-                  name="minDriverAge"
-                  type="number"
-                  min={18}
-                  max={99}
-                  className={inputClass}
-                  defaultValue={value('minDriverAge', vehicle?.min_driver_age ?? 21)}
-                  required
-                />
-              </Field>
-            </div>
-          </Panel>
+      <RentalFormShell
+        id="rental-vehicle-form"
+        multipart
+        action={vehicle ? `/admin/rentals/vehicles/${vehicle.id}/save` : '/admin/rentals/vehicles'}
+        csrfToken={csrfToken}
+        cancelHref="/admin/rentals/vehicles"
+        submitLabel={vehicle ? 'Save vehicle' : 'Create vehicle'}
+        disabled={!canEdit}
+        extraActions={
+          vehicle && can('rentals.delete') ? (
+            <Button danger className="cms-form-actions-start" onClick={() => setConfirmDelete(true)}>
+              Delete vehicle
+            </Button>
+          ) : null
+        }
+        initialValues={{
+          providerId: String(value('providerId', vehicle?.provider_id)),
+          nameEn: value('nameEn', vehicle?.name_en),
+          nameAr: value('nameAr', vehicle?.name_ar),
+          make: value('make', vehicle?.make),
+          model: value('model', vehicle?.model),
+          year: value('year', vehicle?.year) === '' ? null : Number(value('year', vehicle?.year)),
+          vehicleType: String(value('vehicleType', vehicle?.vehicle_type ?? 'sedan')),
+          transmission: String(value('transmission', vehicle?.transmission ?? 'automatic')),
+          fuelType: String(value('fuelType', vehicle?.fuel_type ?? 'petrol')),
+          seats: Number(value('seats', vehicle?.seats ?? 5)),
+          doors: value('doors', vehicle?.doors) === '' ? null : Number(value('doors', vehicle?.doors)),
+          bags: value('bags', vehicle?.bags) === '' ? null : Number(value('bags', vehicle?.bags)),
+          mileageLimitKm:
+            value('mileageLimitKm', vehicle?.mileage_limit_km) === ''
+              ? null
+              : Number(value('mileageLimitKm', vehicle?.mileage_limit_km)),
+          minDriverAge: Number(value('minDriverAge', vehicle?.min_driver_age ?? 21)),
+          quantity: Number(value('quantity', vehicle?.quantity ?? 1)),
+          dailyRate: String(value('dailyRate', vehicle?.daily_rate)),
+          depositAmount: String(value('depositAmount', vehicle?.deposit_amount ?? '0')),
+          withDriverAvailable:
+            form?.withDriverAvailable !== undefined
+              ? Boolean(form.withDriverAvailable)
+              : (vehicle?.with_driver_available ?? false),
+          driverDailyRate: String(value('driverDailyRate', vehicle?.driver_daily_rate)),
+          insuranceEn: value('insuranceEn', vehicle?.insurance_en),
+          insuranceAr: value('insuranceAr', vehicle?.insurance_ar),
+          termsEn: value('termsEn', vehicle?.terms_en),
+          termsAr: value('termsAr', vehicle?.terms_ar),
+        }}
+      >
+        <FormSection title="Vehicle">
+          <FormField label="Provider" name="providerId" required message="Choose a provider.">
+            <FormSelect
+              name="providerId"
+              required
+              value=""
+              placeholder="Choose a provider"
+              options={options.providers.map((provider) => ({
+                value: String(provider.id),
+                label: provider.active ? provider.name : `${provider.name} (inactive)`,
+              }))}
+              onChange={() => undefined}
+            />
+          </FormField>
+          <FormField
+            label="Units available"
+            name="quantity"
+            required
+            hint="Identical cars the provider can rent out at the same time."
+          >
+            <InputNumber name="quantity" min={1} max={500} precision={0} className="tw:w-full" />
+          </FormField>
+          <FormField label="Display name (English)" name="nameEn" required message="Enter the English name.">
+            <Input name="nameEn" maxLength={160} />
+          </FormField>
+          <FormField label="Display name (Arabic)" name="nameAr">
+            <Input name="nameAr" dir="rtl" lang="ar" maxLength={160} />
+          </FormField>
+          <FormField label="Make" name="make" required message="Enter the make.">
+            <Input name="make" maxLength={80} />
+          </FormField>
+          <FormField label="Model" name="model" required message="Enter the model.">
+            <Input name="model" maxLength={80} />
+          </FormField>
+          <FormField label="Year" name="year">
+            <InputNumber name="year" min={1980} max={2100} precision={0} className="tw:w-full" />
+          </FormField>
+          <FormField label="Vehicle type" name="vehicleType" required>
+            <FormSelect name="vehicleType" required value="" options={vehicleTypes} onChange={() => undefined} />
+          </FormField>
+          <FormField label="Gearbox" name="transmission" required>
+            <FormSelect name="transmission" required value="" options={transmissions} onChange={() => undefined} />
+          </FormField>
+          <FormField label="Fuel" name="fuelType" required>
+            <FormSelect name="fuelType" required value="" options={fuelTypes} onChange={() => undefined} />
+          </FormField>
+          <FormField label="Seats" name="seats" required message="Enter the number of seats.">
+            <InputNumber name="seats" min={1} max={60} precision={0} className="tw:w-full" />
+          </FormField>
+          <FormField label="Doors" name="doors">
+            <InputNumber name="doors" min={1} max={10} precision={0} className="tw:w-full" />
+          </FormField>
+          <FormField label="Bags" name="bags">
+            <InputNumber name="bags" min={0} max={20} precision={0} className="tw:w-full" />
+          </FormField>
+          <FormField
+            label="Daily mileage limit (km)"
+            name="mileageLimitKm"
+            hint="Leave empty for unlimited mileage."
+          >
+            <InputNumber name="mileageLimitKm" min={1} precision={0} className="tw:w-full" />
+          </FormField>
+          <FormField label="Minimum driver age" name="minDriverAge" required>
+            <InputNumber name="minDriverAge" min={18} max={99} precision={0} className="tw:w-full" />
+          </FormField>
+        </FormSection>
 
-          <Panel title="Pricing (KWD)">
-            <div className="tw:grid tw:grid-cols-2 tw:gap-4 tw:max-[900px]:grid-cols-1">
-              <Field
-                label="Daily rate"
-                name="dailyRate"
-                required
-                error={errorFor('dailyRate')}
-                hint="Paid by the customer to the provider at pickup."
-              >
-                <input
-                  id="dailyRate"
-                  name="dailyRate"
-                  inputMode="decimal"
-                  pattern="\d{1,7}(\.\d{1,3})?"
-                  className={inputClass}
-                  defaultValue={value('dailyRate', vehicle?.daily_rate)}
-                  required
-                />
-              </Field>
-              <Field
-                label="Security deposit"
-                name="depositAmount"
-                required
-                error={errorFor('depositAmount')}
-                hint="Held by the provider."
-              >
-                <input
-                  id="depositAmount"
-                  name="depositAmount"
-                  inputMode="decimal"
-                  pattern="\d{1,7}(\.\d{1,3})?"
-                  className={inputClass}
-                  defaultValue={value('depositAmount', vehicle?.deposit_amount ?? '0')}
-                  required
-                />
-              </Field>
-              <label className="tw:flex tw:items-center tw:gap-2 tw:text-[14px]">
-                <input
-                  type="checkbox"
-                  name="withDriverAvailable"
-                  value="1"
-                  defaultChecked={checked(
-                    'withDriverAvailable',
-                    vehicle?.with_driver_available ?? false
-                  )}
-                />
-                Offered with a driver
-              </label>
-              <Field
-                label="Driver daily rate"
-                name="driverDailyRate"
-                error={errorFor('driverDailyRate')}
-                hint="Required when offered with a driver."
-              >
-                <input
-                  id="driverDailyRate"
-                  name="driverDailyRate"
-                  inputMode="decimal"
-                  pattern="\d{1,7}(\.\d{1,3})?"
-                  className={inputClass}
-                  defaultValue={value('driverDailyRate', vehicle?.driver_daily_rate)}
-                />
-              </Field>
-            </div>
-          </Panel>
+        <FormSection title="Pricing (KWD)">
+          <FormField
+            label="Daily rate"
+            name="dailyRate"
+            required
+            message="Enter the daily rate."
+            hint="Paid by the customer to the provider at pickup."
+            rules={[moneyRule]}
+          >
+            <Input name="dailyRate" inputMode="decimal" />
+          </FormField>
+          <FormField
+            label="Security deposit"
+            name="depositAmount"
+            required
+            message="Enter the deposit (0 if none)."
+            hint="Held by the provider."
+            rules={[moneyRule]}
+          >
+            <Input name="depositAmount" inputMode="decimal" />
+          </FormField>
+          <FormField name="withDriverAvailable" valuePropName="checked">
+            <Checkbox name="withDriverAvailable">Offered with a driver</Checkbox>
+          </FormField>
+          <FormField
+            label="Driver daily rate"
+            name="driverDailyRate"
+            hint="Required when offered with a driver."
+            rules={[{ pattern: /^$|^\d{1,7}(\.\d{1,3})?$/, message: 'Use an amount like 8.000.' }]}
+          >
+            <Input name="driverDailyRate" inputMode="decimal" />
+          </FormField>
+        </FormSection>
 
-          <Panel title="Pickup and return locations">
-            <div className="tw:flex tw:flex-wrap tw:gap-4">
-              {options.locations.map((location) => (
-                <label
-                  key={location.id}
-                  className="tw:flex tw:items-center tw:gap-2 tw:text-[14px]"
-                >
-                  <input
-                    type="checkbox"
-                    name="locationIds"
-                    value={location.id}
-                    defaultChecked={selectedLocations.has(location.id)}
-                  />
-                  {location.name}
-                  {location.active ? '' : ' (inactive)'}
-                </label>
-              ))}
-            </div>
-            <FieldError message={errorFor('locationIds')} />
-          </Panel>
+        <section className="cms-form-section">
+          <h2>Pickup and return locations</h2>
+          <div className="tw:mt-4 tw:flex tw:flex-wrap tw:gap-x-6 tw:gap-y-3">
+            {options.locations.map((location) => (
+              <Checkbox
+                key={location.id}
+                name="locationIds"
+                value={location.id}
+                defaultChecked={selectedLocations.has(location.id)}
+              >
+                {location.active ? location.name : `${location.name} (inactive)`}
+              </Checkbox>
+            ))}
+          </div>
+        </section>
 
-          <Panel title="Insurance and terms">
-            <div className="tw:grid tw:grid-cols-2 tw:gap-4 tw:max-[900px]:grid-cols-1">
-              <Field label="Insurance (English)" name="insuranceEn" error={errorFor('insuranceEn')}>
-                <textarea
-                  id="insuranceEn"
-                  name="insuranceEn"
-                  rows={4}
-                  className={inputClass}
-                  maxLength={5000}
-                  defaultValue={value('insuranceEn', vehicle?.insurance_en)}
-                />
-              </Field>
-              <Field label="Insurance (Arabic)" name="insuranceAr" error={errorFor('insuranceAr')}>
-                <textarea
-                  id="insuranceAr"
-                  name="insuranceAr"
-                  dir="rtl"
-                  lang="ar"
-                  rows={4}
-                  className={inputClass}
-                  maxLength={5000}
-                  defaultValue={value('insuranceAr', vehicle?.insurance_ar)}
-                />
-              </Field>
-              <Field label="Rental terms (English)" name="termsEn" error={errorFor('termsEn')}>
-                <textarea
-                  id="termsEn"
-                  name="termsEn"
-                  rows={6}
-                  className={inputClass}
-                  maxLength={10000}
-                  defaultValue={value('termsEn', vehicle?.terms_en)}
-                />
-              </Field>
-              <Field label="Rental terms (Arabic)" name="termsAr" error={errorFor('termsAr')}>
-                <textarea
-                  id="termsAr"
-                  name="termsAr"
-                  dir="rtl"
-                  lang="ar"
-                  rows={6}
-                  className={inputClass}
-                  maxLength={10000}
-                  defaultValue={value('termsAr', vehicle?.terms_ar)}
-                />
-              </Field>
-            </div>
-          </Panel>
+        <FormSection title="Insurance and terms">
+          <FormField label="Insurance (English)" name="insuranceEn">
+            <Input.TextArea name="insuranceEn" rows={4} maxLength={5000} />
+          </FormField>
+          <FormField label="Insurance (Arabic)" name="insuranceAr">
+            <Input.TextArea name="insuranceAr" dir="rtl" lang="ar" rows={4} maxLength={5000} />
+          </FormField>
+          <FormField label="Rental terms (English)" name="termsEn">
+            <Input.TextArea name="termsEn" rows={6} maxLength={10000} />
+          </FormField>
+          <FormField label="Rental terms (Arabic)" name="termsAr">
+            <Input.TextArea name="termsAr" dir="rtl" lang="ar" rows={6} maxLength={10000} />
+          </FormField>
+        </FormSection>
 
-          <Panel title="Photos">
-            <div className="tw:grid tw:grid-cols-2 tw:gap-6 tw:max-[900px]:grid-cols-1">
-              <div>
-                <span className="image-block-label">Cover photo</span>
-                <ImageUpload
-                  name="cover"
-                  currentImageUrl={vehicle?.cover_url}
-                  currentImageAlt="Vehicle cover"
-                  removeName="removeCover"
-                />
-                <FieldError message={errorFor('cover')} />
-              </div>
-              <div>
-                <span className="image-block-label">Add gallery photos (up to 5 per save)</span>
-                <ImageUpload name="gallery" multiple maxFiles={5} />
-                <FieldError message={errorFor('gallery')} />
-              </div>
+        <section className="cms-form-section">
+          <h2>Photos</h2>
+          <div className="tw:mt-4 tw:grid tw:grid-cols-2 tw:gap-6 tw:max-[900px]:grid-cols-1">
+            <div className="image-block">
+              <span className="image-block-label">Cover photo</span>
+              <ImageUpload
+                name="cover"
+                currentImageUrl={vehicle?.cover_url}
+                currentImageAlt="Vehicle cover"
+                removeName="removeCover"
+              />
             </div>
-            {vehicle && vehicle.images.length > 0 && (
-              <div className="tw:mt-4 tw:flex tw:flex-wrap tw:gap-4">
+            <div className="image-block">
+              <span className="image-block-label">Add gallery photos (up to 5 per save)</span>
+              <ImageUpload name="gallery" multiple maxFiles={5} />
+            </div>
+          </div>
+          {vehicle && vehicle.images.length > 0 && (
+            <div className="tw:mt-5">
+              <span className="image-block-label">Gallery</span>
+              <div className="tw:mt-2 tw:flex tw:flex-wrap tw:gap-4">
                 {vehicle.images.map((image) => (
-                  <label
-                    key={image.id}
-                    className="tw:flex tw:flex-col tw:items-center tw:gap-1 tw:text-[12px]"
-                  >
+                  <div key={image.id} className="tw:flex tw:flex-col tw:items-start tw:gap-2">
                     {image.url && (
                       <img
                         src={image.url}
                         alt=""
-                        className="tw:h-20 tw:w-28 tw:rounded tw:object-cover"
+                        className="tw:h-24 tw:w-32 tw:rounded-cms-sm tw:object-cover"
                       />
                     )}
-                    <span>
-                      <input type="checkbox" name="removeImageIds" value={image.id} /> Remove
-                    </span>
-                  </label>
+                    <Checkbox name="removeImageIds" value={image.id}>
+                      Remove on save
+                    </Checkbox>
+                  </div>
                 ))}
               </div>
-            )}
-          </Panel>
-
-          {canEdit && (
-            <div className="cms-form-actions tw:mb-6">
-              <a className="ant-btn ant-btn-default" href="/admin/rentals/vehicles">
-                Cancel
-              </a>
-              <button type="submit" className="ant-btn ant-btn-primary">
-                {vehicle ? 'Save vehicle' : 'Create vehicle'}
-              </button>
             </div>
           )}
-        </fieldset>
-      </form>
+        </section>
+      </RentalFormShell>
 
       {vehicle && (
         <Panel title="Unavailable periods">
-          <p className="tw:mb-3 tw:text-[13px] tw:text-brand-muted">
-            Block all units for maintenance or bookings taken outside the app. Times are in Kuwait
+          <p className="tw:mb-4 tw:text-[13px] tw:text-brand-muted">
+            Block all units for maintenance or bookings taken outside the app. Times are Kuwait
             time.
           </p>
           {vehicle.blocks.length > 0 && (
-            <ul className="tw:mb-4 tw:flex tw:flex-col tw:gap-2">
+            <ul className="tw:mb-5 tw:flex tw:flex-col tw:gap-3">
               {vehicle.blocks.map((block) => (
                 <li
                   key={block.id}
@@ -549,76 +422,30 @@ export default function RentalVehicleEdit({
                       action={`/admin/rentals/vehicles/${vehicle.id}/blocks/${block.id}/delete`}
                       csrfToken={csrfToken}
                     >
-                      <button type="submit" className="ant-btn ant-btn-default ant-btn-sm">
+                      <Button htmlType="submit" size="small" danger>
                         Remove
-                      </button>
+                      </Button>
                     </ActionForm>
                   )}
                 </li>
               ))}
             </ul>
           )}
-          {can('rentals.update') && (
-            <ActionForm
-              action={`/admin/rentals/vehicles/${vehicle.id}/blocks`}
-              csrfToken={csrfToken}
-              className="tw:flex tw:flex-wrap tw:items-end tw:gap-3"
-            >
-              <Field label="From" name="startsAtLocal" error={errorFor('startsAt')}>
-                <input
-                  id="startsAtLocal"
-                  type="datetime-local"
-                  className={inputClass}
-                  required
-                  onChange={(event) => {
-                    const hidden = event.currentTarget.form?.elements.namedItem(
-                      'startsAt'
-                    ) as HTMLInputElement
-                    hidden.value = event.currentTarget.value
-                      ? `${event.currentTarget.value}:00+03:00`
-                      : ''
-                  }}
-                />
-              </Field>
-              <input type="hidden" name="startsAt" />
-              <Field label="To" name="endsAtLocal" error={errorFor('endsAt')}>
-                <input
-                  id="endsAtLocal"
-                  type="datetime-local"
-                  className={inputClass}
-                  required
-                  onChange={(event) => {
-                    const hidden = event.currentTarget.form?.elements.namedItem(
-                      'endsAt'
-                    ) as HTMLInputElement
-                    hidden.value = event.currentTarget.value
-                      ? `${event.currentTarget.value}:00+03:00`
-                      : ''
-                  }}
-                />
-              </Field>
-              <input type="hidden" name="endsAt" />
-              <Field label="Reason" name="reason">
-                <input id="reason" name="reason" className={inputClass} maxLength={200} />
-              </Field>
-              <button type="submit" className="ant-btn ant-btn-default">
-                Add period
-              </button>
-            </ActionForm>
-          )}
+          {can('rentals.update') && <BlockForm vehicleId={vehicle.id} csrfToken={csrfToken} />}
         </Panel>
       )}
 
-      {vehicle && can('rentals.delete') && (
-        <ActionForm
+      {vehicle && (
+        <ConfirmModal
+          open={confirmDelete}
+          onClose={() => setConfirmDelete(false)}
+          title="Delete vehicle"
+          message={`Delete ${vehicle.name_en}? Vehicles that have bookings cannot be deleted; deactivate them instead.`}
           action={`/admin/rentals/vehicles/${vehicle.id}/delete`}
           csrfToken={csrfToken}
-          confirm="Delete this vehicle? Vehicles with bookings cannot be deleted."
-        >
-          <button type="submit" className="ant-btn ant-btn-default ant-btn-dangerous">
-            Delete vehicle
-          </button>
-        </ActionForm>
+          confirmLabel="Delete"
+          danger
+        />
       )}
     </AdminLayout>
   )

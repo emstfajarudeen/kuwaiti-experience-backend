@@ -45,7 +45,9 @@ export default class RentalsController {
       input,
       locale(ctx)
     )
-    return ctx.response.status(result.created ? 201 : 200).send({ data: result.data })
+    return ctx.response
+      .status(result.created ? 201 : 200)
+      .send({ data: result.data, meta: result.meta })
   }
 
   async index(ctx: HttpContext) {

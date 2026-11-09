@@ -1,11 +1,10 @@
+import { Form, Input, Switch } from 'antd'
 import AdminLayout from '../../layouts/admin_layout'
 import ImageUpload from '../../components/image_upload'
 import {
-  Field,
-  FieldError,
-  inputClass,
-  Panel,
-  useFieldErrors,
+  FormField,
+  FormSection,
+  RentalFormShell,
   type SharedProps,
 } from '../../components/rental_ui'
 
@@ -30,12 +29,8 @@ export default function RentalProviderEdit({
   provider,
   form,
 }: Props) {
-  const errorFor = useFieldErrors()
-  const value = (key: string, fallback: unknown) => {
-    const chosen = form?.[key] !== undefined ? form[key] : fallback
-    return chosen === null || chosen === undefined ? '' : String(chosen)
-  }
-  const active = form?.active !== undefined ? Boolean(form.active) : (provider?.active ?? true)
+  const value = (key: string, fallback: unknown) =>
+    form?.[key] !== undefined ? form[key] : (fallback ?? '')
   return (
     <AdminLayout
       title={provider ? 'Edit provider' : 'New provider'}
@@ -48,99 +43,94 @@ export default function RentalProviderEdit({
       <a className="back-link tw:mb-4 tw:inline-flex" href="/admin/rentals/providers">
         ← Back to providers
       </a>
-      <form
-        method="post"
-        encType="multipart/form-data"
+      <div className="page-head tw:mb-6">
+        <h1>{provider ? provider.name_en : 'New provider'}</h1>
+      </div>
+      <RentalFormShell
+        id="rental-provider-form"
+        multipart
         action={
           provider ? `/admin/rentals/providers/${provider.id}/save` : '/admin/rentals/providers'
         }
+        csrfToken={csrfToken}
+        cancelHref="/admin/rentals/providers"
+        submitLabel="Save provider"
+        initialValues={{
+          nameEn: value('nameEn', provider?.name_en),
+          nameAr: value('nameAr', provider?.name_ar),
+          phone: value('phone', provider?.phone),
+          email: value('email', provider?.email),
+          address: value('address', provider?.address),
+          active: form?.active !== undefined ? Boolean(form.active) : (provider?.active ?? true),
+        }}
       >
-        <input type="hidden" name="_csrf" value={csrfToken} />
-        <Panel title="Provider details">
-          <div className="tw:grid tw:grid-cols-2 tw:gap-4 tw:max-[900px]:grid-cols-1">
-            <Field label="Name (English)" name="nameEn" required error={errorFor('nameEn')}>
-              <input
-                id="nameEn"
-                name="nameEn"
-                className={inputClass}
-                maxLength={160}
-                defaultValue={value('nameEn', provider?.name_en)}
-                required
-              />
-            </Field>
-            <Field label="Name (Arabic)" name="nameAr" error={errorFor('nameAr')}>
-              <input
-                id="nameAr"
-                name="nameAr"
-                dir="rtl"
-                lang="ar"
-                className={inputClass}
-                maxLength={160}
-                defaultValue={value('nameAr', provider?.name_ar)}
-              />
-            </Field>
-            <Field
-              label="Phone"
-              name="phone"
-              error={errorFor('phone')}
-              hint="Shown to customers on confirmed bookings. International format, e.g. +96512345678."
-            >
-              <input
-                id="phone"
-                name="phone"
-                className={inputClass}
-                maxLength={16}
-                defaultValue={value('phone', provider?.phone)}
-              />
-            </Field>
-            <Field
-              label="Email"
-              name="email"
-              error={errorFor('email')}
-              hint="For staff reference; not shown in the app."
-            >
-              <input
-                id="email"
-                name="email"
-                type="email"
-                className={inputClass}
-                maxLength={254}
-                defaultValue={value('email', provider?.email)}
-              />
-            </Field>
-            <Field label="Address" name="address" error={errorFor('address')}>
-              <input
-                id="address"
-                name="address"
-                className={inputClass}
-                maxLength={500}
-                defaultValue={value('address', provider?.address)}
-              />
-            </Field>
-            <label className="tw:flex tw:items-center tw:gap-2 tw:self-end tw:text-[14px]">
-              <input type="checkbox" name="active" value="1" defaultChecked={active} />
-              Active (inactive providers' vehicles are hidden from the app)
-            </label>
+        <FormSection title="Provider details">
+          <FormField
+            label="Name (English)"
+            name="nameEn"
+            required
+            message="Enter the English name."
+          >
+            <Input name="nameEn" maxLength={160} />
+          </FormField>
+          <FormField label="Name (Arabic)" name="nameAr">
+            <Input name="nameAr" dir="rtl" lang="ar" maxLength={160} />
+          </FormField>
+          <FormField
+            label="Phone"
+            name="phone"
+            hint="Shown to customers on confirmed bookings. Use international format, e.g. +96512345678."
+            rules={[
+              {
+                pattern: /^$|^\+[1-9]\d{7,14}$/,
+                message: 'Use international format, e.g. +96512345678.',
+              },
+            ]}
+          >
+            <Input name="phone" maxLength={16} />
+          </FormField>
+          <FormField
+            label="Email"
+            name="email"
+            hint="For staff reference; not shown in the app."
+            rules={[{ type: 'email', message: 'Enter a valid email address.' }]}
+          >
+            <Input name="email" maxLength={254} />
+          </FormField>
+          <FormField label="Address" name="address">
+            <Input name="address" maxLength={500} />
+          </FormField>
+          <FormField
+            label="Status"
+            name="active"
+            valuePropName="checked"
+            hint="Vehicles of inactive providers are hidden from the app."
+          >
+            <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
+            {/* Switches are not native inputs, so mirror the value for the multipart post. */}
+            <Form.Item shouldUpdate noStyle>
+              {({ getFieldValue }) => (
+                <input
+                  type="hidden"
+                  name="active"
+                  value={getFieldValue('active') ? 'true' : 'false'}
+                />
+              )}
+            </Form.Item>
+          </FormField>
+        </FormSection>
+        <section className="cms-form-section">
+          <h2>Logo</h2>
+          <div className="image-block tw:mt-4">
+            <ImageUpload
+              name="logo"
+              currentImageUrl={provider?.logo_url}
+              currentImageAlt="Provider logo"
+              removeName="removeLogo"
+            />
           </div>
-        </Panel>
-        <Panel title="Logo">
-          <ImageUpload
-            name="logo"
-            currentImageUrl={provider?.logo_url}
-            currentImageAlt="Provider logo"
-            removeName="removeLogo"
-          />
-          <FieldError message={errorFor('logo')} />
-        </Panel>
-        <div className="cms-form-actions">
-          <a className="ant-btn ant-btn-default" href="/admin/rentals/providers">
-            Cancel
-          </a>
-          <button type="submit" className="ant-btn ant-btn-primary">
-            Save provider
-          </button>
-        </div>
-      </form>
+        </section>
+      </RentalFormShell>
     </AdminLayout>
   )
 }

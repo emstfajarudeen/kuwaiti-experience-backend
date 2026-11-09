@@ -122,6 +122,15 @@ export async function saveLocation(input: LocationInput, actorId: number, id?: n
   })
 }
 
+export async function setLocationActive(id: number, active: boolean, actorId: number) {
+  await db.transaction(async (trx) => {
+    const row = await trx.from('rental_locations').where('id', id).forUpdate().first()
+    if (!row) throw new ApiError(404, 'NOT_FOUND', 'Location not found')
+    await trx.from('rental_locations').where('id', id).update({ active, updated_at: new Date() })
+    await audit(trx, actorId, 'rental_location', id, active ? 'activate' : 'deactivate')
+  })
+}
+
 export async function deleteLocation(id: number, actorId: number) {
   try {
     await db.transaction(async (trx) => {
@@ -203,6 +212,15 @@ export async function saveProvider(
       return { result: Number(savedId), released }
     })
   )
+}
+
+export async function setProviderActive(id: number, active: boolean, actorId: number) {
+  await db.transaction(async (trx) => {
+    const row = await trx.from('rental_providers').where('id', id).forUpdate().first()
+    if (!row) throw new ApiError(404, 'NOT_FOUND', 'Provider not found')
+    await trx.from('rental_providers').where('id', id).update({ active, updated_at: new Date() })
+    await audit(trx, actorId, 'rental_provider', id, active ? 'activate' : 'deactivate')
+  })
 }
 
 export async function deleteProvider(id: number, actorId: number) {

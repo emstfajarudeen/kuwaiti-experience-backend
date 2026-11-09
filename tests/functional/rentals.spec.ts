@@ -228,6 +228,11 @@ test.group('Rental catalog and bookings', (group) => {
     assert.equal(detail.body().data.name, 'تويوتا كامري')
     assert.isTrue(detail.body().data.available)
     assert.lengthOf(detail.body().data.locations, 2)
+    assert.property(detail.body().data, 'cover_image_key')
+    assert.isUndefined(detail.body().data.cover_image_url)
+    assert.isArray(detail.body().data.gallery)
+    assert.isArray(detail.body().meta.images)
+    assert.isArray(list.body().meta.images)
 
     const quote = await client.get(`/api/v2/rentals/vehicles/${ids.vehicleId}/quote`).qs(window)
     quote.assertStatus(200)
@@ -577,6 +582,29 @@ test.group('Rentals CMS', (group) => {
       .field('dailyRate', 'abc')
       .field('locationIds', String(ids.city))
     assert.equal(missingRate.header('location'), '/admin/rentals/vehicles/new')
+
+    // The edit forms post Ant Design values as JSON.
+    const jsonLocation = await post('/admin/rentals/locations').json({
+      nameEn: 'Jahra',
+      nameAr: '',
+      address: '',
+      latitude: '29.3375',
+      longitude: '',
+      active: true,
+      sortOrder: 4,
+    })
+    assert.equal(jsonLocation.header('location'), '/admin/rentals/locations')
+    const jahra = await db.from('rental_locations').where('name_en', 'Jahra').firstOrFail()
+    assert.isNull(jahra.longitude)
+    assert.isTrue(Boolean(jahra.active))
+    const block = await post(`/admin/rentals/vehicles/${vehicle.id}/blocks`).json({
+      startsAt: '2026-12-01T10:00:00+03:00',
+      endsAt: '2026-12-02T10:00:00+03:00',
+      reason: '',
+    })
+    assert.equal(block.status(), 302)
+    const blocks = await db.from('rental_vehicle_blocks').where('vehicle_id', vehicle.id)
+    assert.lengthOf(blocks, 1)
 
     await post('/admin/rentals/settings').form({
       bookingFee: '4.250',

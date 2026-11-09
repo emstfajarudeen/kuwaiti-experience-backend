@@ -1,8 +1,8 @@
+import { Button, Input } from 'antd'
 import AdminLayout from '../../layouts/admin_layout'
 import {
   ActionForm,
   formatDateTime,
-  inputClass,
   Panel,
   StatusBadge,
   useCan,
@@ -163,9 +163,9 @@ export default function RentalBooking({
         actions={
           canUpdate && payments.length > 0 ? (
             <ActionForm action={`${base}/verify-payment`} csrfToken={csrfToken}>
-              <button type="submit" className="ant-btn ant-btn-default">
+              <Button htmlType="submit">
                 Refresh from MyFatoorah
-              </button>
+              </Button>
             </ActionForm>
           ) : null
         }
@@ -218,9 +218,9 @@ export default function RentalBooking({
                 csrfToken={csrfToken}
                 confirm="Mark this rental as completed?"
               >
-                <button type="submit" className="ant-btn ant-btn-primary">
+                <Button type="primary" htmlType="submit">
                   Mark as completed
-                </button>
+                </Button>
               </ActionForm>
             )}
             {['pending_payment', 'confirmed', 'expired'].includes(booking.status) && (
@@ -230,15 +230,10 @@ export default function RentalBooking({
                 confirm="Cancel this booking? The booking fee is not refunded automatically."
                 className="tw:flex tw:flex-wrap tw:items-end tw:gap-3"
               >
-                <input
-                  className={`${inputClass} tw:max-w-md`}
-                  name="reason"
-                  maxLength={500}
-                  placeholder="Reason (optional)"
-                />
-                <button type="submit" className="ant-btn ant-btn-default ant-btn-dangerous">
+                <Input name="reason" maxLength={500} placeholder="Reason (optional)" className="tw:max-w-md" />
+                <Button danger htmlType="submit">
                   Cancel booking
-                </button>
+                </Button>
               </ActionForm>
             )}
             {paid && can('rental_bookings.refund') && (
@@ -248,15 +243,10 @@ export default function RentalBooking({
                 confirm="Refund the booking fee through MyFatoorah? This also cancels the booking."
                 className="tw:flex tw:flex-wrap tw:items-end tw:gap-3"
               >
-                <input
-                  className={`${inputClass} tw:max-w-md`}
-                  name="reason"
-                  maxLength={200}
-                  placeholder="Refund comment (optional)"
-                />
-                <button type="submit" className="ant-btn ant-btn-default ant-btn-dangerous">
+                <Input name="reason" maxLength={200} placeholder="Refund comment (optional)" className="tw:max-w-md" />
+                <Button danger htmlType="submit">
                   Refund booking fee
-                </button>
+                </Button>
               </ActionForm>
             )}
           </div>
