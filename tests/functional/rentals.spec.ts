@@ -11,12 +11,19 @@ import {
 } from '../../app/services/myfatoorah_service.js'
 import { quoteFor, toFils, kwd, rentalDays } from '../../app/services/rental_money.js'
 import { loginAdmin } from '../helpers/admin_auth.js'
+import {
+  sendProviderEmail,
+  swapRentalMailer,
+  type OutgoingEmail,
+  type RentalMailer,
+} from '../../app/services/rental_provider_mailer.js'
 
 const DAY = 24 * 60 * 60 * 1000
 
 async function customer() {
+  const phone = `+965${randomInt(10000000, 99999999)}`
   const [id] = await db.table('customers').insert({
-    phone_e164: `+965${randomInt(10000000, 99999999)}`,
+    phone_e164: phone,
     first_name: 'Mariam',
     last_name: 'Al-Khaled',
     phone_verified_at: new Date(),
@@ -32,7 +39,7 @@ async function customer() {
     expires_at: new Date(Date.now() + 86400000),
     created_at: new Date(),
   })
-  return { id: Number(id), token: `Bearer ${token}` }
+  return { id: Number(id), phone, token: `Bearer ${token}` }
 }
 
 async function catalog(overrides: Record<string, unknown> = {}) {
@@ -66,16 +73,32 @@ async function catalog(overrides: Record<string, unknown> = {}) {
     fuel_type: 'petrol',
     seats: 5,
     daily_rate: '12.500',
-    deposit_amount: '50.000',
+    extra_km_rate: '0.120',
+    mileage_limit_km: 250,
     with_driver_available: true,
     driver_daily_rate: '8.000',
-    min_driver_age: 21,
     quantity: 1,
     status: 'published',
     published_at: new Date(Date.now() - 60000),
     created_at: now,
     ...overrides,
   })
+  await db.table('rental_vehicle_terms').multiInsert([
+    {
+      vehicle_id: vehicleId,
+      label_en: '21+ age',
+      label_ar: 'العمر 21+',
+      sort_order: 0,
+      created_at: now,
+    },
+    {
+      vehicle_id: vehicleId,
+      label_en: 'KD 50 deposit',
+      label_ar: null,
+      sort_order: 1,
+      created_at: now,
+    },
+  ])
   await db.table('rental_vehicle_locations').multiInsert([
     { vehicle_id: vehicleId, location_id: airport },
     { vehicle_id: vehicleId, location_id: city },
@@ -161,7 +184,6 @@ test.group('Rental money', () => {
       dailyRate: '12.500',
       driverDailyRate: '8.000',
       withDriver: true,
-      deposit: '50',
       bookingFee: '3',
     })
     assert.deepInclude(quote, {
@@ -169,23 +191,174 @@ test.group('Rental money', () => {
       rental_amount: '61.500',
       pay_at_pickup: '61.500',
       pay_now: '3.000',
-      deposit_amount: '50.000',
     })
   })
 })
 
+class FakeMailer implements RentalMailer {
+  sent: OutgoingEmail[] = []
+  configured() {
+    return true
+  }
+  async send(email: OutgoingEmail) {
+    this.sent.push(email)
+    return { id: `msg-${this.sent.length}` }
+  }
+}
+
 test.group('Rental catalog and bookings', (group) => {
   let gateway: FakeGateway
+  let mailer: FakeMailer
   let restore: () => void
+  let restoreMailer: () => void
   group.each.setup(async () => {
     await limiter.clear()
     gateway = new FakeGateway()
+    mailer = new FakeMailer()
     restore = swapPaymentGateway(gateway)
+    restoreMailer = swapRentalMailer(mailer)
     const rollback = await testUtils.db().withGlobalTransaction()
     return () => {
       restore()
+      restoreMailer()
       return rollback()
     }
+  })
+
+  async function confirmedBooking(
+    client: any,
+    user: { token: string },
+    ids: { vehicleId: number; airport: number },
+    key: string,
+    window = period()
+  ) {
+    const created = await client
+      .post('/api/v2/customer/me/rental-bookings')
+      .header('Authorization', user.token)
+      .header('Idempotency-Key', key)
+      .json({ vehicle_id: ids.vehicleId, pickup_location_id: ids.airport, ...window })
+    const id = created.body().data.id
+    const started = await client
+      .post(`/api/v2/customer/me/rental-bookings/${id}/payment`)
+      .header('Authorization', user.token)
+      .json({ payment_method_id: 1 })
+    gateway.pay(Number(started.body().data.invoice_id))
+    await client
+      .post(`/api/v2/customer/me/rental-bookings/${id}/payment/verify`)
+      .header('Authorization', user.token)
+    return Number(id)
+  }
+
+  test('the provider is emailed when a booking is confirmed and when it is cancelled', async ({
+    client,
+    assert,
+  }) => {
+    const ids = await catalog()
+    await db
+      .from('rental_providers')
+      .where('id', ids.providerId)
+      .update({ email: 'bookings@gulfrent.test' })
+    const user = await customer()
+    const id = await confirmedBooking(client, user, ids, 'mail-key-0001')
+    const booking = await db.from('rental_bookings').where('id', id).firstOrFail()
+    assert.equal(booking.status, 'confirmed')
+    assert.lengthOf(mailer.sent, 1)
+    assert.equal(mailer.sent[0].to, 'bookings@gulfrent.test')
+    assert.include(mailer.sent[0].subject, booking.reference)
+    assert.include(mailer.sent[0].text, user.phone)
+    assert.include(mailer.sent[0].text, 'Toyota Camry')
+
+    const cancelled = await client
+      .post(`/api/v2/customer/me/rental-bookings/${id}/cancel`)
+      .header('Authorization', user.token)
+      .json({ reason: 'Plans changed' })
+    cancelled.assertStatus(200)
+    assert.lengthOf(mailer.sent, 2)
+    assert.include(mailer.sent[1].subject, 'cancelled')
+    assert.include(mailer.sent[1].text, 'Plans changed')
+
+    const log = await db.from('rental_provider_emails').where('booking_id', id).orderBy('id')
+    assert.deepEqual(
+      log.map((row) => [row.kind, row.status]),
+      [
+        ['confirmed', 'sent'],
+        ['cancelled', 'sent'],
+      ]
+    )
+
+    await db.from('rental_providers').where('id', ids.providerId).update({ email: null })
+    const skipped = await sendProviderEmail(id, 'cancelled')
+    assert.equal(skipped.status, 'skipped')
+    assert.lengthOf(mailer.sent, 2)
+  })
+
+  test('customers review finished rentals and ratings appear on vehicles', async ({
+    client,
+    assert,
+  }) => {
+    const ids = await catalog()
+    const user = await customer()
+    const stranger = await customer()
+    const id = await confirmedBooking(client, user, ids, 'review-key-01')
+    const review = (who: { token: string }, body: Record<string, unknown>) =>
+      client
+        .put(`/api/v2/customer/me/rental-bookings/${id}/review`)
+        .header('Authorization', who.token)
+        .json(body)
+
+    const early = await review(user, { rating: 5 })
+    early.assertStatus(409)
+    assert.equal(early.body().error.code, 'REVIEW_NOT_ALLOWED')
+
+    await db.from('rental_bookings').where('id', id).update({ status: 'completed' })
+    const invalid = await review(user, { rating: 6 })
+    invalid.assertStatus(422)
+    const other = await review(stranger, { rating: 1 })
+    other.assertStatus(404)
+
+    const created = await review(user, { rating: 5, comment: '  Clean car  ' })
+    created.assertStatus(201)
+    assert.equal(created.body().data.comment, 'Clean car')
+    const updated = await review(user, { rating: 4, comment: 'Clean car, late pickup' })
+    updated.assertStatus(200)
+    assert.equal(updated.body().data.rating, 4)
+
+    const detail = await client
+      .get(`/api/v2/customer/me/rental-bookings/${id}`)
+      .header('Authorization', user.token)
+    assert.equal(detail.body().data.review.rating, 4)
+    assert.isTrue(detail.body().data.can_review)
+
+    const list = await client.get(`/api/v2/rentals/vehicles/${ids.vehicleId}/reviews`)
+    list.assertStatus(200)
+    assert.lengthOf(list.body().data, 1)
+    assert.equal(list.body().data[0].author_name, 'Mariam A.')
+    assert.deepEqual(list.body().meta.rating, {
+      average: 4,
+      count: 1,
+      distribution: { 1: 0, 2: 0, 3: 0, 4: 1, 5: 0 },
+    })
+    const providerList = await client.get(`/api/v2/rentals/providers/${ids.providerId}/reviews`)
+    assert.lengthOf(providerList.body().data, 1)
+
+    const cards = await client.get('/api/v2/rentals/vehicles')
+    const card = cards.body().data.find((item: { id: number }) => item.id === ids.vehicleId)
+    assert.deepEqual(card.rating, { average: 4, count: 1 })
+    assert.deepEqual(card.provider.rating, { average: 4, count: 1 })
+
+    await db.from('rental_reviews').where('booking_id', id).update({ status: 'hidden' })
+    const hidden = await client.get(`/api/v2/rentals/vehicles/${ids.vehicleId}/reviews`)
+    assert.lengthOf(hidden.body().data, 0)
+    assert.isNull(hidden.body().meta.rating.average)
+
+    const removed = await client
+      .delete(`/api/v2/customer/me/rental-bookings/${id}/review`)
+      .header('Authorization', user.token)
+    removed.assertStatus(204)
+    const again = await client
+      .delete(`/api/v2/customer/me/rental-bookings/${id}/review`)
+      .header('Authorization', user.token)
+    again.assertStatus(404)
   })
 
   test('search lists available published vehicles with quotes and localized detail', async ({
@@ -228,6 +401,15 @@ test.group('Rental catalog and bookings', (group) => {
     assert.equal(detail.body().data.name, 'تويوتا كامري')
     assert.isTrue(detail.body().data.available)
     assert.lengthOf(detail.body().data.locations, 2)
+    assert.deepEqual(detail.body().data.rental_terms, [
+      { label: 'العمر 21+' },
+      { label: 'KD 50 deposit' },
+    ])
+    assert.equal(detail.body().data.extra_km_rate, '0.120')
+    assert.equal(detail.body().data.mileage_limit_km, 250)
+    assert.notProperty(detail.body().data, 'terms')
+    assert.notProperty(detail.body().data, 'min_driver_age')
+    assert.notProperty(detail.body().data, 'deposit_amount')
     assert.property(detail.body().data, 'cover_image_key')
     assert.isUndefined(detail.body().data.cover_image_url)
     assert.isArray(detail.body().data.gallery)
@@ -327,7 +509,7 @@ test.group('Rental catalog and bookings', (group) => {
     assert.equal(expired.body().data.status, 'expired')
   })
 
-  test('rejects locations, driver option and blocked periods the vehicle does not offer', async ({
+  test('rejects locations and driver option the vehicle does not offer, and full bookings', async ({
     client,
   }) => {
     const ids = await catalog({ with_driver_available: false, driver_daily_rate: null })
@@ -346,14 +528,10 @@ test.group('Rental catalog and bookings', (group) => {
     wrongLocation.assertStatus(422)
     const noDriver = await post('key-driver-1', { with_driver: true })
     noDriver.assertStatus(422)
-    await db.table('rental_vehicle_blocks').insert({
-      vehicle_id: ids.vehicleId,
-      starts_at: new Date(new Date(window.pickup_at).getTime() + DAY),
-      ends_at: new Date(new Date(window.pickup_at).getTime() + 1.5 * DAY),
-      created_at: new Date(),
-    })
-    const blocked = await post('key-blocked', {})
-    blocked.assertStatus(409)
+    const taken = await post('key-first', {})
+    taken.assertStatus(201)
+    const fullyBooked = await post('key-second', {})
+    fullyBooked.assertStatus(409)
   })
 
   test('MyFatoorah payment confirms the booking once and notifies the customer', async ({
@@ -532,6 +710,7 @@ test.group('Rentals CMS', (group) => {
       '/admin/rentals/locations/new',
       `/admin/rentals/locations/${ids.airport}/edit`,
       '/admin/rentals/settings',
+      '/admin/rentals/reviews',
     ]) {
       const page = await get(path)
       assert.equal(page.status(), 200, path)
@@ -555,14 +734,78 @@ test.group('Rentals CMS', (group) => {
       .field('fuelType', 'petrol')
       .field('seats', '7')
       .field('dailyRate', '25')
-      .field('depositAmount', '100')
-      .field('minDriverAge', '25')
+      .field('extraKmRate', '0.150')
+      .field(
+        'termsJson',
+        JSON.stringify([{ labelEn: '25+ age', labelAr: 'العمر 25+' }, { labelEn: 'No smoking' }])
+      )
       .field('quantity', '2')
       .field('locationIds', String(ids.city))
     assert.match(saved.header('location') ?? '', /^\/admin\/rentals\/vehicles\/\d+\/edit$/)
     const vehicle = await db.from('rental_vehicles').where('name_en', 'Nissan Patrol').firstOrFail()
     assert.equal(vehicle.status, 'draft')
     assert.equal(kwd(toFils(vehicle.daily_rate)), '25.000')
+    const savedTerms = await db
+      .from('rental_vehicle_terms')
+      .where('vehicle_id', vehicle.id)
+      .orderBy('sort_order')
+    assert.deepEqual(
+      savedTerms.map((term) => [term.label_en, term.label_ar]),
+      [
+        ['25+ age', 'العمر 25+'],
+        ['No smoking', null],
+      ]
+    )
+    assert.isNull(vehicle.extra_km_rate)
+
+    const [first] = await db.table('rental_vehicle_images').insert({
+      vehicle_id: vehicle.id,
+      storage_key: `${randomUUID()}.webp`,
+      sort_order: 1,
+      created_at: new Date(),
+    })
+    const [second] = await db.table('rental_vehicle_images').insert({
+      vehicle_id: vehicle.id,
+      storage_key: `${randomUUID()}.webp`,
+      sort_order: 2,
+      created_at: new Date(),
+    })
+    const [third] = await db.table('rental_vehicle_images').insert({
+      vehicle_id: vehicle.id,
+      storage_key: `${randomUUID()}.webp`,
+      sort_order: 3,
+      created_at: new Date(),
+    })
+    const resaved = await post(`/admin/rentals/vehicles/${vehicle.id}/save`)
+      .field('providerId', String(ids.providerId))
+      .field('nameEn', 'Nissan Patrol')
+      .field('make', 'Nissan')
+      .field('model', 'Patrol')
+      .field('vehicleType', 'suv')
+      .field('transmission', 'automatic')
+      .field('fuelType', 'petrol')
+      .field('seats', '7')
+      .field('dailyRate', '25')
+      .field('quantity', '2')
+      .field('locationIds', String(ids.city))
+      .field('gallery[0][id]', String(first))
+      .field('gallery[0][remove]', 'on')
+      .field('gallery[0][sortOrder]', '1')
+      .field('gallery[1][id]', String(second))
+      .field('gallery[1][remove]', '')
+      .field('gallery[1][sortOrder]', '3')
+      .field('gallery[2][id]', String(third))
+      .field('gallery[2][remove]', '')
+      .field('gallery[2][sortOrder]', '2')
+    assert.equal(resaved.status(), 302)
+    const gallery = await db
+      .from('rental_vehicle_images')
+      .where('vehicle_id', vehicle.id)
+      .orderBy('sort_order')
+    assert.deepEqual(
+      gallery.map((image) => Number(image.id)),
+      [Number(third), Number(second)]
+    )
 
     const published = await post(`/admin/rentals/vehicles/${vehicle.id}/status`).form({
       status: 'published',
@@ -597,15 +840,6 @@ test.group('Rentals CMS', (group) => {
     const jahra = await db.from('rental_locations').where('name_en', 'Jahra').firstOrFail()
     assert.isNull(jahra.longitude)
     assert.isTrue(Boolean(jahra.active))
-    const block = await post(`/admin/rentals/vehicles/${vehicle.id}/blocks`).json({
-      startsAt: '2026-12-01T10:00:00+03:00',
-      endsAt: '2026-12-02T10:00:00+03:00',
-      reason: '',
-    })
-    assert.equal(block.status(), 302)
-    const blocks = await db.from('rental_vehicle_blocks').where('vehicle_id', vehicle.id)
-    assert.lengthOf(blocks, 1)
-
     await post('/admin/rentals/settings').form({
       bookingFee: '4.250',
       holdMinutes: '20',

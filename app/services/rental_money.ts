@@ -32,7 +32,6 @@ export type RentalQuote = {
   daily_rate: string
   driver_daily_rate: string
   rental_amount: string
-  deposit_amount: string
   booking_fee: string
   /** Paid in the app now. */
   pay_now: string
@@ -47,7 +46,6 @@ export function quoteFor(input: {
   dailyRate: unknown
   driverDailyRate: unknown
   withDriver: boolean
-  deposit: unknown
   bookingFee: unknown
 }): RentalQuote {
   const days = rentalDays(input.pickupAt, input.returnAt)
@@ -60,7 +58,6 @@ export function quoteFor(input: {
     daily_rate: kwd(daily),
     driver_daily_rate: kwd(driver),
     rental_amount: kwd(rental),
-    deposit_amount: kwd(toFils(input.deposit)),
     booking_fee: kwd(fee),
     pay_now: kwd(fee),
     pay_at_pickup: kwd(rental),

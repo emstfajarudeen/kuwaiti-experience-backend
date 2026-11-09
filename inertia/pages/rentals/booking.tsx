@@ -1,5 +1,8 @@
-import { Button, Input } from 'antd'
+import { Button, Input, Rate, Switch } from 'antd'
+import { router } from '@inertiajs/react'
+import { useState } from 'react'
 import AdminLayout from '../../layouts/admin_layout'
+import ConfirmModal from '../../components/confirm_modal'
 import {
   ActionForm,
   formatDateTime,
@@ -31,6 +34,7 @@ type Props = SharedProps & {
     vehicle_name: string
     provider_name: string
     provider_phone: string | null
+    provider_email: string | null
     pickup_location: string
     return_location: string
     pickup_at: string
@@ -38,7 +42,6 @@ type Props = SharedProps & {
     with_driver: boolean
     days: number
     rental_amount: string
-    deposit_amount: string
     booking_fee: string
     notes: string | null
     hold_expires_at: string | null
@@ -50,6 +53,21 @@ type Props = SharedProps & {
     completed_at: string | null
   }
   payments: Payment[]
+  review: {
+    id: number
+    rating: number
+    comment: string | null
+    status: 'published' | 'hidden'
+    created_at: string
+  } | null
+  providerEmails: {
+    id: number
+    kind: 'confirmed' | 'cancelled'
+    recipient: string | null
+    status: 'sent' | 'failed' | 'skipped'
+    error: string | null
+    created_at: string
+  }[]
 }
 
 function Detail({ label, value }: { label: string; value: React.ReactNode }) {
@@ -68,11 +86,46 @@ export default function RentalBooking({
   error,
   booking,
   payments,
+  review,
+  providerEmails,
 }: Props) {
   const can = useCan()
   const base = `/admin/rentals/bookings/${booking.id}`
   const paid = payments.some((payment) => payment.status === 'paid')
   const canUpdate = can('rental_bookings.update')
+  const [reviewBusy, setReviewBusy] = useState(false)
+  const [pending, setPending] = useState<'complete' | 'cancel' | 'refund' | null>(null)
+  const [cancelReason, setCancelReason] = useState('')
+  const [refundComment, setRefundComment] = useState('')
+  const confirmCopy = {
+    complete: {
+      title: 'Mark as completed',
+      message: 'Mark this rental as completed? The customer can then review it.',
+      label: 'Mark as completed',
+    },
+    cancel: {
+      title: 'Cancel booking',
+      message:
+        'Cancel this booking? The booking fee is not refunded automatically. If it was confirmed, the provider is emailed.',
+      label: 'Cancel booking',
+    },
+    refund: {
+      title: 'Refund booking fee',
+      message: 'Refund the booking fee through MyFatoorah? This also cancels the booking.',
+      label: 'Refund',
+    },
+  } as const
+  const toggleReview = (visible: boolean) =>
+    review &&
+    router.post(
+      `/admin/rentals/reviews/${review.id}/status`,
+      { status: visible ? 'published' : 'hidden', returnTo: base, _csrf: csrfToken },
+      {
+        preserveScroll: true,
+        onStart: () => setReviewBusy(true),
+        onFinish: () => setReviewBusy(false),
+      }
+    )
   return (
     <AdminLayout
       title={`Booking ${booking.reference}`}
@@ -122,7 +175,6 @@ export default function RentalBooking({
           />
           <Detail label="Booking fee (paid in app)" value={`KWD ${booking.booking_fee}`} />
           <Detail label="Rental amount (paid to provider)" value={`KWD ${booking.rental_amount}`} />
-          <Detail label="Deposit (held by provider)" value={`KWD ${booking.deposit_amount}`} />
           <Detail label="Customer notes" value={booking.notes} />
         </dl>
       </Panel>
@@ -163,9 +215,7 @@ export default function RentalBooking({
         actions={
           canUpdate && payments.length > 0 ? (
             <ActionForm action={`${base}/verify-payment`} csrfToken={csrfToken}>
-              <Button htmlType="submit">
-                Refresh from MyFatoorah
-              </Button>
+              <Button htmlType="submit">Refresh from MyFatoorah</Button>
             </ActionForm>
           ) : null
         }
@@ -209,49 +259,154 @@ export default function RentalBooking({
         )}
       </Panel>
 
+      <Panel
+        title="Provider emails"
+        actions={
+          canUpdate && booking.confirmed_at ? (
+            <ActionForm action={`${base}/provider-email`} csrfToken={csrfToken}>
+              <Button htmlType="submit">
+                {booking.status === 'cancelled' ? 'Send cancellation email' : 'Send booking email'}
+              </Button>
+            </ActionForm>
+          ) : null
+        }
+      >
+        <p className="tw:mb-3 tw:text-[13px] tw:text-brand-muted">
+          Sent to {booking.provider_email ?? 'the provider (no email address saved)'} when the
+          booking is confirmed and when a confirmed booking is cancelled.
+        </p>
+        {providerEmails.length === 0 ? (
+          <p className="tw:text-brand-muted">No emails sent yet.</p>
+        ) : (
+          <table className="tw:w-full tw:text-[13px]">
+            <thead>
+              <tr className="tw:text-left">
+                <th>Email</th>
+                <th>Recipient</th>
+                <th>Result</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {providerEmails.map((email) => (
+                <tr key={email.id}>
+                  <td>{email.kind === 'confirmed' ? 'Booking confirmed' : 'Booking cancelled'}</td>
+                  <td>{email.recipient ?? '—'}</td>
+                  <td>
+                    <span
+                      className={`status ${email.status === 'sent' ? 'published' : email.status === 'failed' ? 'archived' : 'draft'}`}
+                    >
+                      {email.status === 'sent'
+                        ? 'Sent'
+                        : email.status === 'failed'
+                          ? 'Failed'
+                          : 'Not sent'}
+                    </span>
+                    {email.error && (
+                      <span className="tw:mt-1 tw:block tw:text-[12px] tw:text-brand-muted">
+                        {email.error}
+                      </span>
+                    )}
+                  </td>
+                  <td>{formatDateTime(email.created_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Panel>
+
+      {can('rental_reviews.view') && (
+        <Panel
+          title="Customer review"
+          actions={
+            review && can('rental_reviews.update') ? (
+              <span className="tw:flex tw:items-center tw:gap-2 tw:text-[13px]">
+                Visible in app
+                <Switch
+                  aria-label={review.status === 'published' ? 'Hide review' : 'Show review'}
+                  checked={review.status === 'published'}
+                  loading={reviewBusy}
+                  onChange={toggleReview}
+                />
+              </span>
+            ) : null
+          }
+        >
+          {review ? (
+            <div className="tw:flex tw:flex-col tw:gap-2">
+              <Rate disabled value={review.rating} />
+              <p className="tw:m-0 tw:whitespace-pre-line">
+                {review.comment ?? <em className="tw:text-brand-muted">No comment</em>}
+              </p>
+              <span className="tw:text-[12px] tw:text-brand-muted">
+                {formatDateTime(review.created_at)}
+              </span>
+            </div>
+          ) : (
+            <p className="tw:text-brand-muted">The customer has not reviewed this rental.</p>
+          )}
+        </Panel>
+      )}
+
       {canUpdate && (
         <Panel title="Actions">
           <div className="tw:flex tw:flex-col tw:gap-5">
-            {booking.status === 'confirmed' && (
-              <ActionForm
-                action={`${base}/complete`}
-                csrfToken={csrfToken}
-                confirm="Mark this rental as completed?"
-              >
-                <Button type="primary" htmlType="submit">
+            {booking.status === 'confirmed' && new Date(booking.pickup_at) <= new Date() && (
+              <div>
+                <Button type="primary" onClick={() => setPending('complete')}>
                   Mark as completed
                 </Button>
-              </ActionForm>
+              </div>
             )}
             {['pending_payment', 'confirmed', 'expired'].includes(booking.status) && (
-              <ActionForm
-                action={`${base}/cancel`}
-                csrfToken={csrfToken}
-                confirm="Cancel this booking? The booking fee is not refunded automatically."
-                className="tw:flex tw:flex-wrap tw:items-end tw:gap-3"
-              >
-                <Input name="reason" maxLength={500} placeholder="Reason (optional)" className="tw:max-w-md" />
-                <Button danger htmlType="submit">
+              <div className="tw:flex tw:flex-wrap tw:items-end tw:gap-3">
+                <Input
+                  value={cancelReason}
+                  onChange={(event) => setCancelReason(event.target.value)}
+                  maxLength={500}
+                  placeholder="Reason (optional)"
+                  className="tw:max-w-md"
+                />
+                <Button danger onClick={() => setPending('cancel')}>
                   Cancel booking
                 </Button>
-              </ActionForm>
+              </div>
             )}
             {paid && can('rental_bookings.refund') && (
-              <ActionForm
-                action={`${base}/refund`}
-                csrfToken={csrfToken}
-                confirm="Refund the booking fee through MyFatoorah? This also cancels the booking."
-                className="tw:flex tw:flex-wrap tw:items-end tw:gap-3"
-              >
-                <Input name="reason" maxLength={200} placeholder="Refund comment (optional)" className="tw:max-w-md" />
-                <Button danger htmlType="submit">
+              <div className="tw:flex tw:flex-wrap tw:items-end tw:gap-3">
+                <Input
+                  value={refundComment}
+                  onChange={(event) => setRefundComment(event.target.value)}
+                  maxLength={200}
+                  placeholder="Refund comment (optional)"
+                  className="tw:max-w-md"
+                />
+                <Button danger onClick={() => setPending('refund')}>
                   Refund booking fee
                 </Button>
-              </ActionForm>
+              </div>
             )}
           </div>
         </Panel>
       )}
+      <ConfirmModal
+        open={Boolean(pending)}
+        onClose={() => setPending(null)}
+        title={pending ? confirmCopy[pending].title : ''}
+        message={pending ? confirmCopy[pending].message : ''}
+        action={pending ? `${base}/${pending}` : ''}
+        csrfToken={csrfToken}
+        confirmLabel={pending ? confirmCopy[pending].label : ''}
+        danger={pending !== 'complete'}
+        fields={
+          pending === 'cancel'
+            ? { reason: cancelReason }
+            : pending === 'refund'
+              ? { reason: refundComment }
+              : {}
+        }
+      />
     </AdminLayout>
   )
 }

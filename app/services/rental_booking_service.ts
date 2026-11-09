@@ -3,15 +3,18 @@ import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { ApiError } from './api_error.js'
 import { imageLinks, pagination, positiveId } from './explore_read_service.js'
+import { sendProviderEmail } from './rental_provider_mailer.js'
+import { canReview, reviewForBooking } from './rental_review_service.js'
 import {
   findVisibleVehicle,
   freeUnits,
   rentalSettings,
   requireWindow,
   vehicleLocations,
+  vehicleTerms,
   type RentalSettings,
 } from './rental_catalog_service.js'
-import { quoteFor } from './rental_money.js'
+import { kwd, quoteFor, toFils } from './rental_money.js'
 import {
   BOOKING_STATUSES,
   rentalBooking,
@@ -57,7 +60,9 @@ export async function latestPayment(client: Client, bookingId: number) {
 }
 
 /** Booking responses carry the vehicle image as a key, resolved through `meta.images`. */
-export function bookingResponse(booking: { vehicle: { cover_image_key: string | null } }) {
+export function bookingResponse<T extends { vehicle: { cover_image_key: string | null } }>(
+  booking: T
+) {
   return {
     data: booking,
     meta: { images: imageLinks([booking.vehicle.cover_image_key]) },
@@ -75,7 +80,9 @@ export async function serializeBooking(
     row,
     locale,
     await latestPayment(client, Number(row.id)),
-    customerCanCancel(row, resolved)
+    customerCanCancel(row, resolved),
+    await reviewForBooking(client, Number(row.id)),
+    canReview(row)
   )
 }
 
@@ -206,9 +213,9 @@ export async function createBooking(
         dailyRate: vehicle.daily_rate,
         driverDailyRate: vehicle.driver_daily_rate,
         withDriver,
-        deposit: vehicle.deposit_amount,
         bookingFee: settings.booking_fee,
       })
+      const termRows = await vehicleTerms(trx, Number(vehicle.id))
       const snapshot: BookingSnapshot = {
         vehicle: {
           id: Number(vehicle.id),
@@ -223,11 +230,13 @@ export async function createBooking(
           cover_image_key: vehicle.cover_image_key ?? null,
           mileage_limit_km:
             vehicle.mileage_limit_km === null ? null : Number(vehicle.mileage_limit_km),
-          min_driver_age: Number(vehicle.min_driver_age),
+          extra_km_rate: vehicle.extra_km_rate === null ? null : kwd(toFils(vehicle.extra_km_rate)),
           insurance_en: vehicle.insurance_en ?? null,
           insurance_ar: vehicle.insurance_ar ?? null,
-          terms_en: vehicle.terms_en ?? null,
-          terms_ar: vehicle.terms_ar ?? null,
+          rental_terms: termRows.map((term) => ({
+            label_en: term.label_en,
+            label_ar: term.label_ar ?? null,
+          })),
         },
         provider: {
           id: Number(vehicle.provider_id),
@@ -255,7 +264,6 @@ export async function createBooking(
         daily_rate: quote.daily_rate,
         driver_daily_rate: quote.driver_daily_rate,
         rental_amount: quote.rental_amount,
-        deposit_amount: quote.deposit_amount,
         booking_fee: quote.booking_fee,
         currency: 'KWD',
         snapshot: JSON.stringify(snapshot),
@@ -351,9 +359,11 @@ export async function cancelBooking(
   locale: PublicLocale
 ) {
   await expireStaleHolds()
-  return db.transaction(async (trx) => {
+  let wasConfirmed = false
+  const response = await db.transaction(async (trx) => {
     const row = await ownedBooking(trx, customerId, id, true)
     const settings = await rentalSettings(trx)
+    wasConfirmed = row.status === 'confirmed'
     if (!customerCanCancel(row, settings))
       throw new ApiError(
         409,
@@ -376,4 +386,6 @@ export async function cancelBooking(
     const updated = await trx.from('rental_bookings').where('id', row.id).firstOrFail()
     return bookingResponse(await serializeBooking(trx, updated, locale, settings))
   })
+  if (wasConfirmed) await sendProviderEmail(response.data.id, 'cancelled')
+  return response
 }

@@ -1,5 +1,6 @@
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { sendProviderEmail } from './rental_provider_mailer.js'
 import { ApiError } from './api_error.js'
 import {
   MAX_GALLERY_IMAGES,
@@ -47,7 +48,7 @@ export type SettingsInput = {
   holdMinutes: number
   minLeadMinutes: number
   maxRentalDays: number
-  cancellationCutoffHours: number
+  cancellationCutoffHours?: number | null
 }
 
 export async function saveSettings(input: SettingsInput, actorId: number) {
@@ -57,7 +58,9 @@ export async function saveSettings(input: SettingsInput, actorId: number) {
       hold_minutes: input.holdMinutes,
       min_lead_minutes: input.minLeadMinutes,
       max_rental_days: input.maxRentalDays,
-      cancellation_cutoff_hours: input.cancellationCutoffHours,
+      ...(input.cancellationCutoffHours === undefined || input.cancellationCutoffHours === null
+        ? {}
+        : { cancellation_cutoff_hours: input.cancellationCutoffHours }),
       updated_at: new Date(),
     }
     const existing = await trx.from('rental_settings').where('id', 1).forUpdate().first()
@@ -261,16 +264,14 @@ export type VehicleInput = {
   doors: number | null
   bags: number | null
   mileageLimitKm: number | null
+  extraKmRate: string | null
   dailyRate: string
-  depositAmount: string
   withDriverAvailable: boolean
   driverDailyRate: string | null
-  minDriverAge: number
   quantity: number
   insuranceEn: string | null
   insuranceAr: string | null
-  termsEn: string | null
-  termsAr: string | null
+  terms: Array<{ labelEn: string; labelAr: string | null }>
   locationIds: number[]
 }
 
@@ -278,7 +279,11 @@ export type VehicleFiles = {
   cover?: PreparedImage
   removeCover?: boolean
   gallery: PreparedImage[]
+  /** Positions (1-based, shared with existing images) of the new gallery files, in file order. */
+  galleryNewOrder?: number[]
   removeImageIds: number[]
+  /** New positions of kept gallery images. */
+  galleryOrder: Array<{ id: number; sortOrder: number }>
 }
 
 export async function listVehicles(params: {
@@ -318,20 +323,16 @@ export async function listVehicles(params: {
 export async function findVehicle(id: number) {
   const row = (await db.from('rental_vehicles').where('id', id).first()) as Row | undefined
   if (!row) return null
-  const [images, locations, blocks] = await Promise.all([
+  const [images, locations, terms] = await Promise.all([
     db.from('rental_vehicle_images').where('vehicle_id', id).orderBy('sort_order').orderBy('id'),
     db.from('rental_vehicle_locations').where('vehicle_id', id).select('location_id'),
-    db
-      .from('rental_vehicle_blocks')
-      .where('vehicle_id', id)
-      .where('ends_at', '>', new Date())
-      .orderBy('starts_at'),
+    db.from('rental_vehicle_terms').where('vehicle_id', id).orderBy('sort_order').orderBy('id'),
   ])
   return {
     row,
     images: images as Row[],
     locationIds: locations.map((item) => Number(item.location_id)),
-    blocks: blocks as Row[],
+    terms: terms as Row[],
   }
 }
 
@@ -411,16 +412,16 @@ export async function saveVehicle(
         doors: input.doors,
         bags: input.bags,
         mileage_limit_km: input.mileageLimitKm,
+        extra_km_rate:
+          input.mileageLimitKm !== null && input.extraKmRate !== null
+            ? kwd(toFils(input.extraKmRate))
+            : null,
         daily_rate: kwd(toFils(input.dailyRate)),
-        deposit_amount: kwd(toFils(input.depositAmount)),
         with_driver_available: input.withDriverAvailable,
         driver_daily_rate: input.withDriverAvailable ? kwd(toFils(input.driverDailyRate)) : null,
-        min_driver_age: input.minDriverAge,
         quantity: input.quantity,
         insurance_en: input.insuranceEn,
         insurance_ar: input.insuranceAr,
-        terms_en: input.termsEn,
-        terms_ar: input.termsAr,
         cover_image_key: cover,
         updated_at: new Date(),
       }
@@ -443,6 +444,11 @@ export async function saveVehicle(
           .whereIn('id', files.removeImageIds)
           .delete()
       }
+      for (const item of files.galleryOrder)
+        await trx
+          .from('rental_vehicle_images')
+          .where({ vehicle_id: vehicleId!, id: item.id })
+          .update({ sort_order: item.sortOrder })
       if (galleryKeys.length) {
         const current = await trx
           .from('rental_vehicle_images')
@@ -453,11 +459,13 @@ export async function saveVehicle(
         if (Number(current?.total ?? 0) + galleryKeys.length > MAX_GALLERY_IMAGES)
           fieldError('gallery', `A vehicle can have up to ${MAX_GALLERY_IMAGES} gallery images.`)
         const start = Number(current?.last ?? -1) + 1
+        const positions =
+          files.galleryNewOrder?.length === galleryKeys.length ? files.galleryNewOrder : null
         await trx.table('rental_vehicle_images').multiInsert(
           galleryKeys.map((key, index) => ({
             vehicle_id: vehicleId,
             storage_key: key,
-            sort_order: start + index,
+            sort_order: positions ? positions[index] : start + index,
             created_at: new Date(),
           }))
         )
@@ -467,6 +475,17 @@ export async function saveVehicle(
         .table('rental_vehicle_locations')
         .multiInsert(
           locationIds.map((locationId) => ({ vehicle_id: vehicleId, location_id: locationId }))
+        )
+      await trx.from('rental_vehicle_terms').where('vehicle_id', vehicleId!).delete()
+      if (input.terms.length)
+        await trx.table('rental_vehicle_terms').multiInsert(
+          input.terms.map((term, index) => ({
+            vehicle_id: vehicleId,
+            label_en: term.labelEn,
+            label_ar: term.labelAr,
+            sort_order: index,
+            created_at: new Date(),
+          }))
         )
       await audit(trx, actorId, 'rental_vehicle', Number(vehicleId), id ? 'update' : 'create')
       return { result: Number(vehicleId), released }
@@ -527,45 +546,6 @@ export async function deleteVehicle(id: number, actorId: number) {
   }
 }
 
-function parseInstant(value: string, field: string) {
-  const date = new Date(value)
-  if (!value || Number.isNaN(date.getTime())) fieldError(field, 'Enter a valid date and time.')
-  return date
-}
-
-export async function addBlock(
-  vehicleId: number,
-  input: { startsAt: string; endsAt: string; reason: string | null },
-  actorId: number
-) {
-  const startsAt = parseInstant(input.startsAt, 'startsAt')
-  const endsAt = parseInstant(input.endsAt, 'endsAt')
-  if (endsAt <= startsAt) fieldError('endsAt', 'The end must be after the start.')
-  await db.transaction(async (trx) => {
-    if (!(await trx.from('rental_vehicles').where('id', vehicleId).first()))
-      throw new ApiError(404, 'NOT_FOUND', 'Vehicle not found')
-    const [blockId] = await trx.table('rental_vehicle_blocks').insert({
-      vehicle_id: vehicleId,
-      starts_at: startsAt,
-      ends_at: endsAt,
-      reason: input.reason,
-      created_at: new Date(),
-    })
-    await audit(trx, actorId, 'rental_vehicle_block', Number(blockId), 'create')
-  })
-}
-
-export async function removeBlock(vehicleId: number, blockId: number, actorId: number) {
-  await db.transaction(async (trx) => {
-    const removed = await trx
-      .from('rental_vehicle_blocks')
-      .where({ id: blockId, vehicle_id: vehicleId })
-      .delete()
-    if (!removed) throw new ApiError(404, 'NOT_FOUND', 'Unavailable period not found')
-    await audit(trx, actorId, 'rental_vehicle_block', blockId, 'delete')
-  })
-}
-
 // ---------------------------------------------------------------- bookings
 
 export async function listBookings(params: { status?: string; q?: string; page?: unknown }) {
@@ -600,7 +580,10 @@ export async function listBookings(params: { status?: string; q?: string; page?:
       'c.last_name',
       'c.phone_e164',
       'v.name_en as vehicle_name',
-      'p.name_en as provider_name'
+      'p.name_en as provider_name',
+      db.raw(
+        "(select count(*) from rental_payments as rp where rp.booking_id = b.id and rp.status = 'paid') as paid_count"
+      )
     )
     .orderBy('b.id', 'desc')
     .limit(PAGE_SIZE)
@@ -617,11 +600,16 @@ export async function findBooking(id: number) {
     .select('b.*', 'c.first_name', 'c.last_name', 'c.phone_e164', 'c.email')
     .first()) as Row | undefined
   if (!row) return null
-  const payments = (await db
-    .from('rental_payments')
-    .where('booking_id', id)
-    .orderBy('id', 'desc')) as Row[]
-  return { row, payments }
+  const [payments, review, providerEmails] = await Promise.all([
+    db.from('rental_payments').where('booking_id', id).orderBy('id', 'desc') as Promise<Row[]>,
+    db.from('rental_reviews').where('booking_id', id).first() as Promise<Row | undefined>,
+    db
+      .from('rental_provider_emails')
+      .where('booking_id', id)
+      .orderBy('id', 'desc')
+      .limit(20) as Promise<Row[]>,
+  ])
+  return { row, payments, review: review ?? null, providerEmails }
 }
 
 export async function completeBooking(id: number, actorId: number) {
@@ -641,9 +629,11 @@ export async function completeBooking(id: number, actorId: number) {
 }
 
 export async function cancelBookingByStaff(id: number, reason: string | null, actorId: number) {
+  let wasConfirmed = false
   await db.transaction(async (trx) => {
     const row = await trx.from('rental_bookings').where('id', id).forUpdate().first()
     if (!row) throw new ApiError(404, 'NOT_FOUND', 'Booking not found')
+    wasConfirmed = row.status === 'confirmed'
     if (!['pending_payment', 'confirmed', 'expired'].includes(row.status))
       throw new ApiError(409, 'INVALID_BOOKING_STATUS', 'This booking can no longer be cancelled.')
     const now = new Date()
@@ -656,4 +646,5 @@ export async function cancelBookingByStaff(id: number, reason: string | null, ac
     })
     await audit(trx, actorId, 'rental_booking', id, 'cancel')
   })
+  if (wasConfirmed) await sendProviderEmail(id, 'cancelled', actorId)
 }

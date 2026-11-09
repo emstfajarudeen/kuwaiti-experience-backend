@@ -203,26 +203,27 @@ export default function RentalVehicles(props: Props) {
           active={filters.active}
           onReset={filters.reset}
         />
-        <Table<Vehicle>
-          className="cms-antd-table"
-          rowKey="id"
-          columns={columns}
-          dataSource={rows}
-          pagination={{
-            current: meta.page,
-            pageSize: meta.perPage,
-            total: meta.total,
-            showSizeChanger: false,
-            hideOnSinglePage: true,
-          }}
-          scroll={{ x: 'max-content' }}
-          onChange={changePage}
-          locale={{
-            emptyText: providers.length
-              ? 'No vehicles yet.'
-              : 'Add a provider and a pickup location first, then add vehicles.',
-          }}
-        />
+        <div className="table-scroll">
+          <Table<Vehicle>
+            className="cms-antd-table"
+            rowKey="id"
+            columns={columns}
+            dataSource={rows}
+            pagination={{
+              current: meta.page,
+              pageSize: meta.perPage,
+              total: meta.total,
+              showSizeChanger: false,
+              hideOnSinglePage: true,
+            }}
+            onChange={changePage}
+            locale={{
+              emptyText: providers.length
+                ? 'No vehicles yet.'
+                : 'Add a provider and a pickup location first, then add vehicles.',
+            }}
+          />
+        </div>
       </section>
       <ConfirmModal
         open={Boolean(deleting)}

@@ -60,7 +60,6 @@ export default function RentalSettings({
           holdMinutes: settings.hold_minutes,
           minLeadMinutes: settings.min_lead_minutes,
           maxRentalDays: settings.max_rental_days,
-          cancellationCutoffHours: settings.cancellation_cutoff_hours,
         }}
       >
         <FormSection title="Booking rules">
@@ -87,14 +86,6 @@ export default function RentalSettings({
           </FormField>
           <FormField label="Maximum rental length (days)" name="maxRentalDays" required>
             <InputNumber min={1} max={365} precision={0} className="tw:w-full" />
-          </FormField>
-          <FormField
-            label="Customer cancellation cut-off (hours before pickup)"
-            name="cancellationCutoffHours"
-            required
-            hint="The booking fee is not refunded automatically when customers cancel."
-          >
-            <InputNumber min={0} max={720} precision={0} className="tw:w-full" />
           </FormField>
         </FormSection>
       </RentalFormShell>

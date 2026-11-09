@@ -74,25 +74,29 @@ export const rentalVehicleValidator = vine.compile(
     doors: vine.number().withoutDecimals().range([1, 10]).nullable(),
     bags: vine.number().withoutDecimals().range([0, 20]).nullable(),
     mileageLimitKm: vine.number().withoutDecimals().range([1, 100000]).nullable(),
+    extraKmRate: money().nullable(),
     dailyRate: money(),
-    depositAmount: money(),
     withDriverAvailable: vine.boolean(),
     driverDailyRate: money().nullable(),
-    minDriverAge: vine.number().withoutDecimals().range([18, 99]),
     quantity: vine.number().withoutDecimals().range([1, 500]),
     insuranceEn: optionalText(5000),
     insuranceAr: optionalText(5000),
-    termsEn: optionalText(10000),
-    termsAr: optionalText(10000),
+    terms: vine
+      .array(
+        vine.object({
+          labelEn: vine.string().trim().minLength(1).maxLength(200),
+          labelAr: optionalText(200),
+        })
+      )
+      .maxLength(20),
     locationIds: vine.array(vine.number().withoutDecimals().positive()).maxLength(200),
   })
 )
 
-export const rentalBlockValidator = vine.compile(
+export const rentalReviewValidator = vine.compile(
   vine.object({
-    startsAt: vine.string().trim().maxLength(40),
-    endsAt: vine.string().trim().maxLength(40),
-    reason: optionalText(200),
+    rating: vine.number().withoutDecimals().range([1, 5]),
+    comment: vine.string().trim().maxLength(1000).nullable().optional(),
   })
 )
 
@@ -102,6 +106,7 @@ export const rentalSettingsValidator = vine.compile(
     holdMinutes: vine.number().withoutDecimals().range([5, 120]),
     minLeadMinutes: vine.number().withoutDecimals().range([0, 10080]),
     maxRentalDays: vine.number().withoutDecimals().range([1, 365]),
-    cancellationCutoffHours: vine.number().withoutDecimals().range([0, 720]),
+    // Hidden in the CMS until the app offers customer cancellation; omitted keeps the stored value.
+    cancellationCutoffHours: vine.number().withoutDecimals().range([0, 720]).nullable().optional(),
   })
 )

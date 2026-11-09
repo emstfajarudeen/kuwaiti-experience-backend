@@ -138,15 +138,16 @@ export default function RentalProviders({
         }
       />
       <section className="panel table-panel tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-0">
-        <Table<Provider>
-          className="cms-antd-table"
-          rowKey="id"
-          columns={columns}
-          dataSource={rows}
-          pagination={false}
-          scroll={{ x: 'max-content' }}
-          locale={{ emptyText: 'No rental providers yet.' }}
-        />
+        <div className="table-scroll">
+          <Table<Provider>
+            className="cms-antd-table"
+            rowKey="id"
+            columns={columns}
+            dataSource={rows}
+            pagination={false}
+            locale={{ emptyText: 'No rental providers yet.' }}
+          />
+        </div>
       </section>
       <ConfirmModal
         open={Boolean(deleting)}

@@ -3,7 +3,7 @@
   "info": {
     "title": "Kuwaiti Experience Car Rental API",
     "version": "2.0.0",
-    "description": "Car rental search, quote, reservation and booking-fee payment for the mobile app. Inventory is managed in the CMS. The app charges only the booking fee through MyFatoorah; the rental amount and deposit are paid to the provider at pickup. Money is a three-decimal KWD string. Responses use the shared envelope; image keys are resolved through meta.images. See rental-api.md for the flow."
+    "description": "Car rental search, quote, reservation and booking-fee payment for the mobile app. Inventory is managed in the CMS. The app charges only the booking fee through MyFatoorah; the rental amount is paid to the provider at pickup. Money is a three-decimal KWD string. Responses use the shared envelope; image keys are resolved through meta.images. See rental-api.md for the flow."
   },
   "paths": {
     "/api/v2/rentals/options": {
@@ -1143,6 +1143,333 @@
           }
         }
       }
+    },
+    "/api/v2/rentals/vehicles/{id}/reviews": {
+      "get": {
+        "summary": "Published reviews of a vehicle, newest first, with the rating breakdown",
+        "tags": [
+          "Car rental reviews"
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            },
+            "description": "Localizes names, insurance and terms. Missing Arabic text falls back to English per field."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/rentals/providers/{id}/reviews": {
+      "get": {
+        "summary": "Published reviews of all vehicles of a rental provider, newest first",
+        "tags": [
+          "Car rental reviews"
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            },
+            "description": "Localizes names, insurance and terms. Missing Arabic text falls back to English per field."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/customer/me/rental-bookings/{id}/review": {
+      "put": {
+        "summary": "Create or edit my review of a finished rental (one review per booking)",
+        "tags": [
+          "Car rental reviews"
+        ],
+        "security": [
+          {
+            "customerBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OwnReview"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/OwnReview"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete my review",
+        "tags": [
+          "Car rental reviews"
+        ],
+        "security": [
+          {
+            "customerBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1247,13 +1574,14 @@
           "mileage_limit_km",
           "unlimited_mileage",
           "daily_rate",
-          "deposit_amount",
           "with_driver_available",
           "driver_daily_rate",
           "currency",
           "cover_image_key",
           "provider",
-          "quote"
+          "quote",
+          "rating",
+          "extra_km_rate"
         ],
         "properties": {
           "id": {
@@ -1313,11 +1641,6 @@
             "pattern": "^\\d+\\.\\d{3}$",
             "example": "12.500"
           },
-          "deposit_amount": {
-            "type": "string",
-            "pattern": "^\\d+\\.\\d{3}$",
-            "example": "12.500"
-          },
           "with_driver_available": {
             "type": "boolean"
           },
@@ -1351,7 +1674,8 @@
             "required": [
               "id",
               "name",
-              "logo_image_key"
+              "logo_image_key",
+              "rating"
             ],
             "properties": {
               "id": {
@@ -1366,6 +1690,9 @@
                   "null"
                 ],
                 "description": "Resolve through meta.images."
+              },
+              "rating": {
+                "$ref": "#/components/schemas/RatingSummary"
               }
             }
           },
@@ -1379,6 +1706,22 @@
               }
             ],
             "description": "Present when pickup_at and return_at were sent."
+          },
+          "rating": {
+            "$ref": "#/components/schemas/RatingSummary"
+          },
+          "extra_km_rate": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d+\\.\\d{3}$",
+                "example": "12.500"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "KWD per km over mileage_limit_km, collected by the provider. null when not charged or mileage is unlimited."
           }
         }
       },
@@ -1389,7 +1732,6 @@
           "daily_rate",
           "driver_daily_rate",
           "rental_amount",
-          "deposit_amount",
           "booking_fee",
           "pay_now",
           "pay_at_pickup",
@@ -1419,11 +1761,6 @@
             ]
           },
           "rental_amount": {
-            "type": "string",
-            "pattern": "^\\d+\\.\\d{3}$",
-            "example": "12.500"
-          },
-          "deposit_amount": {
             "type": "string",
             "pattern": "^\\d+\\.\\d{3}$",
             "example": "12.500"
@@ -1609,13 +1946,12 @@
             "type": "object",
             "required": [
               "gallery",
-              "min_driver_age",
               "insurance",
-              "terms",
               "locations",
               "available",
               "booking_fee",
-              "cancellation_cutoff_hours"
+              "cancellation_cutoff_hours",
+              "rental_terms"
             ],
             "properties": {
               "gallery": {
@@ -1633,16 +1969,7 @@
                 },
                 "description": "Cover first, then the gallery. Resolve through meta.images."
               },
-              "min_driver_age": {
-                "type": "integer"
-              },
               "insurance": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
-              "terms": {
                 "type": [
                   "string",
                   "null"
@@ -1668,6 +1995,22 @@
               },
               "cancellation_cutoff_hours": {
                 "type": "integer"
+              },
+              "rental_terms": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "label"
+                  ],
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "example": "21+ age"
+                    }
+                  }
+                },
+                "description": "Ordered rental terms managed in the CMS; show as chips."
               }
             }
           }
@@ -1763,7 +2106,9 @@
           "created_at",
           "confirmed_at",
           "cancelled_at",
-          "completed_at"
+          "completed_at",
+          "review",
+          "can_review"
         ],
         "properties": {
           "id": {
@@ -1814,10 +2159,10 @@
               "seats",
               "mileage_limit_km",
               "unlimited_mileage",
-              "min_driver_age",
               "cover_image_key",
               "insurance",
-              "terms"
+              "extra_km_rate",
+              "rental_terms"
             ],
             "properties": {
               "id": {
@@ -1856,9 +2201,6 @@
               "unlimited_mileage": {
                 "type": "boolean"
               },
-              "min_driver_age": {
-                "type": "integer"
-              },
               "cover_image_key": {
                 "type": [
                   "string",
@@ -1872,11 +2214,34 @@
                   "null"
                 ]
               },
-              "terms": {
-                "type": [
-                  "string",
-                  "null"
-                ]
+              "extra_km_rate": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^\\d+\\.\\d{3}$",
+                    "example": "12.500"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "KWD per km over mileage_limit_km, collected by the provider. null when not charged or mileage is unlimited."
+              },
+              "rental_terms": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "label"
+                  ],
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "example": "21+ age"
+                    }
+                  }
+                },
+                "description": "Ordered rental terms managed in the CMS; show as chips."
               }
             }
           },
@@ -1922,7 +2287,6 @@
               "daily_rate",
               "driver_daily_rate",
               "rental_amount",
-              "deposit_amount",
               "booking_fee",
               "pay_now",
               "pay_at_pickup",
@@ -1950,11 +2314,6 @@
                 ]
               },
               "rental_amount": {
-                "type": "string",
-                "pattern": "^\\d+\\.\\d{3}$",
-                "example": "12.500"
-              },
-              "deposit_amount": {
                 "type": "string",
                 "pattern": "^\\d+\\.\\d{3}$",
                 "example": "12.500"
@@ -2092,6 +2451,20 @@
               "null"
             ],
             "format": "date-time"
+          },
+          "review": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/OwnReview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "can_review": {
+            "type": "boolean",
+            "description": "True once the rental has ended (completed, or confirmed and past return_at). Allows creating or editing the review."
           }
         }
       },
@@ -2232,6 +2605,237 @@
           "hold_expires_at": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "RatingSummary": {
+        "type": "object",
+        "required": [
+          "average",
+          "count"
+        ],
+        "description": "Published reviews only. average is rounded to one decimal and null when count is 0.",
+        "properties": {
+          "average": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "example": 4.6
+          },
+          "count": {
+            "type": "integer"
+          }
+        }
+      },
+      "OwnReview": {
+        "type": "object",
+        "required": [
+          "id",
+          "rating",
+          "comment",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "comment": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "published",
+              "hidden"
+            ],
+            "description": "hidden means staff removed it from public lists."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "ReviewRequest": {
+        "type": "object",
+        "required": [
+          "rating"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "comment": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          }
+        }
+      },
+      "PublicReview": {
+        "type": "object",
+        "required": [
+          "id",
+          "rating",
+          "comment",
+          "author_name",
+          "vehicle",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "comment": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "author_name": {
+            "type": "string",
+            "example": "Mariam A.",
+            "description": "First name and last initial."
+          },
+          "vehicle": {
+            "type": "object",
+            "required": [
+              "id",
+              "name"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "ReviewListResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicReview"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "page",
+              "per_page",
+              "total",
+              "last_page",
+              "rating"
+            ],
+            "properties": {
+              "page": {
+                "type": "integer"
+              },
+              "per_page": {
+                "type": "integer"
+              },
+              "total": {
+                "type": "integer"
+              },
+              "last_page": {
+                "type": "integer"
+              },
+              "rating": {
+                "type": "object",
+                "required": [
+                  "average",
+                  "count",
+                  "distribution"
+                ],
+                "properties": {
+                  "average": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "count": {
+                    "type": "integer"
+                  },
+                  "distribution": {
+                    "type": "object",
+                    "required": [
+                      "1",
+                      "2",
+                      "3",
+                      "4",
+                      "5"
+                    ],
+                    "properties": {
+                      "1": {
+                        "type": "integer"
+                      },
+                      "2": {
+                        "type": "integer"
+                      },
+                      "3": {
+                        "type": "integer"
+                      },
+                      "4": {
+                        "type": "integer"
+                      },
+                      "5": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

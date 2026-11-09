@@ -251,24 +251,34 @@ export default class RentalSeeder extends BaseSeeder {
         doors: item.seats > 5 ? 5 : 4,
         bags: 3,
         mileage_limit_km: item.type === 'luxury' ? null : 300,
+        extra_km_rate: item.type === 'luxury' ? null : '0.120',
         daily_rate: item.rate,
-        deposit_amount: item.deposit,
         with_driver_available: item.driverRate !== null,
         driver_daily_rate: item.driverRate,
-        min_driver_age: item.type === 'luxury' ? 25 : 21,
         quantity: item.quantity,
         insurance_en: 'Full comprehensive insurance included. Excess applies in case of damage.',
         insurance_ar: 'تأمين شامل مشمول. تطبق نسبة تحمل في حال الضرر.',
-        terms_en:
-          'Driving licence and civil ID or passport required at pickup. Fuel: return at the same level. No smoking.',
-        terms_ar:
-          'يلزم إحضار رخصة القيادة والبطاقة المدنية أو جواز السفر عند الاستلام. إرجاع السيارة بنفس مستوى الوقود. ممنوع التدخين.',
         cover_image_key: cover,
         status: 'published',
         published_at: now,
         created_at: now,
       })
       vehicleIds.set(item.slug, Number(id))
+      const age = item.type === 'luxury' ? 25 : 21
+      const deposit = Number(item.deposit)
+      await db.table('rental_vehicle_terms').multiInsert(
+        [
+          { label_en: `${age}+ age`, label_ar: `العمر ${age}+` },
+          { label_en: 'Free cancellation', label_ar: 'إلغاء مجاني' },
+          { label_en: `KD ${deposit} deposit`, label_ar: `تأمين ${deposit} د.ك` },
+          {
+            label_en: 'Licence and civil ID at pickup',
+            label_ar: 'الرخصة والبطاقة المدنية عند الاستلام',
+          },
+          { label_en: 'Return with the same fuel level', label_ar: 'الإرجاع بنفس مستوى الوقود' },
+          { label_en: 'No smoking', label_ar: 'ممنوع التدخين' },
+        ].map((term, sort_order) => ({ vehicle_id: id, ...term, sort_order, created_at: now }))
+      )
       await db.table('rental_vehicle_images').multiInsert(
         gallery.map((storage_key, sort_order) => ({
           vehicle_id: id,
@@ -280,24 +290,6 @@ export default class RentalSeeder extends BaseSeeder {
       await db
         .table('rental_vehicle_locations')
         .multiInsert(locationIds.map((location_id) => ({ vehicle_id: id, location_id })))
-    }
-
-    // The Patrol is in the workshop for two days next week, so searches there show it as unavailable.
-    const patrol = vehicleIds.get('patrol')!
-    const blockStart = new Date(Date.now() + 7 * DAY)
-    if (
-      !(await db
-        .from('rental_vehicle_blocks')
-        .where({ vehicle_id: patrol, reason: 'Workshop (sample)' })
-        .first())
-    ) {
-      await db.table('rental_vehicle_blocks').insert({
-        vehicle_id: patrol,
-        starts_at: blockStart,
-        ends_at: new Date(blockStart.getTime() + 2 * DAY),
-        reason: 'Workshop (sample)',
-        created_at: now,
-      })
     }
 
     // A test customer with a confirmed and a cancelled booking, to try the CMS booking pages and refunds.
@@ -336,6 +328,10 @@ export default class RentalSeeder extends BaseSeeder {
         latitude: Number(place.latitude),
         longitude: Number(place.longitude),
       }
+      const camryTerms = await db
+        .from('rental_vehicle_terms')
+        .where('vehicle_id', camry)
+        .orderBy('sort_order')
       const [bookingId] = await db.table('rental_bookings').insert({
         reference: sample.reference,
         customer_id: customer.id,
@@ -350,7 +346,6 @@ export default class RentalSeeder extends BaseSeeder {
         daily_rate: '12.500',
         driver_daily_rate: '0.000',
         rental_amount: '37.500',
-        deposit_amount: '50.000',
         booking_fee: '3.000',
         currency: 'KWD',
         snapshot: JSON.stringify({
@@ -366,11 +361,13 @@ export default class RentalSeeder extends BaseSeeder {
             seats: camryRow.seats,
             cover_image_key: camryRow.cover_image_key,
             mileage_limit_km: camryRow.mileage_limit_km,
-            min_driver_age: camryRow.min_driver_age,
+            extra_km_rate: camryRow.extra_km_rate,
             insurance_en: camryRow.insurance_en,
             insurance_ar: camryRow.insurance_ar,
-            terms_en: camryRow.terms_en,
-            terms_ar: camryRow.terms_ar,
+            rental_terms: camryTerms.map((term) => ({
+              label_en: term.label_en,
+              label_ar: term.label_ar,
+            })),
           },
           provider: {
             id: Number(provider.id),

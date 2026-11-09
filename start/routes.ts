@@ -132,6 +132,13 @@ router
     router.post('/rentals/bookings/:id/cancel', [AdminRentalsController, 'cancelBooking'])
     router.post('/rentals/bookings/:id/refund', [AdminRentalsController, 'refundBooking'])
     router.post('/rentals/bookings/:id/verify-payment', [AdminRentalsController, 'verifyPayment'])
+    router.post('/rentals/bookings/:id/provider-email', [
+      AdminRentalsController,
+      'sendProviderEmail',
+    ])
+    router.get('/rentals/reviews', [AdminRentalsController, 'reviews'])
+    router.post('/rentals/reviews/:id/status', [AdminRentalsController, 'reviewStatus'])
+    router.post('/rentals/reviews/:id/delete', [AdminRentalsController, 'deleteReview'])
     router.get('/rentals/vehicles', [AdminRentalsController, 'vehicles'])
     router.get('/rentals/vehicles/new', [AdminRentalsController, 'newVehicle'])
     router
@@ -143,11 +150,6 @@ router
       .as('cms.rentalVehicles.update')
     router.post('/rentals/vehicles/:id/status', [AdminRentalsController, 'vehicleStatus'])
     router.post('/rentals/vehicles/:id/delete', [AdminRentalsController, 'deleteVehicle'])
-    router.post('/rentals/vehicles/:id/blocks', [AdminRentalsController, 'addBlock'])
-    router.post('/rentals/vehicles/:id/blocks/:blockId/delete', [
-      AdminRentalsController,
-      'removeBlock',
-    ])
     router.get('/rentals/providers', [AdminRentalsController, 'providers'])
     router.get('/rentals/providers/new', [AdminRentalsController, 'newProvider'])
     router
@@ -348,6 +350,8 @@ router
     router.get('/rentals/vehicles', [RentalsController, 'vehicles'])
     router.get('/rentals/vehicles/:id', [RentalsController, 'vehicle'])
     router.get('/rentals/vehicles/:id/quote', [RentalsController, 'quote'])
+    router.get('/rentals/vehicles/:id/reviews', [RentalsController, 'vehicleReviews'])
+    router.get('/rentals/providers/:id/reviews', [RentalsController, 'providerReviews'])
     router.get('/rentals/payments/callback', [RentalsController, 'callback'])
     router
       .post('/rentals/payments/webhook', [RentalsController, 'webhook'])
@@ -438,6 +442,12 @@ router
           .use(rentalBookingThrottle)
         router
           .post('/customer/me/rental-bookings/:id/cancel', [RentalsController, 'cancel'])
+          .use(rentalBookingThrottle)
+        router
+          .put('/customer/me/rental-bookings/:id/review', [RentalsController, 'saveReview'])
+          .use(rentalBookingThrottle)
+        router
+          .delete('/customer/me/rental-bookings/:id/review', [RentalsController, 'deleteReview'])
           .use(rentalBookingThrottle)
         router
           .get('/customer/me/rental-bookings/:id/payment-methods', [

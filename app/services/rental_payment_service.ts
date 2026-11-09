@@ -14,6 +14,7 @@ import {
 import { kwd, toFils } from './rental_money.js'
 import { createCustomerNotification } from './customer_notification_service.js'
 import type { PublicLocale } from './public_localization.js'
+import { sendProviderEmail } from './rental_provider_mailer.js'
 
 type Row = Record<string, any>
 
@@ -247,6 +248,7 @@ async function notifyConfirmed(booking: Row) {
   } catch (error) {
     logger.error({ err: error, bookingId: booking.id }, 'Rental confirmation notification failed')
   }
+  await sendProviderEmail(Number(booking.id), 'confirmed')
 }
 
 export async function verifyPayment(customerId: number, bookingId: unknown, locale: PublicLocale) {
@@ -306,6 +308,7 @@ export async function refundBooking(bookingId: number, actorId: number, comment:
     toFils(payment.amount) / 1000,
     comment.slice(0, 200) || 'Rental booking fee refund'
   )
+  let wasConfirmed = false
   await db.transaction(async (trx) => {
     const now = new Date()
     await trx
@@ -322,6 +325,7 @@ export async function refundBooking(bookingId: number, actorId: number, comment:
       .where('id', bookingId)
       .forUpdate()
       .firstOrFail()
+    wasConfirmed = booking.status === 'confirmed'
     if (['refund_required', 'confirmed', 'pending_payment', 'expired'].includes(booking.status))
       await trx
         .from('rental_bookings')
@@ -340,4 +344,5 @@ export async function refundBooking(bookingId: number, actorId: number, comment:
       created_at: now,
     })
   })
+  if (wasConfirmed) await sendProviderEmail(bookingId, 'cancelled', actorId)
 }

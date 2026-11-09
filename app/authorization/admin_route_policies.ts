@@ -436,8 +436,6 @@ add(
     '/admin/rentals/vehicles/:id/save',
     '/admin/rentals/providers/:id/save',
     '/admin/rentals/locations/:id/save',
-    '/admin/rentals/vehicles/:id/blocks',
-    '/admin/rentals/vehicles/:id/blocks/:blockId/delete',
     '/admin/rentals/settings',
   ],
   ['rentals.view', 'rentals.update']
@@ -456,6 +454,14 @@ add(
   ['rentals.view', 'rentals.delete']
 )
 add('GET', ['/admin/rentals/bookings', '/admin/rentals/bookings/:id'], ['rental_bookings.view'])
+add(
+  'POST',
+  ['/admin/rentals/bookings/:id/provider-email'],
+  ['rental_bookings.view', 'rental_bookings.update']
+)
+add('GET', ['/admin/rentals/reviews'], ['rental_reviews.view'])
+add('POST', ['/admin/rentals/reviews/:id/status'], ['rental_reviews.view', 'rental_reviews.update'])
+add('POST', ['/admin/rentals/reviews/:id/delete'], ['rental_reviews.view', 'rental_reviews.delete'])
 add(
   'POST',
   [

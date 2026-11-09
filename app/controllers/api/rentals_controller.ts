@@ -3,9 +3,11 @@ import env from '#start/env'
 import * as catalog from '../../services/rental_catalog_service.js'
 import * as bookings from '../../services/rental_booking_service.js'
 import * as payments from '../../services/rental_payment_service.js'
+import * as reviews from '../../services/rental_review_service.js'
 import { publicLanguage } from '../../services/public_localization.js'
 import {
   cancelRentalBookingValidator,
+  rentalReviewValidator,
   createRentalBookingValidator,
   startRentalPaymentValidator,
 } from '../../validators/rentals.js'
@@ -34,6 +36,25 @@ export default class RentalsController {
   async quote(ctx: HttpContext) {
     ctx.response.header('Cache-Control', 'no-store')
     return catalog.vehicleQuote(ctx.params.id, ctx.request.qs())
+  }
+
+  async vehicleReviews(ctx: HttpContext) {
+    return reviews.listPublicReviews('vehicle_id', ctx.params.id, ctx.request.qs(), locale(ctx))
+  }
+
+  async providerReviews(ctx: HttpContext) {
+    return reviews.listPublicReviews('provider_id', ctx.params.id, ctx.request.qs(), locale(ctx))
+  }
+
+  async saveReview(ctx: HttpContext) {
+    const input = await ctx.request.validateUsing(rentalReviewValidator)
+    const result = await reviews.saveReview(ctx.customerIdentity.customer.id, ctx.params.id, input)
+    return ctx.response.status(result.created ? 201 : 200).send({ data: result.data })
+  }
+
+  async deleteReview(ctx: HttpContext) {
+    await reviews.deleteReview(ctx.customerIdentity.customer.id, ctx.params.id)
+    return ctx.response.noContent()
   }
 
   async store(ctx: HttpContext) {

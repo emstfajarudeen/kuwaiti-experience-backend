@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Button, Form, message } from 'antd'
+import { Button, Form, Switch, message } from 'antd'
 import type { FormDataConvertible } from '@inertiajs/core'
 import { useAuthorization } from '../lib/authorization'
 import { postCmsForm } from '../lib/cms_form'
@@ -68,10 +68,25 @@ export function Panel({
 }
 
 /** A titled block inside a form card, same look as the other CMS forms. */
-export function FormSection({ title, children }: { title: string; children: ReactNode }) {
+export function FormSection({
+  title,
+  actions,
+  children,
+}: {
+  title: string
+  actions?: ReactNode
+  children: ReactNode
+}) {
   return (
     <section className="cms-form-section">
-      <h2>{title}</h2>
+      {actions ? (
+        <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3">
+          <h2>{title}</h2>
+          {actions}
+        </div>
+      ) : (
+        <h2>{title}</h2>
+      )}
       <div className="form-grid two tw:mt-4 tw:grid tw:grid-cols-2 tw:gap-4 tw:max-[900px]:grid-cols-1">
         {children}
       </div>
@@ -122,6 +137,37 @@ export function FormField({
       </Form.Item>
       {hint && <span className="tw:-mt-3 tw:block tw:text-[12px] tw:text-brand-muted">{hint}</span>}
     </label>
+  )
+}
+
+/**
+ * Labelled switch for a boolean field. A switch is not a native input, so a hidden input carries
+ * its value when the form posts natively (multipart).
+ */
+export function SwitchField({
+  label,
+  name,
+  hint,
+  on = 'Active',
+  off = 'Inactive',
+}: {
+  label: string
+  name: string
+  hint?: string
+  on?: string
+  off?: string
+}) {
+  return (
+    <>
+      <FormField label={label} name={name} valuePropName="checked" hint={hint}>
+        <Switch checkedChildren={on} unCheckedChildren={off} />
+      </FormField>
+      <Form.Item noStyle shouldUpdate>
+        {({ getFieldValue }) => (
+          <input type="hidden" name={name} value={getFieldValue(name) ? 'true' : 'false'} />
+        )}
+      </Form.Item>
+    </>
   )
 }
 
@@ -265,29 +311,20 @@ export function formatDateTime(value: string | null | undefined) {
   }).format(new Date(value))
 }
 
-/** Small POST form for one-click actions; keep any button inside an Ant Design `Button`. */
+/** Small POST form for one-click actions. For actions that need confirming, use ConfirmModal. */
 export function ActionForm({
   action,
   csrfToken,
   children,
-  confirm,
   className,
 }: {
   action: string
   csrfToken: string
   children: ReactNode
-  confirm?: string
   className?: string
 }) {
   return (
-    <form
-      method="post"
-      action={action}
-      className={className}
-      onSubmit={(event) => {
-        if (confirm && !window.confirm(confirm)) event.preventDefault()
-      }}
-    >
+    <form method="post" action={action} className={className}>
       <input type="hidden" name="_csrf" value={csrfToken} />
       {children}
     </form>

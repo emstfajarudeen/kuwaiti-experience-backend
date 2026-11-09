@@ -1,12 +1,16 @@
+import { useState } from 'react'
 import { Table } from 'antd'
 import { router } from '@inertiajs/react'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import AdminLayout from '../../layouts/admin_layout'
 import TableToolbar, { useServerFilters } from '../../components/table_toolbar'
+import ConfirmModal from '../../components/confirm_modal'
+import RowActionMenu from '../../components/row_action_menu'
 import {
   bookingStatusOptions,
   formatDateTime,
   StatusBadge,
+  useCan,
   type SharedProps,
 } from '../../components/rental_ui'
 
@@ -23,6 +27,7 @@ type Booking = {
   days: number
   rental_amount: string
   booking_fee: string
+  paid: boolean
   created_at: string
 }
 
@@ -48,6 +53,54 @@ export default function RentalBookings({
     { q: query, status },
     { q: '', status: '' }
   )
+  const can = useCan()
+  const [pending, setPending] = useState<{
+    row: Booking
+    kind: 'complete' | 'cancel' | 'refund'
+  } | null>(null)
+  const actionsFor = (row: Booking) => {
+    const list: Array<{ label: string; href?: string; danger?: boolean; onClick?: () => void }> = [
+      { label: 'View details', href: `/admin/rentals/bookings/${row.id}` },
+    ]
+    if (can('rental_bookings.update')) {
+      if (row.status === 'confirmed' && new Date(row.pickup_at) <= new Date())
+        list.push({
+          label: 'Mark as completed',
+          onClick: () => setPending({ row, kind: 'complete' }),
+        })
+      if (['pending_payment', 'confirmed', 'expired'].includes(row.status))
+        list.push({
+          label: 'Cancel booking',
+          danger: true,
+          onClick: () => setPending({ row, kind: 'cancel' }),
+        })
+    }
+    if (row.paid && can('rental_bookings.refund'))
+      list.push({
+        label: 'Refund booking fee',
+        danger: true,
+        onClick: () => setPending({ row, kind: 'refund' }),
+      })
+    return list
+  }
+  const confirmCopy = {
+    complete: {
+      title: 'Mark as completed',
+      message: 'Mark this rental as completed? The customer can then review it.',
+      label: 'Mark as completed',
+    },
+    cancel: {
+      title: 'Cancel booking',
+      message:
+        'Cancel this booking? The booking fee is not refunded automatically. If it was confirmed, the provider is emailed.',
+      label: 'Cancel booking',
+    },
+    refund: {
+      title: 'Refund booking fee',
+      message: 'Refund the booking fee through MyFatoorah? This also cancels the booking.',
+      label: 'Refund',
+    },
+  } as const
   const columns: ColumnsType<Booking> = [
     {
       title: 'Reference',
@@ -109,6 +162,14 @@ export default function RentalBookings({
       key: 'created',
       render: (_, row) => <span className="tw:text-[13px]">{formatDateTime(row.created_at)}</span>,
     },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 90,
+      render: (_, row) => (
+        <RowActionMenu label={`Actions for ${row.reference}`} actions={actionsFor(row)} />
+      ),
+    },
   ]
   const changePage = (pagination: TablePaginationConfig) => {
     if (pagination.current && pagination.current !== meta.page)
@@ -149,23 +210,38 @@ export default function RentalBookings({
           active={filters.active}
           onReset={filters.reset}
         />
-        <Table<Booking>
-          className="cms-antd-table"
-          rowKey="id"
-          columns={columns}
-          dataSource={rows}
-          pagination={{
-            current: meta.page,
-            pageSize: meta.perPage,
-            total: meta.total,
-            showSizeChanger: false,
-            hideOnSinglePage: true,
-          }}
-          scroll={{ x: 'max-content' }}
-          onChange={changePage}
-          locale={{ emptyText: 'No rental bookings yet.' }}
-        />
+        <div className="table-scroll">
+          <Table<Booking>
+            className="cms-antd-table"
+            rowKey="id"
+            columns={columns}
+            dataSource={rows}
+            pagination={{
+              current: meta.page,
+              pageSize: meta.perPage,
+              total: meta.total,
+              showSizeChanger: false,
+              hideOnSinglePage: true,
+            }}
+            onChange={changePage}
+            locale={{ emptyText: 'No rental bookings yet.' }}
+          />
+        </div>
       </section>
+      <ConfirmModal
+        open={Boolean(pending)}
+        onClose={() => setPending(null)}
+        title={pending ? confirmCopy[pending.kind].title : ''}
+        message={pending ? `${pending.row.reference}: ${confirmCopy[pending.kind].message}` : ''}
+        action={pending ? `/admin/rentals/bookings/${pending.row.id}/${pending.kind}` : ''}
+        csrfToken={csrfToken}
+        confirmLabel={pending ? confirmCopy[pending.kind].label : ''}
+        danger={pending?.kind !== 'complete'}
+        fields={{
+          returnTo:
+            typeof window === 'undefined' ? '' : window.location.pathname + window.location.search,
+        }}
+      />
     </AdminLayout>
   )
 }

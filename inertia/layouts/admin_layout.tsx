@@ -135,6 +135,13 @@ const navigation = [
         active: 'rentals',
         permission: 'rentals.view',
       },
+      {
+        href: '/admin/rentals/reviews',
+        icon: '★',
+        label: 'Rental reviews',
+        active: 'rental-reviews',
+        permission: 'rental_reviews.view',
+      },
     ],
   },
   {

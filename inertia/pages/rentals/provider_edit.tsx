@@ -1,10 +1,11 @@
-import { Form, Input, Switch } from 'antd'
+import { Input } from 'antd'
 import AdminLayout from '../../layouts/admin_layout'
 import ImageUpload from '../../components/image_upload'
 import {
   FormField,
   FormSection,
   RentalFormShell,
+  SwitchField,
   type SharedProps,
 } from '../../components/rental_ui'
 
@@ -100,24 +101,11 @@ export default function RentalProviderEdit({
           <FormField label="Address" name="address">
             <Input name="address" maxLength={500} />
           </FormField>
-          <FormField
+          <SwitchField
             label="Status"
             name="active"
-            valuePropName="checked"
             hint="Vehicles of inactive providers are hidden from the app."
-          >
-            <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
-            {/* Switches are not native inputs, so mirror the value for the multipart post. */}
-            <Form.Item shouldUpdate noStyle>
-              {({ getFieldValue }) => (
-                <input
-                  type="hidden"
-                  name="active"
-                  value={getFieldValue('active') ? 'true' : 'false'}
-                />
-              )}
-            </Form.Item>
-          </FormField>
+          />
         </FormSection>
         <section className="cms-form-section">
           <h2>Logo</h2>

@@ -770,7 +770,7 @@ export class RefreshTokenSchema extends BaseModel {
 }
 
 export class RentalBookingSchema extends BaseModel {
-  static $columns = ['bookingFee', 'cancelReason', 'cancelledAt', 'cancelledBy', 'completedAt', 'confirmedAt', 'createdAt', 'currency', 'customerId', 'dailyRate', 'days', 'depositAmount', 'driverDailyRate', 'holdExpiresAt', 'id', 'idempotencyKey', 'notes', 'pickupAt', 'pickupLocationId', 'providerId', 'reference', 'rentalAmount', 'requestHash', 'returnAt', 'returnLocationId', 'snapshot', 'status', 'updatedAt', 'vehicleId', 'withDriver'] as const
+  static $columns = ['bookingFee', 'cancelReason', 'cancelledAt', 'cancelledBy', 'completedAt', 'confirmedAt', 'createdAt', 'currency', 'customerId', 'dailyRate', 'days', 'driverDailyRate', 'holdExpiresAt', 'id', 'idempotencyKey', 'notes', 'pickupAt', 'pickupLocationId', 'providerId', 'reference', 'rentalAmount', 'requestHash', 'returnAt', 'returnLocationId', 'snapshot', 'status', 'updatedAt', 'vehicleId', 'withDriver'] as const
   $columns = RentalBookingSchema.$columns
   @column()
   declare bookingFee: string
@@ -794,8 +794,6 @@ export class RentalBookingSchema extends BaseModel {
   declare dailyRate: string
   @column()
   declare days: number
-  @column()
-  declare depositAmount: string
   @column()
   declare driverDailyRate: string
   @column.dateTime()
@@ -898,6 +896,29 @@ export class RentalPaymentSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class RentalProviderEmailSchema extends BaseModel {
+  static $columns = ['bookingId', 'createdAt', 'error', 'id', 'kind', 'messageId', 'recipient', 'sentBy', 'status'] as const
+  $columns = RentalProviderEmailSchema.$columns
+  @column()
+  declare bookingId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare error: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare kind: string
+  @column()
+  declare messageId: string | null
+  @column()
+  declare recipient: string | null
+  @column()
+  declare sentBy: number | null
+  @column()
+  declare status: string
+}
+
 export class RentalProviderSchema extends BaseModel {
   static $columns = ['active', 'address', 'createdAt', 'email', 'id', 'logoImageKey', 'nameAr', 'nameEn', 'phoneE164', 'updatedAt'] as const
   $columns = RentalProviderSchema.$columns
@@ -923,6 +944,35 @@ export class RentalProviderSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class RentalReviewSchema extends BaseModel {
+  static $columns = ['bookingId', 'comment', 'createdAt', 'customerId', 'hiddenAt', 'hiddenBy', 'id', 'providerId', 'rating', 'status', 'updatedAt', 'vehicleId'] as const
+  $columns = RentalReviewSchema.$columns
+  @column()
+  declare bookingId: number
+  @column()
+  declare comment: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare customerId: number
+  @column.dateTime()
+  declare hiddenAt: DateTime | null
+  @column()
+  declare hiddenBy: number | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare providerId: number
+  @column()
+  declare rating: boolean
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare vehicleId: number
+}
+
 export class RentalSettingSchema extends BaseModel {
   static $columns = ['bookingFee', 'cancellationCutoffHours', 'holdMinutes', 'id', 'maxRentalDays', 'minLeadMinutes', 'updatedAt'] as const
   $columns = RentalSettingSchema.$columns
@@ -940,23 +990,6 @@ export class RentalSettingSchema extends BaseModel {
   declare minLeadMinutes: number
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
-}
-
-export class RentalVehicleBlockSchema extends BaseModel {
-  static $columns = ['createdAt', 'endsAt', 'id', 'reason', 'startsAt', 'vehicleId'] as const
-  $columns = RentalVehicleBlockSchema.$columns
-  @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
-  @column.dateTime()
-  declare endsAt: DateTime
-  @column({ isPrimary: true })
-  declare id: number
-  @column()
-  declare reason: string | null
-  @column.dateTime()
-  declare startsAt: DateTime
-  @column()
-  declare vehicleId: number
 }
 
 export class RentalVehicleImageSchema extends BaseModel {
@@ -983,8 +1016,25 @@ export class RentalVehicleLocationSchema extends BaseModel {
   declare vehicleId: number
 }
 
+export class RentalVehicleTermSchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'labelAr', 'labelEn', 'sortOrder', 'vehicleId'] as const
+  $columns = RentalVehicleTermSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare labelAr: string | null
+  @column()
+  declare labelEn: string
+  @column()
+  declare sortOrder: number
+  @column()
+  declare vehicleId: number
+}
+
 export class RentalVehicleSchema extends BaseModel {
-  static $columns = ['bags', 'coverImageKey', 'createdAt', 'dailyRate', 'depositAmount', 'doors', 'driverDailyRate', 'fuelType', 'id', 'insuranceAr', 'insuranceEn', 'make', 'mileageLimitKm', 'minDriverAge', 'model', 'nameAr', 'nameEn', 'providerId', 'publishedAt', 'quantity', 'seats', 'status', 'termsAr', 'termsEn', 'transmission', 'updatedAt', 'vehicleType', 'withDriverAvailable', 'year'] as const
+  static $columns = ['bags', 'coverImageKey', 'createdAt', 'dailyRate', 'doors', 'driverDailyRate', 'extraKmRate', 'fuelType', 'id', 'insuranceAr', 'insuranceEn', 'make', 'mileageLimitKm', 'model', 'nameAr', 'nameEn', 'providerId', 'publishedAt', 'quantity', 'seats', 'status', 'transmission', 'updatedAt', 'vehicleType', 'withDriverAvailable', 'year'] as const
   $columns = RentalVehicleSchema.$columns
   @column()
   declare bags: boolean | null
@@ -995,11 +1045,11 @@ export class RentalVehicleSchema extends BaseModel {
   @column()
   declare dailyRate: string
   @column()
-  declare depositAmount: string
-  @column()
   declare doors: boolean | null
   @column()
   declare driverDailyRate: string | null
+  @column()
+  declare extraKmRate: string | null
   @column()
   declare fuelType: string
   @column({ isPrimary: true })
@@ -1012,8 +1062,6 @@ export class RentalVehicleSchema extends BaseModel {
   declare make: string
   @column()
   declare mileageLimitKm: number | null
-  @column()
-  declare minDriverAge: boolean
   @column()
   declare model: string
   @column()
@@ -1030,10 +1078,6 @@ export class RentalVehicleSchema extends BaseModel {
   declare seats: boolean
   @column()
   declare status: string
-  @column()
-  declare termsAr: string | null
-  @column()
-  declare termsEn: string | null
   @column()
   declare transmission: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })

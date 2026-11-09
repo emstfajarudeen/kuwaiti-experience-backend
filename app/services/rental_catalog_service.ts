@@ -4,6 +4,7 @@ import { ApiError } from './api_error.js'
 import { imageLinks, pagination, positiveId } from './explore_read_service.js'
 import { quoteFor, toFils, kwd } from './rental_money.js'
 import type { PublicLocale } from './public_localization.js'
+import { ratingSummaries, summaryFor, type RatingSummary } from './rental_review_service.js'
 
 type Row = Record<string, any>
 type Client = typeof db | TransactionClientContract
@@ -157,21 +158,13 @@ export function applyHoldingBookings(query: any, now: Date) {
 
 /** Adds the "a unit is free for this period" condition to a `rental_vehicles as v` query. */
 function whereAvailable(query: any, window: RentalWindow, now: Date) {
-  query
-    .whereNotExists((blocks: any) =>
-      blocks
-        .from('rental_vehicle_blocks as k')
-        .whereColumn('k.vehicle_id', 'v.id')
-        .where('k.starts_at', '<', window.returnAt)
-        .where('k.ends_at', '>', window.pickupAt)
-    )
-    // Keep this condition in step with applyHoldingBookings().
-    .whereRaw(
-      `v.quantity > (select count(*) from rental_bookings as b where b.vehicle_id = v.id
+  // Keep this condition in step with applyHoldingBookings().
+  query.whereRaw(
+    `v.quantity > (select count(*) from rental_bookings as b where b.vehicle_id = v.id
         and b.pickup_at < ? and b.return_at > ?
         and (b.status = 'confirmed' or (b.status = 'pending_payment' and b.hold_expires_at > ?)))`,
-      [window.returnAt, window.pickupAt, now]
-    )
+    [window.returnAt, window.pickupAt, now]
+  )
 }
 
 /** Units still free for one vehicle; run inside the transaction that locked the vehicle row. */
@@ -182,13 +175,6 @@ export async function freeUnits(
   excludeBookingId?: number
 ) {
   const now = new Date()
-  const blocked = await client
-    .from('rental_vehicle_blocks')
-    .where('vehicle_id', vehicle.id)
-    .where('starts_at', '<', window.returnAt)
-    .where('ends_at', '>', window.pickupAt)
-    .first()
-  if (blocked) return 0
   const query = client
     .from('rental_bookings as b')
     .where('b.vehicle_id', vehicle.id)
@@ -214,7 +200,8 @@ function vehicleCard(
   locale: PublicLocale,
   settings: RentalSettings,
   window: RentalWindow | null,
-  withDriver: boolean
+  withDriver: boolean,
+  ratings: { vehicles: Map<number, RatingSummary>; providers: Map<number, RatingSummary> }
 ) {
   const driverRequested = withDriver && Boolean(row.with_driver_available)
   return {
@@ -234,8 +221,8 @@ function vehicleCard(
     bags: row.bags === null ? null : Number(row.bags),
     mileage_limit_km: row.mileage_limit_km === null ? null : Number(row.mileage_limit_km),
     unlimited_mileage: row.mileage_limit_km === null,
+    extra_km_rate: row.extra_km_rate === null ? null : kwd(toFils(row.extra_km_rate)),
     daily_rate: kwd(toFils(row.daily_rate)),
-    deposit_amount: kwd(toFils(row.deposit_amount)),
     with_driver_available: Boolean(row.with_driver_available),
     driver_daily_rate:
       row.with_driver_available && row.driver_daily_rate !== null
@@ -243,10 +230,12 @@ function vehicleCard(
         : null,
     currency: 'KWD',
     cover_image_key: row.cover_image_key ?? null,
+    rating: summaryFor(ratings.vehicles, Number(row.id)),
     provider: {
       id: Number(row.provider_id),
       name: text(row.provider_name_en, row.provider_name_ar, locale),
       logo_image_key: row.provider_logo_image_key ?? null,
+      rating: summaryFor(ratings.providers, Number(row.provider_id)),
     },
     quote: window
       ? quoteFor({
@@ -254,7 +243,6 @@ function vehicleCard(
           dailyRate: row.daily_rate,
           driverDailyRate: row.driver_daily_rate,
           withDriver: driverRequested,
-          deposit: row.deposit_amount,
           bookingFee: settings.booking_fee,
         })
       : null,
@@ -365,8 +353,18 @@ export async function listVehicles(input: Row, locale: PublicLocale) {
     .orderBy('v.id', 'desc')
     .limit(perPage)
     .offset((page - 1) * perPage)
+  const ratings = {
+    vehicles: await ratingSummaries(
+      'vehicle_id',
+      rows.map((row: Row) => Number(row.id))
+    ),
+    providers: await ratingSummaries(
+      'provider_id',
+      rows.map((row: Row) => Number(row.provider_id))
+    ),
+  }
   return {
-    data: rows.map((row: Row) => vehicleCard(row, locale, settings, window, withDriver)),
+    data: rows.map((row: Row) => vehicleCard(row, locale, settings, window, withDriver, ratings)),
     meta: {
       images: imageLinks(
         rows.flatMap((row: Row) => [row.cover_image_key, row.provider_logo_image_key])
@@ -403,21 +401,34 @@ export async function vehicleLocations(client: Client, vehicleId: number) {
     .select('l.*')
 }
 
+export async function vehicleTerms(client: Client, vehicleId: number) {
+  return (await client
+    .from('rental_vehicle_terms')
+    .where('vehicle_id', vehicleId)
+    .orderBy('sort_order')
+    .orderBy('id')) as Row[]
+}
+
 export async function vehicleDetail(id: unknown, input: Row, locale: PublicLocale) {
   const settings = await rentalSettings()
   const window = optionalWindow(input, settings)
   const withDriver = booleanParam(input.with_driver, 'with_driver') ?? false
   const row = await findVisibleVehicle(id)
-  const [images, locations] = await Promise.all([
+  const [images, locations, terms] = await Promise.all([
     db
       .from('rental_vehicle_images')
       .where('vehicle_id', row.id)
       .orderBy('sort_order')
       .orderBy('id'),
     vehicleLocations(db, Number(row.id)),
+    vehicleTerms(db, Number(row.id)),
   ])
   const available = window ? (await freeUnits(db, row, window)) > 0 : null
-  const card = vehicleCard(row, locale, settings, window, withDriver)
+  const ratings = {
+    vehicles: await ratingSummaries('vehicle_id', [Number(row.id)]),
+    providers: await ratingSummaries('provider_id', [Number(row.provider_id)]),
+  }
+  const card = vehicleCard(row, locale, settings, window, withDriver, ratings)
   const galleryKeys = [row.cover_image_key, ...images.map((image) => image.storage_key)].filter(
     (key): key is string => Boolean(key)
   )
@@ -425,9 +436,10 @@ export async function vehicleDetail(id: unknown, input: Row, locale: PublicLocal
     data: {
       ...card,
       gallery: galleryKeys.map((storage_key) => ({ storage_key })),
-      min_driver_age: Number(row.min_driver_age),
       insurance: text(row.insurance_en, row.insurance_ar, locale),
-      terms: text(row.terms_en, row.terms_ar, locale),
+      rental_terms: terms.map((term: Row) => ({
+        label: text(term.label_en, term.label_ar, locale) as string,
+      })),
       locations: locations.map((item: Row) => location(item, locale)),
       provider: {
         ...card.provider,
@@ -465,7 +477,6 @@ export async function vehicleQuote(id: unknown, input: Row) {
         dailyRate: row.daily_rate,
         driverDailyRate: row.driver_daily_rate,
         withDriver,
-        deposit: row.deposit_amount,
         bookingFee: settings.booking_fee,
       }),
     },

@@ -1,6 +1,7 @@
 import { iso, type Row } from './customer.js'
 import { kwd, toFils } from '../services/rental_money.js'
 import type { PublicLocale } from '../services/public_localization.js'
+import { ownReview } from '../services/rental_review_service.js'
 
 export type BookingSnapshot = {
   vehicle: {
@@ -15,11 +16,13 @@ export type BookingSnapshot = {
     seats: number
     cover_image_key: string | null
     mileage_limit_km: number | null
-    min_driver_age: number
     insurance_en: string | null
     insurance_ar: string | null
-    terms_en: string | null
-    terms_ar: string | null
+    extra_km_rate?: string | null
+    rental_terms?: Array<{ label_en: string; label_ar: string | null }>
+    /** Bookings made before rental terms became a list. */
+    terms_en?: string | null
+    terms_ar?: string | null
   }
   provider: {
     id: number
@@ -54,6 +57,16 @@ export type BookingStatus = (typeof BOOKING_STATUSES)[number]
 const pick = (en: unknown, ar: unknown, locale: PublicLocale) =>
   (locale === 'ar' && typeof ar === 'string' && ar.trim() ? ar : en) ?? null
 
+/** Rental terms as stored on the booking, localized. Older bookings keep their single text. */
+function snapshotTerms(snapshot: BookingSnapshot, locale: PublicLocale) {
+  const items =
+    snapshot.vehicle.rental_terms ??
+    (snapshot.vehicle.terms_en
+      ? [{ label_en: snapshot.vehicle.terms_en, label_ar: snapshot.vehicle.terms_ar ?? null }]
+      : [])
+  return items.map((item) => ({ label: pick(item.label_en, item.label_ar, locale) as string }))
+}
+
 export function parseSnapshot(value: unknown): BookingSnapshot {
   return (typeof value === 'string' ? JSON.parse(value) : value) as BookingSnapshot
 }
@@ -85,7 +98,9 @@ export function rentalBooking(
   row: Row,
   locale: PublicLocale,
   payment: Row | null | undefined,
-  canCancel: boolean
+  canCancel: boolean,
+  review: Row | null = null,
+  reviewable = false
 ) {
   const snapshot = parseSnapshot(row.snapshot)
   const rental = toFils(row.rental_amount)
@@ -109,10 +124,10 @@ export function rentalBooking(
       seats: snapshot.vehicle.seats,
       mileage_limit_km: snapshot.vehicle.mileage_limit_km,
       unlimited_mileage: snapshot.vehicle.mileage_limit_km === null,
-      min_driver_age: snapshot.vehicle.min_driver_age,
+      extra_km_rate: snapshot.vehicle.extra_km_rate ?? null,
       cover_image_key: snapshot.vehicle.cover_image_key ?? null,
       insurance: pick(snapshot.vehicle.insurance_en, snapshot.vehicle.insurance_ar, locale),
-      terms: pick(snapshot.vehicle.terms_en, snapshot.vehicle.terms_ar, locale),
+      rental_terms: snapshotTerms(snapshot, locale),
     },
     provider: {
       id: snapshot.provider.id,
@@ -127,7 +142,6 @@ export function rentalBooking(
       daily_rate: kwd(toFils(row.daily_rate)),
       driver_daily_rate: kwd(toFils(row.driver_daily_rate)),
       rental_amount: kwd(rental),
-      deposit_amount: kwd(toFils(row.deposit_amount)),
       booking_fee: kwd(fee),
       pay_now: kwd(fee),
       pay_at_pickup: kwd(rental),
@@ -137,6 +151,8 @@ export function rentalBooking(
     hold_expires_at: row.status === 'pending_payment' ? iso(row.hold_expires_at) : null,
     payment: rentalPayment(payment),
     can_cancel: canCancel,
+    review: ownReview(review),
+    can_review: reviewable,
     cancel_reason: row.cancel_reason ?? null,
     created_at: iso(row.created_at),
     confirmed_at: iso(row.confirmed_at),

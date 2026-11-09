@@ -1,10 +1,11 @@
-import { Form, Input, InputNumber, Switch } from 'antd'
+import { Form, Input, InputNumber } from 'antd'
 import AdminLayout from '../../layouts/admin_layout'
 import OpenMapAddressSearch from '../../components/open_map_address_search'
 import {
   FormField,
   FormSection,
   RentalFormShell,
+  SwitchField,
   type SharedProps,
 } from '../../components/rental_ui'
 
@@ -121,24 +122,11 @@ export default function RentalLocationEdit({
           <FormField label="Display order" name="sortOrder">
             <InputNumber min={0} max={9999} precision={0} className="tw:w-full" />
           </FormField>
-          <FormField
+          <SwitchField
             label="Status"
             name="active"
-            valuePropName="checked"
             hint="Active locations are shown as pickup and return options."
-          >
-            <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
-            {/* Switches are not native inputs, so mirror the value for the multipart post. */}
-            <Form.Item shouldUpdate noStyle>
-              {({ getFieldValue }) => (
-                <input
-                  type="hidden"
-                  name="active"
-                  value={getFieldValue('active') ? 'true' : 'false'}
-                />
-              )}
-            </Form.Item>
-          </FormField>
+          />
         </FormSection>
       </RentalFormShell>
     </AdminLayout>

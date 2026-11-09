@@ -4301,7 +4301,7 @@
   },
   {
    "name": "12A — Car rental",
-   "description": "Public car search and quotes, then customer bookings and booking-fee payment. Run Search vehicles first to capture rental_vehicle_id and rental_location_id. Create booking captures rental_booking_id. The payment web view must be completed in a browser before Verify payment. See docs/rental-api.md and docs/rental-openapi.json.",
+   "description": "Public car search and quotes, then customer bookings and booking-fee payment. Reviews need a finished rental (completed, or confirmed and past return time). Run Search vehicles first to capture rental_vehicle_id and rental_location_id. Create booking captures rental_booking_id. The payment web view must be completed in a browser before Verify payment. See docs/rental-api.md and docs/rental-openapi.json.",
    "item": [
     {
      "name": "Options",
@@ -4357,7 +4357,8 @@
         "exec": [
          "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
          "const first = pm.response.json().data[0];",
-         "if (first) pm.environment.set(\"rental_vehicle_id\", first.id);"
+         "if (first) pm.environment.set(\"rental_vehicle_id\", first.id);",
+         "if (first) pm.environment.set(\"rental_provider_id\", first.provider.id);"
         ]
        }
       }
@@ -4735,6 +4736,155 @@
         "type": "text/javascript",
         "exec": [
          "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Vehicle reviews",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/rentals/vehicles/{{rental_vehicle_id}}/reviews?page=1&per_page=12"
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Provider reviews",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/rentals/providers/{{rental_provider_id}}/reviews?page=1&per_page=12"
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Review my finished rental (create or edit)",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/customer/me/rental-bookings/{{rental_booking_id}}/review",
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Clean car and quick pickup\"\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 201 or 200 (409 until the rental has ended)\", function () { pm.expect([200, 201, 409]).to.include(pm.response.code); });"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Delete my review",
+     "request": {
+      "method": "DELETE",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/customer/me/rental-bookings/{{rental_booking_id}}/review",
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
         ]
        }
       }

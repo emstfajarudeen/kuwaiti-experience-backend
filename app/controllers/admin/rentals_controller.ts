@@ -3,12 +3,13 @@ import env from '#start/env'
 import { ApiError } from '../../services/api_error.js'
 import { cmsImageUrl, imageFiles, prepareImages } from '../../services/image_storage_service.js'
 import * as admin from '../../services/rental_admin_service.js'
+import * as reviews from '../../services/rental_review_service.js'
+import { sendProviderEmail } from '../../services/rental_provider_mailer.js'
 import { refundBooking, syncPayment } from '../../services/rental_payment_service.js'
 import { parseSnapshot } from '../../serializers/rental.js'
 import { kwd, toFils } from '../../services/rental_money.js'
 import { validationErrorBag } from '../../services/validation_error_bag.js'
 import {
-  rentalBlockValidator,
   rentalLocationValidator,
   rentalProviderValidator,
   rentalSettingsValidator,
@@ -83,16 +84,13 @@ function serializeVehicle(row: Row) {
     doors: row.doors === null ? null : Number(row.doors),
     bags: row.bags === null ? null : Number(row.bags),
     mileage_limit_km: row.mileage_limit_km === null ? null : Number(row.mileage_limit_km),
+    extra_km_rate: row.extra_km_rate === null ? null : kwd(toFils(row.extra_km_rate)),
     daily_rate: kwd(toFils(row.daily_rate)),
-    deposit_amount: kwd(toFils(row.deposit_amount)),
     with_driver_available: Boolean(row.with_driver_available),
     driver_daily_rate: row.driver_daily_rate === null ? null : kwd(toFils(row.driver_daily_rate)),
-    min_driver_age: Number(row.min_driver_age),
     quantity: Number(row.quantity),
     insurance_en: row.insurance_en,
     insurance_ar: row.insurance_ar,
-    terms_en: row.terms_en,
-    terms_ar: row.terms_ar,
     cover_url: cmsImageUrl(row.cover_image_key),
     status: row.status,
     published_at: date(row.published_at),
@@ -117,9 +115,9 @@ function serializeBooking(row: Row) {
     with_driver: Boolean(row.with_driver),
     days: Number(row.days),
     rental_amount: kwd(toFils(row.rental_amount)),
-    deposit_amount: kwd(toFils(row.deposit_amount)),
     booking_fee: kwd(toFils(row.booking_fee)),
     notes: row.notes ?? null,
+    paid: Boolean(Number(row.paid_count ?? 0)),
     hold_expires_at: date(row.hold_expires_at),
     cancelled_by: row.cancelled_by ?? null,
     cancel_reason: row.cancel_reason ?? null,
@@ -129,6 +127,45 @@ function serializeBooking(row: Row) {
     completed_at: date(row.completed_at),
   }
 }
+
+/** The vehicle form posts its terms repeater as a JSON list in `termsJson`. */
+function parseTerms(value: unknown) {
+  let list: unknown = []
+  try {
+    list = typeof value === 'string' && value.trim() ? JSON.parse(value) : []
+  } catch {
+    list = []
+  }
+  return (Array.isArray(list) ? list : [])
+    .map((item) => ({
+      labelEn: typeof item?.labelEn === 'string' ? item.labelEn.trim() : '',
+      labelAr:
+        typeof item?.labelAr === 'string' && item.labelAr.trim() ? item.labelAr.trim() : null,
+    }))
+    .filter((item) => item.labelEn || item.labelAr)
+}
+
+/** Reads the indexed `gallery[n][id|remove|sortOrder]` inputs of the gallery sorter. */
+function galleryItems(value: unknown) {
+  const entries = Array.isArray(value)
+    ? value
+    : value && typeof value === 'object'
+      ? Object.values(value)
+      : []
+  return entries
+    .filter((item): item is Row => Boolean(item) && typeof item === 'object')
+    .map((item) => ({
+      id: Number(item.id),
+      remove: item.remove === 'on' || item.remove === 'true',
+      sortOrder: optionalNumber(item.sortOrder),
+    }))
+    .filter((item) => Number.isSafeInteger(item.id) && item.id > 0)
+}
+
+const numberList = (value: unknown) =>
+  (Array.isArray(value) ? value : value === undefined ? [] : [value])
+    .map((item) => Number(item))
+    .filter((item) => Number.isInteger(item) && item >= 0 && item <= 10000)
 
 export default class AdminRentalsController {
   // ------------------------------------------------------------ bookings
@@ -160,7 +197,25 @@ export default class AdminRentalsController {
         pickup_location: snapshot.pickup_location.name_en,
         return_location: snapshot.return_location.name_en,
         provider_phone: snapshot.provider.phone_e164,
+        provider_email: snapshot.provider.email,
       },
+      review: found.review
+        ? {
+            id: Number(found.review.id),
+            rating: Number(found.review.rating),
+            comment: found.review.comment ?? null,
+            status: found.review.status,
+            created_at: date(found.review.created_at),
+          }
+        : null,
+      providerEmails: found.providerEmails.map((email) => ({
+        id: Number(email.id),
+        kind: email.kind,
+        recipient: email.recipient,
+        status: email.status,
+        error: email.error,
+        created_at: date(email.created_at),
+      })),
       payments: found.payments.map((payment) => ({
         id: Number(payment.id),
         invoice_id: payment.invoice_id,
@@ -183,7 +238,12 @@ export default class AdminRentalsController {
     } catch (error) {
       fail(ctx, error, 'Unable to update the booking.')
     }
-    return ctx.response.redirect(`/admin/rentals/bookings/${Number(ctx.params.id)}`)
+    const returnTo = String(ctx.request.input('returnTo', ''))
+    return ctx.response.redirect(
+      returnTo.startsWith('/admin/rentals/bookings')
+        ? returnTo
+        : `/admin/rentals/bookings/${Number(ctx.params.id)}`
+    )
   }
 
   async completeBooking(ctx: HttpContext) {
@@ -234,6 +294,88 @@ export default class AdminRentalsController {
     )
   }
 
+  async sendProviderEmail(ctx: HttpContext) {
+    const id = Number(ctx.params.id)
+    const found = await admin.findBooking(id)
+    if (!found) return ctx.response.redirect('/admin/rentals/bookings')
+    if (!found.row.confirmed_at) {
+      ctx.session.flash('error', 'Only bookings that were confirmed can be sent to the provider.')
+      return ctx.response.redirect(`/admin/rentals/bookings/${id}`)
+    }
+    const kind = found.row.status === 'cancelled' ? 'cancelled' : 'confirmed'
+    const result = await sendProviderEmail(id, kind, ctx.admin.id)
+    if (result.status === 'sent') ctx.session.flash('success', 'Email sent to the provider.')
+    else ctx.session.flash('error', result.error ?? 'The provider email could not be sent.')
+    return ctx.response.redirect(`/admin/rentals/bookings/${id}`)
+  }
+
+  // ------------------------------------------------------------ reviews
+
+  async reviews(ctx: HttpContext) {
+    const status = String(ctx.request.input('status', ''))
+    const rating = String(ctx.request.input('rating', ''))
+    const query = String(ctx.request.input('q', '')).trim().slice(0, 120)
+    const result = await reviews.adminListReviews({
+      status,
+      rating,
+      q: query,
+      page: ctx.request.input('page'),
+    })
+    return render(ctx, 'reviews', {
+      status,
+      rating,
+      query,
+      rows: result.rows.map((row) => ({
+        id: Number(row.id),
+        booking_id: Number(row.booking_id),
+        reference: row.reference,
+        rating: Number(row.rating),
+        comment: row.comment ?? null,
+        status: row.status,
+        customer_name: [row.first_name, row.last_name].filter(Boolean).join(' '),
+        customer_phone: row.phone_e164,
+        vehicle_name: row.vehicle_name,
+        provider_name: row.provider_name,
+        created_at: date(row.created_at),
+      })),
+      meta: {
+        total: result.total,
+        page: result.page,
+        lastPage: result.lastPage,
+        perPage: result.pageSize,
+      },
+    })
+  }
+
+  async reviewStatus(ctx: HttpContext) {
+    const status = ctx.request.input('status')
+    try {
+      if (!['published', 'hidden'].includes(status))
+        throw new ApiError(422, 'INVALID_STATUS', 'Choose a valid status.')
+      await reviews.setReviewStatus(Number(ctx.params.id), status, ctx.admin.id)
+      ctx.session.flash(
+        'success',
+        status === 'published' ? 'Review shown in the app.' : 'Review hidden from the app.'
+      )
+    } catch (error) {
+      fail(ctx, error, 'Unable to update the review.')
+    }
+    const returnTo = String(ctx.request.input('returnTo', ''))
+    return ctx.response.redirect(
+      returnTo.startsWith('/admin/rentals/') ? returnTo : '/admin/rentals/reviews'
+    )
+  }
+
+  async deleteReview(ctx: HttpContext) {
+    try {
+      await reviews.adminDeleteReview(Number(ctx.params.id), ctx.admin.id)
+      ctx.session.flash('success', 'Review deleted.')
+    } catch (error) {
+      fail(ctx, error, 'Unable to delete the review.')
+    }
+    return ctx.response.redirect('/admin/rentals/reviews')
+  }
+
   // ------------------------------------------------------------ vehicles
 
   async vehicles(ctx: HttpContext) {
@@ -270,15 +412,14 @@ export default class AdminRentalsController {
         ? {
             ...serializeVehicle(found.row),
             location_ids: found.locationIds,
+            terms: found.terms.map((term) => ({
+              label_en: term.label_en,
+              label_ar: term.label_ar ?? null,
+            })),
             images: found.images.map((image) => ({
               id: Number(image.id),
               url: cmsImageUrl(image.storage_key),
-            })),
-            blocks: found.blocks.map((block) => ({
-              id: Number(block.id),
-              starts_at: date(block.starts_at),
-              ends_at: date(block.ends_at),
-              reason: block.reason ?? null,
+              sort_order: Number(image.sort_order),
             })),
           }
         : null,
@@ -312,23 +453,22 @@ export default class AdminRentalsController {
       doors: optionalNumber(request.input('doors')),
       bags: optionalNumber(request.input('bags')),
       mileageLimitKm: optionalNumber(request.input('mileageLimitKm')),
+      extraKmRate: blank(String(request.input('extraKmRate') ?? '')),
       dailyRate: String(request.input('dailyRate') ?? ''),
-      depositAmount: String(request.input('depositAmount') || '0'),
       withDriverAvailable: bool(request.input('withDriverAvailable')),
       driverDailyRate: blank(String(request.input('driverDailyRate') ?? '')),
-      minDriverAge: optionalNumber(request.input('minDriverAge')) ?? 21,
       quantity: optionalNumber(request.input('quantity')) ?? 1,
       insuranceEn: blank(request.input('insuranceEn')),
       insuranceAr: blank(request.input('insuranceAr')),
-      termsEn: blank(request.input('termsEn')),
-      termsAr: blank(request.input('termsAr')),
+      terms: parseTerms(request.input('termsJson')),
       locationIds: ids(request.input('locationIds')),
     }
     try {
       const input = await rentalVehicleValidator.validate(raw)
+      const gallery = galleryItems(request.input('gallery'))
       const images = await prepareImages(ctx.admin.id, {
         cover: imageFiles(request, 'cover'),
-        gallery: imageFiles(request, 'gallery', 5),
+        gallery: imageFiles(request, 'galleryImages', 5),
       })
       const savedId = await admin.saveVehicle(
         input,
@@ -336,7 +476,11 @@ export default class AdminRentalsController {
           cover: images.cover[0],
           removeCover: bool(request.input('removeCover')),
           gallery: images.gallery,
-          removeImageIds: ids(request.input('removeImageIds')),
+          removeImageIds: gallery.filter((item) => item.remove).map((item) => item.id),
+          galleryOrder: gallery
+            .filter((item) => !item.remove && item.sortOrder !== null)
+            .map((item) => ({ id: item.id, sortOrder: item.sortOrder as number })),
+          galleryNewOrder: numberList(request.input('galleryNewOrder')),
         },
         ctx.admin.id,
         id
@@ -379,33 +523,6 @@ export default class AdminRentalsController {
       fail(ctx, error, 'Unable to delete the vehicle.')
       return ctx.response.redirect(`/admin/rentals/vehicles/${Number(ctx.params.id)}/edit`)
     }
-  }
-
-  async addBlock(ctx: HttpContext) {
-    const id = Number(ctx.params.id)
-    try {
-      const input = await rentalBlockValidator.validate({
-        startsAt: ctx.request.input('startsAt') ?? '',
-        endsAt: ctx.request.input('endsAt') ?? '',
-        reason: blank(ctx.request.input('reason')),
-      })
-      await admin.addBlock(id, input, ctx.admin.id)
-      ctx.session.flash('success', 'Unavailable period added.')
-    } catch (error) {
-      fail(ctx, error, 'Unable to add the unavailable period.')
-    }
-    return ctx.response.redirect(`/admin/rentals/vehicles/${id}/edit`)
-  }
-
-  async removeBlock(ctx: HttpContext) {
-    const id = Number(ctx.params.id)
-    try {
-      await admin.removeBlock(id, Number(ctx.params.blockId), ctx.admin.id)
-      ctx.session.flash('success', 'Unavailable period removed.')
-    } catch (error) {
-      fail(ctx, error, 'Unable to remove the unavailable period.')
-    }
-    return ctx.response.redirect(`/admin/rentals/vehicles/${id}/edit`)
   }
 
   // ----------------------------------------------------------- providers
