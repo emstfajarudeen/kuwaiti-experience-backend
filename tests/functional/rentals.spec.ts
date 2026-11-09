@@ -249,6 +249,53 @@ test.group('Rental catalog and bookings', (group) => {
     return Number(id)
   }
 
+  test('books with and without a driver and prices each correctly', async ({ client, assert }) => {
+    const ids = await catalog({ quantity: 2 })
+    const user = await customer()
+    const window = period(3, 3)
+    const book = (key: string, withDriver: boolean) =>
+      client
+        .post('/api/v2/customer/me/rental-bookings')
+        .header('Authorization', user.token)
+        .header('Idempotency-Key', key)
+        .json({
+          vehicle_id: ids.vehicleId,
+          pickup_location_id: ids.airport,
+          ...window,
+          with_driver: withDriver,
+        })
+
+    const selfDrive = await book('driver-key-01', false)
+    selfDrive.assertStatus(201)
+    assert.isFalse(selfDrive.body().data.with_driver)
+    assert.deepInclude(selfDrive.body().data.price, {
+      days: 3,
+      daily_rate: '12.500',
+      driver_daily_rate: '0.000',
+      rental_amount: '37.500',
+      pay_now: '3.000',
+      pay_at_pickup: '37.500',
+    })
+
+    const withDriver = await book('driver-key-02', true)
+    withDriver.assertStatus(201)
+    assert.isTrue(withDriver.body().data.with_driver)
+    assert.deepInclude(withDriver.body().data.price, {
+      days: 3,
+      daily_rate: '12.500',
+      driver_daily_rate: '8.000',
+      rental_amount: '61.500',
+      pay_now: '3.000',
+      pay_at_pickup: '61.500',
+    })
+    const stored = await db
+      .from('rental_bookings')
+      .where('id', withDriver.body().data.id)
+      .firstOrFail()
+    assert.isTrue(Boolean(stored.with_driver))
+    assert.equal(kwd(toFils(stored.rental_amount)), '61.500')
+  })
+
   test('the provider is emailed when a booking is confirmed and when it is cancelled', async ({
     client,
     assert,
