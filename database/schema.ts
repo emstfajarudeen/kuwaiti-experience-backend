@@ -301,7 +301,7 @@ export class CustomerOtpChallengeSchema extends BaseModel {
 }
 
 export class CustomerPushTokenSchema extends BaseModel {
-  static $columns = ['createdAt', 'customerId', 'deviceId', 'id', 'platform', 'token', 'tokenHash', 'updatedAt'] as const
+  static $columns = ['createdAt', 'customerId', 'deviceId', 'id', 'language', 'platform', 'token', 'tokenHash', 'updatedAt'] as const
   $columns = CustomerPushTokenSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -311,6 +311,8 @@ export class CustomerPushTokenSchema extends BaseModel {
   declare deviceId: string | null
   @column({ isPrimary: true })
   declare id: number
+  @column()
+  declare language: string
   @column()
   declare platform: string
   @column()
