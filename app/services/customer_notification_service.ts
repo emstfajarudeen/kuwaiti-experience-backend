@@ -312,7 +312,7 @@ export async function markAllNotificationsRead(customerId: number) {
 
 /** Internal event hook for trusted backend workflows; never expose this as a customer write API. */
 export async function createCustomerNotification(customerId: number, input: NotificationInput) {
-  return db.transaction(async (trx) => {
+  const { result, pushCount } = await db.transaction(async (trx) => {
     const customer = await trx.from('customers').where('id', customerId).forUpdate().first()
     if (!customer) throw new ApiError(404, 'NOT_FOUND', 'Customer not found')
     const [id] = await trx.table('customer_notifications').insert({
@@ -340,7 +340,45 @@ export async function createCustomerNotification(customerId: number, input: Noti
         }))
       )
     }
-    return { data: customerNotification(notification) }
+    return { result: { data: customerNotification(notification) }, pushCount: tokens.length }
+  })
+  logger.info(
+    { customerId, type: input.type, notificationId: result.data.id, devices: pushCount },
+    pushCount
+      ? 'Customer notification queued for push'
+      : 'Customer notification saved to inbox only (customer has no registered push token)'
+  )
+  // Send now instead of waiting for the worker; the worker still retries anything that fails.
+  if (pushCount) dispatchPushOutbox({ customerId, type: input.type })
+  return result
+}
+
+/**
+ * Fire-and-forget delivery of queued pushes from the web process, so event and CMS
+ * notifications reach devices without depending on the worker's polling. Race-safe:
+ * outbox rows are claimed with row locks, so the worker never sends the same row twice.
+ * Only a few batches are drained here; bulk delivery and retries stay with the worker.
+ */
+export function dispatchPushOutbox(context: Record<string, unknown> = {}, batches = 3) {
+  if (env.get('NODE_ENV') === 'test') return
+  setImmediate(() => {
+    void (async () => {
+      try {
+        if (!isPushConfigured()) {
+          logger.warn(context, 'Push not sent: FCM credentials are not configured')
+          return
+        }
+        let sent = 0
+        for (let batch = 0; batch < batches; batch++) {
+          const count = await deliverPushBatch()
+          if (!count) break
+          sent += count
+        }
+        logger.info({ ...context, processed: sent }, 'Push outbox dispatched')
+      } catch (error) {
+        logger.error({ err: error, ...context }, 'Push outbox dispatch failed')
+      }
+    })()
   })
 }
 
@@ -387,6 +425,10 @@ async function deliverOne(row: Row) {
       .from('customer_notification_outbox')
       .where('id', row.outbox_id)
       .update({ delivered_at: new Date(), locked_at: null, last_error: null })
+    logger.info(
+      { outboxId: row.outbox_id, notificationId: row.notification_id, type: row.type },
+      'Push delivered'
+    )
   } catch (error) {
     const attempts = Number(row.attempts) + 1
     const invalidToken = Boolean((error as { invalidToken?: boolean }).invalidToken)

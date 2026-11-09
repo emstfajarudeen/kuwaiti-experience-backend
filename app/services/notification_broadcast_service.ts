@@ -2,7 +2,7 @@ import db from '@adonisjs/lucid/services/db'
 import logger from '@adonisjs/core/services/logger'
 import env from '#start/env'
 import { ApiError } from './api_error.js'
-import { deliverPushBatch, isPushConfigured } from './customer_notification_service.js'
+import { dispatchPushOutbox, isPushConfigured } from './customer_notification_service.js'
 import { formatKuwaitDateTime } from './date_service.js'
 
 export type BroadcastAudience = 'all' | 'ios' | 'android' | 'customer'
@@ -251,8 +251,7 @@ export function dispatchBroadcast(id: number) {
     void (async () => {
       try {
         await processBroadcast(id)
-        if (!isPushConfigured()) return
-        for (let batch = 0; batch < 3; batch++) if (!(await deliverPushBatch())) break
+        dispatchPushOutbox({ broadcastId: id })
       } catch (error) {
         logger.error({ err: error, broadcastId: id }, 'Notification broadcast dispatch failed')
       }
