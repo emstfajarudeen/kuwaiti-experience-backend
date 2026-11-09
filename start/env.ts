@@ -24,6 +24,9 @@ export default await Env.create(new URL('../', import.meta.url), {
   CUSTOMER_OTP_DEV_RESPONSE: Env.schema.boolean.optional(),
   SMS_WEBHOOK_URL: Env.schema.string.optional({ format: 'url' }),
   SMS_WEBHOOK_TOKEN: Env.schema.secret.optional(),
+  RESEND_API_KEY: Env.schema.secret.optional(),
+  RENTAL_EMAIL_FROM: Env.schema.string.optional(),
+  RENTAL_EMAIL_REPLY_TO: Env.schema.string.optional(),
   SMTP_HOST: Env.schema.string.optional(),
   SMTP_PORT: Env.schema.number.optional(),
   SMTP_SECURE: Env.schema.boolean.optional(),
@@ -37,4 +40,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   FCM_PROJECT_ID: Env.schema.string.optional(),
   FCM_CLIENT_EMAIL: Env.schema.string.optional(),
   FCM_PRIVATE_KEY: Env.schema.secret.optional(),
+  MYFATOORAH_API_KEY: Env.schema.secret.optional(),
+  MYFATOORAH_BASE_URL: Env.schema.string.optional({ format: 'url', tld: false }),
+  RENTAL_PAYMENT_RETURN_URL: Env.schema.string.optional(),
 })

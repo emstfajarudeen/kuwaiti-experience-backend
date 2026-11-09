@@ -62,6 +62,24 @@ const permissionDefinitions = [
     action,
     label: `${action[0].toUpperCase()}${action.slice(1)} videos`,
   })),
+  ...(['view', 'create', 'update', 'delete', 'publish'] as const).map((action) => ({
+    key: `rentals.${action}` as const,
+    module: 'rentals',
+    action,
+    label: `${action[0].toUpperCase()}${action.slice(1)} rental catalogue`,
+  })),
+  ...(['view', 'update', 'refund'] as const).map((action) => ({
+    key: `rental_bookings.${action}` as const,
+    module: 'rental_bookings',
+    action,
+    label: `${action[0].toUpperCase()}${action.slice(1)} rental bookings`,
+  })),
+  ...(['view', 'update', 'delete'] as const).map((action) => ({
+    key: `rental_reviews.${action}` as const,
+    module: 'rental_reviews',
+    action,
+    label: `${action[0].toUpperCase()}${action.slice(1)} rental reviews`,
+  })),
   {
     key: 'customers.view',
     module: 'customers',

@@ -9,6 +9,8 @@ type Props = {
   csrfToken: string
   confirmLabel: string
   danger?: boolean
+  /** Extra hidden inputs posted with the confirmation. */
+  fields?: Record<string, string>
 }
 
 export default function ConfirmModal({
@@ -20,6 +22,7 @@ export default function ConfirmModal({
   csrfToken,
   confirmLabel,
   danger = false,
+  fields = {},
 }: Props) {
   return (
     <Modal
@@ -32,6 +35,9 @@ export default function ConfirmModal({
           <Button onClick={onClose}>Cancel</Button>
           <form action={action} method="POST">
             <input type="hidden" name="_csrf" value={csrfToken} />
+            {Object.entries(fields).map(([name, value]) => (
+              <input key={name} type="hidden" name={name} value={value} />
+            ))}
             <Button htmlType="submit" type={danger ? 'primary' : 'default'} danger={danger}>
               {confirmLabel}
             </Button>

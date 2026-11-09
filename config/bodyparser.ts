@@ -80,6 +80,10 @@ const bodyParserConfig = defineConfig({
       '/admin/category-types/:code/save',
       '/admin/home',
       '/admin/settings',
+      '/admin/rentals/vehicles',
+      '/admin/rentals/vehicles/:id/save',
+      '/admin/rentals/providers',
+      '/admin/rentals/providers/:id/save',
       // Admin API image endpoints.
       '/api/v1/admin/places/:id/cover',
       '/api/v1/admin/places/:id/gallery',

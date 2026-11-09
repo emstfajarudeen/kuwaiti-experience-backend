@@ -401,6 +401,81 @@ add(
   ['/admin/videos/reports/:id/status', '/admin/videos/comments/:id/status'],
   ['videos.view', 'videos.moderate']
 )
+add(
+  'GET',
+  [
+    '/admin/rentals/vehicles',
+    '/admin/rentals/providers',
+    '/admin/rentals/locations',
+    '/admin/rentals/settings',
+  ],
+  ['rentals.view']
+)
+add(
+  'GET',
+  ['/admin/rentals/vehicles/new', '/admin/rentals/providers/new', '/admin/rentals/locations/new'],
+  ['rentals.view', 'rentals.create']
+)
+add(
+  'GET',
+  [
+    '/admin/rentals/vehicles/:id/edit',
+    '/admin/rentals/providers/:id/edit',
+    '/admin/rentals/locations/:id/edit',
+  ],
+  ['rentals.view', 'rentals.update']
+)
+add(
+  'POST',
+  ['/admin/rentals/vehicles', '/admin/rentals/providers', '/admin/rentals/locations'],
+  ['rentals.view', 'rentals.create']
+)
+add(
+  'POST',
+  [
+    '/admin/rentals/vehicles/:id/save',
+    '/admin/rentals/providers/:id/save',
+    '/admin/rentals/locations/:id/save',
+    '/admin/rentals/settings',
+  ],
+  ['rentals.view', 'rentals.update']
+)
+add('POST', ['/admin/rentals/vehicles/:id/status'], ['rentals.view', 'rentals.publish'])
+add('POST', ['/admin/rentals/providers/:id/status'], ['rentals.view', 'rentals.update'])
+add('POST', ['/admin/rentals/locations/:id/status'], ['rentals.view', 'rentals.update'])
+add('GET', ['/admin/rentals/address-search', '/admin/rentals/address-reverse'], ['rentals.view'])
+add(
+  'POST',
+  [
+    '/admin/rentals/vehicles/:id/delete',
+    '/admin/rentals/providers/:id/delete',
+    '/admin/rentals/locations/:id/delete',
+  ],
+  ['rentals.view', 'rentals.delete']
+)
+add('GET', ['/admin/rentals/bookings', '/admin/rentals/bookings/:id'], ['rental_bookings.view'])
+add(
+  'POST',
+  ['/admin/rentals/bookings/:id/provider-email'],
+  ['rental_bookings.view', 'rental_bookings.update']
+)
+add('GET', ['/admin/rentals/reviews'], ['rental_reviews.view'])
+add('POST', ['/admin/rentals/reviews/:id/status'], ['rental_reviews.view', 'rental_reviews.update'])
+add('POST', ['/admin/rentals/reviews/:id/delete'], ['rental_reviews.view', 'rental_reviews.delete'])
+add(
+  'POST',
+  [
+    '/admin/rentals/bookings/:id/complete',
+    '/admin/rentals/bookings/:id/cancel',
+    '/admin/rentals/bookings/:id/verify-payment',
+  ],
+  ['rental_bookings.view', 'rental_bookings.update']
+)
+add(
+  'POST',
+  ['/admin/rentals/bookings/:id/refund'],
+  ['rental_bookings.view', 'rental_bookings.update', 'rental_bookings.refund']
+)
 add('GET', ['/admin/customers'], ['customers.view'])
 add('GET', ['/admin/customers/:id/photo'], ['customers.view'])
 add('POST', ['/admin/customers/:id/status'], ['customers.view', 'customers.update'])

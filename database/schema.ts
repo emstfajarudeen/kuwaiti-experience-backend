@@ -769,6 +769,327 @@ export class RefreshTokenSchema extends BaseModel {
   declare tokenHash: string
 }
 
+export class RentalBookingSchema extends BaseModel {
+  static $columns = ['bookingFee', 'cancelReason', 'cancelledAt', 'cancelledBy', 'completedAt', 'confirmedAt', 'createdAt', 'currency', 'customerId', 'dailyRate', 'days', 'driverDailyRate', 'holdExpiresAt', 'id', 'idempotencyKey', 'notes', 'pickupAt', 'pickupLocationId', 'providerId', 'reference', 'rentalAmount', 'requestHash', 'returnAt', 'returnLocationId', 'snapshot', 'status', 'updatedAt', 'vehicleId', 'withDriver'] as const
+  $columns = RentalBookingSchema.$columns
+  @column()
+  declare bookingFee: string
+  @column()
+  declare cancelReason: string | null
+  @column.dateTime()
+  declare cancelledAt: DateTime | null
+  @column()
+  declare cancelledBy: string | null
+  @column.dateTime()
+  declare completedAt: DateTime | null
+  @column.dateTime()
+  declare confirmedAt: DateTime | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column()
+  declare customerId: number
+  @column()
+  declare dailyRate: string
+  @column()
+  declare days: number
+  @column()
+  declare driverDailyRate: string
+  @column.dateTime()
+  declare holdExpiresAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare idempotencyKey: string
+  @column()
+  declare notes: string | null
+  @column.dateTime()
+  declare pickupAt: DateTime
+  @column()
+  declare pickupLocationId: number
+  @column()
+  declare providerId: number
+  @column()
+  declare reference: string
+  @column()
+  declare rentalAmount: string
+  @column()
+  declare requestHash: string
+  @column.dateTime()
+  declare returnAt: DateTime
+  @column()
+  declare returnLocationId: number
+  @column()
+  declare snapshot: any
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare vehicleId: number
+  @column()
+  declare withDriver: boolean
+}
+
+export class RentalLocationSchema extends BaseModel {
+  static $columns = ['active', 'address', 'createdAt', 'id', 'latitude', 'longitude', 'nameAr', 'nameEn', 'sortOrder', 'updatedAt'] as const
+  $columns = RentalLocationSchema.$columns
+  @column()
+  declare active: boolean
+  @column()
+  declare address: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare latitude: string | null
+  @column()
+  declare longitude: string | null
+  @column()
+  declare nameAr: string | null
+  @column()
+  declare nameEn: string
+  @column()
+  declare sortOrder: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class RentalPaymentSchema extends BaseModel {
+  static $columns = ['amount', 'bookingId', 'createdAt', 'currency', 'gateway', 'gatewayResponse', 'id', 'invoiceId', 'paidAt', 'paymentId', 'paymentMethod', 'paymentMethodId', 'paymentUrl', 'refundReference', 'refundedAt', 'status', 'updatedAt'] as const
+  $columns = RentalPaymentSchema.$columns
+  @column()
+  declare amount: string
+  @column()
+  declare bookingId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column()
+  declare gateway: string
+  @column()
+  declare gatewayResponse: any | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare invoiceId: string
+  @column.dateTime()
+  declare paidAt: DateTime | null
+  @column()
+  declare paymentId: string | null
+  @column()
+  declare paymentMethod: string | null
+  @column()
+  declare paymentMethodId: number | null
+  @column()
+  declare paymentUrl: string | null
+  @column()
+  declare refundReference: string | null
+  @column.dateTime()
+  declare refundedAt: DateTime | null
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class RentalProviderEmailSchema extends BaseModel {
+  static $columns = ['bookingId', 'createdAt', 'error', 'id', 'kind', 'messageId', 'recipient', 'sentBy', 'status'] as const
+  $columns = RentalProviderEmailSchema.$columns
+  @column()
+  declare bookingId: number
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare error: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare kind: string
+  @column()
+  declare messageId: string | null
+  @column()
+  declare recipient: string | null
+  @column()
+  declare sentBy: number | null
+  @column()
+  declare status: string
+}
+
+export class RentalProviderSchema extends BaseModel {
+  static $columns = ['active', 'address', 'createdAt', 'email', 'id', 'logoImageKey', 'nameAr', 'nameEn', 'phoneE164', 'updatedAt'] as const
+  $columns = RentalProviderSchema.$columns
+  @column()
+  declare active: boolean
+  @column()
+  declare address: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare email: string | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare logoImageKey: string | null
+  @column()
+  declare nameAr: string | null
+  @column()
+  declare nameEn: string
+  @column()
+  declare phoneE164: string | null
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class RentalReviewSchema extends BaseModel {
+  static $columns = ['bookingId', 'comment', 'createdAt', 'customerId', 'hiddenAt', 'hiddenBy', 'id', 'providerId', 'rating', 'status', 'updatedAt', 'vehicleId'] as const
+  $columns = RentalReviewSchema.$columns
+  @column()
+  declare bookingId: number
+  @column()
+  declare comment: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare customerId: number
+  @column.dateTime()
+  declare hiddenAt: DateTime | null
+  @column()
+  declare hiddenBy: number | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare providerId: number
+  @column()
+  declare rating: boolean
+  @column()
+  declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare vehicleId: number
+}
+
+export class RentalSettingSchema extends BaseModel {
+  static $columns = ['bookingFee', 'cancellationCutoffHours', 'holdMinutes', 'id', 'maxRentalDays', 'minLeadMinutes', 'updatedAt'] as const
+  $columns = RentalSettingSchema.$columns
+  @column()
+  declare bookingFee: string
+  @column()
+  declare cancellationCutoffHours: number
+  @column()
+  declare holdMinutes: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare maxRentalDays: number
+  @column()
+  declare minLeadMinutes: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class RentalVehicleImageSchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'sortOrder', 'storageKey', 'vehicleId'] as const
+  $columns = RentalVehicleImageSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare sortOrder: number
+  @column()
+  declare storageKey: string
+  @column()
+  declare vehicleId: number
+}
+
+export class RentalVehicleLocationSchema extends BaseModel {
+  static $columns = ['locationId', 'vehicleId'] as const
+  $columns = RentalVehicleLocationSchema.$columns
+  @column()
+  declare locationId: number
+  @column({ isPrimary: true })
+  declare vehicleId: number
+}
+
+export class RentalVehicleTermSchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'labelAr', 'labelEn', 'sortOrder', 'vehicleId'] as const
+  $columns = RentalVehicleTermSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare labelAr: string | null
+  @column()
+  declare labelEn: string
+  @column()
+  declare sortOrder: number
+  @column()
+  declare vehicleId: number
+}
+
+export class RentalVehicleSchema extends BaseModel {
+  static $columns = ['bags', 'coverImageKey', 'createdAt', 'dailyRate', 'doors', 'driverDailyRate', 'extraKmRate', 'fuelType', 'id', 'insuranceAr', 'insuranceEn', 'make', 'mileageLimitKm', 'model', 'nameAr', 'nameEn', 'providerId', 'publishedAt', 'quantity', 'seats', 'status', 'transmission', 'updatedAt', 'vehicleType', 'withDriverAvailable', 'year'] as const
+  $columns = RentalVehicleSchema.$columns
+  @column()
+  declare bags: boolean | null
+  @column()
+  declare coverImageKey: string | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare dailyRate: string
+  @column()
+  declare doors: boolean | null
+  @column()
+  declare driverDailyRate: string | null
+  @column()
+  declare extraKmRate: string | null
+  @column()
+  declare fuelType: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare insuranceAr: string | null
+  @column()
+  declare insuranceEn: string | null
+  @column()
+  declare make: string
+  @column()
+  declare mileageLimitKm: number | null
+  @column()
+  declare model: string
+  @column()
+  declare nameAr: string | null
+  @column()
+  declare nameEn: string
+  @column()
+  declare providerId: number
+  @column.dateTime()
+  declare publishedAt: DateTime | null
+  @column()
+  declare quantity: number
+  @column()
+  declare seats: boolean
+  @column()
+  declare status: string
+  @column()
+  declare transmission: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare vehicleType: string
+  @column()
+  declare withDriverAvailable: boolean
+  @column()
+  declare year: number | null
+}
+
 export class RolePermissionSchema extends BaseModel {
   static $columns = ['permissionId', 'roleId'] as const
   $columns = RolePermissionSchema.$columns

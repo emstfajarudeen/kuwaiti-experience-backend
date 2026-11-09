@@ -75,6 +75,8 @@ Acceptance: invalid transitions and duplicate requests cannot create extra rides
 
 ## Section 6 — Car rental catalog, availability and checkout
 
+Status: **implemented 5 November 2026** with CMS-managed inventory, a per-vehicle with-driver option and MyFatoorah for the booking fee. See the [rental API guide](rental-api.md). Provider e-mail notification and rental reviews remain open.
+
 Screens: date/location/type/with-driver search, filters/sort, vehicle detail/gallery/specs/terms/provider reviews, checkout, payment method and confirmation.
 
 1. Define provider onboarding/inventory, availability source, age/license/deposit/insurance terms, with-driver eligibility, hold duration and rate/fee calculation. Confirm the design's model: app collects a booking fee while rental amount is paid to the provider.

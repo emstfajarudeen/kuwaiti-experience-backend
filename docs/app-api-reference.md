@@ -1,6 +1,6 @@
 # Mobile app API reference
 
-Last checked against routes, controllers, validators and serializers: **30 October 2026**. This is the starting document for app developers and AI implementing the mobile client.
+Last checked against routes, controllers, validators and serializers: **9 November 2026**. This is the starting document for app developers and AI implementing the mobile client.
 
 ## 1. Start here
 
@@ -12,6 +12,7 @@ Last checked against routes, controllers, validators and serializers: **30 Octob
 | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | This document                                                                                                                   | Supported screens, exact endpoint map, integration order and common examples                   |
 | [Customer OpenAPI](customer-openapi.json)                                                                                       | Exact account/profile/support request and response schemas, including required/nullable fields |
+| [Car rental OpenAPI](rental-openapi.json) | Car search, quotes, bookings, cancel and booking-fee payment schemas |
 | [Saved-address OpenAPI](saved-addresses-openapi.json)                                                                     | Exact customer address create/list/detail/update/delete schemas |
 | [Notifications OpenAPI](notifications-openapi.json)                                                                      | Customer FCM token and notification inbox contracts             |
 | [App configuration OpenAPI](app-config-openapi.json) | Public startup configuration and platform update settings |
@@ -24,7 +25,7 @@ The standalone JSON files are OpenAPI 3.1 specifications. Their paths include mo
 
 **Implemented means the route and backend behavior exist.** It does not mean all provider credentials and editorial content are configured. SMS delivery is pending configuration: OTP request/resend returns **503** unless a development or staging server explicitly enables `CUSTOMER_OTP_DEV_RESPONSE=true` with an OTP secret. In that mode, use fixed OTP `2580`; the code is not returned in the response. This opt-in also works with `NODE_ENV=production`, so disable it before serving real customers. Approved legal pages and venue images/copy must be supplied through the CMS.
 
-FCM inbox/token APIs are implemented. Actual push delivery requires the FCM service-account environment values and a running `node ace notifications:deliver-push --watch` worker. No ride or rental event sources are connected yet, so those workflows will not create notifications until integrated.
+FCM inbox/token APIs are implemented. Actual push delivery requires the FCM service-account environment values and a running `node ace notifications:deliver-push --watch` worker. The rental booking-confirmed notification (`rental_booking_confirmed`) is created when a booking fee is verified. Ride event sources are not connected yet.
 
 At startup, call `GET /api/v2/config` without authentication. Set `Accept-Language` to `en` or `ar`; missing Arabic text falls back to English. `api_base_url` and `image_base_url` are origins: API paths already include `/api/v2`, and relative image paths already include `/api/v1/images`. The app compares its installed numeric `major.minor.patch` version with the relevant platform's configured `version`; a null version means no update is configured. When an older version is detected, `force` determines whether the update is mandatory. A forced update requires a store URL. `maintenance.enabled` instructs the app to show the maintenance screen; it does not block other API calls. Keep a last successful response for offline startup and provide a retry state for first launch without one.
 
@@ -44,10 +45,11 @@ The CMS **Site settings → Mobile app configuration** page manages versions, st
 | Save/unsave venues and saved venue list                                              | Implemented; customer authentication required                       | Section 10                                                             |
 | Contact Us, WhatsApp, privacy/terms, logout, delete account                          | Implemented; legal/settings content prerequisites apply             | Sections 5, 6 and 11                                                   |
 | App Home hero, Explore cards and four featured carousels                             | Implemented; artwork and card choices depend on CMS                 | Section 12; `GET /api/v2/home`                                         |
-| Notifications inbox and FCM token APIs                                              | Implemented; actual delivery requires Firebase credentials and the worker | [Notifications API](notifications-openapi.json); ride/rental event triggers are pending |
+| Notifications inbox and FCM token APIs                                              | Implemented; actual delivery requires Firebase credentials and the worker | [Notifications API](notifications-openapi.json); ride event triggers are pending |
 | Home search and Schedule                                                           | Pending                                                                  | No API contract to integrate                                           |
 | Saved addresses (Home, Work and custom locations)                                  | Implemented; customer authentication required                             | [Saved-address API reference](saved-addresses-api.md)                  |
-| Cab, rentals, bookings, videos/social features                                     | Pending separate sections                                                 | No working mobile feature contract is supplied here                    |
+| Car rental search, detail, quote, reservation, MyFatoorah booking fee, rental history, reviews and ratings | Implemented; needs CMS fleet data and MyFatoorah credentials             | [Rental OpenAPI](rental-openapi.json) and [Rental API guide](rental-api.md) |
+| Cab, unified cab/rental history, cab reviews                                        | Pending separate sections                                                 | No working mobile feature contract is supplied here                    |
 
 The website's `/api/v1/home` retains its legacy response. The app's Home Explore cards link to existing place details. A future cab flow can receive a selected place, but no cab quotation/ride-creation API is implemented in this section.
 
@@ -509,6 +511,9 @@ Home API errors follow the shared `{ error: { code, message, requestId, fields? 
 | 404 `NOT_FOUND`                                                                                                                                     | Resource absent/unavailable; handle missing photo with initials and missing venue with an unavailable screen |
 | 429 `RATE_LIMITED`, `OTP_RATE_LIMITED`                                                                                                              | Show throttled/retry state; avoid immediate retry loops                                                      |
 | 503 `OTP_UNAVAILABLE`, `OTP_DELIVERY_FAILED`, `LEGAL_CONTENT_UNAVAILABLE`                                                                           | Configuration/content/delivery unavailable; show a recoverable unavailable state                             |
+| 409 `VEHICLE_UNAVAILABLE`, `TOO_MANY_PENDING_BOOKINGS`, `BOOKING_NOT_PAYABLE`, `CANCELLATION_WINDOW_CLOSED`, `IDEMPOTENCY_CONFLICT`, `NO_PAYMENT`, `REVIEW_NOT_ALLOWED` | Car rental: show the unavailable or hold/payment state; re-search or re-open the booking instead of retrying the same request |
+| 422 `INVALID_RENTAL_PERIOD`, `INVALID_LOCATION`, `DRIVER_NOT_AVAILABLE` | Car rental: show the field feedback on the search or checkout screen |
+| 503 `PAYMENTS_NOT_CONFIGURED`, 502 `PAYMENT_GATEWAY_ERROR` | Car rental: recoverable payment unavailable state; do not open a payment page |
 | 500 `INTERNAL_ERROR`                                                                                                                                | Generic error UI; record request ID                                                                          |
 
 Every list screen should distinguish loading, valid empty data, loaded data, network failure and API error. Personalized lists/details are not shared-cache data. Respect server no-store behavior and clear account-specific local state after logout/deletion or account switching.
@@ -527,8 +532,9 @@ Use each endpoint's envelope: auth wraps customer/credentials; profile returns
 Customer directly under data; lists return arrays; showtimes include related movies.
 Preserve token/proof distinctions, rotation, guest behavior, locale fallback,
 metadata joins, pagination, empty/error states and private image authentication.
-Global search, notification event integrations, Schedule, cab/rental/bookings
-and video/social APIs are pending. Do not invent their routes or treat plans as live.
+Global search, notification event integrations, Schedule, cab requests, unified
+cab/rental history and video/social APIs are pending. Car rental (`/api/v2/rentals/*` and
+`/api/v2/customer/me/rental-bookings*`) is implemented: use rental-openapi.json. Do not invent their routes or treat plans as live.
 SMS is not configured, so handle the documented 503 state without a bypass.
 ```
 

@@ -119,6 +119,32 @@ const navigation = [
     ],
   },
   {
+    label: 'RENTALS',
+    links: [
+      {
+        href: '/admin/rentals/bookings',
+        icon: '⎘',
+        label: 'Rental bookings',
+        active: 'rental-bookings',
+        permission: 'rental_bookings.view',
+      },
+      {
+        href: '/admin/rentals/vehicles',
+        icon: '⛟',
+        label: 'Rental fleet',
+        active: 'rentals',
+        permission: 'rentals.view',
+      },
+      {
+        href: '/admin/rentals/reviews',
+        icon: '★',
+        label: 'Rental reviews',
+        active: 'rental-reviews',
+        permission: 'rental_reviews.view',
+      },
+    ],
+  },
+  {
     label: 'EXPERIENCE',
     links: [
       {

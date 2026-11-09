@@ -111,6 +111,17 @@ export const enquiryThrottle = limiter.define('transport-enquiry', (ctx) =>
   limiter.allowRequests(20).every('1 minute').usingKey(`enquiry:${ctx.request.ip()}`)
 )
 
+export const rentalBookingThrottle = limiter.define('rental-bookings', (ctx) =>
+  limiter
+    .allowRequests(30)
+    .every('1 minute')
+    .usingKey(`rental-bookings:${ctx.customerIdentity.customer.id}`)
+)
+
+export const rentalPaymentWebhookThrottle = limiter.define('rental-payment-webhook', (ctx) =>
+  limiter.allowRequests(120).every('1 minute').usingKey(`rental-webhook:${ctx.request.ip()}`)
+)
+
 /**
  * Image uploads are counted per file, not per request, because they arrive
  * with ordinary form saves. Text-only saves never consume this allowance.

@@ -70,14 +70,23 @@ export async function showContact(id: number) {
   return { data: contactRequest(row) }
 }
 
-const STATUS_MESSAGES: Record<string, { title: string; body: string }> = {
+// English and Arabic are kept separate: the push shows the device's saved language and the
+// app inbox picks its own, instead of showing both languages joined together.
+const STATUS_MESSAGES: Record<
+  string,
+  { title: string; body: string; title_ar: string; body_ar: string }
+> = {
   in_progress: {
-    title: 'We are looking into your request / نحن نراجع طلبك',
-    body: 'Our team has started working on your message. / بدأ فريقنا بالعمل على رسالتك.',
+    title: 'We are looking into your request',
+    body: 'Our team has started working on your message.',
+    title_ar: 'نحن نراجع طلبك',
+    body_ar: 'بدأ فريقنا بالعمل على رسالتك.',
   },
   resolved: {
-    title: 'Your request has been resolved / تم حل طلبك',
-    body: 'We have replied to your message. Thank you for contacting us. / لقد قمنا بالرد على رسالتك. شكراً لتواصلك معنا.',
+    title: 'Your request has been resolved',
+    body: 'We have replied to your message. Thank you for contacting us.',
+    title_ar: 'تم حل طلبك',
+    body_ar: 'لقد قمنا بالرد على رسالتك. شكراً لتواصلك معنا.',
   },
 }
 
