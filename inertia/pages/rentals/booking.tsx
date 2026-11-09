@@ -135,12 +135,14 @@ export default function RentalBooking({
       success={success}
       error={error}
     >
-      <a className="back-link tw:mb-4 tw:inline-flex" href="/admin/rentals/bookings">
-        ← Back to rental bookings
-      </a>
-      <div className="page-head tw:mb-6 tw:flex tw:flex-wrap tw:items-center tw:gap-3">
-        <h1>{booking.reference}</h1>
+      <div className="tw:mb-4 tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3">
+        <a className="back-link tw:inline-flex" href="/admin/rentals/bookings">
+          ← Back to rental bookings
+        </a>
         <StatusBadge status={booking.status} />
+      </div>
+      <div className="page-head tw:mb-6">
+        <h1>{booking.reference}</h1>
       </div>
 
       {booking.status === 'refund_required' && (
