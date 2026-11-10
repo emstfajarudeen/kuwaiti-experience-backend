@@ -1508,6 +1508,7 @@
       },
       "Location": {
         "type": "object",
+        "description": "A pickup place from the shared list. Send its id as pickup_location_id / return_location_id.",
         "required": [
           "id",
           "name",
@@ -1521,13 +1522,14 @@
           },
           "name": {
             "type": "string",
-            "description": "Localized name."
+            "example": "Kuwait International Airport"
           },
           "address": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "example": "Farwaniya · Arrivals, Terminal 4"
           },
           "latitude": {
             "type": [
@@ -1966,7 +1968,8 @@
               "available",
               "booking_fee",
               "cancellation_cutoff_hours",
-              "rental_terms"
+              "rental_terms",
+              "return_locations"
             ],
             "properties": {
               "gallery": {
@@ -1994,8 +1997,9 @@
               "locations": {
                 "type": "array",
                 "items": {
-                  "$ref": "#/components/schemas/Location"
-                }
+                  "$ref": "#/components/schemas/VehicleLocation"
+                },
+                "description": "Places where this car can be picked up."
               },
               "available": {
                 "type": [
@@ -2027,6 +2031,13 @@
                   }
                 },
                 "description": "Ordered rental terms managed in the CMS; show as chips."
+              },
+              "return_locations": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/VehicleLocation"
+                },
+                "description": "Places where it can be returned (any branch of the same provider)."
               }
             }
           }
@@ -2291,10 +2302,10 @@
             }
           },
           "pickup_location": {
-            "$ref": "#/components/schemas/Location"
+            "$ref": "#/components/schemas/BookingLocation"
           },
           "return_location": {
-            "$ref": "#/components/schemas/Location"
+            "$ref": "#/components/schemas/BookingLocation"
           },
           "price": {
             "type": "object",
@@ -2852,6 +2863,188 @@
                 }
               }
             }
+          }
+        }
+      },
+      "VehicleLocation": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Location"
+          },
+          {
+            "type": "object",
+            "required": [
+              "branch"
+            ],
+            "properties": {
+              "branch": {
+                "type": "object",
+                "description": "This provider's branch at the place.",
+                "required": [
+                  "id",
+                  "name",
+                  "address",
+                  "phone_e164",
+                  "working_hours",
+                  "closed_dates"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "address": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "phone_e164": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "working_hours": {
+                    "oneOf": [
+                      {
+                        "type": "array",
+                        "minItems": 7,
+                        "maxItems": 7,
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "weekday",
+                            "day",
+                            "open_24h",
+                            "closed",
+                            "shifts"
+                          ],
+                          "properties": {
+                            "weekday": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 6,
+                              "description": "0 = Sunday"
+                            },
+                            "day": {
+                              "type": "string",
+                              "example": "sunday"
+                            },
+                            "open_24h": {
+                              "type": "boolean"
+                            },
+                            "closed": {
+                              "type": "boolean"
+                            },
+                            "shifts": {
+                              "type": "array",
+                              "maxItems": 2,
+                              "items": {
+                                "type": "object",
+                                "required": [
+                                  "opens",
+                                  "closes"
+                                ],
+                                "properties": {
+                                  "opens": {
+                                    "type": "string",
+                                    "example": "09:00"
+                                  },
+                                  "closes": {
+                                    "type": "string",
+                                    "example": "13:00"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "null: no fixed hours. Times are Kuwait time."
+                  },
+                  "closed_dates": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "starts_on",
+                        "ends_on",
+                        "reason"
+                      ],
+                      "properties": {
+                        "starts_on": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "ends_on": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "reason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "BookingLocation": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "address",
+          "phone_e164",
+          "latitude",
+          "longitude"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Pickup place id"
+          },
+          "name": {
+            "type": "string"
+          },
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Branch address"
+          },
+          "phone_e164": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Branch phone"
+          },
+          "latitude": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "longitude": {
+            "type": [
+              "number",
+              "null"
+            ]
           }
         }
       }

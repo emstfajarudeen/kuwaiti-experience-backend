@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, Form, Input, InputNumber, Select, Switch } from 'antd'
 import { router } from '@inertiajs/react'
 import AdminLayout from '../../layouts/admin_layout'
@@ -44,7 +44,7 @@ type Vehicle = {
   images: { id: number; url: string | null; sort_order: number }[]
 }
 
-type Option = { id: number; name: string; active: boolean }
+type Option = { id: number; name: string; active: boolean; provider_id?: number }
 type Props = SharedProps & {
   vehicle: Vehicle | null
   form: Record<string, unknown> | null
@@ -57,9 +57,18 @@ type Props = SharedProps & {
 }
 
 /** Searchable multi-select for pickup and return locations; posts native locationIds inputs. */
-function LocationsField({ locations }: { locations: Option[] }) {
+function LocationsField({ locations: all }: { locations: Option[] }) {
   const form = Form.useFormInstance()
+  const providerId = Number(Form.useWatch('providerId', form))
+  const locations = all.filter((location) => location.provider_id === providerId)
   const selected = (Form.useWatch('locationIds', form) as number[] | undefined) ?? []
+  const allowed = new Set(locations.map((location) => location.id))
+  useEffect(() => {
+    // Branches belong to one provider: drop picks that no longer match.
+    const current = (form.getFieldValue('locationIds') as number[] | undefined) ?? []
+    const kept = current.filter((id) => allowed.has(id))
+    if (kept.length !== current.length) form.setFieldValue('locationIds', kept)
+  }, [providerId])
   const options = locations.map((location) => ({
     value: location.id,
     label: location.active ? location.name : `${location.name} (inactive)`,
@@ -67,7 +76,7 @@ function LocationsField({ locations }: { locations: Option[] }) {
   return (
     <section className="cms-form-section">
       <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3">
-        <h2>Pickup and return locations</h2>
+        <h2>Pickup branches</h2>
         <span className="tw:flex tw:items-center tw:gap-3 tw:text-[13px]">
           <span className="tw:text-brand-muted">
             {selected.length} of {locations.length} selected
@@ -96,16 +105,16 @@ function LocationsField({ locations }: { locations: Option[] }) {
       <Form.Item
         name="locationIds"
         className="tw:mt-4"
-        rules={[
-          { required: true, type: 'array', min: 1, message: 'Choose at least one location.' },
-        ]}
+        rules={[{ required: true, type: 'array', min: 1, message: 'Choose at least one branch.' }]}
       >
         <Select
           mode="multiple"
           allowClear
           showSearch
           optionFilterProp="label"
-          placeholder="Search and choose locations"
+          placeholder={providerId ? 'Search and choose branches' : 'Choose a provider first'}
+          disabled={!providerId}
+          notFoundContent="This provider has no branches yet. Add them on the provider page."
           options={options}
           maxTagCount="responsive"
           className="tw:w-full"

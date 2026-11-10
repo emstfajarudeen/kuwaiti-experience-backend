@@ -149,7 +149,7 @@ const navigation: NavSection[] = [
         children: [
           { href: '/admin/rentals/vehicles', label: 'Vehicles', active: 'rental-vehicles' },
           { href: '/admin/rentals/providers', label: 'Providers', active: 'rental-providers' },
-          { href: '/admin/rentals/locations', label: 'Locations', active: 'rental-locations' },
+          { href: '/admin/rentals/places', label: 'Pickup places', active: 'rental-places' },
           { href: '/admin/rentals/settings', label: 'Settings', active: 'rental-settings' },
         ],
       },

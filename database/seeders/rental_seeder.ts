@@ -16,11 +16,26 @@ const locations = [
     key: 'airport',
     en: 'Kuwait International Airport',
     ar: 'مطار الكويت الدولي',
+    subtitle: 'Farwaniya · Arrivals, Terminal 4',
     lat: 29.2266,
     lng: 47.9689,
   },
-  { key: 'city', en: 'Kuwait City – Sharq', ar: 'مدينة الكويت – شرق', lat: 29.3759, lng: 47.9774 },
-  { key: 'salmiya', en: 'Salmiya', ar: 'السالمية', lat: 29.3345, lng: 48.0764 },
+  {
+    key: 'city',
+    en: 'Kuwait City – Sharq',
+    ar: 'مدينة الكويت – شرق',
+    subtitle: 'Kuwait City · Main entrance',
+    lat: 29.3759,
+    lng: 47.9774,
+  },
+  {
+    key: 'salmiya',
+    en: 'Salmiya',
+    ar: 'السالمية',
+    subtitle: 'Salmiya · Gulf Road',
+    lat: 29.3345,
+    lng: 48.0764,
+  },
 ]
 
 type Seed = {
@@ -205,24 +220,78 @@ export default class RentalSeeder extends BaseSeeder {
       providerIds.set(item.key, Number(id))
     }
 
-    const locationIds: number[] = []
+    // Every provider gets the three sample branches. The airport branch is open 24 hours; the
+    // others open 9:00–13:00 and 16:00–22:00, and are closed on Fridays.
+    // Pickup places: the shared list the app shows.
+    const placeIds = new Map<string, number>()
     for (const [index, item] of locations.entries()) {
-      const existing = await db.from('rental_locations').where('name_en', item.en).first()
+      const existing = await db.from('rental_places').where('name_en', item.en).first()
       if (existing) {
-        locationIds.push(Number(existing.id))
+        placeIds.set(item.key, Number(existing.id))
         continue
       }
-      const [id] = await db.table('rental_locations').insert({
+      const [id] = await db.table('rental_places').insert({
         name_en: item.en,
         name_ar: item.ar,
-        address: item.en,
+        subtitle_en: item.subtitle,
         latitude: item.lat,
         longitude: item.lng,
         active: true,
         sort_order: index,
         created_at: now,
       })
-      locationIds.push(Number(id))
+      placeIds.set(item.key, Number(id))
+    }
+
+    const branchIds = new Map<string, number[]>()
+    for (const provider of providers) {
+      const providerId = providerIds.get(provider.key)!
+      const ids: number[] = []
+      for (const [index, item] of locations.entries()) {
+        const existing = await db
+          .from('rental_locations')
+          .where({ name_en: item.en, provider_id: providerId })
+          .first()
+        if (existing) {
+          if (!existing.place_id)
+            await db
+              .from('rental_locations')
+              .where('id', existing.id)
+              .update({ place_id: placeIds.get(item.key) })
+          ids.push(Number(existing.id))
+          continue
+        }
+        const [id] = await db.table('rental_locations').insert({
+          provider_id: providerId,
+          place_id: placeIds.get(item.key),
+          name_en: item.en,
+          name_ar: item.ar,
+          address: item.en,
+          latitude: item.lat,
+          longitude: item.lng,
+          phone_e164: provider.phone,
+          hours_enabled: true,
+          active: true,
+          sort_order: index,
+          created_at: now,
+        })
+        const hours =
+          item.key === 'airport'
+            ? [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+                weekday,
+                opens_at: '00:00',
+                closes_at: '24:00',
+              }))
+            : [0, 1, 2, 3, 4, 6].flatMap((weekday) => [
+                { weekday, opens_at: '09:00', closes_at: '13:00' },
+                { weekday, opens_at: '16:00', closes_at: '22:00' },
+              ])
+        await db
+          .table('rental_location_hours')
+          .multiInsert(hours.map((row) => ({ ...row, location_id: id })))
+        ids.push(Number(id))
+      }
+      branchIds.set(provider.key, ids)
     }
 
     const vehicleIds = new Map<string, number>()
@@ -289,7 +358,9 @@ export default class RentalSeeder extends BaseSeeder {
       )
       await db
         .table('rental_vehicle_locations')
-        .multiInsert(locationIds.map((location_id) => ({ vehicle_id: id, location_id })))
+        .multiInsert(
+          branchIds.get(item.provider)!.map((location_id) => ({ vehicle_id: id, location_id }))
+        )
     }
 
     // A test customer with a confirmed and a cancelled booking, to try the CMS booking pages and refunds.
@@ -311,7 +382,10 @@ export default class RentalSeeder extends BaseSeeder {
       .from('rental_providers')
       .where('id', camryRow.provider_id)
       .firstOrFail()
-    const place = await db.from('rental_locations').where('id', locationIds[0]).firstOrFail()
+    const place = await db
+      .from('rental_locations')
+      .where('id', branchIds.get('gulf')![0])
+      .firstOrFail()
     const samples = [
       { reference: 'RN-SAMPLE01', status: 'confirmed', startDays: 5 },
       { reference: 'RN-SAMPLE02', status: 'cancelled', startDays: 12 },

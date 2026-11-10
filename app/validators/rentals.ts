@@ -32,8 +32,51 @@ const money = () =>
 
 const optionalText = (max: number) => vine.string().trim().maxLength(max).nullable()
 
+const shift = vine.object({
+  opens: vine.string().trim().maxLength(5),
+  closes: vine.string().trim().maxLength(5),
+})
+
+export const rentalPlaceValidator = vine.compile(
+  vine.object({
+    nameEn: vine.string().trim().minLength(2).maxLength(160),
+    nameAr: optionalText(160),
+    subtitleEn: optionalText(200),
+    subtitleAr: optionalText(200),
+    latitude: vine.number().range([-90, 90]).nullable(),
+    longitude: vine.number().range([-180, 180]).nullable(),
+    active: vine.boolean(),
+    sortOrder: vine.number().withoutDecimals().range([0, 9999]),
+  })
+)
+
 export const rentalLocationValidator = vine.compile(
   vine.object({
+    providerId: vine.number().withoutDecimals().positive(),
+    placeId: vine.number().withoutDecimals().positive(),
+    phone: vine
+      .string()
+      .trim()
+      .regex(/^\+[1-9]\d{7,14}$/)
+      .nullable(),
+    hoursEnabled: vine.boolean(),
+    schedule: vine
+      .array(
+        vine.object({
+          mode: vine.enum(['closed', 'open24', 'shifts']),
+          shifts: vine.array(shift).maxLength(2),
+        })
+      )
+      .fixedLength(7),
+    closures: vine
+      .array(
+        vine.object({
+          startsOn: vine.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          endsOn: vine.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+          reason: vine.string().trim().maxLength(200).nullable(),
+        })
+      )
+      .maxLength(50),
     nameEn: vine.string().trim().minLength(2).maxLength(160),
     nameAr: optionalText(160),
     address: optionalText(500),

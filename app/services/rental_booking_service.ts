@@ -8,6 +8,7 @@ import { canReview, reviewForBooking } from './rental_review_service.js'
 import {
   assertDriverChoice,
   findVisibleVehicle,
+  providerBranches,
   freeUnits,
   rentalSettings,
   requireWindow,
@@ -16,6 +17,7 @@ import {
   type RentalSettings,
 } from './rental_catalog_service.js'
 import { kwd, quoteFor, toFils } from './rental_money.js'
+import { assertBranchOpen } from './rental_branch_service.js'
 import {
   BOOKING_STATUSES,
   rentalBooking,
@@ -131,14 +133,19 @@ async function replay(customerId: number, key: string, hash: string, locale: Pub
   return { created: false, ...bookingResponse(await serializeBooking(db, existing, locale)) }
 }
 
+/** The chosen place, with the address of the branch that serves it. */
 function snapshotLocation(row: Row) {
+  const lat = row.latitude ?? row.place_latitude
+  const lng = row.longitude ?? row.place_longitude
   return {
-    id: Number(row.id),
-    name_en: row.name_en,
-    name_ar: row.name_ar ?? null,
-    address: row.address ?? null,
-    latitude: row.latitude === null ? null : Number(row.latitude),
-    longitude: row.longitude === null ? null : Number(row.longitude),
+    id: Number(row.place_id ?? row.id),
+    branch_id: Number(row.id),
+    name_en: row.place_name_en ?? row.name_en,
+    name_ar: row.place_name_ar ?? row.name_ar ?? null,
+    address: row.address ?? row.place_subtitle_en ?? null,
+    phone_e164: row.phone_e164 ?? null,
+    latitude: lat === null || lat === undefined ? null : Number(lat),
+    longitude: lng === null || lng === undefined ? null : Number(lng),
   }
 }
 
@@ -174,9 +181,11 @@ export async function createBooking(
       const withDriver = Boolean(input.with_driver)
       assertDriverChoice(vehicle, withDriver)
       const locations = await vehicleLocations(trx, Number(vehicle.id))
-      const pickup = locations.find((row: Row) => Number(row.id) === input.pickup_location_id)
+      // Customers choose places; resolve the provider branch serving each one.
+      const pickup = locations.find((row: Row) => Number(row.place_id) === input.pickup_location_id)
       const returnId = input.return_location_id ?? input.pickup_location_id
-      const dropoff = locations.find((row: Row) => Number(row.id) === returnId)
+      const returnBranches = await providerBranches(trx, Number(vehicle.provider_id))
+      const dropoff = returnBranches.find((row: Row) => Number(row.place_id) === returnId)
       if (!pickup)
         throw new ApiError(
           422,
@@ -192,9 +201,11 @@ export async function createBooking(
           'INVALID_LOCATION',
           'This vehicle cannot be returned at that location',
           {
-            return_location_id: ['Choose one of this vehicle’s return locations'],
+            return_location_id: ['Choose one of this provider’s branches'],
           }
         )
+      await assertBranchOpen(trx, pickup, window.pickupAt, 'pickup_at')
+      await assertBranchOpen(trx, dropoff, window.returnAt, 'return_at')
       if ((await freeUnits(trx, vehicle, window)) < 1)
         throw new ApiError(
           409,

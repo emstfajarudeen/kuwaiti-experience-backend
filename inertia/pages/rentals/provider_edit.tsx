@@ -1,4 +1,8 @@
-import { Input } from 'antd'
+import { useState } from 'react'
+import { Input, Switch, Table } from 'antd'
+import { router } from '@inertiajs/react'
+import ConfirmModal from '../../components/confirm_modal'
+import RowActionMenu from '../../components/row_action_menu'
 import AdminLayout from '../../layouts/admin_layout'
 import ImageUpload from '../../components/image_upload'
 import {
@@ -6,6 +10,7 @@ import {
   FormSection,
   RentalFormShell,
   SwitchField,
+  useCan,
   type SharedProps,
 } from '../../components/rental_ui'
 
@@ -20,7 +25,150 @@ type Provider = {
   logo_url: string | null
 }
 
-type Props = SharedProps & { provider: Provider | null; form: Record<string, unknown> | null }
+type Branch = {
+  id: number
+  name_en: string
+  address: string | null
+  phone: string | null
+  active: boolean
+  hours_enabled: boolean
+  vehicle_count: number
+}
+
+type Props = SharedProps & {
+  provider: Provider | null
+  branches: Branch[]
+  form: Record<string, unknown> | null
+}
+
+/** The provider's pickup and return branches. */
+function BranchesPanel({
+  provider,
+  branches,
+  csrfToken,
+}: {
+  provider: Provider
+  branches: Branch[]
+  csrfToken: string
+}) {
+  const can = useCan()
+  const [busy, setBusy] = useState<number | null>(null)
+  const [deleting, setDeleting] = useState<Branch | null>(null)
+  const here = `/admin/rentals/providers/${provider.id}/edit`
+  return (
+    <section className="panel table-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-0">
+      <div className="panel-heading tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-brand-line-subtle tw:px-6 tw:py-5">
+        <h2>Branches ({branches.length})</h2>
+        {can('rentals.create') && (
+          <a
+            className="button primary"
+            href={`/admin/rentals/locations/new?providerId=${provider.id}`}
+          >
+            + Add branch
+          </a>
+        )}
+      </div>
+      <div className="table-scroll">
+        <Table<Branch>
+          className="cms-antd-table"
+          rowKey="id"
+          dataSource={branches}
+          pagination={false}
+          locale={{ emptyText: 'No branches yet. Add one so vehicles can be picked up there.' }}
+          columns={[
+            ...(can('rentals.update')
+              ? [
+                  {
+                    title: 'Edit',
+                    key: 'edit',
+                    width: 70,
+                    render: (_: unknown, row: Branch) => (
+                      <a
+                        href={`/admin/rentals/locations/${row.id}/edit`}
+                        className="action-pencil-btn"
+                        aria-label={`Edit ${row.name_en}`}
+                      >
+                        ✎
+                      </a>
+                    ),
+                  },
+                ]
+              : []),
+            {
+              title: 'Branch',
+              key: 'branch',
+              render: (_: unknown, row: Branch) => (
+                <div className="tw:flex tw:flex-col">
+                  <strong>{row.name_en}</strong>
+                  <span className="tw:text-[12px] tw:text-brand-muted">{row.address ?? '—'}</span>
+                </div>
+              ),
+            },
+            { title: 'Phone', key: 'phone', render: (_: unknown, row: Branch) => row.phone ?? '—' },
+            {
+              title: 'Hours',
+              key: 'hours',
+              render: (_: unknown, row: Branch) =>
+                row.hours_enabled ? 'Set' : <span className="tw:text-brand-muted">Any time</span>,
+            },
+            { title: 'Vehicles', dataIndex: 'vehicle_count', key: 'vehicles' },
+            {
+              title: 'Status',
+              key: 'active',
+              width: 90,
+              render: (_: unknown, row: Branch) => (
+                <Switch
+                  aria-label={`${row.active ? 'Deactivate' : 'Activate'} ${row.name_en}`}
+                  checked={row.active}
+                  loading={busy === row.id}
+                  disabled={!can('rentals.update') || busy !== null}
+                  onChange={(active) =>
+                    router.post(
+                      `/admin/rentals/locations/${row.id}/status`,
+                      { active, returnTo: here, _csrf: csrfToken },
+                      {
+                        preserveScroll: true,
+                        onStart: () => setBusy(row.id),
+                        onFinish: () => setBusy(null),
+                      }
+                    )
+                  }
+                />
+              ),
+            },
+            ...(can('rentals.delete')
+              ? [
+                  {
+                    title: 'Actions',
+                    key: 'more',
+                    width: 90,
+                    render: (_: unknown, row: Branch) => (
+                      <RowActionMenu
+                        label={`More actions for ${row.name_en}`}
+                        actions={[
+                          { label: 'Delete', danger: true, onClick: () => setDeleting(row) },
+                        ]}
+                      />
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+        />
+      </div>
+      <ConfirmModal
+        open={Boolean(deleting)}
+        onClose={() => setDeleting(null)}
+        title="Delete branch"
+        message={`Delete ${deleting?.name_en ?? 'this branch'}? Branches with bookings cannot be deleted; deactivate them instead.`}
+        action={deleting ? `/admin/rentals/locations/${deleting.id}/delete` : ''}
+        csrfToken={csrfToken}
+        confirmLabel="Delete"
+        danger
+      />
+    </section>
+  )
+}
 
 export default function RentalProviderEdit({
   adminName,
@@ -28,6 +176,7 @@ export default function RentalProviderEdit({
   success,
   error,
   provider,
+  branches,
   form,
 }: Props) {
   const value = (key: string, fallback: unknown) =>
@@ -119,6 +268,7 @@ export default function RentalProviderEdit({
           </div>
         </section>
       </RentalFormShell>
+      {provider && <BranchesPanel provider={provider} branches={branches} csrfToken={csrfToken} />}
     </AdminLayout>
   )
 }

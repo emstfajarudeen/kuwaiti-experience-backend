@@ -36,7 +36,10 @@ export type BookingSnapshot = {
   return_location: SnapshotLocation
 }
 type SnapshotLocation = {
+  /** Pickup place id (branch id on bookings made before places existed). */
   id: number
+  branch_id?: number
+  phone_e164?: string | null
   name_en: string
   name_ar: string | null
   address: string | null
@@ -76,6 +79,7 @@ function snapshotLocation(item: SnapshotLocation, locale: PublicLocale) {
     id: item.id,
     name: pick(item.name_en, item.name_ar, locale),
     address: item.address,
+    phone_e164: item.phone_e164 ?? null,
     latitude: item.latitude,
     longitude: item.longitude,
   }

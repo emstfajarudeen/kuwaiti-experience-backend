@@ -1,5 +1,6 @@
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { scheduleFromRows, scheduleRows, type DaySchedule } from './rental_branch_service.js'
 import { sendProviderEmail } from './rental_provider_mailer.js'
 import { ApiError } from './api_error.js'
 import {
@@ -74,7 +75,99 @@ export { rentalSettings }
 
 // --------------------------------------------------------------- locations
 
+export type PlaceInput = {
+  nameEn: string
+  nameAr: string | null
+  subtitleEn: string | null
+  subtitleAr: string | null
+  latitude: number | null
+  longitude: number | null
+  active: boolean
+  sortOrder: number
+}
+
+export async function listPlaces() {
+  return (await db
+    .from('rental_places as pl')
+    .select(
+      'pl.*',
+      db.raw('(select count(*) from rental_locations l where l.place_id = pl.id) as branch_count')
+    )
+    .orderBy('pl.sort_order')
+    .orderBy('pl.id')) as Row[]
+}
+
+export async function findPlace(id: number) {
+  return ((await db.from('rental_places').where('id', id).first()) as Row | undefined) ?? null
+}
+
+export async function savePlace(input: PlaceInput, actorId: number, id?: number) {
+  return db.transaction(async (trx) => {
+    const values = {
+      name_en: input.nameEn,
+      name_ar: input.nameAr,
+      subtitle_en: input.subtitleEn,
+      subtitle_ar: input.subtitleAr,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      active: input.active,
+      sort_order: input.sortOrder,
+      updated_at: new Date(),
+    }
+    let savedId = id
+    if (id) {
+      if (!(await trx.from('rental_places').where('id', id).update(values)))
+        throw new ApiError(404, 'NOT_FOUND', 'Place not found')
+    } else {
+      ;[savedId] = await trx.table('rental_places').insert({ ...values, created_at: new Date() })
+    }
+    await audit(trx, actorId, 'rental_place', Number(savedId), id ? 'update' : 'create')
+    return Number(savedId)
+  })
+}
+
+export async function setPlaceActive(id: number, active: boolean, actorId: number) {
+  await db.transaction(async (trx) => {
+    if (!(await trx.from('rental_places').where('id', id).forUpdate().first()))
+      throw new ApiError(404, 'NOT_FOUND', 'Place not found')
+    await trx.from('rental_places').where('id', id).update({ active, updated_at: new Date() })
+    await audit(trx, actorId, 'rental_place', id, active ? 'activate' : 'deactivate')
+  })
+}
+
+export async function deletePlace(id: number, actorId: number) {
+  await db.transaction(async (trx) => {
+    if (await trx.from('rental_locations').where('place_id', id).first())
+      throw new ApiError(
+        409,
+        'PLACE_IN_USE',
+        'Provider branches are linked to this place. Move them to another place or deactivate it.'
+      )
+    if (!(await trx.from('rental_places').where('id', id).delete()))
+      throw new ApiError(404, 'NOT_FOUND', 'Place not found')
+    await audit(trx, actorId, 'rental_place', id, 'delete')
+  })
+}
+
+export async function placeOptions() {
+  const rows = await db
+    .from('rental_places')
+    .select('id', 'name_en', 'active')
+    .orderBy('sort_order')
+    .orderBy('id')
+  return rows.map((row) => ({
+    value: String(row.id),
+    label: row.active ? (row.name_en as string) : `${row.name_en} (inactive)`,
+  }))
+}
+
 export type LocationInput = {
+  providerId: number
+  placeId: number
+  phone: string | null
+  hoursEnabled: boolean
+  schedule: DaySchedule[]
+  closures: Array<{ startsOn: string; endsOn: string; reason: string | null }>
   nameEn: string
   nameAr: string | null
   address: string | null
@@ -84,9 +177,10 @@ export type LocationInput = {
   sortOrder: number
 }
 
-export async function listLocations() {
-  return (await db
-    .from('rental_locations as l')
+export async function listLocations(providerId?: number) {
+  const query = db.from('rental_locations as l')
+  if (providerId) query.where('l.provider_id', providerId)
+  return (await query
     .select(
       'l.*',
       db.raw(
@@ -98,12 +192,40 @@ export async function listLocations() {
 }
 
 export async function findLocation(id: number) {
-  return ((await db.from('rental_locations').where('id', id).first()) as Row | undefined) ?? null
+  const row = (await db.from('rental_locations').where('id', id).first()) as Row | undefined
+  if (!row) return null
+  const [hours, closures] = await Promise.all([
+    db.from('rental_location_hours').where('location_id', id),
+    db.from('rental_location_closures').where('location_id', id).orderBy('starts_on'),
+  ])
+  return { row, schedule: scheduleFromRows(hours as Row[]), closures: closures as Row[] }
 }
 
 export async function saveLocation(input: LocationInput, actorId: number, id?: number) {
+  const hours = scheduleRows(input.schedule)
+  if (input.hoursEnabled && !hours.length)
+    throw new ApiError(422, 'VALIDATION_ERROR', 'Open the branch on at least one day.', {
+      schedule: ['Open the branch on at least one day.'],
+    })
+  for (const closure of input.closures)
+    if (closure.endsOn < closure.startsOn)
+      throw new ApiError(422, 'VALIDATION_ERROR', 'A closed period ends before it starts.', {
+        closures: ['A closed period ends before it starts.'],
+      })
+  if (!(await db.from('rental_providers').where('id', input.providerId).first()))
+    throw new ApiError(422, 'VALIDATION_ERROR', 'Choose a provider.', {
+      providerId: ['Choose a provider.'],
+    })
+  if (!(await db.from('rental_places').where('id', input.placeId).first()))
+    throw new ApiError(422, 'VALIDATION_ERROR', 'Choose a pickup place.', {
+      placeId: ['Choose a pickup place.'],
+    })
   return db.transaction(async (trx) => {
     const values = {
+      provider_id: input.providerId,
+      place_id: input.placeId,
+      phone_e164: input.phone,
+      hours_enabled: input.hoursEnabled,
       name_en: input.nameEn,
       name_ar: input.nameAr,
       address: input.address,
@@ -120,6 +242,22 @@ export async function saveLocation(input: LocationInput, actorId: number, id?: n
     } else {
       ;[savedId] = await trx.table('rental_locations').insert({ ...values, created_at: new Date() })
     }
+    await trx.from('rental_location_hours').where('location_id', savedId!).delete()
+    if (hours.length)
+      await trx
+        .table('rental_location_hours')
+        .multiInsert(hours.map((row) => ({ ...row, location_id: savedId })))
+    await trx.from('rental_location_closures').where('location_id', savedId!).delete()
+    if (input.closures.length)
+      await trx.table('rental_location_closures').multiInsert(
+        input.closures.map((closure) => ({
+          location_id: savedId,
+          starts_on: closure.startsOn,
+          ends_on: closure.endsOn,
+          reason: closure.reason,
+          created_at: new Date(),
+        }))
+      )
     await audit(trx, actorId, 'rental_location', Number(savedId), id ? 'update' : 'create')
     return Number(savedId)
   })
@@ -400,10 +538,12 @@ export async function vehicleFormOptions() {
   const [providers, locations, types, insurance] = await Promise.all([
     db.from('rental_providers').select('id', 'name_en', 'active').orderBy('name_en'),
     db
-      .from('rental_locations')
-      .select('id', 'name_en', 'active')
-      .orderBy('sort_order')
-      .orderBy('id'),
+      .from('rental_locations as l')
+      .leftJoin('rental_places as pl', 'pl.id', 'l.place_id')
+      .whereNotNull('l.provider_id')
+      .select('l.id', 'l.name_en', 'l.active', 'l.provider_id', 'pl.name_en as place_name')
+      .orderBy('l.sort_order')
+      .orderBy('l.id'),
     db.from('rental_vehicle_types').orderBy('sort_order').orderBy('id'),
     db.from('rental_insurance_options').orderBy('sort_order').orderBy('id'),
   ])
@@ -420,8 +560,12 @@ export async function vehicleFormOptions() {
     })),
     locations: locations.map((row) => ({
       id: Number(row.id),
-      name: row.name_en as string,
+      name:
+        row.place_name && row.place_name !== row.name_en
+          ? `${row.place_name} — ${row.name_en}`
+          : (row.name_en as string),
       active: Boolean(row.active),
+      provider_id: Number(row.provider_id),
     })),
   }
 }
@@ -453,10 +597,11 @@ export async function saveVehicle(
   const found = await db
     .from('rental_locations')
     .whereIn('id', locationIds)
+    .where('provider_id', input.providerId)
     .count('* as total')
     .first()
   if (Number(found?.total ?? 0) !== locationIds.length)
-    fieldError('locationIds', 'Choose valid pickup locations.')
+    fieldError('locationIds', "Choose branches of this vehicle's provider.")
 
   const newImages = [...(files.cover ? [files.cover] : []), ...files.gallery]
   return withStoredImages(newImages, async (keys) =>

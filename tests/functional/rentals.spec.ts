@@ -51,16 +51,34 @@ async function catalog(overrides: Record<string, unknown> = {}) {
     active: true,
     created_at: now,
   })
+  const [airportPlace] = await db.table('rental_places').insert({
+    name_en: 'Kuwait Airport',
+    name_ar: 'المطار',
+    subtitle_en: 'Farwaniya · Terminal 4',
+    active: true,
+    sort_order: 1,
+    created_at: now,
+  })
+  const [cityPlace] = await db
+    .table('rental_places')
+    .insert({ name_en: 'Kuwait City', active: true, sort_order: 2, created_at: now })
   const [airport] = await db.table('rental_locations').insert({
+    provider_id: providerId,
+    place_id: airportPlace,
     name_en: 'Kuwait Airport',
     name_ar: 'المطار',
     active: true,
     sort_order: 1,
     created_at: now,
   })
-  const [city] = await db
-    .table('rental_locations')
-    .insert({ name_en: 'Kuwait City', active: true, sort_order: 2, created_at: now })
+  const [city] = await db.table('rental_locations').insert({
+    provider_id: providerId,
+    place_id: cityPlace,
+    name_en: 'Kuwait City',
+    active: true,
+    sort_order: 2,
+    created_at: now,
+  })
   const [vehicleId] = await db.table('rental_vehicles').insert({
     provider_id: providerId,
     name_en: 'Toyota Camry',
@@ -106,8 +124,12 @@ async function catalog(overrides: Record<string, unknown> = {}) {
   return {
     providerId: Number(providerId),
     vehicleId: Number(vehicleId),
-    airport: Number(airport),
-    city: Number(city),
+    /** Pickup place ids, as the app sends them. */
+    airport: Number(airportPlace),
+    city: Number(cityPlace),
+    /** The provider's branches at those places. */
+    airportBranch: Number(airport),
+    cityBranch: Number(city),
   }
 }
 
@@ -337,6 +359,112 @@ test.group('Rental catalog and bookings', (group) => {
     const withDriver = await book('driver-only-2', true)
     withDriver.assertStatus(201)
     assert.isTrue(withDriver.body().data.with_driver)
+  })
+
+  test('branch hours and closed dates limit pickups and returns', async ({ client, assert }) => {
+    const ids = await catalog()
+    const user = await customer()
+    await db.from('rental_locations').where('id', ids.airportBranch).update({ hours_enabled: true })
+    // Open 09:00-13:00 and 16:00-22:00 every day except Friday (Kuwait time).
+    await db.table('rental_location_hours').multiInsert(
+      [0, 1, 2, 3, 4, 6].flatMap((weekday) => [
+        { location_id: ids.airportBranch, weekday, opens_at: '09:00', closes_at: '13:00' },
+        { location_id: ids.airportBranch, weekday, opens_at: '16:00', closes_at: '22:00' },
+      ])
+    )
+    const kuwait = (days: number, hour: number) => {
+      const date = new Date(Date.now() + days * DAY)
+      const local = new Date(date.getTime() + 3 * 60 * 60 * 1000)
+      local.setUTCHours(hour, 0, 0, 0)
+      return new Date(local.getTime() - 3 * 60 * 60 * 1000)
+    }
+    // A day at least two days ahead that is not a Friday in Kuwait.
+    let offset = 2
+    while (new Date(kuwait(offset, 12).getTime() + 3 * 60 * 60 * 1000).getUTCDay() === 5) offset++
+    const book = (key: string, pickup: Date, extra: Record<string, unknown> = {}) =>
+      client
+        .post('/api/v2/customer/me/rental-bookings')
+        .header('Authorization', user.token)
+        .header('Idempotency-Key', key)
+        .json({
+          vehicle_id: ids.vehicleId,
+          pickup_location_id: ids.airport,
+          return_location_id: ids.city,
+          pickup_at: pickup.toISOString(),
+          return_at: new Date(pickup.getTime() + 2 * DAY).toISOString(),
+          ...extra,
+        })
+
+    const lunchBreak = await book('hours-key-01', kuwait(offset, 14))
+    lunchBreak.assertStatus(422)
+    assert.equal(lunchBreak.body().error.code, 'BRANCH_CLOSED')
+
+    const places = await client.get('/api/v2/rentals/locations')
+    const place = places.body().data.find((item: { id: number }) => item.id === ids.airport)
+    assert.deepEqual(place, {
+      id: ids.airport,
+      name: 'Kuwait Airport',
+      address: 'Farwaniya · Terminal 4',
+      latitude: null,
+      longitude: null,
+    })
+    const detail = await client.get(`/api/v2/rentals/vehicles/${ids.vehicleId}`)
+    const airport = detail
+      .body()
+      .data.locations.find((item: { id: number }) => item.id === ids.airport)
+    assert.equal(airport.branch.id, ids.airportBranch)
+    assert.lengthOf(airport.branch.working_hours, 7)
+    assert.isTrue(airport.branch.working_hours[5].closed)
+    assert.deepEqual(airport.branch.working_hours[0].shifts, [
+      { opens: '09:00', closes: '13:00' },
+      { opens: '16:00', closes: '22:00' },
+    ])
+
+    const day = new Date(kuwait(offset, 10).getTime() + 3 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10)
+    await db.table('rental_location_closures').insert({
+      location_id: ids.airportBranch,
+      starts_on: day,
+      ends_on: day,
+      reason: 'Holiday',
+      created_at: new Date(),
+    })
+    const holiday = await book('hours-key-02', kuwait(offset, 10))
+    holiday.assertStatus(422)
+    assert.equal(holiday.body().error.code, 'BRANCH_CLOSED')
+    const listed = await client.get(`/api/v2/rentals/vehicles/${ids.vehicleId}`)
+    assert.deepEqual(
+      listed.body().data.locations.find((item: { id: number }) => item.id === ids.airport).branch
+        .closed_dates,
+      [{ starts_on: day, ends_on: day, reason: 'Holiday' }]
+    )
+
+    const open = await book('hours-key-03', kuwait(offset + 1, 10))
+    if (new Date(kuwait(offset + 1, 10).getTime() + 3 * 60 * 60 * 1000).getUTCDay() !== 5) {
+      open.assertStatus(201)
+      assert.equal(open.body().data.return_location.id, ids.city)
+    }
+
+    const [otherProvider] = await db
+      .table('rental_providers')
+      .insert({ name_en: 'Other Rent', active: true, created_at: new Date() })
+    const [foreignPlace] = await db
+      .table('rental_places')
+      .insert({ name_en: 'Elsewhere', active: true, sort_order: 9, created_at: new Date() })
+    await db.table('rental_locations').insert({
+      provider_id: otherProvider,
+      place_id: foreignPlace,
+      name_en: 'Other branch',
+      active: true,
+      sort_order: 0,
+      created_at: new Date(),
+    })
+    const wrongReturn = await book('hours-key-04', kuwait(offset + 3, 10), {
+      return_location_id: foreignPlace,
+    })
+    wrongReturn.assertStatus(422)
+    assert.equal(wrongReturn.body().error.code, 'INVALID_LOCATION')
   })
 
   test('the provider is emailed when a booking is confirmed and when it is cancelled', async ({
@@ -796,9 +924,11 @@ test.group('Rentals CMS', (group) => {
       '/admin/rentals/providers',
       '/admin/rentals/providers/new',
       `/admin/rentals/providers/${ids.providerId}/edit`,
-      '/admin/rentals/locations',
-      '/admin/rentals/locations/new',
-      `/admin/rentals/locations/${ids.airport}/edit`,
+      `/admin/rentals/locations/new?providerId=${ids.providerId}`,
+      `/admin/rentals/locations/${ids.airportBranch}/edit`,
+      '/admin/rentals/places',
+      '/admin/rentals/places/new',
+      `/admin/rentals/places/${ids.airport}/edit`,
       '/admin/rentals/settings',
       '/admin/rentals/reviews',
     ]) {
@@ -830,7 +960,7 @@ test.group('Rentals CMS', (group) => {
         JSON.stringify([{ labelEn: '25+ age', labelAr: 'العمر 25+' }, { labelEn: 'No smoking' }])
       )
       .field('quantity', '2')
-      .field('locationIds', String(ids.city))
+      .field('locationIds', String(ids.cityBranch))
     assert.match(saved.header('location') ?? '', /^\/admin\/rentals\/vehicles\/\d+\/edit$/)
     const vehicle = await db.from('rental_vehicles').where('name_en', 'Nissan Patrol').firstOrFail()
     assert.equal(vehicle.status, 'draft')
@@ -877,7 +1007,7 @@ test.group('Rentals CMS', (group) => {
       .field('seats', '7')
       .field('dailyRate', '25')
       .field('quantity', '2')
-      .field('locationIds', String(ids.city))
+      .field('locationIds', String(ids.cityBranch))
       .field('gallery[0][id]', String(first))
       .field('gallery[0][remove]', 'on')
       .field('gallery[0][sortOrder]', '1')
@@ -913,23 +1043,82 @@ test.group('Rentals CMS', (group) => {
       .field('transmission', 'manual')
       .field('seats', '4')
       .field('dailyRate', 'abc')
-      .field('locationIds', String(ids.city))
+      .field('locationIds', String(ids.cityBranch))
     assert.equal(missingRate.header('location'), '/admin/rentals/vehicles/new')
 
     // The edit forms post Ant Design values as JSON.
+    const shifts = { mode: 'shifts', shifts: [{ opens: '09:00', closes: '21:00' }] }
     const jsonLocation = await post('/admin/rentals/locations').json({
+      providerId: ids.providerId,
+      placeId: ids.city,
       nameEn: 'Jahra',
       nameAr: '',
       address: '',
       latitude: '29.3375',
       longitude: '',
+      phone: '+96522334455',
       active: true,
       sortOrder: 4,
+      hoursEnabled: true,
+      schedule: [
+        { mode: 'open24', shifts: [] },
+        shifts,
+        shifts,
+        shifts,
+        shifts,
+        { mode: 'closed', shifts: [] },
+        {
+          mode: 'shifts',
+          shifts: [
+            { opens: '16:00', closes: '22:00' },
+            { opens: '09:00', closes: '13:00' },
+          ],
+        },
+      ],
+      closures: [{ range: ['2026-12-01', '2026-12-02'], reason: 'National Day' }],
     })
-    assert.equal(jsonLocation.header('location'), '/admin/rentals/locations')
+    assert.equal(jsonLocation.header('location'), `/admin/rentals/providers/${ids.providerId}/edit`)
     const jahra = await db.from('rental_locations').where('name_en', 'Jahra').firstOrFail()
     assert.isNull(jahra.longitude)
     assert.isTrue(Boolean(jahra.active))
+    assert.equal(Number(jahra.provider_id), ids.providerId)
+    assert.equal(Number(jahra.place_id), ids.city)
+
+    const newPlace = await post('/admin/rentals/places').json({
+      nameEn: 'The Avenues',
+      nameAr: 'الأفنيوز',
+      subtitleEn: 'Al Rai · Sheikh Zayed Road',
+      subtitleAr: '',
+      latitude: '29.3030',
+      longitude: '47.9370',
+      active: true,
+      sortOrder: 5,
+    })
+    assert.equal(newPlace.header('location'), '/admin/rentals/places')
+    const avenues = await db.from('rental_places').where('name_en', 'The Avenues').firstOrFail()
+    assert.equal(avenues.subtitle_en, 'Al Rai · Sheikh Zayed Road')
+    const inUse = await post(`/admin/rentals/places/${ids.city}/delete`).form({})
+    assert.equal(inUse.status(), 302)
+    assert.isNotNull(await db.from('rental_places').where('id', ids.city).first())
+    const jahraHours = await db.from('rental_location_hours').where('location_id', jahra.id)
+    assert.lengthOf(jahraHours, 7)
+    const overlapping = await post('/admin/rentals/locations').json({
+      providerId: ids.providerId,
+      nameEn: 'Overlap',
+      active: true,
+      sortOrder: 0,
+      hoursEnabled: true,
+      schedule: Array.from({ length: 7 }, () => ({
+        mode: 'shifts',
+        shifts: [
+          { opens: '09:00', closes: '14:00' },
+          { opens: '13:00', closes: '18:00' },
+        ],
+      })),
+      closures: [],
+    })
+    assert.match(overlapping.header('location') ?? '', /\/admin\/rentals\/locations\/new/)
+    assert.isNull(await db.from('rental_locations').where('name_en', 'Overlap').first())
     const newType = await client
       .post('/admin/rentals/vehicle-types')
       .withCsrfToken()

@@ -169,6 +169,17 @@ router
     router
       .get('/rentals/address-reverse', [AdminAddressSearchController, 'reverse'])
       .as('cms.rentals.address_reverse')
+    router.get('/rentals/places', [AdminRentalsController, 'places'])
+    router.get('/rentals/places/new', [AdminRentalsController, 'newPlace'])
+    router
+      .post('/rentals/places', [AdminRentalsController, 'savePlace'])
+      .as('cms.rentalPlaces.create')
+    router.get('/rentals/places/:id/edit', [AdminRentalsController, 'editPlace'])
+    router
+      .post('/rentals/places/:id/save', [AdminRentalsController, 'savePlace'])
+      .as('cms.rentalPlaces.update')
+    router.post('/rentals/places/:id/status', [AdminRentalsController, 'placeStatus'])
+    router.post('/rentals/places/:id/delete', [AdminRentalsController, 'deletePlace'])
     router.get('/rentals/locations', [AdminRentalsController, 'locations'])
     router.get('/rentals/locations/new', [AdminRentalsController, 'newLocation'])
     router

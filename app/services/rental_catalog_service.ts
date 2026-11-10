@@ -4,6 +4,7 @@ import { ApiError } from './api_error.js'
 import { imageLinks, pagination, positiveId } from './explore_read_service.js'
 import { quoteFor, toFils, kwd } from './rental_money.js'
 import type { PublicLocale } from './public_localization.js'
+import { branchSchedules, publicSchedule, whereBranchOpen } from './rental_branch_service.js'
 import { ratingSummaries, summaryFor, type RatingSummary } from './rental_review_service.js'
 
 type Row = Record<string, any>
@@ -322,23 +323,91 @@ export async function searchOptions(locale: PublicLocale) {
   }
 }
 
-export function location(row: Row, locale: PublicLocale) {
+type Schedules = Awaited<ReturnType<typeof branchSchedules>>
+
+/** A pickup place as listed in the app: the place customers choose. */
+function place(row: Row, locale: PublicLocale) {
   return {
-    id: Number(row.id),
-    name: text(row.name_en, row.name_ar, locale),
-    address: row.address ?? null,
-    latitude: row.latitude === null ? null : Number(row.latitude),
-    longitude: row.longitude === null ? null : Number(row.longitude),
+    id: Number(row.place_id ?? row.id),
+    name: text(row.place_name_en ?? row.name_en, row.place_name_ar ?? row.name_ar, locale),
+    address: text(
+      row.place_subtitle_en ?? row.subtitle_en,
+      row.place_subtitle_ar ?? row.subtitle_ar,
+      locale
+    ),
+    latitude:
+      (row.place_latitude ?? row.latitude) === null
+        ? null
+        : Number(row.place_latitude ?? row.latitude),
+    longitude:
+      (row.place_longitude ?? row.longitude) === null
+        ? null
+        : Number(row.place_longitude ?? row.longitude),
   }
 }
 
+/** A place with the provider branch that serves it, for a chosen vehicle. */
+export function location(row: Row, locale: PublicLocale, schedules?: Schedules) {
+  return {
+    ...place(row, locale),
+    branch: {
+      id: Number(row.id),
+      name: text(row.name_en, row.name_ar, locale),
+      address: row.address ?? null,
+      phone_e164: row.phone_e164 ?? null,
+      ...publicSchedule(row, schedules?.get(Number(row.id)) ?? { hours: [], closures: [] }),
+    },
+  }
+}
+
+/** Active branches of active providers at active places. */
+function branches(client: Client = db) {
+  return client
+    .from('rental_locations as l')
+    .join('rental_providers as bp', 'bp.id', 'l.provider_id')
+    .join('rental_places as pl', 'pl.id', 'l.place_id')
+    .where('l.active', true)
+    .where('bp.active', true)
+    .where('pl.active', true)
+    .select(
+      'l.*',
+      'pl.name_en as place_name_en',
+      'pl.name_ar as place_name_ar',
+      'pl.subtitle_en as place_subtitle_en',
+      'pl.subtitle_ar as place_subtitle_ar',
+      'pl.latitude as place_latitude',
+      'pl.longitude as place_longitude'
+    )
+    .orderBy('pl.sort_order')
+    .orderBy('pl.id')
+}
+
+async function serializeBranches(rows: Row[], locale: PublicLocale) {
+  const schedules = await branchSchedules(rows.map((row) => Number(row.id)))
+  return rows.map((row) => location(row, locale, schedules))
+}
+
+/** The places customers can pick up at: active places served by at least one active branch. */
 export async function activeLocations(locale: PublicLocale) {
-  const rows = await db
-    .from('rental_locations')
-    .where('active', true)
-    .orderBy('sort_order')
-    .orderBy('id')
-  return { data: rows.map((row) => location(row, locale)) }
+  const rows = (await db
+    .from('rental_places as pl')
+    .where('pl.active', true)
+    .whereExists((sub: any) =>
+      sub
+        .from('rental_locations as l')
+        .join('rental_providers as bp', 'bp.id', 'l.provider_id')
+        .whereColumn('l.place_id', 'pl.id')
+        .where('l.active', true)
+        .where('bp.active', true)
+    )
+    .orderBy('pl.sort_order')
+    .orderBy('pl.id')) as Row[]
+  return { data: rows.map((row) => place(row, locale)) }
+}
+
+/** Branches where a customer may return a vehicle of this provider. */
+export async function providerBranches(client: Client, providerId: number) {
+  return (await branches(client).where('l.provider_id', providerId)) as Row[]
 }
 
 export async function listVehicles(input: Row, locale: PublicLocale) {
@@ -373,15 +442,17 @@ export async function listVehicles(input: Row, locale: PublicLocale) {
     // A self-drive search excludes driver-only vehicles, and the other way round.
     if (withDriver) query.where('v.with_driver_available', true)
     else query.where('v.self_drive_available', true)
+    // The pickup place must have one of this vehicle's branches, open at the pickup time.
     if (locationId)
-      query.whereExists((sub: any) =>
+      query.whereExists((sub: any) => {
         sub
           .from('rental_vehicle_locations as vl')
           .join('rental_locations as l', 'l.id', 'vl.location_id')
           .whereColumn('vl.vehicle_id', 'v.id')
-          .where('vl.location_id', locationId)
+          .where('l.place_id', locationId)
           .where('l.active', true)
-      )
+        if (window) whereBranchOpen(sub, 'l', window.pickupAt)
+      })
     if (window) whereAvailable(query, window, now)
     return query
   }
@@ -435,15 +506,11 @@ export async function findVisibleVehicle(id: unknown, client: Client = db, lock 
   return row as Row
 }
 
+/** Branches where this vehicle can be picked up. */
 export async function vehicleLocations(client: Client, vehicleId: number) {
-  return client
-    .from('rental_vehicle_locations as vl')
-    .join('rental_locations as l', 'l.id', 'vl.location_id')
-    .where('vl.vehicle_id', vehicleId)
-    .where('l.active', true)
-    .orderBy('l.sort_order')
-    .orderBy('l.id')
-    .select('l.*')
+  return (await branches(client)
+    .join('rental_vehicle_locations as vl', 'vl.location_id', 'l.id')
+    .where('vl.vehicle_id', vehicleId)) as Row[]
 }
 
 export async function vehicleTerms(client: Client, vehicleId: number) {
@@ -485,7 +552,11 @@ export async function vehicleDetail(id: unknown, input: Row, locale: PublicLocal
       rental_terms: terms.map((term: Row) => ({
         label: text(term.label_en, term.label_ar, locale) as string,
       })),
-      locations: locations.map((item: Row) => location(item, locale)),
+      locations: await serializeBranches(locations, locale),
+      return_locations: await serializeBranches(
+        await providerBranches(db, Number(row.provider_id)),
+        locale
+      ),
       provider: {
         ...card.provider,
         phone_e164: row.provider_phone_e164 ?? null,

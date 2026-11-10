@@ -28,7 +28,7 @@ If the server sets `RENTAL_PAYMENT_RETURN_URL` (for example an app deep link), t
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
 | GET | `/rentals/options` | – | Vehicle types, gearboxes, sorts, locations, `booking_fee`, `min_lead_minutes`, `max_rental_days`, `hold_minutes`, `cancellation_cutoff_hours` |
-| GET | `/rentals/locations` | – | Active pickup/return locations |
+| GET | `/rentals/locations` | – | Pickup places for the location picker (shared list; each provider has a branch there) |
 | GET | `/rentals/vehicles` | – | Search (see filters below), paginated `page`/`per_page` (max 50) |
 | GET | `/rentals/vehicles/{id}` | – | Detail; with a period it includes `quote` and `available` |
 | GET | `/rentals/vehicles/{id}/quote` | – | `pickup_at`, `return_at` required; `with_driver` optional |
@@ -68,6 +68,14 @@ If the server sets `RENTAL_PAYMENT_RETURN_URL` (for example an app deep link), t
 
 `days` = each started 24 hours, minimum 1. `rental_amount` = `days × (daily_rate + driver_daily_rate when with_driver)`. `pay_now` = `booking_fee`, charged in the app. `pay_at_pickup` = `rental_amount`, paid to the provider. Each booking stores a snapshot of the amounts and of the vehicle, provider, mileage, insurance and rental terms, so later catalogue edits do not change it.
 
+### Pickup places, branches and working hours
+
+- `GET /rentals/locations` returns the **pickup places** for the "Select pickup location" screen: `{ id, name, address, latitude, longitude }`, where `address` is the second line (for example "Kuwait City · Main entrance"). It is one shared list; each rental provider has its own branch at a place. Send a place `id` as `pickup_location_id` / `return_location_id`.
+- Search with `pickup_location_id` returns cars from every provider that has a branch at that place. With a period, it only returns cars whose branch is open at the pickup time.
+- Vehicle detail `locations` lists the places where this car can be picked up, and `return_locations` the places where it can be returned (any branch of the same provider). Each item is the place plus `branch: { id, name, address, phone_e164, working_hours, closed_dates }` for that provider. Use `branch.working_hours` and `branch.closed_dates` to grey out times in the date/time pickers.
+- `working_hours`: `null` means no fixed hours. Otherwise 7 items, Sunday first: `{ weekday, day, open_24h, closed, shifts: [{ opens, closes }] }` with up to two shifts, times `HH:MM` in Kuwait time. `closed_dates`: upcoming `[{ starts_on, ends_on, reason }]`, inclusive.
+- Booking returns `422 BRANCH_CLOSED` when the pickup or return time is outside the branch's hours or on a closed date. The booking's `pickup_location` / `return_location` show the place name with the branch address and `phone_e164`.
+
 ### Rental mode and insurance
 
 - `rental_mode`: `self_drive`, `with_driver` or `both`, with the matching flags `self_drive_available` and `with_driver_available`. For `both`, show a driver choice; for `with_driver`, always book with `with_driver: true` (quotes for these vehicles already include the driver rate).
@@ -92,7 +100,7 @@ If the server sets `RENTAL_PAYMENT_RETURN_URL` (for example an app deep link), t
 
 The booking fee is **not refunded automatically** when a customer cancels. Staff can refund it from the CMS booking page. A confirmed booking creates an inbox/push notification of type `rental_booking_confirmed` with `action_data: { type, booking_id, reference }`.
 
-Common errors: `409 VEHICLE_UNAVAILABLE`, `409 TOO_MANY_PENDING_BOOKINGS` (max 3 unpaid holds), `409 BOOKING_NOT_PAYABLE`, `409 CANCELLATION_WINDOW_CLOSED`, `409 REVIEW_NOT_ALLOWED`, `422 INVALID_RENTAL_PERIOD`, `422 INVALID_LOCATION`, `422 DRIVER_NOT_AVAILABLE` (vehicle is self-drive only), `422 DRIVER_REQUIRED` (vehicle is only rented with a driver; send `with_driver: true`), `503 PAYMENTS_NOT_CONFIGURED`, `502 PAYMENT_GATEWAY_ERROR`.
+Common errors: `409 VEHICLE_UNAVAILABLE`, `409 TOO_MANY_PENDING_BOOKINGS` (max 3 unpaid holds), `409 BOOKING_NOT_PAYABLE`, `409 CANCELLATION_WINDOW_CLOSED`, `409 REVIEW_NOT_ALLOWED`, `422 INVALID_RENTAL_PERIOD`, `422 INVALID_LOCATION`, `422 BRANCH_CLOSED` (pickup or return time outside the branch's working hours or on a closed date), `422 DRIVER_NOT_AVAILABLE` (vehicle is self-drive only), `422 DRIVER_REQUIRED` (vehicle is only rented with a driver; send `with_driver: true`), `503 PAYMENTS_NOT_CONFIGURED`, `502 PAYMENT_GATEWAY_ERROR`.
 
 ## 5. Reviews and ratings
 

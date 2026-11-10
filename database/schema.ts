@@ -847,8 +847,40 @@ export class RentalInsuranceOptionSchema extends BaseModel {
   declare sortOrder: number
 }
 
+export class RentalLocationClosureSchema extends BaseModel {
+  static $columns = ['createdAt', 'endsOn', 'id', 'locationId', 'reason', 'startsOn'] as const
+  $columns = RentalLocationClosureSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.date()
+  declare endsOn: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare locationId: number
+  @column()
+  declare reason: string | null
+  @column.date()
+  declare startsOn: DateTime
+}
+
+export class RentalLocationHourSchema extends BaseModel {
+  static $columns = ['closesAt', 'id', 'locationId', 'opensAt', 'weekday'] as const
+  $columns = RentalLocationHourSchema.$columns
+  @column()
+  declare closesAt: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare locationId: number
+  @column()
+  declare opensAt: string
+  @column()
+  declare weekday: boolean
+}
+
 export class RentalLocationSchema extends BaseModel {
-  static $columns = ['active', 'address', 'createdAt', 'id', 'latitude', 'longitude', 'nameAr', 'nameEn', 'sortOrder', 'updatedAt'] as const
+  static $columns = ['active', 'address', 'createdAt', 'hoursEnabled', 'id', 'latitude', 'longitude', 'nameAr', 'nameEn', 'phoneE164', 'placeId', 'providerId', 'sortOrder', 'updatedAt'] as const
   $columns = RentalLocationSchema.$columns
   @column()
   declare active: boolean
@@ -856,6 +888,8 @@ export class RentalLocationSchema extends BaseModel {
   declare address: string | null
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
+  @column()
+  declare hoursEnabled: boolean
   @column({ isPrimary: true })
   declare id: number
   @column()
@@ -866,6 +900,12 @@ export class RentalLocationSchema extends BaseModel {
   declare nameAr: string | null
   @column()
   declare nameEn: string
+  @column()
+  declare phoneE164: string | null
+  @column()
+  declare placeId: number | null
+  @column()
+  declare providerId: number | null
   @column()
   declare sortOrder: number
   @column.dateTime({ autoCreate: true, autoUpdate: true })
@@ -907,6 +947,33 @@ export class RentalPaymentSchema extends BaseModel {
   declare refundedAt: DateTime | null
   @column()
   declare status: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class RentalPlaceSchema extends BaseModel {
+  static $columns = ['active', 'createdAt', 'id', 'latitude', 'longitude', 'nameAr', 'nameEn', 'sortOrder', 'subtitleAr', 'subtitleEn', 'updatedAt'] as const
+  $columns = RentalPlaceSchema.$columns
+  @column()
+  declare active: boolean
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare latitude: string | null
+  @column()
+  declare longitude: string | null
+  @column()
+  declare nameAr: string | null
+  @column()
+  declare nameEn: string
+  @column()
+  declare sortOrder: number
+  @column()
+  declare subtitleAr: string | null
+  @column()
+  declare subtitleEn: string | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
 }

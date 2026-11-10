@@ -512,7 +512,7 @@ Home API errors follow the shared `{ error: { code, message, requestId, fields? 
 | 429 `RATE_LIMITED`, `OTP_RATE_LIMITED`                                                                                                              | Show throttled/retry state; avoid immediate retry loops                                                      |
 | 503 `OTP_UNAVAILABLE`, `OTP_DELIVERY_FAILED`, `LEGAL_CONTENT_UNAVAILABLE`                                                                           | Configuration/content/delivery unavailable; show a recoverable unavailable state                             |
 | 409 `VEHICLE_UNAVAILABLE`, `TOO_MANY_PENDING_BOOKINGS`, `BOOKING_NOT_PAYABLE`, `CANCELLATION_WINDOW_CLOSED`, `IDEMPOTENCY_CONFLICT`, `NO_PAYMENT`, `REVIEW_NOT_ALLOWED` | Car rental: show the unavailable or hold/payment state; re-search or re-open the booking instead of retrying the same request |
-| 422 `INVALID_RENTAL_PERIOD`, `INVALID_LOCATION`, `DRIVER_NOT_AVAILABLE`, `DRIVER_REQUIRED` | Car rental: show the field feedback on the search or checkout screen |
+| 422 `INVALID_RENTAL_PERIOD`, `INVALID_LOCATION`, `DRIVER_NOT_AVAILABLE`, `DRIVER_REQUIRED`, `BRANCH_CLOSED` | Car rental: show the field feedback on the search or checkout screen |
 | 503 `PAYMENTS_NOT_CONFIGURED`, 502 `PAYMENT_GATEWAY_ERROR` | Car rental: recoverable payment unavailable state; do not open a payment page |
 | 500 `INTERNAL_ERROR`                                                                                                                                | Generic error UI; record request ID                                                                          |
 

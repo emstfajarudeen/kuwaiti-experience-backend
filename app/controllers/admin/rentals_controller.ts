@@ -12,6 +12,7 @@ import { kwd, toFils } from '../../services/rental_money.js'
 import { validationErrorBag } from '../../services/validation_error_bag.js'
 import {
   rentalLocationValidator,
+  rentalPlaceValidator,
   rentalOptionValidator,
   rentalProviderValidator,
   rentalSettingsValidator,
@@ -169,6 +170,11 @@ const numberList = (value: unknown) =>
   (Array.isArray(value) ? value : value === undefined ? [] : [value])
     .map((item) => Number(item))
     .filter((item) => Number.isInteger(item) && item >= 0 && item <= 10000)
+
+const dayString = (value: unknown) =>
+  value instanceof Date
+    ? `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
+    : String(value ?? '').slice(0, 10)
 
 export default class AdminRentalsController {
   // ------------------------------------------------------------ bookings
@@ -561,6 +567,7 @@ export default class AdminRentalsController {
   private async providerForm(ctx: HttpContext, id?: number) {
     const row = id ? await admin.findProvider(id) : null
     if (id && !row) return ctx.response.redirect('/admin/rentals/providers')
+    const branchRows = id ? await admin.listLocations(id) : []
     return render(ctx, 'provider_edit', {
       provider: row
         ? {
@@ -574,6 +581,17 @@ export default class AdminRentalsController {
             logo_url: cmsImageUrl(row.logo_image_key),
           }
         : null,
+      branches: id
+        ? branchRows.map((branch) => ({
+            id: Number(branch.id),
+            name_en: branch.name_en,
+            address: branch.address,
+            phone: branch.phone_e164 ?? null,
+            active: Boolean(branch.active),
+            hours_enabled: Boolean(branch.hours_enabled),
+            vehicle_count: Number(branch.vehicle_count),
+          }))
+        : [],
       form: (ctx.session.flashMessages.get('providerForm') as Row | undefined) ?? null,
     })
   }
@@ -643,28 +661,36 @@ export default class AdminRentalsController {
 
   // ----------------------------------------------------------- locations
 
+  /** Branches are managed on each provider page. */
   async locations(ctx: HttpContext) {
-    const rows = await admin.listLocations()
-    return render(ctx, 'locations', {
-      rows: rows.map((row) => ({
-        id: Number(row.id),
-        name_en: row.name_en,
-        name_ar: row.name_ar,
-        address: row.address,
-        active: Boolean(row.active),
-        sort_order: Number(row.sort_order),
-        vehicle_count: Number(row.vehicle_count),
-      })),
-    })
+    return ctx.response.redirect('/admin/rentals/providers')
   }
 
   private async locationForm(ctx: HttpContext, id?: number) {
-    const row = id ? await admin.findLocation(id) : null
-    if (id && !row) return ctx.response.redirect('/admin/rentals/locations')
+    const found = id ? await admin.findLocation(id) : null
+    if (id && !found) return ctx.response.redirect('/admin/rentals/providers')
+    const row = found?.row
+    const providerId = row?.provider_id ?? Number(ctx.request.input('providerId')) ?? null
+    const provider = providerId ? await admin.findProvider(Number(providerId)) : null
+    if (!provider) {
+      ctx.session.flash('error', 'Open a provider to add a branch.')
+      return ctx.response.redirect('/admin/rentals/providers')
+    }
     return render(ctx, 'location_edit', {
+      provider: { id: Number(provider.id), name: provider.name_en },
+      places: await admin.placeOptions(),
+      schedule: found?.schedule ?? null,
+      closures: (found?.closures ?? []).map((closure) => ({
+        startsOn: dayString(closure.starts_on),
+        endsOn: dayString(closure.ends_on),
+        reason: closure.reason ?? null,
+      })),
       location: row
         ? {
             id: Number(row.id),
+            phone: row.phone_e164 ?? null,
+            place_id: row.place_id === null ? null : Number(row.place_id),
+            hours_enabled: Boolean(row.hours_enabled),
             name_en: row.name_en,
             name_ar: row.name_ar,
             address: row.address,
@@ -690,6 +716,18 @@ export default class AdminRentalsController {
     const { request, response, session } = ctx
     const id = ctx.params.id ? Number(ctx.params.id) : undefined
     const raw = {
+      providerId: optionalNumber(request.input('providerId')),
+      placeId: optionalNumber(request.input('placeId')),
+      phone: blank(request.input('phone')),
+      hoursEnabled: bool(request.input('hoursEnabled')),
+      schedule: Array.isArray(request.input('schedule')) ? request.input('schedule') : [],
+      closures: (Array.isArray(request.input('closures')) ? request.input('closures') : []).map(
+        (item: Row) => ({
+          startsOn: item?.range?.[0] ?? item?.startsOn ?? '',
+          endsOn: item?.range?.[1] ?? item?.endsOn ?? '',
+          reason: blank(item?.reason),
+        })
+      ),
       nameEn: request.input('nameEn') ?? '',
       nameAr: blank(request.input('nameAr')),
       address: blank(request.input('address')),
@@ -701,12 +739,14 @@ export default class AdminRentalsController {
     try {
       const input = await rentalLocationValidator.validate(raw)
       await admin.saveLocation(input, ctx.admin.id, id)
-      session.flash('success', id ? 'Location saved.' : 'Location created.')
-      return response.redirect('/admin/rentals/locations')
+      session.flash('success', id ? 'Branch saved.' : 'Branch created.')
+      return response.redirect(`/admin/rentals/providers/${input.providerId}/edit`)
     } catch (error) {
-      fail(ctx, error, 'Unable to save the location.', 'locationForm', raw)
+      fail(ctx, error, 'Unable to save the branch.', 'locationForm', raw)
       return response.redirect(
-        id ? `/admin/rentals/locations/${id}/edit` : '/admin/rentals/locations/new'
+        id
+          ? `/admin/rentals/locations/${id}/edit`
+          : `/admin/rentals/locations/new?providerId=${raw.providerId ?? ''}`
       )
     }
   }
@@ -716,9 +756,9 @@ export default class AdminRentalsController {
     const active = [true, 'true', 1, '1', 'on'].includes(raw)
     try {
       await admin.setLocationActive(Number(ctx.params.id), active, ctx.admin.id)
-      ctx.session.flash('success', active ? 'Location activated.' : 'Location deactivated.')
+      ctx.session.flash('success', active ? 'Branch activated.' : 'Branch deactivated.')
     } catch (error) {
-      fail(ctx, error, 'Unable to update the location.')
+      fail(ctx, error, 'Unable to update the branch.')
     }
     const returnTo = String(ctx.request.input('returnTo', ''))
     return ctx.response.redirect(
@@ -727,13 +767,110 @@ export default class AdminRentalsController {
   }
 
   async deleteLocation(ctx: HttpContext) {
+    const found = await admin.findLocation(Number(ctx.params.id))
     try {
       await admin.deleteLocation(Number(ctx.params.id), ctx.admin.id)
-      ctx.session.flash('success', 'Location deleted.')
+      ctx.session.flash('success', 'Branch deleted.')
     } catch (error) {
-      fail(ctx, error, 'Unable to delete the location.')
+      fail(ctx, error, 'Unable to delete the branch.')
     }
-    return ctx.response.redirect('/admin/rentals/locations')
+    return ctx.response.redirect(
+      found?.row.provider_id
+        ? `/admin/rentals/providers/${found.row.provider_id}/edit`
+        : '/admin/rentals/providers'
+    )
+  }
+
+  // ------------------------------------------------------------ pickup places
+
+  async places(ctx: HttpContext) {
+    const rows = await admin.listPlaces()
+    return render(ctx, 'places', {
+      rows: rows.map((row) => ({
+        id: Number(row.id),
+        name_en: row.name_en,
+        subtitle_en: row.subtitle_en ?? null,
+        active: Boolean(row.active),
+        sort_order: Number(row.sort_order),
+        branch_count: Number(row.branch_count),
+      })),
+    })
+  }
+
+  private async placeForm(ctx: HttpContext, id?: number) {
+    const row = id ? await admin.findPlace(id) : null
+    if (id && !row) return ctx.response.redirect('/admin/rentals/places')
+    return render(ctx, 'place_edit', {
+      place: row
+        ? {
+            id: Number(row.id),
+            name_en: row.name_en,
+            name_ar: row.name_ar,
+            subtitle_en: row.subtitle_en,
+            subtitle_ar: row.subtitle_ar,
+            latitude: row.latitude === null ? null : Number(row.latitude),
+            longitude: row.longitude === null ? null : Number(row.longitude),
+            active: Boolean(row.active),
+            sort_order: Number(row.sort_order),
+          }
+        : null,
+      form: (ctx.session.flashMessages.get('placeForm') as Row | undefined) ?? null,
+    })
+  }
+
+  async newPlace(ctx: HttpContext) {
+    return this.placeForm(ctx)
+  }
+
+  async editPlace(ctx: HttpContext) {
+    return this.placeForm(ctx, Number(ctx.params.id))
+  }
+
+  async savePlace(ctx: HttpContext) {
+    const { request, response, session } = ctx
+    const id = ctx.params.id ? Number(ctx.params.id) : undefined
+    const raw = {
+      nameEn: request.input('nameEn') ?? '',
+      nameAr: blank(request.input('nameAr')),
+      subtitleEn: blank(request.input('subtitleEn')),
+      subtitleAr: blank(request.input('subtitleAr')),
+      latitude: optionalNumber(request.input('latitude')),
+      longitude: optionalNumber(request.input('longitude')),
+      active: bool(request.input('active')),
+      sortOrder: optionalNumber(request.input('sortOrder')) ?? 0,
+    }
+    try {
+      const input = await rentalPlaceValidator.validate(raw)
+      await admin.savePlace(input, ctx.admin.id, id)
+      session.flash('success', id ? 'Place saved.' : 'Place created.')
+      return response.redirect('/admin/rentals/places')
+    } catch (error) {
+      fail(ctx, error, 'Unable to save the place.', 'placeForm', raw)
+      return response.redirect(
+        id ? `/admin/rentals/places/${id}/edit` : '/admin/rentals/places/new'
+      )
+    }
+  }
+
+  async placeStatus(ctx: HttpContext) {
+    const active = [true, 'true', 1, '1', 'on'].includes(ctx.request.input('active'))
+    try {
+      await admin.setPlaceActive(Number(ctx.params.id), active, ctx.admin.id)
+      ctx.session.flash('success', active ? 'Place activated.' : 'Place deactivated.')
+    } catch (error) {
+      fail(ctx, error, 'Unable to update the place.')
+    }
+    return ctx.response.redirect('/admin/rentals/places')
+  }
+
+  async deletePlace(ctx: HttpContext) {
+    try {
+      await admin.deletePlace(Number(ctx.params.id), ctx.admin.id)
+      ctx.session.flash('success', 'Place deleted.')
+    } catch (error) {
+      fail(ctx, error, 'Unable to delete the place.')
+    }
+    return ctx.response.redirect('/admin/rentals/places')
   }
 
   // ------------------------------------------------------------ settings
