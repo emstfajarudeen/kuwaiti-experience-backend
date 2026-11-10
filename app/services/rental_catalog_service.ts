@@ -9,15 +9,6 @@ import { ratingSummaries, summaryFor, type RatingSummary } from './rental_review
 type Row = Record<string, any>
 type Client = typeof db | TransactionClientContract
 
-export const VEHICLE_TYPES = {
-  sedan: { en: 'Sedan', ar: 'سيدان' },
-  suv: { en: 'SUV', ar: 'دفع رباعي' },
-  hatchback: { en: 'Hatchback', ar: 'هاتشباك' },
-  luxury: { en: 'Luxury', ar: 'فاخرة' },
-  sports: { en: 'Sports', ar: 'رياضية' },
-  van: { en: 'Van', ar: 'فان' },
-  pickup: { en: 'Pickup', ar: 'بيك أب' },
-} as const
 export const TRANSMISSIONS = {
   automatic: { en: 'Automatic', ar: 'أوتوماتيك' },
   manual: { en: 'Manual', ar: 'يدوي' },
@@ -28,7 +19,6 @@ export const FUEL_TYPES = {
   hybrid: { en: 'Hybrid', ar: 'هجين' },
   electric: { en: 'Electric', ar: 'كهربائية' },
 } as const
-export type VehicleType = keyof typeof VEHICLE_TYPES
 export type Transmission = keyof typeof TRANSMISSIONS
 export type FuelType = keyof typeof FUEL_TYPES
 
@@ -71,6 +61,43 @@ const text = (en: unknown, ar: unknown, locale: PublicLocale) =>
   (locale === 'ar' && typeof ar === 'string' && ar.trim() ? ar : en) ?? null
 
 export type RentalWindow = { pickupAt: Date; returnAt: Date }
+
+type TypeNames = Map<string, { en: string; ar: string }>
+
+/** Vehicle types managed in the CMS, in display order. */
+export async function vehicleTypes(client: Client = db) {
+  return (await client.from('rental_vehicle_types').orderBy('sort_order').orderBy('id')) as Row[]
+}
+
+async function typeNames(client: Client = db): Promise<TypeNames> {
+  const rows = await vehicleTypes(client)
+  return new Map(
+    rows.map((row) => [
+      row.code as string,
+      { en: row.name_en as string, ar: (row.name_ar as string | null) || (row.name_en as string) },
+    ])
+  )
+}
+
+/** Self-drive, with a driver, or both. */
+export function rentalMode(row: Row) {
+  const self = row.self_drive_available === undefined ? true : Boolean(row.self_drive_available)
+  const driver = Boolean(row.with_driver_available)
+  return self && driver ? 'both' : driver ? 'with_driver' : 'self_drive'
+}
+
+/** Rejects a driver choice the vehicle does not offer. */
+export function assertDriverChoice(row: Row, withDriver: boolean) {
+  const mode = rentalMode(row)
+  if (withDriver && mode === 'self_drive')
+    throw new ApiError(422, 'DRIVER_NOT_AVAILABLE', 'This vehicle is not offered with a driver', {
+      with_driver: ['This vehicle is not offered with a driver'],
+    })
+  if (!withDriver && mode === 'with_driver')
+    throw new ApiError(422, 'DRIVER_REQUIRED', 'This vehicle is only rented with a driver', {
+      with_driver: ['This vehicle is only rented with a driver'],
+    })
+}
 
 function parseInstant(value: unknown, field: string) {
   if (
@@ -190,6 +217,7 @@ function visibleVehicles(client: Client = db) {
   return client
     .from('rental_vehicles as v')
     .join('rental_providers as p', 'p.id', 'v.provider_id')
+    .leftJoin('rental_insurance_options as io', 'io.id', 'v.insurance_option_id')
     .where('v.status', 'published')
     .where('v.published_at', '<=', new Date())
     .where('p.active', true)
@@ -201,16 +229,23 @@ function vehicleCard(
   settings: RentalSettings,
   window: RentalWindow | null,
   withDriver: boolean,
-  ratings: { vehicles: Map<number, RatingSummary>; providers: Map<number, RatingSummary> }
+  ratings: { vehicles: Map<number, RatingSummary>; providers: Map<number, RatingSummary> },
+  types: TypeNames
 ) {
-  const driverRequested = withDriver && Boolean(row.with_driver_available)
+  const mode = rentalMode(row)
+  // Driver-only vehicles are always quoted with the driver.
+  const driverRequested = mode === 'with_driver' || (withDriver && mode === 'both')
+  const type = types.get(row.vehicle_type)
   return {
     id: Number(row.id),
     name: text(row.name_en, row.name_ar, locale),
     make: row.make,
     model: row.model,
     year: row.year === null ? null : Number(row.year),
-    vehicle_type: { code: row.vehicle_type, label: label(VEHICLE_TYPES, row.vehicle_type, locale) },
+    vehicle_type: {
+      code: row.vehicle_type,
+      label: type ? type[locale] : row.vehicle_type,
+    },
     transmission: {
       code: row.transmission,
       label: label(TRANSMISSIONS, row.transmission, locale),
@@ -223,7 +258,9 @@ function vehicleCard(
     unlimited_mileage: row.mileage_limit_km === null,
     extra_km_rate: row.extra_km_rate === null ? null : kwd(toFils(row.extra_km_rate)),
     daily_rate: kwd(toFils(row.daily_rate)),
-    with_driver_available: Boolean(row.with_driver_available),
+    rental_mode: mode,
+    self_drive_available: mode !== 'with_driver',
+    with_driver_available: mode !== 'self_drive',
     driver_daily_rate:
       row.with_driver_available && row.driver_daily_rate !== null
         ? kwd(toFils(row.driver_daily_rate))
@@ -255,16 +292,19 @@ const providerColumns = [
   'p.logo_image_key as provider_logo_image_key',
   'p.phone_e164 as provider_phone_e164',
   'p.address as provider_address',
+  'io.name_en as insurance_name_en',
+  'io.name_ar as insurance_name_ar',
 ]
 
 export async function searchOptions(locale: PublicLocale) {
   const settings = await rentalSettings()
   const locationList = await activeLocations(locale)
+  const typeRows = await vehicleTypes()
   return {
     data: {
-      vehicle_types: Object.entries(VEHICLE_TYPES).map(([code, names]) => ({
-        code,
-        label: names[locale],
+      vehicle_types: typeRows.map((row) => ({
+        code: row.code as string,
+        label: text(row.name_en, row.name_ar, locale) as string,
       })),
       transmissions: Object.entries(TRANSMISSIONS).map(([code, names]) => ({
         code,
@@ -306,7 +346,8 @@ export async function listVehicles(input: Row, locale: PublicLocale) {
   const { page, perPage } = pagination(input)
   const window = optionalWindow(input, settings)
   const withDriver = booleanParam(input.with_driver, 'with_driver') ?? false
-  const types = listParam(input.vehicle_type, Object.keys(VEHICLE_TYPES), 'vehicle_type')
+  const names = await typeNames()
+  const types = listParam(input.vehicle_type, [...names.keys()], 'vehicle_type')
   const transmissions = listParam(input.transmission, Object.keys(TRANSMISSIONS), 'transmission')
   const sort = (input.sort ?? 'recommended') as (typeof SORTS)[number]
   if (!SORTS.includes(sort))
@@ -329,7 +370,9 @@ export async function listVehicles(input: Row, locale: PublicLocale) {
     if (types.length) query.whereIn('v.vehicle_type', types)
     if (transmissions.length) query.whereIn('v.transmission', transmissions)
     if (seatsMin) query.where('v.seats', '>=', seatsMin)
+    // A self-drive search excludes driver-only vehicles, and the other way round.
     if (withDriver) query.where('v.with_driver_available', true)
+    else query.where('v.self_drive_available', true)
     if (locationId)
       query.whereExists((sub: any) =>
         sub
@@ -364,7 +407,9 @@ export async function listVehicles(input: Row, locale: PublicLocale) {
     ),
   }
   return {
-    data: rows.map((row: Row) => vehicleCard(row, locale, settings, window, withDriver, ratings)),
+    data: rows.map((row: Row) =>
+      vehicleCard(row, locale, settings, window, withDriver, ratings, names)
+    ),
     meta: {
       images: imageLinks(
         rows.flatMap((row: Row) => [row.cover_image_key, row.provider_logo_image_key])
@@ -428,7 +473,7 @@ export async function vehicleDetail(id: unknown, input: Row, locale: PublicLocal
     vehicles: await ratingSummaries('vehicle_id', [Number(row.id)]),
     providers: await ratingSummaries('provider_id', [Number(row.provider_id)]),
   }
-  const card = vehicleCard(row, locale, settings, window, withDriver, ratings)
+  const card = vehicleCard(row, locale, settings, window, withDriver, ratings, await typeNames())
   const galleryKeys = [row.cover_image_key, ...images.map((image) => image.storage_key)].filter(
     (key): key is string => Boolean(key)
   )
@@ -436,7 +481,7 @@ export async function vehicleDetail(id: unknown, input: Row, locale: PublicLocal
     data: {
       ...card,
       gallery: galleryKeys.map((storage_key) => ({ storage_key })),
-      insurance: text(row.insurance_en, row.insurance_ar, locale),
+      insurance: text(row.insurance_name_en, row.insurance_name_ar, locale),
       rental_terms: terms.map((term: Row) => ({
         label: text(term.label_en, term.label_ar, locale) as string,
       })),
@@ -461,10 +506,7 @@ export async function vehicleQuote(id: unknown, input: Row) {
   const window = requireWindow(input, settings)
   const withDriver = booleanParam(input.with_driver, 'with_driver') ?? false
   const row = await findVisibleVehicle(id)
-  if (withDriver && !row.with_driver_available)
-    throw new ApiError(422, 'DRIVER_NOT_AVAILABLE', 'This vehicle is not offered with a driver', {
-      with_driver: ['This vehicle is not offered with a driver'],
-    })
+  assertDriverChoice(row, withDriver)
   return {
     data: {
       vehicle_id: Number(row.id),

@@ -4,7 +4,6 @@ import {
   FormField,
   FormSection,
   RentalFormShell,
-  RentalTabs,
   useCan,
   type SharedProps,
 } from '../../components/rental_ui'
@@ -32,16 +31,15 @@ export default function RentalSettings({
   return (
     <AdminLayout
       title="Rental settings"
-      active="rentals"
+      active="rental-settings"
       adminName={adminName}
       csrfToken={csrfToken}
       success={success}
       error={error}
     >
-      <div className="page-head tw:mb-4">
+      <div className="page-head tw:mb-6">
         <h1>Rental settings</h1>
       </div>
-      <RentalTabs current="settings" />
       {!paymentsConfigured && (
         <div className="tw:mb-6 tw:rounded-cms-sm tw:border tw:border-amber-300 tw:bg-amber-50 tw:p-4 tw:text-[14px]">
           MyFatoorah is not configured on this server (MYFATOORAH_API_KEY). Customers can reserve

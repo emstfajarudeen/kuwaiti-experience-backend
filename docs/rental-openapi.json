@@ -146,7 +146,8 @@
             "schema": {
               "type": "boolean",
               "default": false
-            }
+            },
+            "description": "true: vehicles offered with a driver. false (default): self-drive vehicles; driver-only vehicles are excluded."
           },
           {
             "name": "pickup_location_id",
@@ -164,7 +165,7 @@
               "type": "string",
               "example": "sedan,suv"
             },
-            "description": "Comma list: sedan, suv, hatchback, luxury, sports, van, pickup."
+            "description": "Comma list of vehicle type codes from /rentals/options vehicle_types (managed in the CMS)."
           },
           {
             "name": "transmission",
@@ -1581,7 +1582,9 @@
           "provider",
           "quote",
           "rating",
-          "extra_km_rate"
+          "extra_km_rate",
+          "rental_mode",
+          "self_drive_available"
         ],
         "properties": {
           "id": {
@@ -1722,6 +1725,18 @@
               }
             ],
             "description": "KWD per km over mileage_limit_km, collected by the provider. null when not charged or mileage is unlimited."
+          },
+          "rental_mode": {
+            "type": "string",
+            "enum": [
+              "self_drive",
+              "with_driver",
+              "both"
+            ],
+            "description": "with_driver vehicles are always booked and quoted with a driver."
+          },
+          "self_drive_available": {
+            "type": "boolean"
           }
         }
       },
@@ -1973,7 +1988,8 @@
                 "type": [
                   "string",
                   "null"
-                ]
+                ],
+                "description": "Localized label of the insurance cover chosen in the CMS."
               },
               "locations": {
                 "type": "array",

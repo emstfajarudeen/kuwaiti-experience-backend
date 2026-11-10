@@ -5,7 +5,7 @@ import AdminLayout from '../../layouts/admin_layout'
 import { useState } from 'react'
 import ConfirmModal from '../../components/confirm_modal'
 import RowActionMenu from '../../components/row_action_menu'
-import { RentalTabs, useCan, type SharedProps } from '../../components/rental_ui'
+import { useCan, type SharedProps } from '../../components/rental_ui'
 
 type Location = {
   id: number
@@ -101,26 +101,25 @@ export default function RentalLocations({
   return (
     <AdminLayout
       title="Rental locations"
-      active="rentals"
+      active="rental-locations"
       adminName={adminName}
       csrfToken={csrfToken}
       success={success}
       error={error}
     >
-      <div className="page-head tw:mb-4 tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-4">
+      <div className="page-head tw:mb-6">
         <h1>Pickup and return locations</h1>
       </div>
-      <RentalTabs
-        current="locations"
-        actions={
-          can('rentals.create') && (
-            <a className="button primary" href="/admin/rentals/locations/new">
-              + Add location
-            </a>
-          )
-        }
-      />
       <section className="panel table-panel tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-0">
+        <div className="panel-heading tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-brand-line-subtle tw:px-6 tw:py-5">
+          <h2>Locations ({rows.length})</h2>
+          {can('rentals.create') && (
+            <a className="button primary" href="/admin/rentals/locations/new">
+              {' '}
+              + Add location{' '}
+            </a>
+          )}
+        </div>
         <div className="table-scroll">
           <Table<Location>
             className="cms-antd-table"

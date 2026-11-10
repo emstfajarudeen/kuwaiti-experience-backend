@@ -6,7 +6,7 @@ import AdminLayout from '../../layouts/admin_layout'
 import TableToolbar, { useServerFilters } from '../../components/table_toolbar'
 import ConfirmModal from '../../components/confirm_modal'
 import RowActionMenu from '../../components/row_action_menu'
-import { RentalTabs, useCan, type SharedProps } from '../../components/rental_ui'
+import { useCan, type SharedProps } from '../../components/rental_ui'
 
 type Vehicle = {
   id: number
@@ -16,6 +16,8 @@ type Vehicle = {
   year: number | null
   provider_name: string
   vehicle_type: string
+  vehicle_type_name: string
+  rental_mode: 'self_drive' | 'with_driver' | 'both'
   transmission: string
   seats: number
   daily_rate: string
@@ -104,8 +106,12 @@ export default function RentalVehicles(props: Props) {
       key: 'type',
       render: (_, row) => (
         <span className="tw:text-[13px] tw:capitalize">
-          {row.vehicle_type} · {row.transmission} · {row.seats} seats
-          {row.with_driver_available ? ' · driver' : ''}
+          {row.vehicle_type_name} · {row.transmission} · {row.seats} seats
+          {row.rental_mode === 'both'
+            ? ' · self-drive or driver'
+            : row.rental_mode === 'with_driver'
+              ? ' · driver only'
+              : ''}
         </span>
       ),
     },
@@ -148,28 +154,24 @@ export default function RentalVehicles(props: Props) {
   return (
     <AdminLayout
       title="Rental fleet"
-      active="rentals"
+      active="rental-vehicles"
       adminName={adminName}
       csrfToken={csrfToken}
       success={success}
       error={error}
     >
-      <div className="page-head tw:mb-4 tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-4">
-        <h1>Rental fleet</h1>
+      <div className="page-head tw:mb-6">
+        <h1>Rental vehicles</h1>
       </div>
-      <RentalTabs
-        current="vehicles"
-        actions={
-          can('rentals.create') && (
-            <a className="button primary" href="/admin/rentals/vehicles/new">
-              + Add vehicle
-            </a>
-          )
-        }
-      />
       <section className="panel table-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-0">
-        <div className="panel-heading tw:border-b tw:border-brand-line-subtle tw:px-6 tw:py-5">
+        <div className="panel-heading tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-brand-line-subtle tw:px-6 tw:py-5">
           <h2>Vehicles ({meta.total})</h2>
+          {can('rentals.create') && (
+            <a className="button primary" href="/admin/rentals/vehicles/new">
+              {' '}
+              + Add vehicle{' '}
+            </a>
+          )}
         </div>
         <TableToolbar
           search={{

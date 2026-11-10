@@ -10,7 +10,7 @@ import {
   FormField,
   FormSection,
   RentalFormShell,
-  SwitchField,
+  CreatableSelect,
   useCan,
   type SharedProps,
 } from '../../components/rental_ui'
@@ -35,8 +35,8 @@ type Vehicle = {
   with_driver_available: boolean
   driver_daily_rate: string | null
   quantity: number
-  insurance_en: string | null
-  insurance_ar: string | null
+  insurance_option_id: number | null
+  rental_mode: 'self_drive' | 'with_driver' | 'both'
   terms: { label_en: string; label_ar: string | null }[]
   cover_url: string | null
   status: string
@@ -48,7 +48,12 @@ type Option = { id: number; name: string; active: boolean }
 type Props = SharedProps & {
   vehicle: Vehicle | null
   form: Record<string, unknown> | null
-  options: { providers: Option[]; locations: Option[] }
+  options: {
+    providers: Option[]
+    locations: Option[]
+    vehicleTypes: { value: string; label: string }[]
+    insuranceOptions: { value: string; label: string }[]
+  }
 }
 
 /** Searchable multi-select for pickup and return locations; posts native locationIds inputs. */
@@ -116,8 +121,8 @@ function LocationsField({ locations }: { locations: Option[] }) {
 /** Shown only when the vehicle is offered with a driver. */
 function DriverRateField() {
   const form = Form.useFormInstance()
-  const withDriver = Form.useWatch('withDriverAvailable', form)
-  if (!withDriver) return null
+  const mode = Form.useWatch('rentalMode', form)
+  if (!mode || mode === 'self_drive') return null
   return (
     <FormField
       label="Driver daily rate"
@@ -209,7 +214,11 @@ function RentalTermsField() {
 
 const label = (value: string) => (value === 'suv' ? 'SUV' : value[0].toUpperCase() + value.slice(1))
 const choices = (values: string[]) => values.map((value) => ({ value, label: label(value) }))
-const vehicleTypes = choices(['sedan', 'suv', 'hatchback', 'luxury', 'sports', 'van', 'pickup'])
+const rentalModes = [
+  { value: 'self_drive', label: 'Self-drive only' },
+  { value: 'with_driver', label: 'With driver only' },
+  { value: 'both', label: 'Self-drive or with driver' },
+]
 const transmissions = choices(['automatic', 'manual'])
 const fuelTypes = choices(['petrol', 'diesel', 'hybrid', 'electric'])
 const moneyRule = { pattern: /^\d{1,7}(\.\d{1,3})?$/, message: 'Use an amount like 12.500.' }
@@ -252,7 +261,7 @@ export default function RentalVehicleEdit({
   return (
     <AdminLayout
       title={vehicle ? 'Edit vehicle' : 'New vehicle'}
-      active="rentals"
+      active="rental-vehicles"
       adminName={adminName}
       csrfToken={csrfToken}
       success={success}
@@ -312,13 +321,9 @@ export default function RentalVehicleEdit({
           quantity: Number(value('quantity', vehicle?.quantity ?? 1)),
           dailyRate: String(value('dailyRate', vehicle?.daily_rate)),
           extraKmRate: String(value('extraKmRate', vehicle?.extra_km_rate)),
-          withDriverAvailable:
-            form?.withDriverAvailable !== undefined
-              ? Boolean(form.withDriverAvailable)
-              : (vehicle?.with_driver_available ?? false),
+          rentalMode: String(value('rentalMode', vehicle?.rental_mode ?? 'self_drive')),
+          insuranceOptionId: String(value('insuranceOptionId', vehicle?.insurance_option_id)),
           driverDailyRate: String(value('driverDailyRate', vehicle?.driver_daily_rate)),
-          insuranceEn: value('insuranceEn', vehicle?.insurance_en),
-          insuranceAr: value('insuranceAr', vehicle?.insurance_ar),
           locationIds: [...selectedLocations],
           terms: Array.isArray(form?.terms)
             ? (form.terms as TermItem[])
@@ -385,13 +390,19 @@ export default function RentalVehicleEdit({
           <FormField label="Year" name="year">
             <InputNumber name="year" min={1980} max={2100} precision={0} className="tw:w-full" />
           </FormField>
-          <FormField label="Vehicle type" name="vehicleType" required>
-            <FormSelect
+          <FormField
+            label="Vehicle type"
+            name="vehicleType"
+            required
+            message="Choose a vehicle type."
+          >
+            <CreatableSelect
               name="vehicleType"
-              required
-              value=""
-              options={vehicleTypes}
-              onChange={() => undefined}
+              noun="vehicle type"
+              placeholder="Choose a vehicle type"
+              options={options.vehicleTypes}
+              createUrl="/admin/rentals/vehicle-types"
+              csrfToken={csrfToken}
             />
           </FormField>
           <FormField label="Gearbox" name="transmission" required>
@@ -418,13 +429,28 @@ export default function RentalVehicleEdit({
           <FormField label="Doors" name="doors">
             <InputNumber name="doors" min={1} max={10} precision={0} className="tw:w-full" />
           </FormField>
-          <FormField label="Bags" name="bags">
+          <FormField
+            label="Luggage (suitcases)"
+            name="bags"
+            hint="How many large suitcases fit in the boot."
+          >
             <InputNumber name="bags" min={0} max={20} precision={0} className="tw:w-full" />
           </FormField>
+          <FormField label="Insurance cover" name="insuranceOptionId">
+            <CreatableSelect
+              name="insuranceOptionId"
+              noun="insurance option"
+              placeholder="Choose the insurance cover"
+              allowClear
+              options={options.insuranceOptions}
+              createUrl="/admin/rentals/insurance-options"
+              csrfToken={csrfToken}
+            />
+          </FormField>
           <FormField
-            label="Daily mileage limit (km)"
+            label="Kilometres included per day"
             name="mileageLimitKm"
-            hint="Leave empty for unlimited mileage."
+            hint="How many km the customer can drive per day for the daily rate. Leave empty for unlimited."
           >
             <InputNumber name="mileageLimitKm" min={1} precision={0} className="tw:w-full" />
           </FormField>
@@ -449,28 +475,26 @@ export default function RentalVehicleEdit({
           >
             <Input name="dailyRate" inputMode="decimal" />
           </FormField>
-          <SwitchField
-            label="Offered with a driver"
-            name="withDriverAvailable"
-            on="Yes"
-            off="No"
-            hint="Customers can choose a driver for an extra daily rate."
-          />
+          <FormField
+            label="Rental mode"
+            name="rentalMode"
+            required
+            hint="Whether customers drive the car themselves, get a driver, or can choose."
+          >
+            <FormSelect
+              name="rentalMode"
+              required
+              value=""
+              options={rentalModes}
+              onChange={() => undefined}
+            />
+          </FormField>
           <DriverRateField />
         </FormSection>
 
         <LocationsField locations={options.locations} />
 
         <RentalTermsField />
-
-        <FormSection title="Insurance">
-          <FormField label="Insurance (English)" name="insuranceEn">
-            <Input.TextArea name="insuranceEn" rows={4} maxLength={5000} />
-          </FormField>
-          <FormField label="Insurance (Arabic)" name="insuranceAr">
-            <Input.TextArea name="insuranceAr" dir="rtl" lang="ar" rows={4} maxLength={5000} />
-          </FormField>
-        </FormSection>
 
         <section className="cms-form-section">
           <h2>Photos</h2>

@@ -832,6 +832,21 @@ export class RentalBookingSchema extends BaseModel {
   declare withDriver: boolean
 }
 
+export class RentalInsuranceOptionSchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'nameAr', 'nameEn', 'sortOrder'] as const
+  $columns = RentalInsuranceOptionSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare nameAr: string | null
+  @column()
+  declare nameEn: string
+  @column()
+  declare sortOrder: number
+}
+
 export class RentalLocationSchema extends BaseModel {
   static $columns = ['active', 'address', 'createdAt', 'id', 'latitude', 'longitude', 'nameAr', 'nameEn', 'sortOrder', 'updatedAt'] as const
   $columns = RentalLocationSchema.$columns
@@ -1033,8 +1048,25 @@ export class RentalVehicleTermSchema extends BaseModel {
   declare vehicleId: number
 }
 
+export class RentalVehicleTypeSchema extends BaseModel {
+  static $columns = ['code', 'createdAt', 'id', 'nameAr', 'nameEn', 'sortOrder'] as const
+  $columns = RentalVehicleTypeSchema.$columns
+  @column()
+  declare code: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare nameAr: string | null
+  @column()
+  declare nameEn: string
+  @column()
+  declare sortOrder: number
+}
+
 export class RentalVehicleSchema extends BaseModel {
-  static $columns = ['bags', 'coverImageKey', 'createdAt', 'dailyRate', 'doors', 'driverDailyRate', 'extraKmRate', 'fuelType', 'id', 'insuranceAr', 'insuranceEn', 'make', 'mileageLimitKm', 'model', 'nameAr', 'nameEn', 'providerId', 'publishedAt', 'quantity', 'seats', 'status', 'transmission', 'updatedAt', 'vehicleType', 'withDriverAvailable', 'year'] as const
+  static $columns = ['bags', 'coverImageKey', 'createdAt', 'dailyRate', 'doors', 'driverDailyRate', 'extraKmRate', 'fuelType', 'id', 'insuranceOptionId', 'make', 'mileageLimitKm', 'model', 'nameAr', 'nameEn', 'providerId', 'publishedAt', 'quantity', 'seats', 'selfDriveAvailable', 'status', 'transmission', 'updatedAt', 'vehicleType', 'withDriverAvailable', 'year'] as const
   $columns = RentalVehicleSchema.$columns
   @column()
   declare bags: boolean | null
@@ -1055,9 +1087,7 @@ export class RentalVehicleSchema extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
   @column()
-  declare insuranceAr: string | null
-  @column()
-  declare insuranceEn: string | null
+  declare insuranceOptionId: number | null
   @column()
   declare make: string
   @column()
@@ -1076,6 +1106,8 @@ export class RentalVehicleSchema extends BaseModel {
   declare quantity: number
   @column()
   declare seats: boolean
+  @column()
+  declare selfDriveAvailable: boolean
   @column()
   declare status: string
   @column()

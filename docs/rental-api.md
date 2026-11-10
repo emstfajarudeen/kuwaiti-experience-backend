@@ -46,7 +46,7 @@ If the server sets `RENTAL_PAYMENT_RETURN_URL` (for example an app deep link), t
 | PUT | `/customer/me/rental-bookings/{id}/review` | customer | Create or edit my review: `{ "rating": 1-5, "comment"?: string }` |
 | DELETE | `/customer/me/rental-bookings/{id}/review` | customer | Delete my review (204) |
 
-**Search filters:** `pickup_at` + `return_at` (both or neither), `pickup_location_id`, `with_driver=true` (only vehicles offered with a driver; the quote then includes the driver rate), `vehicle_type` (comma list: `sedan,suv,hatchback,luxury,sports,van,pickup`), `transmission` (`automatic,manual`), `seats_min`, `sort` (`recommended`, `price_asc`, `price_desc`, `newest`). With a period, the search returns only vehicles that have a free unit.
+**Search filters:** `pickup_at` + `return_at` (both or neither), `pickup_location_id`, `with_driver=true` (vehicles offered with a driver; the quote then includes the driver rate). Without it the search is self-drive and excludes driver-only vehicles. `vehicle_type` (comma list of `code`s from `/rentals/options` `vehicle_types`; the list is managed in the CMS, so never hard-code it), `transmission` (`automatic,manual`), `seats_min`, `sort` (`recommended`, `price_asc`, `price_desc`, `newest`). With a period, the search returns only vehicles that have a free unit.
 
 **Create booking body:**
 
@@ -68,6 +68,12 @@ If the server sets `RENTAL_PAYMENT_RETURN_URL` (for example an app deep link), t
 
 `days` = each started 24 hours, minimum 1. `rental_amount` = `days × (daily_rate + driver_daily_rate when with_driver)`. `pay_now` = `booking_fee`, charged in the app. `pay_at_pickup` = `rental_amount`, paid to the provider. Each booking stores a snapshot of the amounts and of the vehicle, provider, mileage, insurance and rental terms, so later catalogue edits do not change it.
 
+### Rental mode and insurance
+
+- `rental_mode`: `self_drive`, `with_driver` or `both`, with the matching flags `self_drive_available` and `with_driver_available`. For `both`, show a driver choice; for `with_driver`, always book with `with_driver: true` (quotes for these vehicles already include the driver rate).
+- `insurance`: the vehicle's insurance cover as a short localized label (for example “Comprehensive (full cover)”), or `null`. The options are managed in the CMS.
+- `vehicle_type`: `{ code, label }`. Types are managed in the CMS; read the current list from `/rentals/options`.
+
 ### Mileage and rental terms
 
 - **Mileage card:** `mileage_limit_km` (km per day, `null` = unlimited), `unlimited_mileage`, and `extra_km_rate` (KWD per km over the limit, or `null`). Show for example “250 km / day · Extra km at KD 0.120”. The extra-km charge is collected by the provider, not by the app.
@@ -86,7 +92,7 @@ If the server sets `RENTAL_PAYMENT_RETURN_URL` (for example an app deep link), t
 
 The booking fee is **not refunded automatically** when a customer cancels. Staff can refund it from the CMS booking page. A confirmed booking creates an inbox/push notification of type `rental_booking_confirmed` with `action_data: { type, booking_id, reference }`.
 
-Common errors: `409 VEHICLE_UNAVAILABLE`, `409 TOO_MANY_PENDING_BOOKINGS` (max 3 unpaid holds), `409 BOOKING_NOT_PAYABLE`, `409 CANCELLATION_WINDOW_CLOSED`, `409 REVIEW_NOT_ALLOWED`, `422 INVALID_RENTAL_PERIOD`, `422 INVALID_LOCATION`, `422 DRIVER_NOT_AVAILABLE`, `503 PAYMENTS_NOT_CONFIGURED`, `502 PAYMENT_GATEWAY_ERROR`.
+Common errors: `409 VEHICLE_UNAVAILABLE`, `409 TOO_MANY_PENDING_BOOKINGS` (max 3 unpaid holds), `409 BOOKING_NOT_PAYABLE`, `409 CANCELLATION_WINDOW_CLOSED`, `409 REVIEW_NOT_ALLOWED`, `422 INVALID_RENTAL_PERIOD`, `422 INVALID_LOCATION`, `422 DRIVER_NOT_AVAILABLE` (vehicle is self-drive only), `422 DRIVER_REQUIRED` (vehicle is only rented with a driver; send `with_driver: true`), `503 PAYMENTS_NOT_CONFIGURED`, `502 PAYMENT_GATEWAY_ERROR`.
 
 ## 5. Reviews and ratings
 

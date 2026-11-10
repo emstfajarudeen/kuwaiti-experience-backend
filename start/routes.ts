@@ -137,6 +137,8 @@ router
       'sendProviderEmail',
     ])
     router.get('/rentals/reviews', [AdminRentalsController, 'reviews'])
+    router.post('/rentals/vehicle-types', [AdminRentalsController, 'createVehicleType'])
+    router.post('/rentals/insurance-options', [AdminRentalsController, 'createInsuranceOption'])
     router.post('/rentals/reviews/:id/status', [AdminRentalsController, 'reviewStatus'])
     router.post('/rentals/reviews/:id/delete', [AdminRentalsController, 'deleteReview'])
     router.get('/rentals/vehicles', [AdminRentalsController, 'vehicles'])

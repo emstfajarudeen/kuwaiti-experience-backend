@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Button, Form, Switch, message } from 'antd'
+import { Button, Divider, Form, Input, Select, Switch, message } from 'antd'
 import type { FormDataConvertible } from '@inertiajs/core'
 import { useAuthorization } from '../lib/authorization'
 import { postCmsForm } from '../lib/cms_form'
@@ -10,38 +10,6 @@ export type SharedProps = {
   csrfToken: string
   success?: string | null
   error?: string | null
-}
-
-const tabs = [
-  { href: '/admin/rentals/vehicles', label: 'Vehicles', key: 'vehicles' },
-  { href: '/admin/rentals/providers', label: 'Providers', key: 'providers' },
-  { href: '/admin/rentals/locations', label: 'Locations', key: 'locations' },
-  { href: '/admin/rentals/settings', label: 'Settings', key: 'settings' },
-]
-
-/** Sub-navigation across the rental catalogue screens. */
-export function RentalTabs({ current, actions }: { current: string; actions?: ReactNode }) {
-  return (
-    <div className="tw:mb-5 tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3">
-      <nav className="tw:flex tw:flex-wrap tw:gap-2" aria-label="Rental catalogue">
-        {tabs.map((tab) => (
-          <a
-            key={tab.key}
-            href={tab.href}
-            aria-current={tab.key === current ? 'page' : undefined}
-            className={`tw:rounded-full tw:border tw:px-4 tw:py-1.5 tw:text-[13px] tw:font-semibold ${
-              tab.key === current
-                ? 'tw:border-brand-navy-deep tw:bg-brand-navy-deep tw:text-white'
-                : 'tw:border-brand-line tw:bg-white tw:text-brand-navy-deep'
-            }`}
-          >
-            {tab.label}
-          </a>
-        ))}
-      </nav>
-      {actions}
-    </div>
-  )
 }
 
 /** Card used by read-only detail pages. */
@@ -137,6 +105,135 @@ export function FormField({
       </Form.Item>
       {hint && <span className="tw:-mt-3 tw:block tw:text-[12px] tw:text-brand-muted">{hint}</span>}
     </label>
+  )
+}
+
+type Choice = { value: string; label: string }
+
+/**
+ * Dropdown that can add a new choice on the spot (English name, optional Arabic). The new
+ * choice is saved through `createUrl` and selected. Posts its value as a native input.
+ */
+export function CreatableSelect({
+  name,
+  value,
+  onChange,
+  options,
+  createUrl,
+  csrfToken,
+  placeholder,
+  allowClear = false,
+  noun,
+}: {
+  name: string
+  value?: string
+  onChange?: (value: string) => void
+  options: Choice[]
+  createUrl: string
+  csrfToken: string
+  placeholder?: string
+  allowClear?: boolean
+  /** What is being added, e.g. "vehicle type". */
+  noun: string
+}) {
+  const [items, setItems] = useState(options)
+  const [nameEn, setNameEn] = useState('')
+  const [nameAr, setNameAr] = useState('')
+  const [saving, setSaving] = useState(false)
+  const { status } = Form.Item.useStatus()
+  const create = async () => {
+    if (!nameEn.trim() || saving) return
+    setSaving(true)
+    try {
+      const response = await fetch(createUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrfToken,
+        },
+        body: JSON.stringify({ nameEn: nameEn.trim(), nameAr: nameAr.trim() || null }),
+      })
+      const body = (await response.json().catch(() => ({}))) as {
+        data?: Choice
+        error?: { message?: string }
+        errors?: Array<{ message?: string }>
+      }
+      if (!response.ok || !body.data)
+        throw new Error(
+          body.error?.message ?? body.errors?.[0]?.message ?? `Could not add the ${noun}.`
+        )
+      const created = body.data
+      setItems((list) =>
+        list.some((item) => item.value === created.value) ? list : [...list, created]
+      )
+      onChange?.(created.value)
+      setNameEn('')
+      setNameAr('')
+      void message.success(`Added “${created.label}”.`)
+    } catch (cause) {
+      void message.error(cause instanceof Error ? cause.message : `Could not add the ${noun}.`)
+    } finally {
+      setSaving(false)
+    }
+  }
+  return (
+    <>
+      <Select
+        value={value || undefined}
+        onChange={(next) => onChange?.(next ?? '')}
+        options={items}
+        showSearch
+        optionFilterProp="label"
+        allowClear={allowClear}
+        placeholder={placeholder}
+        status={status === 'error' ? 'error' : undefined}
+        className="tw:w-full"
+        popupRender={(menu) => (
+          <>
+            {menu}
+            <Divider className="tw:my-2" />
+            <div
+              className="tw:flex tw:flex-col tw:gap-2 tw:px-2 tw:pb-2"
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              <span className="tw:text-[12px] tw:font-semibold tw:text-brand-muted">
+                Add a new {noun}
+              </span>
+              <Input
+                size="small"
+                placeholder="Name in English"
+                value={nameEn}
+                maxLength={80}
+                onChange={(event) => setNameEn(event.target.value)}
+                onPressEnter={() => void create()}
+              />
+              <Input
+                size="small"
+                placeholder="Name in Arabic (optional)"
+                dir="rtl"
+                lang="ar"
+                value={nameAr}
+                maxLength={80}
+                onChange={(event) => setNameAr(event.target.value)}
+                onPressEnter={() => void create()}
+              />
+              <Button
+                size="small"
+                type="primary"
+                loading={saving}
+                disabled={!nameEn.trim()}
+                onClick={() => void create()}
+              >
+                + Add {noun}
+              </Button>
+            </div>
+          </>
+        )}
+      />
+      <input type="hidden" name={name} value={value ?? ''} />
+    </>
   )
 }
 

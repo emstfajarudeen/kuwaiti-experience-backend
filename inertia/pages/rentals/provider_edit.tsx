@@ -35,7 +35,7 @@ export default function RentalProviderEdit({
   return (
     <AdminLayout
       title={provider ? 'Edit provider' : 'New provider'}
-      active="rentals"
+      active="rental-providers"
       adminName={adminName}
       csrfToken={csrfToken}
       success={success}

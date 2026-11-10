@@ -67,7 +67,7 @@ export const rentalVehicleValidator = vine.compile(
     make: vine.string().trim().minLength(1).maxLength(80),
     model: vine.string().trim().minLength(1).maxLength(80),
     year: vine.number().withoutDecimals().range([1980, 2100]).nullable(),
-    vehicleType: vine.enum(['sedan', 'suv', 'hatchback', 'luxury', 'sports', 'van', 'pickup']),
+    vehicleType: vine.string().trim().minLength(1).maxLength(60),
     transmission: vine.enum(['automatic', 'manual']),
     fuelType: vine.enum(['petrol', 'diesel', 'hybrid', 'electric']),
     seats: vine.number().withoutDecimals().range([1, 60]),
@@ -76,11 +76,10 @@ export const rentalVehicleValidator = vine.compile(
     mileageLimitKm: vine.number().withoutDecimals().range([1, 100000]).nullable(),
     extraKmRate: money().nullable(),
     dailyRate: money(),
-    withDriverAvailable: vine.boolean(),
+    rentalMode: vine.enum(['self_drive', 'with_driver', 'both']),
     driverDailyRate: money().nullable(),
     quantity: vine.number().withoutDecimals().range([1, 500]),
-    insuranceEn: optionalText(5000),
-    insuranceAr: optionalText(5000),
+    insuranceOptionId: vine.number().withoutDecimals().positive().nullable(),
     terms: vine
       .array(
         vine.object({
@@ -97,6 +96,14 @@ export const rentalReviewValidator = vine.compile(
   vine.object({
     rating: vine.number().withoutDecimals().range([1, 5]),
     comment: vine.string().trim().maxLength(1000).nullable().optional(),
+  })
+)
+
+/** A new vehicle type or insurance option added from the vehicle form. */
+export const rentalOptionValidator = vine.compile(
+  vine.object({
+    nameEn: vine.string().trim().minLength(1).maxLength(80),
+    nameAr: optionalText(80).optional(),
   })
 )
 

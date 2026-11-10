@@ -226,6 +226,7 @@ export default class RentalSeeder extends BaseSeeder {
     }
 
     const vehicleIds = new Map<string, number>()
+    const insuranceOption = await db.from('rental_insurance_options').orderBy('sort_order').first()
     for (const item of vehicles) {
       const existing = await db.from('rental_vehicles').where('name_en', item.en).first()
       if (existing) {
@@ -256,8 +257,7 @@ export default class RentalSeeder extends BaseSeeder {
         with_driver_available: item.driverRate !== null,
         driver_daily_rate: item.driverRate,
         quantity: item.quantity,
-        insurance_en: 'Full comprehensive insurance included. Excess applies in case of damage.',
-        insurance_ar: 'تأمين شامل مشمول. تطبق نسبة تحمل في حال الضرر.',
+        insurance_option_id: insuranceOption?.id ?? null,
         cover_image_key: cover,
         status: 'published',
         published_at: now,
@@ -362,8 +362,8 @@ export default class RentalSeeder extends BaseSeeder {
             cover_image_key: camryRow.cover_image_key,
             mileage_limit_km: camryRow.mileage_limit_km,
             extra_km_rate: camryRow.extra_km_rate,
-            insurance_en: camryRow.insurance_en,
-            insurance_ar: camryRow.insurance_ar,
+            insurance_en: 'Comprehensive (full cover)',
+            insurance_ar: 'تأمين شامل',
             rental_terms: camryTerms.map((term) => ({
               label_en: term.label_en,
               label_ar: term.label_ar,

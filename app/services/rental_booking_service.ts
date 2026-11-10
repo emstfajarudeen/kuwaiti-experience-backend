@@ -6,6 +6,7 @@ import { imageLinks, pagination, positiveId } from './explore_read_service.js'
 import { sendProviderEmail } from './rental_provider_mailer.js'
 import { canReview, reviewForBooking } from './rental_review_service.js'
 import {
+  assertDriverChoice,
   findVisibleVehicle,
   freeUnits,
   rentalSettings,
@@ -171,15 +172,7 @@ export async function createBooking(
       // Locking the vehicle row serialises concurrent checkouts for this vehicle.
       const vehicle = await findVisibleVehicle(input.vehicle_id, trx, true)
       const withDriver = Boolean(input.with_driver)
-      if (withDriver && !vehicle.with_driver_available)
-        throw new ApiError(
-          422,
-          'DRIVER_NOT_AVAILABLE',
-          'This vehicle is not offered with a driver',
-          {
-            with_driver: ['This vehicle is not offered with a driver'],
-          }
-        )
+      assertDriverChoice(vehicle, withDriver)
       const locations = await vehicleLocations(trx, Number(vehicle.id))
       const pickup = locations.find((row: Row) => Number(row.id) === input.pickup_location_id)
       const returnId = input.return_location_id ?? input.pickup_location_id
@@ -231,8 +224,8 @@ export async function createBooking(
           mileage_limit_km:
             vehicle.mileage_limit_km === null ? null : Number(vehicle.mileage_limit_km),
           extra_km_rate: vehicle.extra_km_rate === null ? null : kwd(toFils(vehicle.extra_km_rate)),
-          insurance_en: vehicle.insurance_en ?? null,
-          insurance_ar: vehicle.insurance_ar ?? null,
+          insurance_en: vehicle.insurance_name_en ?? null,
+          insurance_ar: vehicle.insurance_name_ar ?? null,
           rental_terms: termRows.map((term) => ({
             label_en: term.label_en,
             label_ar: term.label_ar ?? null,

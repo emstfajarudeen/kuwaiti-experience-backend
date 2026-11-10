@@ -460,6 +460,11 @@ add(
   ['rental_bookings.view', 'rental_bookings.update']
 )
 add('GET', ['/admin/rentals/reviews'], ['rental_reviews.view'])
+add(
+  'POST',
+  ['/admin/rentals/vehicle-types', '/admin/rentals/insurance-options'],
+  ['rentals.view', 'rentals.update']
+)
 add('POST', ['/admin/rentals/reviews/:id/status'], ['rental_reviews.view', 'rental_reviews.update'])
 add('POST', ['/admin/rentals/reviews/:id/delete'], ['rental_reviews.view', 'rental_reviews.delete'])
 add(

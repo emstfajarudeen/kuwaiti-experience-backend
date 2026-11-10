@@ -3,6 +3,7 @@ import env from '#start/env'
 import { ApiError } from '../../services/api_error.js'
 import { cmsImageUrl, imageFiles, prepareImages } from '../../services/image_storage_service.js'
 import * as admin from '../../services/rental_admin_service.js'
+import { rentalMode } from '../../services/rental_catalog_service.js'
 import * as reviews from '../../services/rental_review_service.js'
 import { sendProviderEmail } from '../../services/rental_provider_mailer.js'
 import { refundBooking, syncPayment } from '../../services/rental_payment_service.js'
@@ -11,6 +12,7 @@ import { kwd, toFils } from '../../services/rental_money.js'
 import { validationErrorBag } from '../../services/validation_error_bag.js'
 import {
   rentalLocationValidator,
+  rentalOptionValidator,
   rentalProviderValidator,
   rentalSettingsValidator,
   rentalVehicleValidator,
@@ -78,6 +80,7 @@ function serializeVehicle(row: Row) {
     model: row.model,
     year: row.year === null ? null : Number(row.year),
     vehicle_type: row.vehicle_type,
+    vehicle_type_name: row.vehicle_type_name ?? row.vehicle_type,
     transmission: row.transmission,
     fuel_type: row.fuel_type,
     seats: Number(row.seats),
@@ -86,11 +89,11 @@ function serializeVehicle(row: Row) {
     mileage_limit_km: row.mileage_limit_km === null ? null : Number(row.mileage_limit_km),
     extra_km_rate: row.extra_km_rate === null ? null : kwd(toFils(row.extra_km_rate)),
     daily_rate: kwd(toFils(row.daily_rate)),
+    rental_mode: rentalMode(row),
     with_driver_available: Boolean(row.with_driver_available),
     driver_daily_rate: row.driver_daily_rate === null ? null : kwd(toFils(row.driver_daily_rate)),
     quantity: Number(row.quantity),
-    insurance_en: row.insurance_en,
-    insurance_ar: row.insurance_ar,
+    insurance_option_id: row.insurance_option_id === null ? null : Number(row.insurance_option_id),
     cover_url: cmsImageUrl(row.cover_image_key),
     status: row.status,
     published_at: date(row.published_at),
@@ -309,6 +312,20 @@ export default class AdminRentalsController {
     return ctx.response.redirect(`/admin/rentals/bookings/${id}`)
   }
 
+  // ------------------------------------------------------------ vehicle options
+
+  /** JSON: adds a vehicle type from the vehicle form dropdown. */
+  async createVehicleType(ctx: HttpContext) {
+    const input = await ctx.request.validateUsing(rentalOptionValidator)
+    return { data: await admin.createVehicleType(input, ctx.admin.id) }
+  }
+
+  /** JSON: adds an insurance option from the vehicle form dropdown. */
+  async createInsuranceOption(ctx: HttpContext) {
+    const input = await ctx.request.validateUsing(rentalOptionValidator)
+    return { data: await admin.createInsuranceOption(input, ctx.admin.id) }
+  }
+
   // ------------------------------------------------------------ reviews
 
   async reviews(ctx: HttpContext) {
@@ -455,11 +472,10 @@ export default class AdminRentalsController {
       mileageLimitKm: optionalNumber(request.input('mileageLimitKm')),
       extraKmRate: blank(String(request.input('extraKmRate') ?? '')),
       dailyRate: String(request.input('dailyRate') ?? ''),
-      withDriverAvailable: bool(request.input('withDriverAvailable')),
+      rentalMode: request.input('rentalMode') || 'self_drive',
       driverDailyRate: blank(String(request.input('driverDailyRate') ?? '')),
       quantity: optionalNumber(request.input('quantity')) ?? 1,
-      insuranceEn: blank(request.input('insuranceEn')),
-      insuranceAr: blank(request.input('insuranceAr')),
+      insuranceOptionId: optionalNumber(request.input('insuranceOptionId')),
       terms: parseTerms(request.input('termsJson')),
       locationIds: ids(request.input('locationIds')),
     }

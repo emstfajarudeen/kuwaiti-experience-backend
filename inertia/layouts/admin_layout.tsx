@@ -13,7 +13,19 @@ type SharedAuth = {
   mustChangePassword: boolean
 } | null
 
-const navigation = [
+type NavChild = { href: string; label: string; active: string }
+type NavLink = {
+  href: string
+  icon: string
+  label: string
+  active: string
+  permission?: string
+  /** Sub-pages shown as a dropdown under this item. */
+  children?: NavChild[]
+}
+type NavSection = { label: string; links: NavLink[] }
+
+const navigation: NavSection[] = [
   {
     label: 'OVERVIEW',
     links: [
@@ -134,6 +146,12 @@ const navigation = [
         label: 'Rental fleet',
         active: 'rentals',
         permission: 'rentals.view',
+        children: [
+          { href: '/admin/rentals/vehicles', label: 'Vehicles', active: 'rental-vehicles' },
+          { href: '/admin/rentals/providers', label: 'Providers', active: 'rental-providers' },
+          { href: '/admin/rentals/locations', label: 'Locations', active: 'rental-locations' },
+          { href: '/admin/rentals/settings', label: 'Settings', active: 'rental-settings' },
+        ],
       },
       {
         href: '/admin/rentals/reviews',
@@ -182,7 +200,7 @@ const navigation = [
       },
     ],
   },
-] as const
+]
 
 type Props = {
   title: string
@@ -212,11 +230,14 @@ export default function AdminLayout({
         .map((section) => ({
           ...section,
           links: section.links.filter(
-            (link) => !('permission' in link) || permissions.has(link.permission)
+            (link) => !link.permission || permissions.has(link.permission)
           ),
         }))
         .filter((section) => section.links.length > 0)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
+  const linkClass = (isActive: boolean) =>
+    `tw:flex tw:min-h-10 tw:items-center tw:gap-3 tw:rounded-cms-sm tw:px-3 tw:py-[10px] tw:text-[13px] tw:font-semibold tw:text-[#c4d7e6] tw:transition-[background,color] tw:duration-150 tw:hover:bg-white/10 tw:hover:text-white ${isActive ? 'active tw:bg-brand-gold tw:font-bold tw:text-brand-navy-deep' : ''}`
 
   // The sidebar is taller than many laptop screens. Instead of giving it its own scrollbar
   // (which swallows the first swipe over it), it scrolls with the page until its bottom
@@ -298,24 +319,72 @@ export default function AdminLayout({
                 aria-label={`${section.label.toLowerCase()} CMS navigation`}
                 className="cms-nav tw:flex tw:flex-col tw:gap-[3px]"
               >
-                {section.links.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    prefetch="hover"
-                    onClick={() => setMenuOpen(false)}
-                    className={`tw:flex tw:min-h-10 tw:items-center tw:gap-3 tw:rounded-cms-sm tw:px-3 tw:py-[10px] tw:text-[13px] tw:font-semibold tw:text-[#c4d7e6] tw:transition-[background,color] tw:duration-150 tw:hover:bg-white/10 tw:hover:text-white ${active === link.active ? 'active tw:bg-brand-gold tw:font-bold tw:text-brand-navy-deep' : ''}`}
-                    aria-current={active === link.active ? 'page' : undefined}
-                  >
-                    <span
-                      className="nav-icon tw:w-[18px] tw:text-center tw:text-base tw:leading-none tw:opacity-[0.85]"
-                      aria-hidden="true"
+                {section.links.map((link) => {
+                  if (link.children) {
+                    const childActive = link.children.some((child) => child.active === active)
+                    const open = openGroups[link.label] ?? childActive
+                    return (
+                      <div key={link.label} className="cms-nav-group">
+                        <button
+                          type="button"
+                          className={`${linkClass(false)} tw:w-full tw:border-0 tw:bg-transparent tw:text-left ${childActive ? 'tw:text-white' : ''}`}
+                          aria-expanded={open}
+                          onClick={() =>
+                            setOpenGroups((current) => ({ ...current, [link.label]: !open }))
+                          }
+                        >
+                          <span
+                            className="nav-icon tw:w-[18px] tw:text-center tw:text-base tw:leading-none tw:opacity-[0.85]"
+                            aria-hidden="true"
+                          >
+                            {link.icon}
+                          </span>
+                          <span className="tw:flex-1">{link.label}</span>
+                          <span
+                            aria-hidden="true"
+                            className={`tw:text-[10px] tw:transition-transform tw:duration-150 ${open ? 'tw:rotate-180' : ''}`}
+                          >
+                            ▾
+                          </span>
+                        </button>
+                        {open && (
+                          <div className="tw:mt-[3px] tw:flex tw:flex-col tw:gap-[3px] tw:pl-[30px]">
+                            {link.children.map((child) => (
+                              <Link
+                                key={child.href}
+                                href={child.href}
+                                prefetch="hover"
+                                onClick={() => setMenuOpen(false)}
+                                className={linkClass(active === child.active)}
+                                aria-current={active === child.active ? 'page' : undefined}
+                              >
+                                {child.label}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  }
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      prefetch="hover"
+                      onClick={() => setMenuOpen(false)}
+                      className={linkClass(active === link.active)}
+                      aria-current={active === link.active ? 'page' : undefined}
                     >
-                      {link.icon}
-                    </span>
-                    {link.label}
-                  </Link>
-                ))}
+                      <span
+                        className="nav-icon tw:w-[18px] tw:text-center tw:text-base tw:leading-none tw:opacity-[0.85]"
+                        aria-hidden="true"
+                      >
+                        {link.icon}
+                      </span>
+                      {link.label}
+                    </Link>
+                  )
+                })}
               </nav>
             </div>
           ))}

@@ -296,6 +296,49 @@ test.group('Rental catalog and bookings', (group) => {
     assert.equal(kwd(toFils(stored.rental_amount)), '61.500')
   })
 
+  test('driver-only vehicles are only searched, quoted and booked with a driver', async ({
+    client,
+    assert,
+  }) => {
+    const ids = await catalog({ self_drive_available: false })
+    const user = await customer()
+    const window = period()
+
+    const selfDrive = await client.get('/api/v2/rentals/vehicles').qs(window)
+    assert.notInclude(
+      selfDrive.body().data.map((item: { id: number }) => item.id),
+      ids.vehicleId
+    )
+    const driverSearch = await client
+      .get('/api/v2/rentals/vehicles')
+      .qs({ ...window, with_driver: 'true' })
+    const card = driverSearch.body().data.find((item: { id: number }) => item.id === ids.vehicleId)
+    assert.equal(card.rental_mode, 'with_driver')
+    assert.isFalse(card.self_drive_available)
+
+    const quote = await client.get(`/api/v2/rentals/vehicles/${ids.vehicleId}/quote`).qs(window)
+    quote.assertStatus(422)
+    assert.equal(quote.body().error.code, 'DRIVER_REQUIRED')
+
+    const book = (key: string, withDriver: boolean) =>
+      client
+        .post('/api/v2/customer/me/rental-bookings')
+        .header('Authorization', user.token)
+        .header('Idempotency-Key', key)
+        .json({
+          vehicle_id: ids.vehicleId,
+          pickup_location_id: ids.airport,
+          ...window,
+          with_driver: withDriver,
+        })
+    const withoutDriver = await book('driver-only-1', false)
+    withoutDriver.assertStatus(422)
+    assert.equal(withoutDriver.body().error.code, 'DRIVER_REQUIRED')
+    const withDriver = await book('driver-only-2', true)
+    withDriver.assertStatus(201)
+    assert.isTrue(withDriver.body().data.with_driver)
+  })
+
   test('the provider is emailed when a booking is confirmed and when it is cancelled', async ({
     client,
     assert,
@@ -887,6 +930,46 @@ test.group('Rentals CMS', (group) => {
     const jahra = await db.from('rental_locations').where('name_en', 'Jahra').firstOrFail()
     assert.isNull(jahra.longitude)
     assert.isTrue(Boolean(jahra.active))
+    const newType = await client
+      .post('/admin/rentals/vehicle-types')
+      .withCsrfToken()
+      .cookie('admin_access', tokens.accessToken)
+      .cookie('admin_refresh', tokens.refreshToken)
+      .header('Accept', 'application/json')
+      .json({ nameEn: 'Electric SUV', nameAr: 'دفع رباعي كهربائي' })
+    newType.assertStatus(200)
+    assert.deepEqual(newType.body().data, { value: 'electric_suv', label: 'Electric SUV' })
+    const options = await client.get('/api/v2/rentals/options').header('Accept-Language', 'ar')
+    assert.include(
+      options.body().data.vehicle_types.map((type: { label: string }) => type.label),
+      'دفع رباعي كهربائي'
+    )
+    const sameType = await client
+      .post('/admin/rentals/vehicle-types')
+      .withCsrfToken()
+      .cookie('admin_access', tokens.accessToken)
+      .cookie('admin_refresh', tokens.refreshToken)
+      .header('Accept', 'application/json')
+      .json({ nameEn: 'electric suv' })
+    assert.equal(sameType.body().data.value, 'electric_suv')
+
+    const newInsurance = await client
+      .post('/admin/rentals/insurance-options')
+      .withCsrfToken()
+      .cookie('admin_access', tokens.accessToken)
+      .cookie('admin_refresh', tokens.refreshToken)
+      .header('Accept', 'application/json')
+      .json({ nameEn: 'Gold cover', nameAr: 'تغطية ذهبية' })
+    newInsurance.assertStatus(200)
+    await db
+      .from('rental_vehicles')
+      .where('id', ids.vehicleId)
+      .update({ insurance_option_id: Number(newInsurance.body().data.value) })
+    const insured = await client
+      .get(`/api/v2/rentals/vehicles/${ids.vehicleId}`)
+      .header('Accept-Language', 'ar')
+    assert.equal(insured.body().data.insurance, 'تغطية ذهبية')
+
     await post('/admin/rentals/settings').form({
       bookingFee: '4.250',
       holdMinutes: '20',

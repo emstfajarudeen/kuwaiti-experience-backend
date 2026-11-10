@@ -266,11 +266,10 @@ export type VehicleInput = {
   mileageLimitKm: number | null
   extraKmRate: string | null
   dailyRate: string
-  withDriverAvailable: boolean
+  rentalMode: 'self_drive' | 'with_driver' | 'both'
   driverDailyRate: string | null
   quantity: number
-  insuranceEn: string | null
-  insuranceAr: string | null
+  insuranceOptionId: number | null
   terms: Array<{ labelEn: string; labelAr: string | null }>
   locationIds: number[]
 }
@@ -311,9 +310,12 @@ export async function listVehicles(params: {
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const current = Math.min(page(params.page), lastPage)
   const rows = (await apply(
-    db.from('rental_vehicles as v').join('rental_providers as p', 'p.id', 'v.provider_id')
+    db
+      .from('rental_vehicles as v')
+      .join('rental_providers as p', 'p.id', 'v.provider_id')
+      .leftJoin('rental_vehicle_types as t', 't.code', 'v.vehicle_type')
   )
-    .select('v.*', 'p.name_en as provider_name')
+    .select('v.*', 'p.name_en as provider_name', 't.name_en as vehicle_type_name')
     .orderBy('v.id', 'desc')
     .limit(PAGE_SIZE)
     .offset((current - 1) * PAGE_SIZE)) as Row[]
@@ -336,16 +338,81 @@ export async function findVehicle(id: number) {
   }
 }
 
+const slug = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize('NFKD')
+    .replaceAll(/[^a-z0-9]+/g, '_')
+    .replaceAll(/^_+|_+$/g, '')
+    .slice(0, 50)
+
+/** Adds a vehicle type from the vehicle form. Returns the existing one when the name is taken. */
+export async function createVehicleType(
+  input: { nameEn: string; nameAr?: string | null },
+  actorId: number
+) {
+  return db.transaction(async (trx) => {
+    const existing = await trx
+      .from('rental_vehicle_types')
+      .whereRaw('lower(name_en) = ?', [input.nameEn.toLowerCase()])
+      .first()
+    if (existing) return { value: existing.code as string, label: existing.name_en as string }
+    let code = slug(input.nameEn) || 'type'
+    for (let n = 2; await trx.from('rental_vehicle_types').where('code', code).first(); n++)
+      code = `${slug(input.nameEn) || 'type'}_${n}`
+    const last = await trx.from('rental_vehicle_types').max('sort_order as last').first()
+    const [id] = await trx.table('rental_vehicle_types').insert({
+      code,
+      name_en: input.nameEn,
+      name_ar: input.nameAr ?? null,
+      sort_order: Number(last?.last ?? -1) + 1,
+      created_at: new Date(),
+    })
+    await audit(trx, actorId, 'rental_vehicle_type', Number(id), 'create')
+    return { value: code, label: input.nameEn }
+  })
+}
+
+/** Adds an insurance option from the vehicle form. Returns the existing one when the name is taken. */
+export async function createInsuranceOption(
+  input: { nameEn: string; nameAr?: string | null },
+  actorId: number
+) {
+  return db.transaction(async (trx) => {
+    const existing = await trx
+      .from('rental_insurance_options')
+      .whereRaw('lower(name_en) = ?', [input.nameEn.toLowerCase()])
+      .first()
+    if (existing) return { value: String(existing.id), label: existing.name_en as string }
+    const last = await trx.from('rental_insurance_options').max('sort_order as last').first()
+    const [id] = await trx.table('rental_insurance_options').insert({
+      name_en: input.nameEn,
+      name_ar: input.nameAr ?? null,
+      sort_order: Number(last?.last ?? -1) + 1,
+      created_at: new Date(),
+    })
+    await audit(trx, actorId, 'rental_insurance_option', Number(id), 'create')
+    return { value: String(id), label: input.nameEn }
+  })
+}
+
 export async function vehicleFormOptions() {
-  const [providers, locations] = await Promise.all([
+  const [providers, locations, types, insurance] = await Promise.all([
     db.from('rental_providers').select('id', 'name_en', 'active').orderBy('name_en'),
     db
       .from('rental_locations')
       .select('id', 'name_en', 'active')
       .orderBy('sort_order')
       .orderBy('id'),
+    db.from('rental_vehicle_types').orderBy('sort_order').orderBy('id'),
+    db.from('rental_insurance_options').orderBy('sort_order').orderBy('id'),
   ])
   return {
+    vehicleTypes: types.map((row) => ({ value: row.code as string, label: row.name_en as string })),
+    insuranceOptions: insurance.map((row) => ({
+      value: String(row.id),
+      label: row.name_en as string,
+    })),
     providers: providers.map((row) => ({
       id: Number(row.id),
       name: row.name_en as string,
@@ -369,7 +436,15 @@ export async function saveVehicle(
   actorId: number,
   id?: number
 ) {
-  if (input.withDriverAvailable && !input.driverDailyRate)
+  const withDriver = input.rentalMode !== 'self_drive'
+  if (!(await db.from('rental_vehicle_types').where('code', input.vehicleType).first()))
+    fieldError('vehicleType', 'Choose a vehicle type.')
+  if (
+    input.insuranceOptionId &&
+    !(await db.from('rental_insurance_options').where('id', input.insuranceOptionId).first())
+  )
+    fieldError('insuranceOptionId', 'Choose an insurance option.')
+  if (withDriver && !input.driverDailyRate)
     fieldError('driverDailyRate', 'Enter the daily driver rate.')
   if (!(await db.from('rental_providers').where('id', input.providerId).first()))
     fieldError('providerId', 'Choose a valid provider.')
@@ -417,11 +492,11 @@ export async function saveVehicle(
             ? kwd(toFils(input.extraKmRate))
             : null,
         daily_rate: kwd(toFils(input.dailyRate)),
-        with_driver_available: input.withDriverAvailable,
-        driver_daily_rate: input.withDriverAvailable ? kwd(toFils(input.driverDailyRate)) : null,
+        with_driver_available: withDriver,
+        self_drive_available: input.rentalMode !== 'with_driver',
+        driver_daily_rate: withDriver ? kwd(toFils(input.driverDailyRate)) : null,
         quantity: input.quantity,
-        insurance_en: input.insuranceEn,
-        insurance_ar: input.insuranceAr,
+        insurance_option_id: input.insuranceOptionId,
         cover_image_key: cover,
         updated_at: new Date(),
       }

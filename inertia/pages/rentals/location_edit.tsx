@@ -76,7 +76,7 @@ export default function RentalLocationEdit({
   return (
     <AdminLayout
       title={location ? 'Edit location' : 'New location'}
-      active="rentals"
+      active="rental-locations"
       adminName={adminName}
       csrfToken={csrfToken}
       success={success}
