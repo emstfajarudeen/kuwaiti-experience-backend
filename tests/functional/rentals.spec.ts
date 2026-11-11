@@ -389,7 +389,6 @@ test.group('Rental catalog and bookings', (group) => {
         .json({
           vehicle_id: ids.vehicleId,
           pickup_location_id: ids.airport,
-          return_location_id: ids.city,
           pickup_at: pickup.toISOString(),
           return_at: new Date(pickup.getTime() + 2 * DAY).toISOString(),
           ...extra,
@@ -443,7 +442,7 @@ test.group('Rental catalog and bookings', (group) => {
     const open = await book('hours-key-03', kuwait(offset + 1, 10))
     if (new Date(kuwait(offset + 1, 10).getTime() + 3 * 60 * 60 * 1000).getUTCDay() !== 5) {
       open.assertStatus(201)
-      assert.equal(open.body().data.return_location.id, ids.city)
+      assert.equal(open.body().data.return_location.id, ids.airport)
     }
 
     const [otherProvider] = await db
@@ -465,6 +464,11 @@ test.group('Rental catalog and bookings', (group) => {
     })
     wrongReturn.assertStatus(422)
     assert.equal(wrongReturn.body().error.code, 'INVALID_LOCATION')
+    const otherPlace = await book('hours-key-05', kuwait(offset + 3, 10), {
+      return_location_id: ids.city,
+    })
+    otherPlace.assertStatus(422)
+    assert.equal(otherPlace.body().error.code, 'INVALID_LOCATION')
   })
 
   test('the provider is emailed when a booking is confirmed and when it is cancelled', async ({
@@ -765,7 +769,7 @@ test.group('Rental catalog and bookings', (group) => {
       .json({
         vehicle_id: ids.vehicleId,
         pickup_location_id: ids.airport,
-        return_location_id: ids.city,
+        return_location_id: ids.airport,
         ...period(),
       })
     const id = created.body().data.id

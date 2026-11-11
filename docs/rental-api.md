@@ -56,13 +56,12 @@ If the server sets `RENTAL_PAYMENT_RETURN_URL` (for example an app deep link), t
   "pickup_at": "2026-11-20T10:00:00+03:00",
   "return_at": "2026-11-23T10:00:00+03:00",
   "pickup_location_id": 1,
-  "return_location_id": 2,
   "with_driver": false,
   "notes": "Child seat please"
 }
 ```
 
-`Idempotency-Key` is required: 8–80 characters of letters, digits, `-` and `_`. Generate one per checkout attempt and reuse it on retries. A replay returns `200` with the same booking. The same key with a different body returns `409 IDEMPOTENCY_CONFLICT`. `return_location_id` defaults to the pickup location.
+`Idempotency-Key` is required: 8–80 characters of letters, digits, `-` and `_`. Generate one per checkout attempt and reuse it on retries. A replay returns `200` with the same booking. The same key with a different body returns `409 IDEMPOTENCY_CONFLICT`. `return_location_id` is optional and must match the pickup location.
 
 ## 3. Pricing
 
@@ -72,7 +71,8 @@ If the server sets `RENTAL_PAYMENT_RETURN_URL` (for example an app deep link), t
 
 - `GET /rentals/locations` returns the **pickup places** for the "Select pickup location" screen: `{ id, name, address, latitude, longitude }`, where `address` is the second line (for example "Kuwait City · Main entrance"). It is one shared list; each rental provider has its own branch at a place. Send a place `id` as `pickup_location_id` / `return_location_id`.
 - Search with `pickup_location_id` returns cars from every provider that has a branch at that place. With a period, it only returns cars whose branch is open at the pickup time.
-- Vehicle detail `locations` lists the places where this car can be picked up, and `return_locations` the places where it can be returned (any branch of the same provider). Each item is the place plus `branch: { id, name, address, phone_e164, working_hours, closed_dates }` for that provider. Use `branch.working_hours` and `branch.closed_dates` to grey out times in the date/time pickers.
+- **The car is returned at the pickup place.** `return_location_id` is optional; if sent it must equal `pickup_location_id`, otherwise `422 INVALID_LOCATION`. The return time is checked against the same branch's hours.
+- Vehicle detail `locations` lists the places where this car can be picked up. Each item is the place plus `branch: { id, name, address, phone_e164, working_hours, closed_dates }` for that provider. Use `branch.working_hours` and `branch.closed_dates` to grey out times in the date/time pickers.
 - `working_hours`: `null` means no fixed hours. Otherwise 7 items, Sunday first: `{ weekday, day, open_24h, closed, shifts: [{ opens, closes }] }` with up to two shifts, times `HH:MM` in Kuwait time. `closed_dates`: upcoming `[{ starts_on, ends_on, reason }]`, inclusive.
 - Booking returns `422 BRANCH_CLOSED` when the pickup or return time is outside the branch's hours or on a closed date. The booking's `pickup_location` / `return_location` show the place name with the branch address and `phone_e164`.
 

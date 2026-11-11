@@ -405,11 +405,6 @@ export async function activeLocations(locale: PublicLocale) {
   return { data: rows.map((row) => place(row, locale)) }
 }
 
-/** Branches where a customer may return a vehicle of this provider. */
-export async function providerBranches(client: Client, providerId: number) {
-  return (await branches(client).where('l.provider_id', providerId)) as Row[]
-}
-
 export async function listVehicles(input: Row, locale: PublicLocale) {
   const settings = await rentalSettings()
   const { page, perPage } = pagination(input)
@@ -553,10 +548,6 @@ export async function vehicleDetail(id: unknown, input: Row, locale: PublicLocal
         label: text(term.label_en, term.label_ar, locale) as string,
       })),
       locations: await serializeBranches(locations, locale),
-      return_locations: await serializeBranches(
-        await providerBranches(db, Number(row.provider_id)),
-        locale
-      ),
       provider: {
         ...card.provider,
         phone_e164: row.provider_phone_e164 ?? null,

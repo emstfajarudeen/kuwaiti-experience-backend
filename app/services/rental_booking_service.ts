@@ -8,7 +8,6 @@ import { canReview, reviewForBooking } from './rental_review_service.js'
 import {
   assertDriverChoice,
   findVisibleVehicle,
-  providerBranches,
   freeUnits,
   rentalSettings,
   requireWindow,
@@ -183,9 +182,6 @@ export async function createBooking(
       const locations = await vehicleLocations(trx, Number(vehicle.id))
       // Customers choose places; resolve the provider branch serving each one.
       const pickup = locations.find((row: Row) => Number(row.place_id) === input.pickup_location_id)
-      const returnId = input.return_location_id ?? input.pickup_location_id
-      const returnBranches = await providerBranches(trx, Number(vehicle.provider_id))
-      const dropoff = returnBranches.find((row: Row) => Number(row.place_id) === returnId)
       if (!pickup)
         throw new ApiError(
           422,
@@ -195,14 +191,17 @@ export async function createBooking(
             pickup_location_id: ['Choose one of this vehicle’s pickup locations'],
           }
         )
-      if (!dropoff)
+      // The car is returned where it was picked up.
+      const dropoff = pickup
+      if (
+        input.return_location_id !== undefined &&
+        input.return_location_id !== input.pickup_location_id
+      )
         throw new ApiError(
           422,
           'INVALID_LOCATION',
-          'This vehicle cannot be returned at that location',
-          {
-            return_location_id: ['Choose one of this provider’s branches'],
-          }
+          'The car must be returned at its pickup location',
+          { return_location_id: ['Return the car where you picked it up'] }
         )
       await assertBranchOpen(trx, pickup, window.pickupAt, 'pickup_at')
       await assertBranchOpen(trx, dropoff, window.returnAt, 'return_at')

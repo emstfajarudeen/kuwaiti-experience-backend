@@ -1968,8 +1968,7 @@
               "available",
               "booking_fee",
               "cancellation_cutoff_hours",
-              "rental_terms",
-              "return_locations"
+              "rental_terms"
             ],
             "properties": {
               "gallery": {
@@ -2031,13 +2030,6 @@
                   }
                 },
                 "description": "Ordered rental terms managed in the CMS; show as chips."
-              },
-              "return_locations": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/VehicleLocation"
-                },
-                "description": "Places where it can be returned (any branch of the same provider)."
               }
             }
           }
@@ -2095,7 +2087,7 @@
           },
           "return_location_id": {
             "type": "integer",
-            "description": "Defaults to the pickup location."
+            "description": "Optional. Cars are returned at the pickup location; if sent it must equal pickup_location_id."
           },
           "with_driver": {
             "type": "boolean",
