@@ -40,6 +40,8 @@ type PortalLogin = {
 type Props = SharedProps & {
   provider: Provider | null
   branchCount: number
+  driverCount: number
+  documentCount: number
   login: PortalLogin | null
   loginForm: Record<string, unknown> | null
   /** Shown once when the invite email could not be sent. */
@@ -232,6 +234,8 @@ export default function RentalProviderEdit({
   error,
   provider,
   branchCount,
+  driverCount,
+  documentCount,
   login,
   loginForm,
   inviteLink,
@@ -266,6 +270,15 @@ export default function RentalProviderEdit({
               href={`/admin/rentals/working-hours?provider=${provider.id}`}
             >
               Working hours
+            </a>
+            <a className="button secondary" href={`/admin/rentals/drivers?provider=${provider.id}`}>
+              Drivers ({driverCount})
+            </a>
+            <a
+              className="button secondary"
+              href={`/admin/rentals/documents?provider=${provider.id}`}
+            >
+              Documents ({documentCount})
             </a>
           </div>
         )}

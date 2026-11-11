@@ -62,12 +62,20 @@ export async function latestPayment(client: Client, bookingId: number) {
 }
 
 /** Booking responses carry the vehicle image as a key, resolved through `meta.images`. */
-export function bookingResponse<T extends { vehicle: { cover_image_key: string | null } }>(
-  booking: T
-) {
+type WithImages = {
+  vehicle: { cover_image_key: string | null }
+  driver: { photo_image_key: string | null } | null
+}
+
+const bookingImageKeys = (booking: WithImages) => [
+  booking.vehicle.cover_image_key,
+  booking.driver?.photo_image_key,
+]
+
+export function bookingResponse<T extends WithImages>(booking: T) {
   return {
     data: booking,
-    meta: { images: imageLinks([booking.vehicle.cover_image_key]) },
+    meta: { images: imageLinks(bookingImageKeys(booking)) },
   }
 }
 
@@ -84,7 +92,8 @@ export async function serializeBooking(
     await latestPayment(client, Number(row.id)),
     customerCanCancel(row, resolved),
     await reviewForBooking(client, Number(row.id)),
-    canReview(row)
+    canReview(row),
+    row.driver_id ? await client.from('rental_drivers').where('id', row.driver_id).first() : null
   )
 }
 
@@ -335,7 +344,7 @@ export async function listBookings(customerId: number, input: Row, locale: Publi
       per_page: perPage,
       total,
       last_page: Math.max(1, Math.ceil(total / perPage)),
-      images: imageLinks(bookings.map((booking) => booking.vehicle.cover_image_key)),
+      images: imageLinks(bookings.flatMap(bookingImageKeys)),
     },
   }
 }

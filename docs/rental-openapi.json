@@ -2114,6 +2114,7 @@
           "with_driver",
           "vehicle",
           "provider",
+          "driver",
           "pickup_location",
           "return_location",
           "price",
@@ -2292,6 +2293,51 @@
                 ]
               }
             }
+          },
+          "driver": {
+            "description": "The provider's driver for a with-driver booking, once assigned (confirmed or completed bookings). `null` until a driver is assigned and always for self-drive. Resolve `photo_image_key` through `meta.images`. A push notification of type `rental_driver_assigned` is sent when a driver is assigned or changed.",
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "id",
+                  "name",
+                  "phone_e164",
+                  "photo_image_key",
+                  "assigned_at"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "phone_e164": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "photo_image_key": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "assigned_at": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  }
+                }
+              }
+            ]
           },
           "pickup_location": {
             "$ref": "#/components/schemas/BookingLocation"

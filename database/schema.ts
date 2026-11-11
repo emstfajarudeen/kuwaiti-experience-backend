@@ -1071,7 +1071,9 @@ export class RentalBookingSchema extends BaseModel {
     'customerId',
     'dailyRate',
     'days',
+    'driverAssignedAt',
     'driverDailyRate',
+    'driverId',
     'holdExpiresAt',
     'id',
     'idempotencyKey',
@@ -1113,8 +1115,12 @@ export class RentalBookingSchema extends BaseModel {
   declare dailyRate: string
   @column()
   declare days: number
+  @column.dateTime()
+  declare driverAssignedAt: DateTime | null
   @column()
   declare driverDailyRate: string
+  @column()
+  declare driverId: number | null
   @column.dateTime()
   declare holdExpiresAt: DateTime | null
   @column({ isPrimary: true })
@@ -1149,6 +1155,36 @@ export class RentalBookingSchema extends BaseModel {
   declare vehicleId: number
   @column()
   declare withDriver: boolean
+}
+
+export class RentalDriverSchema extends BaseModel {
+  static $columns = [
+    'active',
+    'createdAt',
+    'id',
+    'name',
+    'phoneE164',
+    'photoImageKey',
+    'providerId',
+    'updatedAt',
+  ] as const
+  $columns = RentalDriverSchema.$columns
+  @column()
+  declare active: boolean
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare name: string
+  @column()
+  declare phoneE164: string | null
+  @column()
+  declare photoImageKey: string | null
+  @column()
+  declare providerId: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
 }
 
 export class RentalInsuranceOptionSchema extends BaseModel {
@@ -1340,6 +1376,39 @@ export class RentalPlaceSchema extends BaseModel {
   declare subtitleEn: string | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
+}
+
+export class RentalProviderDocumentSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'id',
+    'label',
+    'mimeType',
+    'originalName',
+    'providerId',
+    'sizeBytes',
+    'storageKey',
+    'uploadedBy',
+  ] as const
+  $columns = RentalProviderDocumentSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare label: string
+  @column()
+  declare mimeType: string
+  @column()
+  declare originalName: string
+  @column()
+  declare providerId: number
+  @column()
+  declare sizeBytes: number
+  @column()
+  declare storageKey: string
+  @column()
+  declare uploadedBy: number | null
 }
 
 export class RentalProviderEmailSchema extends BaseModel {

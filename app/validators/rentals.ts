@@ -156,6 +156,19 @@ export const rentalOptionValidator = vine.compile(
   })
 )
 
+export const rentalDriverValidator = vine.compile(
+  vine.object({
+    providerId: vine.number().positive(),
+    name: vine.string().trim().minLength(2).maxLength(120),
+    phone: vine
+      .string()
+      .trim()
+      .regex(/^\+[1-9]\d{7,14}$/)
+      .nullable(),
+    active: vine.boolean(),
+  })
+)
+
 export const rentalProviderLoginValidator = vine.compile(
   vine.object({
     name: vine.string().trim().minLength(1).maxLength(120),

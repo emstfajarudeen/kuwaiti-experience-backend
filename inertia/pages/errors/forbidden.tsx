@@ -19,7 +19,7 @@ export default function Forbidden({ adminName, csrfToken, error }: Props) {
         <h1>You do not have access to this page</h1>
         <p className="subtitle">
           {portal
-            ? 'The provider portal covers your bookings, vehicles, branches and working hours. For anything else, contact the Kuwaiti Experience team.'
+            ? 'The provider portal covers your bookings, vehicles, branches, working hours, drivers and documents. For anything else, contact the Kuwaiti Experience team.'
             : 'Your current staff roles do not allow this action. Ask a Super Admin if your access needs to change.'}
         </p>
         <Button type="primary" href="/admin">

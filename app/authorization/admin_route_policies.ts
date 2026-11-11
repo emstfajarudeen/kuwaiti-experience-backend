@@ -452,6 +452,24 @@ add(
   ['rentals.view', 'rentals.update']
 )
 add('POST', ['/admin/rentals/providers/:id/login/delete'], ['rentals.view', 'rentals.delete'])
+add('GET', ['/admin/rentals/documents', '/admin/rentals/documents/:id/file'], ['rentals.view'])
+add('POST', ['/admin/rentals/documents'], ['rentals.view', 'rentals.update'])
+add('POST', ['/admin/rentals/documents/:id/delete'], ['rentals.view', 'rentals.delete'])
+add('GET', ['/admin/rentals/drivers'], ['rentals.view'])
+add('GET', ['/admin/rentals/drivers/new'], ['rentals.view', 'rentals.create'])
+add('GET', ['/admin/rentals/drivers/:id/edit'], ['rentals.view', 'rentals.update'])
+add('POST', ['/admin/rentals/drivers'], ['rentals.view', 'rentals.create'])
+add(
+  'POST',
+  ['/admin/rentals/drivers/:id/save', '/admin/rentals/drivers/:id/status'],
+  ['rentals.view', 'rentals.update']
+)
+add('POST', ['/admin/rentals/drivers/:id/delete'], ['rentals.view', 'rentals.delete'])
+add(
+  'POST',
+  ['/admin/rentals/bookings/:id/driver'],
+  ['rental_bookings.view', 'rental_bookings.update']
+)
 add('POST', ['/admin/rentals/locations/:id/status'], ['rentals.view', 'rentals.update'])
 add('GET', ['/admin/rentals/address-search', '/admin/rentals/address-reverse'], ['rentals.view'])
 add(

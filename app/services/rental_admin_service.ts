@@ -7,6 +7,7 @@ import {
   type DaySchedule,
 } from './rental_branch_service.js'
 import { sendProviderEmail } from './rental_provider_mailer.js'
+import { deleteDocumentFiles } from './rental_document_service.js'
 import { ApiError } from './api_error.js'
 import {
   MAX_GALLERY_IMAGES,
@@ -415,16 +416,28 @@ export async function setProviderActive(id: number, active: boolean, actorId: nu
 }
 
 export async function deleteProvider(id: number, actorId: number) {
+  // Documents and drivers go with the provider; their files are removed afterwards.
+  const documentRows = await db
+    .from('rental_provider_documents')
+    .where('provider_id', id)
+    .select('storage_key')
+  const documentKeys = documentRows.map((row) => row.storage_key as string)
   try {
     await withStoredImages([], async () =>
       db.transaction(async (trx) => {
         const row = await trx.from('rental_providers').where('id', id).forUpdate().first()
         if (!row) throw new ApiError(404, 'NOT_FOUND', 'Provider not found')
+        const driverRows = await trx
+          .from('rental_drivers')
+          .where('provider_id', id)
+          .select('photo_image_key')
+        const driverPhotos = driverRows.map((driver) => driver.photo_image_key as string | null)
         await trx.from('rental_providers').where('id', id).delete()
         await audit(trx, actorId, 'rental_provider', id, 'delete')
-        return { result: null, released: [row.logo_image_key] }
+        return { result: null, released: [row.logo_image_key, ...driverPhotos] }
       })
     )
+    await deleteDocumentFiles(documentKeys)
   } catch (error) {
     if (isForeignKeyError(error))
       throw new ApiError(
@@ -857,8 +870,10 @@ export async function listBookings(params: {
   const rows = (await apply(base())
     .join('rental_vehicles as v', 'v.id', 'b.vehicle_id')
     .join('rental_providers as p', 'p.id', 'b.provider_id')
+    .leftJoin('rental_drivers as dr', 'dr.id', 'b.driver_id')
     .select(
       'b.*',
+      'dr.name as driver_name',
       'c.first_name',
       'c.last_name',
       'c.phone_e164',

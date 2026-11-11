@@ -15,6 +15,7 @@ const imageColumns = [
   { table: 'rental_providers', column: 'logo_image_key' },
   { table: 'rental_vehicles', column: 'cover_image_key' },
   { table: 'rental_vehicle_images', column: 'storage_key' },
+  { table: 'rental_drivers', column: 'photo_image_key' },
 ] as const
 
 const imagePermissionModules: Record<(typeof imageColumns)[number]['table'], string> = {
@@ -28,6 +29,7 @@ const imagePermissionModules: Record<(typeof imageColumns)[number]['table'], str
   rental_providers: 'rentals',
   rental_vehicles: 'rentals',
   rental_vehicle_images: 'rentals',
+  rental_drivers: 'rentals',
 }
 
 export async function allImageKeys() {
@@ -100,6 +102,13 @@ export async function isPublicImage(key: string) {
       .where('ri.storage_key', key)
       .where('rv.status', 'published')
       .where('rv.published_at', '<=', new Date())
+      .first()) ||
+    // A driver's photo is shown to customers once the driver is assigned to a booking.
+    (await db
+      .from('rental_drivers as d')
+      .join('rental_bookings as b', 'b.driver_id', 'd.id')
+      .where('d.photo_image_key', key)
+      .whereIn('b.status', ['confirmed', 'completed'])
       .first()) ||
     (await db
       .from('movies')

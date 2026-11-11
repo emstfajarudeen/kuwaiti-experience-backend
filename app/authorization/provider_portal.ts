@@ -38,6 +38,20 @@ const allowed = new Set([
   'POST /admin/rentals/locations/:id/delete',
   'GET /admin/rentals/address-search',
   'GET /admin/rentals/address-reverse',
+  // Drivers, and assigning them to with-driver bookings.
+  'GET /admin/rentals/drivers',
+  'GET /admin/rentals/drivers/new',
+  'POST /admin/rentals/drivers',
+  'GET /admin/rentals/drivers/:id/edit',
+  'POST /admin/rentals/drivers/:id/save',
+  'POST /admin/rentals/drivers/:id/status',
+  'POST /admin/rentals/drivers/:id/delete',
+  'POST /admin/rentals/bookings/:id/driver',
+  // Legal documents.
+  'GET /admin/rentals/documents',
+  'POST /admin/rentals/documents',
+  'GET /admin/rentals/documents/:id/file',
+  'POST /admin/rentals/documents/:id/delete',
 ])
 
 export function providerMayUse(method: string, pattern: string) {
@@ -66,7 +80,7 @@ export function providerAuthorization(): AuthorizationContext {
 
 /** True when a stored image is the provider's logo or a photo of one of its vehicles. */
 export async function providerOwnsImage(providerId: number, key: string) {
-  const [logo, cover, gallery] = await Promise.all([
+  const [logo, cover, gallery, driver] = await Promise.all([
     db.from('rental_providers').where('id', providerId).where('logo_image_key', key).first(),
     db
       .from('rental_vehicles')
@@ -79,6 +93,11 @@ export async function providerOwnsImage(providerId: number, key: string) {
       .where('v.provider_id', providerId)
       .where('i.storage_key', key)
       .first(),
+    db
+      .from('rental_drivers')
+      .where('provider_id', providerId)
+      .where('photo_image_key', key)
+      .first(),
   ])
-  return Boolean(logo || cover || gallery)
+  return Boolean(logo || cover || gallery || driver)
 }

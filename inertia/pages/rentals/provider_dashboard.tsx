@@ -11,6 +11,7 @@ type BookingSummary = {
   vehicle_name: string
   branch_name: string
   with_driver: boolean
+  driver_name: string | null
   pickup_at: string
   return_at: string
   days: number
@@ -29,9 +30,11 @@ type Props = SharedProps & {
     liveVehicles: number
     branches: number
     activeBranches: number
+    activeDrivers: number
   }
   upcoming: BookingSummary[]
   toComplete: BookingSummary[]
+  needsDriver: BookingSummary[]
 }
 
 const cardBase =
@@ -132,7 +135,11 @@ function BookingRow({ booking, action }: { booking: BookingSummary; action?: Rea
       <div className="tw:flex tw:min-w-0 tw:flex-col tw:gap-0.5">
         <a href={`/admin/rentals/bookings/${booking.id}`} className="tw:font-semibold">
           {booking.vehicle_name}
-          {booking.with_driver ? ' · with driver' : ''}
+          {booking.with_driver
+            ? booking.driver_name
+              ? ` · driver ${booking.driver_name}`
+              : ' · with driver'
+            : ''}
         </a>
         <span className="tw:text-[12px] tw:text-brand-muted">
           {booking.customer_name || 'Customer'} · {booking.customer_phone} · {booking.reference}
@@ -165,6 +172,7 @@ export default function ProviderDashboard({
   stats,
   upcoming,
   toComplete,
+  needsDriver,
 }: Props) {
   const [completing, setCompleting] = useState<BookingSummary | null>(null)
   const setupSteps = [
@@ -306,6 +314,31 @@ export default function ProviderDashboard({
             )}
           </DashboardPanel>
 
+          {needsDriver.length > 0 && (
+            <DashboardPanel
+              title="Needs a driver"
+              link={{ href: '/admin/rentals/drivers', label: 'Drivers →' }}
+            >
+              <p className="tw:-mt-2 tw:mb-3 tw:text-[12px] tw:text-brand-muted">
+                These customers booked a car with a driver. Assign one so they can see who will
+                drive them.
+              </p>
+              <ul className="tw:m-0 tw:list-none tw:p-0">
+                {needsDriver.map((booking) => (
+                  <BookingRow
+                    key={booking.id}
+                    booking={booking}
+                    action={
+                      <a className="button primary" href={`/admin/rentals/bookings/${booking.id}`}>
+                        Assign
+                      </a>
+                    }
+                  />
+                ))}
+              </ul>
+            </DashboardPanel>
+          )}
+
           {toComplete.length > 0 && (
             <DashboardPanel title="Returned? Mark as completed">
               <p className="tw:-mt-2 tw:mb-3 tw:text-[12px] tw:text-brand-muted">
@@ -375,6 +408,12 @@ export default function ProviderDashboard({
                 { href: '/admin/rentals/vehicles', label: 'Manage vehicles', icon: '⛟' },
                 { href: '/admin/rentals/locations', label: 'Manage branches', icon: '⌂' },
                 { href: '/admin/rentals/working-hours', label: 'Working hours', icon: '◷' },
+                {
+                  href: '/admin/rentals/drivers',
+                  label: `Drivers (${stats.activeDrivers} on)`,
+                  icon: '☺',
+                },
+                { href: '/admin/rentals/documents', label: 'Documents', icon: '▤' },
               ].map((item) => (
                 <a
                   key={item.href}

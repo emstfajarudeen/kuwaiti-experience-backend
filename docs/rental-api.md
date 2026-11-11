@@ -102,6 +102,13 @@ The booking fee is **not refunded automatically** when a customer cancels. Staff
 
 Common errors: `409 VEHICLE_UNAVAILABLE`, `409 TOO_MANY_PENDING_BOOKINGS` (max 3 unpaid holds), `409 BOOKING_NOT_PAYABLE`, `409 CANCELLATION_WINDOW_CLOSED`, `409 REVIEW_NOT_ALLOWED`, `422 INVALID_RENTAL_PERIOD`, `422 INVALID_LOCATION`, `422 BRANCH_CLOSED` (pickup or return time outside the branch's working hours or on a closed date), `422 DRIVER_NOT_AVAILABLE` (vehicle is self-drive only), `422 DRIVER_REQUIRED` (vehicle is only rented with a driver; send `with_driver: true`), `503 PAYMENTS_NOT_CONFIGURED`, `502 PAYMENT_GATEWAY_ERROR`.
 
+### Driver (with-driver bookings)
+
+- Each booking response has `driver`: `null`, or `{ id, name, phone_e164, photo_image_key, assigned_at }` once the provider assigns a driver to a confirmed with-driver booking. Self-drive bookings always have `driver: null`.
+- Show the driver card (photo, name, call button when `phone_e164` is set) on the booking detail. While `with_driver` is `true` and `driver` is `null`, show "Driver to be assigned".
+- `photo_image_key` resolves through `meta.images`, like the vehicle cover.
+- Assigning or changing the driver sends an inbox/push notification of type `rental_driver_assigned` with `action_data: { type: "rental_booking", booking_id, reference }`. Open the booking and refresh it.
+
 ## 5. Reviews and ratings
 
 - One review per booking, by the booking's customer, once the rental has ended: status `completed`, or `confirmed` and past `return_at`. Before that the API returns `409 REVIEW_NOT_ALLOWED`. Other customers get `404`.

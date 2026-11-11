@@ -180,6 +180,7 @@ function bookingSummary(row: Row) {
     vehicle_name: snapshot.vehicle.name_en,
     branch_name: snapshot.pickup_location.name_en,
     with_driver: Boolean(row.with_driver),
+    driver_name: (row.driver_name as string | null) ?? null,
     pickup_at: new Date(row.pickup_at).toISOString(),
     return_at: new Date(row.return_at).toISOString(),
     days: Number(row.days),
@@ -207,7 +208,8 @@ export async function providerDashboard(providerId: number) {
   const withCustomer = (query: any) =>
     query
       .join('customers as c', 'c.id', 'b.customer_id')
-      .select('b.*', 'c.first_name', 'c.last_name', 'c.phone_e164')
+      .leftJoin('rental_drivers as dr', 'dr.id', 'b.driver_id')
+      .select('b.*', 'c.first_name', 'c.last_name', 'c.phone_e164', 'dr.name as driver_name')
 
   const [
     pickupsToday,
@@ -219,6 +221,8 @@ export async function providerDashboard(providerId: number) {
     branchCounts,
     upcoming,
     overdue,
+    needsDriver,
+    driverCount,
   ] = await Promise.all([
     count(confirmed().where('b.pickup_at', '>=', startOfDay).where('b.pickup_at', '<', endOfDay)),
     count(confirmed().where('b.pickup_at', '>=', now).where('b.pickup_at', '<', inAWeek)),
@@ -253,6 +257,15 @@ export async function providerDashboard(providerId: number) {
     withCustomer(confirmed().where('b.return_at', '<=', now))
       .orderBy('b.return_at')
       .limit(8) as Promise<Row[]>,
+    withCustomer(
+      confirmed()
+        .where('b.with_driver', true)
+        .whereNull('b.driver_id')
+        .where('b.return_at', '>', now)
+    )
+      .orderBy('b.pickup_at')
+      .limit(8) as Promise<Row[]>,
+    count(db.from('rental_drivers').where('provider_id', providerId).where('active', true)),
   ])
   return {
     stats: {
@@ -265,8 +278,10 @@ export async function providerDashboard(providerId: number) {
       liveVehicles: Number(vehicleCounts?.live ?? 0),
       branches: Number(branchCounts?.total ?? 0),
       activeBranches: Number(branchCounts?.active ?? 0),
+      activeDrivers: driverCount,
     },
     upcoming: upcoming.map(bookingSummary),
     toComplete: overdue.map(bookingSummary),
+    needsDriver: needsDriver.map(bookingSummary),
   }
 }

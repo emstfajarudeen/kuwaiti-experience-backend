@@ -59,6 +59,7 @@ export default class AdminDashboardController {
           stats: data.stats,
           upcoming: money(data.upcoming),
           toComplete: money(data.toComplete),
+          needsDriver: money(data.needsDriver),
         },
         { bodyClass: 'cms-body' }
       )

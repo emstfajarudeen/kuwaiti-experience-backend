@@ -164,6 +164,22 @@ router
     router.post('/rentals/providers/:id/status', [AdminRentalsController, 'providerStatus'])
     router.post('/rentals/providers/:id/delete', [AdminRentalsController, 'deleteProvider'])
     router.post('/rentals/providers/:id/login', [AdminRentalsController, 'createProviderLogin'])
+    router.get('/rentals/documents', [AdminRentalsController, 'documents'])
+    router.post('/rentals/documents', [AdminRentalsController, 'uploadDocument'])
+    router.get('/rentals/documents/:id/file', [AdminRentalsController, 'documentFile'])
+    router.post('/rentals/documents/:id/delete', [AdminRentalsController, 'deleteDocument'])
+    router.get('/rentals/drivers', [AdminRentalsController, 'drivers'])
+    router.get('/rentals/drivers/new', [AdminRentalsController, 'newDriver'])
+    router
+      .post('/rentals/drivers', [AdminRentalsController, 'saveDriver'])
+      .as('cms.rentals.drivers.create')
+    router.get('/rentals/drivers/:id/edit', [AdminRentalsController, 'editDriver'])
+    router
+      .post('/rentals/drivers/:id/save', [AdminRentalsController, 'saveDriver'])
+      .as('cms.rentals.drivers.update')
+    router.post('/rentals/drivers/:id/status', [AdminRentalsController, 'driverStatus'])
+    router.post('/rentals/drivers/:id/delete', [AdminRentalsController, 'deleteDriver'])
+    router.post('/rentals/bookings/:id/driver', [AdminRentalsController, 'assignDriver'])
     router.post('/rentals/providers/:id/login/invite', [
       AdminRentalsController,
       'resendProviderInvite',

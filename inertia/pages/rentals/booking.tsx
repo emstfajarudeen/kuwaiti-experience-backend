@@ -1,4 +1,4 @@
-import { Button, Input, Rate, Switch } from 'antd'
+import { Button, Input, Rate, Select, Switch } from 'antd'
 import { router } from '@inertiajs/react'
 import { useState } from 'react'
 import AdminLayout from '../../layouts/admin_layout'
@@ -41,6 +41,7 @@ type Props = SharedProps & {
     pickup_at: string
     return_at: string
     with_driver: boolean
+    driver_id: number | null
     days: number
     rental_amount: string
     booking_fee: string
@@ -54,6 +55,7 @@ type Props = SharedProps & {
     completed_at: string | null
   }
   payments: Payment[]
+  driverChoices: DriverChoice[]
   review: {
     id: number
     rating: number
@@ -69,6 +71,120 @@ type Props = SharedProps & {
     error: string | null
     created_at: string
   }[]
+}
+
+type DriverChoice = {
+  id: number
+  name: string
+  phone: string | null
+  photo_url: string | null
+  active: boolean
+  busy: boolean
+}
+
+function DriverAvatar({ driver }: { driver: DriverChoice }) {
+  return driver.photo_url ? (
+    <img src={driver.photo_url} alt="" className="tw:size-12 tw:rounded-full tw:object-cover" />
+  ) : (
+    <span
+      aria-hidden="true"
+      className="tw:grid tw:size-12 tw:place-items-center tw:rounded-full tw:bg-brand-navy tw:text-[16px] tw:font-bold tw:text-white"
+    >
+      {driver.name.slice(0, 1).toUpperCase()}
+    </span>
+  )
+}
+
+/** Assign the provider's driver to a with-driver booking; the customer is notified. */
+function DriverPanel({
+  booking,
+  choices,
+  canAssign,
+  csrfToken,
+}: {
+  booking: { id: number; status: string; driver_id: number | null }
+  choices: DriverChoice[]
+  canAssign: boolean
+  csrfToken: string
+}) {
+  const current = choices.find((driver) => driver.id === booking.driver_id) ?? null
+  const [picked, setPicked] = useState<number | undefined>(undefined)
+  const [saving, setSaving] = useState(false)
+  const editable = canAssign && booking.status === 'confirmed'
+  const post = (driverId: number | null) =>
+    router.post(
+      `/admin/rentals/bookings/${booking.id}/driver`,
+      { driverId: driverId ?? '', _csrf: csrfToken },
+      {
+        preserveScroll: true,
+        onStart: () => setSaving(true),
+        onFinish: () => {
+          setSaving(false)
+          setPicked(undefined)
+        },
+      }
+    )
+  return (
+    <Panel title="Driver">
+      {current ? (
+        <div className="tw:mb-4 tw:flex tw:items-center tw:gap-4">
+          <DriverAvatar driver={current} />
+          <div className="tw:flex tw:flex-col">
+            <strong className="tw:text-[15px]">{current.name}</strong>
+            <span className="tw:text-[13px] tw:text-brand-muted">
+              {current.phone ?? 'No phone saved'}
+            </span>
+          </div>
+          <span className="status published tw:ml-auto">Assigned</span>
+        </div>
+      ) : (
+        <div className="tw:mb-4 tw:rounded-cms-sm tw:border tw:border-amber-300 tw:bg-amber-50 tw:p-3 tw:text-[13px]">
+          {booking.status === 'confirmed'
+            ? 'The customer booked a car with a driver. Assign a driver so they can see who will drive them.'
+            : 'No driver was assigned.'}
+        </div>
+      )}
+      {editable &&
+        (choices.length === 0 ? (
+          <p className="tw:m-0 tw:text-[13px] tw:text-brand-muted">
+            No drivers yet. <a href="/admin/rentals/drivers/new">Add a driver</a> first.
+          </p>
+        ) : (
+          <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-3">
+            <Select
+              className="tw:min-w-[260px]"
+              placeholder={current ? 'Change driver' : 'Choose a driver'}
+              value={picked}
+              onChange={setPicked}
+              options={choices
+                .filter((driver) => driver.id !== current?.id)
+                .map((driver) => ({
+                  value: driver.id,
+                  disabled: driver.busy || !driver.active,
+                  label: `${driver.name}${driver.busy ? ' · busy at this time' : !driver.active ? ' · off' : ''}`,
+                }))}
+            />
+            <Button
+              type="primary"
+              disabled={picked === undefined}
+              loading={saving}
+              onClick={() => picked !== undefined && post(picked)}
+            >
+              {current ? 'Change driver' : 'Assign driver'}
+            </Button>
+            {current && (
+              <Button danger disabled={saving} onClick={() => post(null)}>
+                Remove
+              </Button>
+            )}
+            <span className="tw:w-full tw:text-[12px] tw:text-brand-muted">
+              The customer gets a notification in the app when a driver is assigned. Drivers busy
+              with another booking at this time cannot be chosen.
+            </span>
+          </div>
+        ))}
+    </Panel>
+  )
 }
 
 function Detail({ label, value }: { label: string; value: React.ReactNode }) {
@@ -87,6 +203,7 @@ export default function RentalBooking({
   error,
   booking,
   payments,
+  driverChoices,
   review,
   providerEmails,
 }: Props) {
@@ -97,6 +214,11 @@ export default function RentalBooking({
   // Provider portal: the rental and customer only; it can mark the rental as completed.
   const portal = usePortal()
   const canComplete = canUpdate || Boolean(portal)
+  const completable = booking.status === 'confirmed' && new Date(booking.pickup_at) <= new Date()
+  const cancellable =
+    canUpdate && ['pending_payment', 'confirmed', 'expired'].includes(booking.status)
+  // Hide the panel rather than show it empty (e.g. a provider before the rental starts).
+  const hasActions = completable || cancellable || (paid && can('rental_bookings.refund'))
   const [reviewBusy, setReviewBusy] = useState(false)
   const [pending, setPending] = useState<'complete' | 'cancel' | 'refund' | null>(null)
   const [cancelReason, setCancelReason] = useState('')
@@ -195,6 +317,15 @@ export default function RentalBooking({
           <Detail label="Customer notes" value={booking.notes} />
         </dl>
       </Panel>
+
+      {booking.with_driver && (
+        <DriverPanel
+          booking={booking}
+          choices={driverChoices}
+          canAssign={canComplete}
+          csrfToken={csrfToken}
+        />
+      )}
 
       <Panel title="Customer">
         <dl className="tw:grid tw:grid-cols-3 tw:gap-4 tw:max-[900px]:grid-cols-1">
@@ -374,7 +505,7 @@ export default function RentalBooking({
         </Panel>
       )}
 
-      {canComplete && (
+      {canComplete && hasActions && (
         <Panel title="Actions">
           <div className="tw:flex tw:flex-col tw:gap-5">
             {booking.status === 'confirmed' && new Date(booking.pickup_at) <= new Date() && (

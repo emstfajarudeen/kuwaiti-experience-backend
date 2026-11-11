@@ -7,6 +7,8 @@ import * as admin from '../../services/rental_admin_service.js'
 import { rentalMode } from '../../services/rental_catalog_service.js'
 import * as reviews from '../../services/rental_review_service.js'
 import * as portalLogins from '../../services/rental_provider_portal_service.js'
+import * as documents from '../../services/rental_document_service.js'
+import * as drivers from '../../services/rental_driver_service.js'
 import { sendProviderEmail } from '../../services/rental_provider_mailer.js'
 import { refundBooking, syncPayment } from '../../services/rental_payment_service.js'
 import { parseSnapshot } from '../../serializers/rental.js'
@@ -14,6 +16,7 @@ import { kwd, toFils } from '../../services/rental_money.js'
 import { validationErrorBag } from '../../services/validation_error_bag.js'
 import {
   rentalBranchHoursValidator,
+  rentalDriverValidator,
   rentalLocationValidator,
   rentalPlaceValidator,
   rentalOptionValidator,
@@ -57,7 +60,12 @@ const portal = (ctx: HttpContext) => ctx.admin.providerId ?? undefined
  */
 async function assertOwned(
   ctx: HttpContext,
-  table: 'rental_vehicles' | 'rental_locations' | 'rental_bookings',
+  table:
+    | 'rental_vehicles'
+    | 'rental_locations'
+    | 'rental_bookings'
+    | 'rental_drivers'
+    | 'rental_provider_documents',
   id: number
 ) {
   const providerId = portal(ctx)
@@ -142,6 +150,7 @@ function serializeBooking(row: Row) {
     pickup_at: date(row.pickup_at),
     return_at: date(row.return_at),
     with_driver: Boolean(row.with_driver),
+    driver_name: row.driver_name ?? null,
     days: Number(row.days),
     rental_amount: kwd(toFils(row.rental_amount)),
     booking_fee: kwd(toFils(row.booking_fee)),
@@ -233,6 +242,7 @@ export default class AdminRentalsController {
     // Providers see the rental itself, not the booking-fee payments or our email log.
     const staff = !portal(ctx)
     const snapshot = parseSnapshot(found.row.snapshot)
+    const choices = found.row.with_driver ? await drivers.driverChoices(found.row) : []
     return render(ctx, 'booking', {
       booking: {
         ...serializeBooking(found.row),
@@ -240,7 +250,14 @@ export default class AdminRentalsController {
         return_location: snapshot.return_location.name_en,
         provider_phone: snapshot.provider.phone_e164,
         provider_email: snapshot.provider.email,
+        driver_id: found.row.driver_id === null ? null : Number(found.row.driver_id),
       },
+      driverChoices: (found.row.with_driver ? choices : []).map(
+        ({ photo_image_key: photo, ...driver }) => ({
+          ...driver,
+          photo_url: cmsImageUrl(photo),
+        })
+      ),
       review: found.review
         ? {
             id: Number(found.review.id),
@@ -609,6 +626,8 @@ export default class AdminRentalsController {
     const row = id ? await admin.findProvider(id) : null
     if (id && !row) return ctx.response.redirect('/admin/rentals/providers')
     const branchRows = id ? await admin.listLocations(id) : []
+    const driverRows = id ? await drivers.listDrivers(id) : []
+    const documentRows = id ? await documents.listDocuments(id) : []
     return render(ctx, 'provider_edit', {
       provider: row
         ? {
@@ -623,6 +642,8 @@ export default class AdminRentalsController {
           }
         : null,
       branchCount: branchRows.length,
+      driverCount: driverRows.length,
+      documentCount: documentRows.length,
       login: id ? await portalLogins.providerLogin(id) : null,
       loginForm: (ctx.session.flashMessages.get('loginForm') as Row | undefined) ?? null,
       inviteLink: (ctx.session.flashMessages.get('inviteLink') as string | undefined) ?? null,
@@ -759,6 +780,214 @@ export default class AdminRentalsController {
       fail(ctx, error, 'Unable to remove the login.')
     }
     return ctx.response.redirect(`/admin/rentals/providers/${id}/edit`)
+  }
+
+  // ------------------------------------------------------------ documents
+
+  /** A provider's legal documents (staff and that provider only; not shown in the app). */
+  async documents(ctx: HttpContext) {
+    const providerId = portal(ctx) ?? optionalNumber(ctx.request.input('provider')) ?? undefined
+    const providers = await admin.providerOptions(portal(ctx))
+    const selected = providerId ?? (providers[0] ? Number(providers[0].value) : undefined)
+    const rows = selected ? await documents.listDocuments(selected) : []
+    return render(ctx, 'documents', {
+      provider: selected ? String(selected) : '',
+      providers,
+      maxMb: documents.MAX_DOCUMENT_MB,
+      rows: rows.map((row) => ({
+        id: Number(row.id),
+        label: row.label,
+        file_name: row.original_name,
+        mime_type: row.mime_type,
+        size_bytes: Number(row.size_bytes),
+        url: `/admin/rentals/documents/${row.id}/file`,
+        created_at: date(row.created_at),
+      })),
+    })
+  }
+
+  async uploadDocument(ctx: HttpContext) {
+    const providerId = portal(ctx) ?? optionalNumber(ctx.request.input('providerId'))
+    const back = portal(ctx)
+      ? '/admin/rentals/documents'
+      : `/admin/rentals/documents?provider=${providerId ?? ''}`
+    try {
+      if (!providerId) throw new ApiError(422, 'VALIDATION_ERROR', 'Choose a provider.')
+      await documents.addDocument(
+        providerId,
+        String(ctx.request.input('label') ?? ''),
+        documents.documentFile(ctx.request),
+        ctx.admin.id
+      )
+      ctx.session.flash('success', 'Document uploaded.')
+    } catch (error) {
+      fail(ctx, error, 'Unable to upload the document.')
+    }
+    return ctx.response.redirect(back)
+  }
+
+  async documentFile(ctx: HttpContext) {
+    const id = Number(ctx.params.id)
+    await assertOwned(ctx, 'rental_provider_documents', id)
+    const row = await documents.findDocument(id)
+    if (!row) throw new ApiError(404, 'NOT_FOUND', 'Document not found')
+    return documents.streamDocument(ctx.response, row)
+  }
+
+  async deleteDocument(ctx: HttpContext) {
+    const id = Number(ctx.params.id)
+    await assertOwned(ctx, 'rental_provider_documents', id)
+    const row = await documents.findDocument(id)
+    try {
+      await documents.deleteDocument(id, ctx.admin.id)
+      ctx.session.flash('success', 'Document deleted.')
+    } catch (error) {
+      fail(ctx, error, 'Unable to delete the document.')
+    }
+    return ctx.response.redirect(
+      row && !portal(ctx)
+        ? `/admin/rentals/documents?provider=${row.provider_id}`
+        : '/admin/rentals/documents'
+    )
+  }
+
+  // -------------------------------------------------------------- drivers
+
+  async drivers(ctx: HttpContext) {
+    const providerId = portal(ctx) ?? optionalNumber(ctx.request.input('provider')) ?? undefined
+    const rows = await drivers.listDrivers(providerId)
+    return render(ctx, 'drivers', {
+      provider: providerId ? String(providerId) : '',
+      providers: await admin.providerOptions(portal(ctx)),
+      rows: rows.map((row) => ({
+        id: Number(row.id),
+        name: row.name,
+        phone: row.phone_e164 ?? null,
+        photo_url: cmsImageUrl(row.photo_image_key),
+        provider_name: row.provider_name,
+        active: Boolean(row.active),
+        upcoming_count: Number(row.upcoming_count),
+      })),
+    })
+  }
+
+  private async driverForm(ctx: HttpContext, id?: number) {
+    if (id) await assertOwned(ctx, 'rental_drivers', id)
+    const row = id ? await drivers.findDriver(id) : null
+    if (id && !row) return ctx.response.redirect('/admin/rentals/drivers')
+    const presetProvider =
+      portal(ctx) ?? row?.provider_id ?? optionalNumber(ctx.request.input('providerId'))
+    return render(ctx, 'driver_edit', {
+      providerId: presetProvider ? Number(presetProvider) : null,
+      providers: await admin.providerOptions(portal(ctx)),
+      driver: row
+        ? {
+            id: Number(row.id),
+            name: row.name,
+            phone: row.phone_e164 ?? null,
+            photo_url: cmsImageUrl(row.photo_image_key),
+            active: Boolean(row.active),
+          }
+        : null,
+      form: (ctx.session.flashMessages.get('driverForm') as Row | undefined) ?? null,
+    })
+  }
+
+  async newDriver(ctx: HttpContext) {
+    return this.driverForm(ctx)
+  }
+
+  async editDriver(ctx: HttpContext) {
+    return this.driverForm(ctx, Number(ctx.params.id))
+  }
+
+  async saveDriver(ctx: HttpContext) {
+    const { request, response, session } = ctx
+    const id = ctx.params.id ? Number(ctx.params.id) : undefined
+    if (id) await assertOwned(ctx, 'rental_drivers', id)
+    const raw = {
+      providerId: portal(ctx) ?? optionalNumber(request.input('providerId')),
+      name: request.input('name') ?? '',
+      phone: blank(request.input('phone')),
+      active: bool(request.input('active')),
+    }
+    try {
+      const input = await rentalDriverValidator.validate(raw)
+      const images = await prepareImages(ctx.admin.id, { photo: imageFiles(request, 'photo') })
+      await drivers.saveDriver(
+        input,
+        { photo: images.photo[0], removePhoto: bool(request.input('removePhoto')) },
+        ctx.admin.id,
+        id
+      )
+      session.flash('success', id ? 'Driver saved.' : 'Driver added.')
+      return response.redirect(
+        portal(ctx)
+          ? '/admin/rentals/drivers'
+          : `/admin/rentals/drivers?provider=${input.providerId}`
+      )
+    } catch (error) {
+      fail(ctx, error, 'Unable to save the driver.', 'driverForm', raw)
+      return response.redirect(
+        id
+          ? `/admin/rentals/drivers/${id}/edit`
+          : `/admin/rentals/drivers/new?providerId=${raw.providerId ?? ''}`
+      )
+    }
+  }
+
+  async driverStatus(ctx: HttpContext) {
+    const id = Number(ctx.params.id)
+    await assertOwned(ctx, 'rental_drivers', id)
+    const active = bool(ctx.request.input('active'))
+    try {
+      await drivers.setDriverActive(id, active, ctx.admin.id)
+      ctx.session.flash('success', active ? 'Driver turned on.' : 'Driver turned off.')
+    } catch (error) {
+      fail(ctx, error, 'Unable to update the driver.')
+    }
+    const returnTo = String(ctx.request.input('returnTo', ''))
+    return ctx.response.redirect(
+      returnTo.startsWith('/admin/rentals/drivers') ? returnTo : '/admin/rentals/drivers'
+    )
+  }
+
+  async deleteDriver(ctx: HttpContext) {
+    const id = Number(ctx.params.id)
+    await assertOwned(ctx, 'rental_drivers', id)
+    try {
+      await drivers.deleteDriver(id, ctx.admin.id)
+      ctx.session.flash('success', 'Driver deleted.')
+    } catch (error) {
+      fail(ctx, error, 'Unable to delete the driver.')
+    }
+    return ctx.response.redirect('/admin/rentals/drivers')
+  }
+
+  /** Assigns, changes or (empty driverId) removes the driver of a with-driver booking. */
+  async assignDriver(ctx: HttpContext) {
+    const id = Number(ctx.params.id)
+    await assertOwned(ctx, 'rental_bookings', id)
+    const driverId = optionalNumber(ctx.request.input('driverId'))
+    try {
+      const outcome = await drivers.assignDriver(id, driverId, ctx.admin.id)
+      ctx.session.flash(
+        'success',
+        driverId === null
+          ? 'Driver removed from the booking.'
+          : outcome.changed
+            ? `${outcome.driver?.name} assigned. The customer was notified in the app.`
+            : 'No change: this driver is already assigned.'
+      )
+    } catch (error) {
+      fail(ctx, error, 'Unable to assign the driver.')
+    }
+    const returnTo = String(ctx.request.input('returnTo', ''))
+    return ctx.response.redirect(
+      returnTo.startsWith('/admin/rentals/bookings') || returnTo === '/admin'
+        ? returnTo
+        : `/admin/rentals/bookings/${id}`
+    )
   }
 
   // ----------------------------------------------------------- locations

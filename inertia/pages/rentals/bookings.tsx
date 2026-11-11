@@ -25,6 +25,7 @@ type Booking = {
   pickup_at: string
   return_at: string
   with_driver: boolean
+  driver_name: string | null
   days: number
   rental_amount: string
   booking_fee: string
@@ -114,7 +115,7 @@ export default function RentalBookings({
       key: 'reference',
       render: (_, row) => (
         <a href={`/admin/rentals/bookings/${row.id}`}>
-          <strong>{row.reference}</strong>
+          <strong className="tw:whitespace-nowrap">{row.reference}</strong>
         </a>
       ),
     },
@@ -123,7 +124,7 @@ export default function RentalBookings({
       title: 'Customer',
       key: 'customer',
       render: (_, row) => (
-        <div className="tw:flex tw:flex-col">
+        <div className="tw:flex tw:min-w-[150px] tw:flex-col">
           <span>{row.customer.name}</span>
           <span className="tw:text-[12px] tw:text-brand-muted">{row.customer.phone}</span>
         </div>
@@ -133,11 +134,19 @@ export default function RentalBookings({
       title: 'Vehicle',
       key: 'vehicle',
       render: (_, row) => (
-        <div className="tw:flex tw:flex-col">
-          <span>
-            {row.vehicle_name}
-            {row.with_driver ? ' · with driver' : ''}
-          </span>
+        <div className="tw:flex tw:min-w-[170px] tw:flex-col">
+          <span>{row.vehicle_name}</span>
+          {row.with_driver && (
+            <span className="tw:text-[12px]">
+              {row.driver_name ? (
+                `Driver: ${row.driver_name}`
+              ) : row.status === 'confirmed' ? (
+                <span className="tw:font-semibold tw:text-amber-700">Needs a driver</span>
+              ) : (
+                'With driver'
+              )}
+            </span>
+          )}
           {!portal && (
             <span className="tw:text-[12px] tw:text-brand-muted">{row.provider_name}</span>
           )}
@@ -148,7 +157,7 @@ export default function RentalBookings({
       title: 'Rental period',
       key: 'period',
       render: (_, row) => (
-        <div className="tw:flex tw:flex-col tw:text-[13px]">
+        <div className="tw:flex tw:min-w-[200px] tw:flex-col tw:text-[13px]">
           <span>{formatDateTime(row.pickup_at)}</span>
           <span className="tw:text-brand-muted">
             → {formatDateTime(row.return_at)} ({row.days} {row.days === 1 ? 'day' : 'days'})

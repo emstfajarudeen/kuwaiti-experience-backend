@@ -1231,9 +1231,16 @@ test.group('Rental provider portal', (group) => {
 
   async function booking(
     ids: Awaited<ReturnType<typeof catalog>>,
-    values: { pickupInDays: number; days: number; status: string; confirmed?: boolean }
+    values: {
+      pickupInDays: number
+      days: number
+      status: string
+      confirmed?: boolean
+      withDriver?: boolean
+      buyer?: { id: number }
+    }
   ) {
-    const buyer = await customer()
+    const buyer = values.buyer ?? (await customer())
     const pickup = new Date(Date.now() + values.pickupInDays * DAY)
     const snapshot = {
       vehicle: { name_en: 'Toyota Camry', make: 'Toyota', model: 'Camry' },
@@ -1250,7 +1257,7 @@ test.group('Rental provider portal', (group) => {
       return_location_id: ids.airportBranch,
       pickup_at: pickup,
       return_at: new Date(pickup.getTime() + values.days * DAY),
-      with_driver: false,
+      with_driver: Boolean(values.withDriver),
       days: Math.ceil(values.days),
       daily_rate: '12.500',
       driver_daily_rate: '0.000',
@@ -1503,6 +1510,246 @@ test.group('Rental provider portal', (group) => {
       })
     const otherImage = await db.from('rental_vehicles').where('id', other.vehicleId).first()
     assert.equal(await statusOf(get(`/admin/images/${otherImage.cover_image_key}`)), 404)
+  })
+
+  async function providerLogin(providerId: number) {
+    await db.table('users').insert({
+      full_name: 'Provider desk',
+      email: `desk-${providerId}@provider.example`,
+      password: await hash.make('provider-long-password'),
+      role: 'provider',
+      rental_provider_id: providerId,
+      password_set_at: new Date(),
+      active: true,
+      created_at: new Date(),
+    })
+    const { loginAdmin: signIn } = await import('../../app/services/auth_service.js')
+    return signIn(`desk-${providerId}@provider.example`, 'provider-long-password', {
+      allowProvider: true,
+    })
+  }
+
+  const tinyPng = async () => {
+    const { default: sharp } = await import('sharp')
+    return sharp({
+      create: { width: 1, height: 1, channels: 3, background: { r: 0, g: 0, b: 0 } },
+    })
+      .png()
+      .toBuffer()
+  }
+
+  test('providers and staff keep legal documents', async ({ client, assert }) => {
+    const admin = await staff()
+    const ids = await catalog()
+    const other = await catalog()
+    const pdf = Buffer.from('%PDF-1.4\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n')
+    const uploaded = await client
+      .post('/admin/rentals/documents')
+      .redirects(0)
+      .withCsrfToken()
+      .cookie('admin_access', admin.accessToken)
+      .field('providerId', String(ids.providerId))
+      .field('label', 'Trade licence')
+      .file('file', pdf, { filename: 'licence.pdf', contentType: 'application/pdf' })
+    assert.equal(uploaded.header('location'), `/admin/rentals/documents?provider=${ids.providerId}`)
+    const document = await db
+      .from('rental_provider_documents')
+      .where('provider_id', ids.providerId)
+      .firstOrFail()
+    assert.equal(document.label, 'Trade licence')
+    assert.equal(document.mime_type, 'application/pdf')
+    assert.match(document.storage_key, /^documents\/[0-9a-f-]{36}\.pdf$/)
+
+    // A text file renamed to .pdf is refused.
+    await client
+      .post('/admin/rentals/documents')
+      .withCsrfToken()
+      .cookie('admin_access', admin.accessToken)
+      .field('providerId', String(ids.providerId))
+      .field('label', 'Fake')
+      .file('file', Buffer.from('not a pdf'), {
+        filename: 'fake.pdf',
+        contentType: 'application/pdf',
+      })
+    assert.isNull(await db.from('rental_provider_documents').where('label', 'Fake').first())
+
+    const opened = await client
+      .get(`/admin/rentals/documents/${document.id}/file`)
+      .cookie('admin_access', admin.accessToken)
+    assert.equal(opened.status(), 200)
+    assert.equal(opened.header('content-type'), 'application/pdf')
+
+    // The provider sees its own documents, not another provider's.
+    const tokens = await providerLogin(ids.providerId)
+    const list = page(
+      await client.get('/admin/rentals/documents').cookie('admin_access', tokens.accessToken)
+    )
+    assert.deepEqual(
+      list.props.rows.map((row: any) => row.id),
+      [Number(document.id)]
+    )
+    const othersTokens = await providerLogin(other.providerId)
+    assert.equal(
+      await statusOf(
+        client
+          .get(`/admin/rentals/documents/${document.id}/file`)
+          .cookie('admin_access', othersTokens.accessToken)
+      ),
+      404
+    )
+    assert.equal(
+      await statusOf(
+        client
+          .post(`/admin/rentals/documents/${document.id}/delete`)
+          .redirects(0)
+          .withCsrfToken()
+          .cookie('admin_access', othersTokens.accessToken)
+      ),
+      404
+    )
+    const own = await client
+      .post('/admin/rentals/documents')
+      .redirects(0)
+      .withCsrfToken()
+      .cookie('admin_access', tokens.accessToken)
+      .field('providerId', String(other.providerId))
+      .field('label', 'Insurance certificate')
+      .file('file', await tinyPng(), {
+        filename: 'insurance.png',
+        contentType: 'image/png',
+      })
+    assert.equal(own.header('location'), '/admin/rentals/documents')
+    const insurance = await db
+      .from('rental_provider_documents')
+      .where('label', 'Insurance certificate')
+      .firstOrFail()
+    assert.equal(Number(insurance.provider_id), ids.providerId)
+
+    await client
+      .post(`/admin/rentals/documents/${document.id}/delete`)
+      .withCsrfToken()
+      .cookie('admin_access', tokens.accessToken)
+    assert.isNull(await db.from('rental_provider_documents').where('id', document.id).first())
+  })
+
+  test('drivers are assigned to with-driver bookings without overlaps', async ({
+    client,
+    assert,
+  }) => {
+    const ids = await catalog()
+    const other = await catalog()
+    const tokens = await providerLogin(ids.providerId)
+    const post = (path: string) =>
+      client.post(path).redirects(0).withCsrfToken().cookie('admin_access', tokens.accessToken)
+
+    const created = await post('/admin/rentals/drivers')
+      .field('providerId', String(other.providerId))
+      .field('name', 'Fahad Al-Azmi')
+      .field('phone', '+96555501234')
+      .field('active', 'true')
+    assert.equal(created.header('location'), '/admin/rentals/drivers')
+    const fahad = await db.from('rental_drivers').where('name', 'Fahad Al-Azmi').firstOrFail()
+    assert.equal(Number(fahad.provider_id), ids.providerId)
+    await post('/admin/rentals/drivers').field('name', 'Salem').field('active', 'true')
+    const salem = await db.from('rental_drivers').where('name', 'Salem').firstOrFail()
+    const [stranger] = await db.table('rental_drivers').insert({
+      provider_id: other.providerId,
+      name: 'Other driver',
+      active: true,
+      created_at: new Date(),
+    })
+
+    const buyer = await customer()
+    const first = await booking(ids, {
+      pickupInDays: 2,
+      days: 2,
+      status: 'confirmed',
+      withDriver: true,
+      buyer,
+    })
+    const overlapping = await booking(ids, {
+      pickupInDays: 3,
+      days: 2,
+      status: 'confirmed',
+      withDriver: true,
+    })
+    const selfDrive = await booking(ids, { pickupInDays: 2, days: 1, status: 'confirmed' })
+
+    const detail = page(
+      await client
+        .get(`/admin/rentals/bookings/${first}`)
+        .cookie('admin_access', tokens.accessToken)
+    )
+    assert.sameMembers(
+      detail.props.driverChoices.map((driver: any) => driver.name),
+      ['Fahad Al-Azmi', 'Salem']
+    )
+
+    await post(`/admin/rentals/bookings/${first}/driver`).form({ driverId: String(fahad.id) })
+    assert.equal(Number(await column('rental_bookings', first, 'driver_id')), Number(fahad.id))
+    const notice = await db
+      .from('customer_notifications')
+      .where('customer_id', buyer.id)
+      .where('type', 'rental_driver_assigned')
+      .firstOrFail()
+    assert.include(notice.body, 'Fahad Al-Azmi')
+
+    // The customer sees the driver in the app.
+    const shown = await client
+      .get(`/api/v2/customer/me/rental-bookings/${first}`)
+      .header('Authorization', buyer.token)
+    assert.equal(shown.status(), 200)
+    assert.equal(shown.body().data.driver.name, 'Fahad Al-Azmi')
+    assert.equal(shown.body().data.driver.phone_e164, '+96555501234')
+
+    // The same driver cannot drive an overlapping booking; another one can.
+    await post(`/admin/rentals/bookings/${overlapping}/driver`).form({
+      driverId: String(fahad.id),
+    })
+    assert.isNull(await column('rental_bookings', overlapping, 'driver_id'))
+    const busy = page(
+      await client
+        .get(`/admin/rentals/bookings/${overlapping}`)
+        .cookie('admin_access', tokens.accessToken)
+    )
+    assert.isTrue(busy.props.driverChoices.find((d: any) => d.id === Number(fahad.id)).busy)
+    await post(`/admin/rentals/bookings/${overlapping}/driver`).form({
+      driverId: String(salem.id),
+    })
+    assert.equal(
+      Number(await column('rental_bookings', overlapping, 'driver_id')),
+      Number(salem.id)
+    )
+
+    // Not for self-drive bookings, nor with another provider's driver.
+    await post(`/admin/rentals/bookings/${selfDrive}/driver`).form({ driverId: String(salem.id) })
+    assert.isNull(await column('rental_bookings', selfDrive, 'driver_id'))
+    await post(`/admin/rentals/bookings/${first}/driver`).form({ driverId: String(stranger) })
+    assert.equal(Number(await column('rental_bookings', first, 'driver_id')), Number(fahad.id))
+    assert.equal(
+      await statusOf(
+        client
+          .get(`/admin/rentals/drivers/${stranger}/edit`)
+          .cookie('admin_access', tokens.accessToken)
+      ),
+      404
+    )
+
+    // An assigned driver is kept for history: deleting is refused, turning off works.
+    await post(`/admin/rentals/drivers/${fahad.id}/delete`)
+    assert.isNotNull(await db.from('rental_drivers').where('id', fahad.id).first())
+    await post(`/admin/rentals/drivers/${fahad.id}/status`).form({ active: 'false' })
+    assert.equal(Boolean(await column('rental_drivers', Number(fahad.id), 'active')), false)
+
+    // Removing the driver from the booking.
+    await post(`/admin/rentals/bookings/${overlapping}/driver`).form({ driverId: '' })
+    assert.isNull(await column('rental_bookings', overlapping, 'driver_id'))
+
+    const home = page(await client.get('/admin').cookie('admin_access', tokens.accessToken))
+    assert.deepEqual(
+      home.props.needsDriver.map((row: any) => row.id),
+      [overlapping]
+    )
   })
 
   test('turning a provider login off signs it out', async ({ client, assert }) => {

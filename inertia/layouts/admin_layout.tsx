@@ -155,7 +155,13 @@ const navigation: NavSection[] = [
           {
             href: '/admin/rentals/providers',
             label: 'Providers',
-            active: ['rental-providers', 'rental-branches', 'rental-hours'],
+            active: [
+              'rental-providers',
+              'rental-branches',
+              'rental-hours',
+              'rental-drivers',
+              'rental-documents',
+            ],
           },
           { href: '/admin/rentals/places', label: 'Pickup places', active: 'rental-places' },
           { href: '/admin/rentals/settings', label: 'Settings', active: 'rental-settings' },
@@ -232,6 +238,18 @@ const providerNavigation: NavSection[] = [
         icon: '◷',
         label: 'Working hours',
         active: 'rental-hours',
+      },
+      { href: '/admin/rentals/drivers', icon: '☺', label: 'Drivers', active: 'rental-drivers' },
+    ],
+  },
+  {
+    label: 'ACCOUNT',
+    links: [
+      {
+        href: '/admin/rentals/documents',
+        icon: '▤',
+        label: 'Documents',
+        active: 'rental-documents',
       },
     ],
   },

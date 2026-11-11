@@ -98,13 +98,25 @@ export function rentalPayment(row: Row | null | undefined) {
   }
 }
 
+function rentalDriver(row: Row, driver: Row | null) {
+  if (!driver || !row.with_driver || !['confirmed', 'completed'].includes(row.status)) return null
+  return {
+    id: Number(driver.id),
+    name: driver.name as string,
+    phone_e164: (driver.phone_e164 as string | null) ?? null,
+    photo_image_key: (driver.photo_image_key as string | null) ?? null,
+    assigned_at: iso(row.driver_assigned_at),
+  }
+}
+
 export function rentalBooking(
   row: Row,
   locale: PublicLocale,
   payment: Row | null | undefined,
   canCancel: boolean,
   review: Row | null = null,
-  reviewable = false
+  reviewable = false,
+  driver: Row | null = null
 ) {
   const snapshot = parseSnapshot(row.snapshot)
   const rental = toFils(row.rental_amount)
@@ -139,6 +151,8 @@ export function rentalBooking(
       phone_e164: snapshot.provider.phone_e164,
       address: snapshot.provider.address,
     },
+    /** The provider's driver, once assigned to a confirmed with-driver booking. */
+    driver: rentalDriver(row, driver),
     pickup_location: snapshotLocation(snapshot.pickup_location, locale),
     return_location: snapshotLocation(snapshot.return_location, locale),
     price: {
