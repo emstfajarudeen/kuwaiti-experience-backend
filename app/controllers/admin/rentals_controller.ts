@@ -11,6 +11,7 @@ import { parseSnapshot } from '../../serializers/rental.js'
 import { kwd, toFils } from '../../services/rental_money.js'
 import { validationErrorBag } from '../../services/validation_error_bag.js'
 import {
+  rentalBranchHoursValidator,
   rentalLocationValidator,
   rentalPlaceValidator,
   rentalOptionValidator,
@@ -559,6 +560,7 @@ export default class AdminRentalsController {
         email: row.email ?? null,
         active: Boolean(row.active),
         vehicle_count: Number(row.vehicle_count),
+        branch_count: Number(row.branch_count),
         logo_url: cmsImageUrl(row.logo_image_key),
       })),
     })
@@ -581,17 +583,7 @@ export default class AdminRentalsController {
             logo_url: cmsImageUrl(row.logo_image_key),
           }
         : null,
-      branches: id
-        ? branchRows.map((branch) => ({
-            id: Number(branch.id),
-            name_en: branch.name_en,
-            address: branch.address,
-            phone: branch.phone_e164 ?? null,
-            active: Boolean(branch.active),
-            hours_enabled: Boolean(branch.hours_enabled),
-            vehicle_count: Number(branch.vehicle_count),
-          }))
-        : [],
+      branchCount: branchRows.length,
       form: (ctx.session.flashMessages.get('providerForm') as Row | undefined) ?? null,
     })
   }
@@ -661,36 +653,66 @@ export default class AdminRentalsController {
 
   // ----------------------------------------------------------- locations
 
-  /** Branches are managed on each provider page. */
+  /** All branches, optionally for one provider. */
   async locations(ctx: HttpContext) {
-    return ctx.response.redirect('/admin/rentals/providers')
+    const providerId = optionalNumber(ctx.request.input('provider')) ?? undefined
+    const rows = await admin.listLocations(providerId)
+    return render(ctx, 'branches', {
+      provider: providerId ? String(providerId) : '',
+      providers: await admin.providerOptions(),
+      rows: rows.map((row) => ({
+        id: Number(row.id),
+        name_en: row.name_en,
+        address: row.address ?? null,
+        phone: row.phone_e164 ?? null,
+        provider_id: row.provider_id === null ? null : Number(row.provider_id),
+        provider_name: row.provider_name ?? null,
+        place_name: row.place_name ?? null,
+        active: Boolean(row.active),
+        hours_enabled: Boolean(row.hours_enabled),
+        vehicle_count: Number(row.vehicle_count),
+      })),
+    })
+  }
+
+  /** Weekly hours of every branch at a glance. */
+  async workingHours(ctx: HttpContext) {
+    const providerId = optionalNumber(ctx.request.input('provider')) ?? undefined
+    const branches = await admin.listBranchHours(providerId)
+    return render(ctx, 'working_hours', {
+      provider: providerId ? String(providerId) : '',
+      providers: await admin.providerOptions(),
+      rows: branches.map(({ row, schedule, closures }) => ({
+        id: Number(row.id),
+        name_en: row.name_en,
+        provider_name: row.provider_name ?? null,
+        place_name: row.place_name ?? null,
+        active: Boolean(row.active),
+        hours_enabled: Boolean(row.hours_enabled),
+        schedule,
+        closures: closures.map((closure) => ({
+          startsOn: dayString(closure.starts_on),
+          endsOn: dayString(closure.ends_on),
+          reason: closure.reason ?? null,
+        })),
+      })),
+    })
   }
 
   private async locationForm(ctx: HttpContext, id?: number) {
     const found = id ? await admin.findLocation(id) : null
-    if (id && !found) return ctx.response.redirect('/admin/rentals/providers')
+    if (id && !found) return ctx.response.redirect('/admin/rentals/locations')
     const row = found?.row
-    const providerId = row?.provider_id ?? Number(ctx.request.input('providerId')) ?? null
-    const provider = providerId ? await admin.findProvider(Number(providerId)) : null
-    if (!provider) {
-      ctx.session.flash('error', 'Open a provider to add a branch.')
-      return ctx.response.redirect('/admin/rentals/providers')
-    }
+    const presetProvider = row?.provider_id ?? optionalNumber(ctx.request.input('providerId'))
     return render(ctx, 'location_edit', {
-      provider: { id: Number(provider.id), name: provider.name_en },
+      providerId: presetProvider ? Number(presetProvider) : null,
+      providers: await admin.providerOptions(),
       places: await admin.placeOptions(),
-      schedule: found?.schedule ?? null,
-      closures: (found?.closures ?? []).map((closure) => ({
-        startsOn: dayString(closure.starts_on),
-        endsOn: dayString(closure.ends_on),
-        reason: closure.reason ?? null,
-      })),
       location: row
         ? {
             id: Number(row.id),
             phone: row.phone_e164 ?? null,
             place_id: row.place_id === null ? null : Number(row.place_id),
-            hours_enabled: Boolean(row.hours_enabled),
             name_en: row.name_en,
             name_ar: row.name_ar,
             address: row.address,
@@ -719,15 +741,6 @@ export default class AdminRentalsController {
       providerId: optionalNumber(request.input('providerId')),
       placeId: optionalNumber(request.input('placeId')),
       phone: blank(request.input('phone')),
-      hoursEnabled: bool(request.input('hoursEnabled')),
-      schedule: Array.isArray(request.input('schedule')) ? request.input('schedule') : [],
-      closures: (Array.isArray(request.input('closures')) ? request.input('closures') : []).map(
-        (item: Row) => ({
-          startsOn: item?.range?.[0] ?? item?.startsOn ?? '',
-          endsOn: item?.range?.[1] ?? item?.endsOn ?? '',
-          reason: blank(item?.reason),
-        })
-      ),
       nameEn: request.input('nameEn') ?? '',
       nameAr: blank(request.input('nameAr')),
       address: blank(request.input('address')),
@@ -738,9 +751,13 @@ export default class AdminRentalsController {
     }
     try {
       const input = await rentalLocationValidator.validate(raw)
-      await admin.saveLocation(input, ctx.admin.id, id)
-      session.flash('success', id ? 'Branch saved.' : 'Branch created.')
-      return response.redirect(`/admin/rentals/providers/${input.providerId}/edit`)
+      const savedId = await admin.saveLocation(input, ctx.admin.id, id)
+      if (id) {
+        session.flash('success', 'Branch saved.')
+        return response.redirect(`/admin/rentals/locations?provider=${input.providerId}`)
+      }
+      session.flash('success', 'Branch created. Now set its working hours.')
+      return response.redirect(`/admin/rentals/locations/${savedId}/hours`)
     } catch (error) {
       fail(ctx, error, 'Unable to save the branch.', 'locationForm', raw)
       return response.redirect(
@@ -748,6 +765,52 @@ export default class AdminRentalsController {
           ? `/admin/rentals/locations/${id}/edit`
           : `/admin/rentals/locations/new?providerId=${raw.providerId ?? ''}`
       )
+    }
+  }
+
+  async branchHours(ctx: HttpContext) {
+    const found = await admin.findLocation(Number(ctx.params.id))
+    if (!found) return ctx.response.redirect('/admin/rentals/working-hours')
+    const provider = found.row.provider_id ? await admin.findProvider(found.row.provider_id) : null
+    return render(ctx, 'branch_hours', {
+      branch: {
+        id: Number(found.row.id),
+        name_en: found.row.name_en,
+        provider_name: provider?.name_en ?? null,
+        hours_enabled: Boolean(found.row.hours_enabled),
+      },
+      schedule: found.schedule,
+      closures: found.closures.map((closure) => ({
+        startsOn: dayString(closure.starts_on),
+        endsOn: dayString(closure.ends_on),
+        reason: closure.reason ?? null,
+      })),
+      form: (ctx.session.flashMessages.get('hoursForm') as Row | undefined) ?? null,
+    })
+  }
+
+  async saveBranchHours(ctx: HttpContext) {
+    const id = Number(ctx.params.id)
+    const { request } = ctx
+    const raw = {
+      hoursEnabled: bool(request.input('hoursEnabled')),
+      schedule: Array.isArray(request.input('schedule')) ? request.input('schedule') : [],
+      closures: (Array.isArray(request.input('closures')) ? request.input('closures') : []).map(
+        (item: Row) => ({
+          startsOn: item?.range?.[0] ?? item?.startsOn ?? '',
+          endsOn: item?.range?.[1] ?? item?.endsOn ?? '',
+          reason: blank(item?.reason),
+        })
+      ),
+    }
+    try {
+      const input = await rentalBranchHoursValidator.validate(raw)
+      await admin.saveBranchHours(id, input, ctx.admin.id)
+      ctx.session.flash('success', 'Working hours saved.')
+      return ctx.response.redirect('/admin/rentals/working-hours')
+    } catch (error) {
+      fail(ctx, error, 'Unable to save the working hours.', 'hoursForm', raw)
+      return ctx.response.redirect(`/admin/rentals/locations/${id}/hours`)
     }
   }
 
@@ -776,8 +839,8 @@ export default class AdminRentalsController {
     }
     return ctx.response.redirect(
       found?.row.provider_id
-        ? `/admin/rentals/providers/${found.row.provider_id}/edit`
-        : '/admin/rentals/providers'
+        ? `/admin/rentals/locations?provider=${found.row.provider_id}`
+        : '/admin/rentals/locations'
     )
   }
 

@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import AdminProfileMenu from '../components/admin_profile_menu'
 import Notice from '../components/notice'
 import { usePage } from '@inertiajs/react'
@@ -212,6 +212,8 @@ type Props = {
   children: ReactNode
 }
 
+let sidebarScrollTop = 0
+
 export default function AdminLayout({
   title,
   active,
@@ -239,25 +241,20 @@ export default function AdminLayout({
   const linkClass = (isActive: boolean) =>
     `tw:flex tw:min-h-10 tw:items-center tw:gap-3 tw:rounded-cms-sm tw:px-3 tw:py-[10px] tw:text-[13px] tw:font-semibold tw:text-[#c4d7e6] tw:transition-[background,color] tw:duration-150 tw:hover:bg-white/10 tw:hover:text-white ${isActive ? 'active tw:bg-brand-gold tw:font-bold tw:text-brand-navy-deep' : ''}`
 
-  // The sidebar is taller than many laptop screens. Instead of giving it its own scrollbar
-  // (which swallows the first swipe over it), it scrolls with the page until its bottom
-  // reaches the window bottom and then stays put, so every link stays reachable.
+  // Each page renders its own layout, so the sidebar remounts on every visit and would
+  // jump back to the top. Remember how far it was scrolled and put it back before paint.
   const sidebarRef = useRef<HTMLElement>(null)
-  useEffect(() => {
+  useLayoutEffect(() => {
     const sidebar = sidebarRef.current
     if (!sidebar) return
-    const place = () => {
-      sidebar.style.top = `${Math.min(0, window.innerHeight - sidebar.offsetHeight)}px`
+    sidebar.scrollTop = sidebarScrollTop
+    const remember = () => {
+      sidebarScrollTop = sidebar.scrollTop
     }
-    place()
-    const observer = new ResizeObserver(place)
-    observer.observe(sidebar)
-    window.addEventListener('resize', place)
-    return () => {
-      observer.disconnect()
-      window.removeEventListener('resize', place)
-    }
+    sidebar.addEventListener('scroll', remember, { passive: true })
+    return () => sidebar.removeEventListener('scroll', remember)
   }, [])
+
   useEffect(() => {
     document.body.classList.toggle('cms-sidebar-open', menuOpen)
     return () => document.body.classList.remove('cms-sidebar-open')
@@ -289,7 +286,7 @@ export default function AdminLayout({
       <div className="cms-shell tw:relative tw:grid tw:min-h-screen tw:grid-cols-[260px_minmax(0,1fr)] tw:max-[900px]:grid-cols-1">
         <aside
           ref={sidebarRef}
-          className="cms-sidebar tw:sticky tw:self-start tw:z-[100] tw:flex tw:min-h-screen tw:flex-col tw:max-[900px]:overflow-y-auto tw:border-r tw:border-white/10 tw:bg-brand-navy-deep tw:px-4 tw:pb-5 tw:pt-6 tw:text-[#eff5f8] tw:max-[900px]:fixed tw:max-[900px]:-left-[280px] tw:max-[900px]:top-0 tw:max-[900px]:z-[1000] tw:max-[900px]:h-screen tw:max-[900px]:w-[270px] tw:max-[900px]:transition-[left] tw:max-[900px]:duration-[250ms] tw:max-[900px]:ease-in-out tw:max-[900px]:shadow-lg body-cms-sidebar-open:tw:left-0"
+          className="cms-sidebar tw:sticky tw:top-0 tw:self-start tw:z-[100] tw:flex tw:h-screen tw:flex-col tw:overflow-y-auto tw:overscroll-contain tw:border-r tw:border-white/10 tw:bg-brand-navy-deep tw:px-4 tw:pb-5 tw:pt-6 tw:text-[#eff5f8] tw:max-[900px]:fixed tw:max-[900px]:-left-[280px] tw:max-[900px]:top-0 tw:max-[900px]:z-[1000] tw:max-[900px]:h-screen tw:max-[900px]:w-[270px] tw:max-[900px]:transition-[left] tw:max-[900px]:duration-[250ms] tw:max-[900px]:ease-in-out tw:max-[900px]:shadow-lg body-cms-sidebar-open:tw:left-0"
           id="cms-sidebar"
           aria-label="Main sidebar navigation"
         >

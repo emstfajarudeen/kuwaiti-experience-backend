@@ -14,6 +14,7 @@ type Provider = {
   email: string | null
   active: boolean
   vehicle_count: number
+  branch_count: number
   logo_url: string | null
 }
 
@@ -84,6 +85,25 @@ export default function RentalProviders({
         </div>
       ),
     },
+    {
+      title: 'Branches',
+      key: 'branches',
+      render: (_, row) => (
+        <a className="button primary tw:min-h-[32px] tw:border-brand-navy-subtle tw:bg-brand-navy-subtle tw:px-3 tw:py-1 tw:text-[13px]" href={`/admin/rentals/locations?provider=${row.id}`}>
+          Manage
+          <span className="tw:inline-flex tw:h-[22px] tw:min-w-[22px] tw:items-center tw:justify-center tw:rounded-full tw:bg-white tw:px-1.5 tw:text-[12px] tw:font-bold tw:leading-none tw:text-brand-navy-deep">
+            {row.branch_count}
+          </span>
+        </a>
+      ),
+    },
+    {
+      title: 'Working hours',
+      key: 'hours',
+      render: (_, row) => (
+        <a className="button primary tw:min-h-[32px] tw:border-brand-navy-subtle tw:bg-brand-navy-subtle tw:px-3 tw:py-1 tw:text-[13px]" href={`/admin/rentals/working-hours?provider=${row.id}`}>Manage</a>
+      ),
+    },
     { title: 'Vehicles', dataIndex: 'vehicle_count', key: 'vehicles' },
     {
       title: 'Status',
@@ -132,8 +152,7 @@ export default function RentalProviders({
           <h2>Providers ({rows.length})</h2>
           {can('rentals.create') && (
             <a className="button primary" href="/admin/rentals/providers/new">
-              {' '}
-              + Add provider{' '}
+              + Add provider
             </a>
           )}
         </div>

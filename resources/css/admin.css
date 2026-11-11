@@ -1622,3 +1622,12 @@
 
 .field-error { margin: 6px 0 0; color: #b42318; font-size: 13px; font-weight: 500; }
 textarea[aria-invalid="true"], input[aria-invalid="true"] { border-color: #b42318 !important; box-shadow: 0 0 0 2px rgba(180, 35, 24, .12); }
+
+/* Range pickers in the rental hours forms: drop the outer box, keep the inner fields. */
+.cms-form-section .rental-range-plain.ant-picker,
+.cms-form-section .rental-range-plain.ant-picker:hover,
+.cms-form-section .rental-range-plain.ant-picker-focused {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}

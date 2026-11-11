@@ -59,6 +59,19 @@ export const rentalLocationValidator = vine.compile(
       .trim()
       .regex(/^\+[1-9]\d{7,14}$/)
       .nullable(),
+    nameEn: vine.string().trim().minLength(2).maxLength(160),
+    nameAr: optionalText(160),
+    address: optionalText(500),
+    latitude: vine.number().range([-90, 90]).nullable(),
+    longitude: vine.number().range([-180, 180]).nullable(),
+    active: vine.boolean(),
+    sortOrder: vine.number().withoutDecimals().range([0, 9999]),
+  })
+)
+
+/** Working hours and closed dates of one branch. */
+export const rentalBranchHoursValidator = vine.compile(
+  vine.object({
     hoursEnabled: vine.boolean(),
     schedule: vine
       .array(
@@ -77,13 +90,6 @@ export const rentalLocationValidator = vine.compile(
         })
       )
       .maxLength(50),
-    nameEn: vine.string().trim().minLength(2).maxLength(160),
-    nameAr: optionalText(160),
-    address: optionalText(500),
-    latitude: vine.number().range([-90, 90]).nullable(),
-    longitude: vine.number().range([-180, 180]).nullable(),
-    active: vine.boolean(),
-    sortOrder: vine.number().withoutDecimals().range([0, 9999]),
   })
 )
 

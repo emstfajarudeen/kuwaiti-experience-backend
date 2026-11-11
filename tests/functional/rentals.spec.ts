@@ -930,6 +930,11 @@ test.group('Rentals CMS', (group) => {
       `/admin/rentals/providers/${ids.providerId}/edit`,
       `/admin/rentals/locations/new?providerId=${ids.providerId}`,
       `/admin/rentals/locations/${ids.airportBranch}/edit`,
+      `/admin/rentals/locations/${ids.airportBranch}/hours`,
+      '/admin/rentals/locations',
+      `/admin/rentals/locations?provider=${ids.providerId}`,
+      '/admin/rentals/locations/new',
+      '/admin/rentals/working-hours',
       '/admin/rentals/places',
       '/admin/rentals/places/new',
       `/admin/rentals/places/${ids.airport}/edit`,
@@ -1063,6 +1068,11 @@ test.group('Rentals CMS', (group) => {
       phone: '+96522334455',
       active: true,
       sortOrder: 4,
+    })
+    const jahra = await db.from('rental_locations').where('name_en', 'Jahra').firstOrFail()
+    // A new branch goes straight to its working-hours page.
+    assert.equal(jsonLocation.header('location'), `/admin/rentals/locations/${jahra.id}/hours`)
+    const savedHours = await post(`/admin/rentals/locations/${jahra.id}/hours`).json({
       hoursEnabled: true,
       schedule: [
         { mode: 'open24', shifts: [] },
@@ -1081,8 +1091,7 @@ test.group('Rentals CMS', (group) => {
       ],
       closures: [{ range: ['2026-12-01', '2026-12-02'], reason: 'National Day' }],
     })
-    assert.equal(jsonLocation.header('location'), `/admin/rentals/providers/${ids.providerId}/edit`)
-    const jahra = await db.from('rental_locations').where('name_en', 'Jahra').firstOrFail()
+    assert.equal(savedHours.header('location'), '/admin/rentals/working-hours')
     assert.isNull(jahra.longitude)
     assert.isTrue(Boolean(jahra.active))
     assert.equal(Number(jahra.provider_id), ids.providerId)
@@ -1106,11 +1115,9 @@ test.group('Rentals CMS', (group) => {
     assert.isNotNull(await db.from('rental_places').where('id', ids.city).first())
     const jahraHours = await db.from('rental_location_hours').where('location_id', jahra.id)
     assert.lengthOf(jahraHours, 7)
-    const overlapping = await post('/admin/rentals/locations').json({
-      providerId: ids.providerId,
-      nameEn: 'Overlap',
-      active: true,
-      sortOrder: 0,
+    const closures = await db.from('rental_location_closures').where('location_id', jahra.id)
+    assert.lengthOf(closures, 1)
+    const overlapping = await post(`/admin/rentals/locations/${jahra.id}/hours`).json({
       hoursEnabled: true,
       schedule: Array.from({ length: 7 }, () => ({
         mode: 'shifts',
@@ -1121,8 +1128,8 @@ test.group('Rentals CMS', (group) => {
       })),
       closures: [],
     })
-    assert.match(overlapping.header('location') ?? '', /\/admin\/rentals\/locations\/new/)
-    assert.isNull(await db.from('rental_locations').where('name_en', 'Overlap').first())
+    assert.equal(overlapping.header('location'), `/admin/rentals/locations/${jahra.id}/hours`)
+    assert.lengthOf(await db.from('rental_location_hours').where('location_id', jahra.id), 7)
     const newType = await client
       .post('/admin/rentals/vehicle-types')
       .withCsrfToken()

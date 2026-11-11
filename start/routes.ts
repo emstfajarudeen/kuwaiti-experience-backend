@@ -181,6 +181,11 @@ router
     router.post('/rentals/places/:id/status', [AdminRentalsController, 'placeStatus'])
     router.post('/rentals/places/:id/delete', [AdminRentalsController, 'deletePlace'])
     router.get('/rentals/locations', [AdminRentalsController, 'locations'])
+    router.get('/rentals/working-hours', [AdminRentalsController, 'workingHours'])
+    router.get('/rentals/locations/:id/hours', [AdminRentalsController, 'branchHours'])
+    router
+      .post('/rentals/locations/:id/hours', [AdminRentalsController, 'saveBranchHours'])
+      .as('cms.rentalBranchHours.update')
     router.get('/rentals/locations/new', [AdminRentalsController, 'newLocation'])
     router
       .post('/rentals/locations', [AdminRentalsController, 'saveLocation'])

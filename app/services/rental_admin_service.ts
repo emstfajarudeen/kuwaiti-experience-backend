@@ -1,6 +1,11 @@
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { scheduleFromRows, scheduleRows, type DaySchedule } from './rental_branch_service.js'
+import {
+  branchSchedules,
+  scheduleFromRows,
+  scheduleRows,
+  type DaySchedule,
+} from './rental_branch_service.js'
 import { sendProviderEmail } from './rental_provider_mailer.js'
 import { ApiError } from './api_error.js'
 import {
@@ -149,6 +154,17 @@ export async function deletePlace(id: number, actorId: number) {
   })
 }
 
+export async function providerOptions() {
+  const rows = await db
+    .from('rental_providers')
+    .select('id', 'name_en', 'active')
+    .orderBy('name_en')
+  return rows.map((row) => ({
+    value: String(row.id),
+    label: row.active ? (row.name_en as string) : `${row.name_en} (inactive)`,
+  }))
+}
+
 export async function placeOptions() {
   const rows = await db
     .from('rental_places')
@@ -165,9 +181,6 @@ export type LocationInput = {
   providerId: number
   placeId: number
   phone: string | null
-  hoursEnabled: boolean
-  schedule: DaySchedule[]
-  closures: Array<{ startsOn: string; endsOn: string; reason: string | null }>
   nameEn: string
   nameAr: string | null
   address: string | null
@@ -178,17 +191,33 @@ export type LocationInput = {
 }
 
 export async function listLocations(providerId?: number) {
-  const query = db.from('rental_locations as l')
+  const query = db
+    .from('rental_locations as l')
+    .leftJoin('rental_providers as bp', 'bp.id', 'l.provider_id')
+    .leftJoin('rental_places as pl', 'pl.id', 'l.place_id')
   if (providerId) query.where('l.provider_id', providerId)
   return (await query
     .select(
       'l.*',
+      'bp.name_en as provider_name',
+      'pl.name_en as place_name',
       db.raw(
         '(select count(*) from rental_vehicle_locations vl where vl.location_id = l.id) as vehicle_count'
       )
     )
+    .orderBy('bp.name_en')
     .orderBy('l.sort_order')
     .orderBy('l.id')) as Row[]
+}
+
+/** Branches with their weekly hours and upcoming closed dates, for the working-hours overview. */
+export async function listBranchHours(providerId?: number) {
+  const rows = await listLocations(providerId)
+  const schedules = await branchSchedules(rows.map((row) => Number(row.id)))
+  return rows.map((row) => {
+    const schedule = schedules.get(Number(row.id)) ?? { hours: [], closures: [] }
+    return { row, schedule: scheduleFromRows(schedule.hours), closures: schedule.closures }
+  })
 }
 
 export async function findLocation(id: number) {
@@ -201,7 +230,14 @@ export async function findLocation(id: number) {
   return { row, schedule: scheduleFromRows(hours as Row[]), closures: closures as Row[] }
 }
 
-export async function saveLocation(input: LocationInput, actorId: number, id?: number) {
+export type BranchHoursInput = {
+  hoursEnabled: boolean
+  schedule: DaySchedule[]
+  closures: Array<{ startsOn: string; endsOn: string; reason: string | null }>
+}
+
+/** Replaces a branch's working hours and closed dates. */
+export async function saveBranchHours(id: number, input: BranchHoursInput, actorId: number) {
   const hours = scheduleRows(input.schedule)
   if (input.hoursEnabled && !hours.length)
     throw new ApiError(422, 'VALIDATION_ERROR', 'Open the branch on at least one day.', {
@@ -212,6 +248,34 @@ export async function saveLocation(input: LocationInput, actorId: number, id?: n
       throw new ApiError(422, 'VALIDATION_ERROR', 'A closed period ends before it starts.', {
         closures: ['A closed period ends before it starts.'],
       })
+  await db.transaction(async (trx) => {
+    const row = await trx.from('rental_locations').where('id', id).forUpdate().first()
+    if (!row) throw new ApiError(404, 'NOT_FOUND', 'Branch not found')
+    await trx
+      .from('rental_locations')
+      .where('id', id)
+      .update({ hours_enabled: input.hoursEnabled, updated_at: new Date() })
+    await trx.from('rental_location_hours').where('location_id', id).delete()
+    if (hours.length)
+      await trx
+        .table('rental_location_hours')
+        .multiInsert(hours.map((hour) => ({ ...hour, location_id: id })))
+    await trx.from('rental_location_closures').where('location_id', id).delete()
+    if (input.closures.length)
+      await trx.table('rental_location_closures').multiInsert(
+        input.closures.map((closure) => ({
+          location_id: id,
+          starts_on: closure.startsOn,
+          ends_on: closure.endsOn,
+          reason: closure.reason,
+          created_at: new Date(),
+        }))
+      )
+    await audit(trx, actorId, 'rental_location', id, 'hours')
+  })
+}
+
+export async function saveLocation(input: LocationInput, actorId: number, id?: number) {
   if (!(await db.from('rental_providers').where('id', input.providerId).first()))
     throw new ApiError(422, 'VALIDATION_ERROR', 'Choose a provider.', {
       providerId: ['Choose a provider.'],
@@ -225,7 +289,6 @@ export async function saveLocation(input: LocationInput, actorId: number, id?: n
       provider_id: input.providerId,
       place_id: input.placeId,
       phone_e164: input.phone,
-      hours_enabled: input.hoursEnabled,
       name_en: input.nameEn,
       name_ar: input.nameAr,
       address: input.address,
@@ -242,22 +305,6 @@ export async function saveLocation(input: LocationInput, actorId: number, id?: n
     } else {
       ;[savedId] = await trx.table('rental_locations').insert({ ...values, created_at: new Date() })
     }
-    await trx.from('rental_location_hours').where('location_id', savedId!).delete()
-    if (hours.length)
-      await trx
-        .table('rental_location_hours')
-        .multiInsert(hours.map((row) => ({ ...row, location_id: savedId })))
-    await trx.from('rental_location_closures').where('location_id', savedId!).delete()
-    if (input.closures.length)
-      await trx.table('rental_location_closures').multiInsert(
-        input.closures.map((closure) => ({
-          location_id: savedId,
-          starts_on: closure.startsOn,
-          ends_on: closure.endsOn,
-          reason: closure.reason,
-          created_at: new Date(),
-        }))
-      )
     await audit(trx, actorId, 'rental_location', Number(savedId), id ? 'update' : 'create')
     return Number(savedId)
   })
@@ -306,7 +353,10 @@ export async function listProviders() {
     .from('rental_providers as p')
     .select(
       'p.*',
-      db.raw('(select count(*) from rental_vehicles v where v.provider_id = p.id) as vehicle_count')
+      db.raw(
+        '(select count(*) from rental_vehicles v where v.provider_id = p.id) as vehicle_count'
+      ),
+      db.raw('(select count(*) from rental_locations l where l.provider_id = p.id) as branch_count')
     )
     .orderBy('p.name_en')) as Row[]
 }
