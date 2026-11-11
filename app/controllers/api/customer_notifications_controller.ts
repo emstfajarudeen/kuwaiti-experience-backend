@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import * as notifications from '../../services/customer_notification_service.js'
+import { publicLanguage } from '../../services/public_localization.js'
 import {
   pushTokenLanguageValidator,
   pushTokenValidator,
@@ -7,11 +8,19 @@ import {
 
 export default class CustomerNotificationsController {
   async index({ request, customerIdentity }: HttpContext) {
-    return notifications.listNotifications(customerIdentity.customer.id, request.qs())
+    return notifications.listNotifications(
+      customerIdentity.customer.id,
+      request.qs(),
+      publicLanguage(request.header('accept-language'))
+    )
   }
 
-  async markRead({ params, customerIdentity }: HttpContext) {
-    return notifications.markNotificationRead(customerIdentity.customer.id, params.id)
+  async markRead({ params, request, customerIdentity }: HttpContext) {
+    return notifications.markNotificationRead(
+      customerIdentity.customer.id,
+      params.id,
+      publicLanguage(request.header('accept-language'))
+    )
   }
 
   async markAllRead({ response, customerIdentity }: HttpContext) {

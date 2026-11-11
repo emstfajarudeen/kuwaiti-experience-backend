@@ -221,6 +221,48 @@ test.group('Push notification language', (group) => {
     }
   })
 
+  test('the inbox returns title and body in the Accept-Language', async ({ client, assert }) => {
+    const customerId = await createCustomer()
+    const token = await signIn(customerId)
+    await createCustomerNotification(customerId, {
+      type: 'contact_request_update',
+      title: 'Resolved',
+      body: 'We replied',
+      title_ar: 'تم الحل',
+      body_ar: 'قمنا بالرد',
+    })
+    await createCustomerNotification(customerId, {
+      type: 'general',
+      title: 'English only',
+      body: 'No Arabic',
+    })
+
+    const arabic = await client
+      .get(`${base}/customer/me/notifications`)
+      .header('Authorization', `Bearer ${token}`)
+      .header('Accept-Language', 'ar')
+    arabic.assertStatus(200)
+    const [untranslated, translated] = arabic.body().data
+    assert.equal(translated.title, 'تم الحل')
+    assert.equal(translated.body, 'قمنا بالرد')
+    assert.equal(translated.title_en, 'Resolved')
+    assert.equal(translated.title_ar, 'تم الحل')
+    // Missing Arabic falls back to English instead of returning an empty title.
+    assert.equal(untranslated.title, 'English only')
+
+    const english = await client
+      .get(`${base}/customer/me/notifications`)
+      .header('Authorization', `Bearer ${token}`)
+    assert.equal(english.body().data[1].title, 'Resolved')
+
+    const read = await client
+      .put(`${base}/customer/me/notifications/${translated.id}/read`)
+      .header('Authorization', `Bearer ${token}`)
+      .header('Accept-Language', 'ar')
+    read.assertStatus(200)
+    assert.equal(read.body().data.title, 'تم الحل')
+  })
+
   test('broadcasts carry the Arabic text through to inbox rows', async ({ assert }) => {
     const [adminId] = await db.table('users').insert({
       full_name: 'Lang Admin',

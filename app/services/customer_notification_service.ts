@@ -6,6 +6,7 @@ import logger from '@adonisjs/core/services/logger'
 import { ApiError } from './api_error.js'
 import { pagination, positiveId } from './explore_read_service.js'
 import { customerNotification } from '../serializers/customer_notification.js'
+import type { PublicLocale } from './public_localization.js'
 import type { Row } from '../serializers/customer.js'
 
 export type PushLanguage = 'en' | 'ar'
@@ -261,7 +262,11 @@ export async function removePushToken(customerId: number, id: unknown) {
   if (!removed) throw new ApiError(404, 'NOT_FOUND', 'Push token not found')
 }
 
-export async function listNotifications(customerId: number, input: Row) {
+export async function listNotifications(
+  customerId: number,
+  input: Row,
+  locale: PublicLocale = 'en'
+) {
   const { page, perPage } = pagination({ ...input, per_page: input.per_page ?? 20 })
   const query = db.from('customer_notifications').where('customer_id', customerId)
   const [count, unread, rows] = await Promise.all([
@@ -275,7 +280,7 @@ export async function listNotifications(customerId: number, input: Row) {
   ])
   const total = Number(count?.total ?? 0)
   return {
-    data: rows.map(customerNotification),
+    data: rows.map((row) => customerNotification(row, locale)),
     meta: {
       page,
       per_page: perPage,
@@ -286,7 +291,11 @@ export async function listNotifications(customerId: number, input: Row) {
   }
 }
 
-export async function markNotificationRead(customerId: number, id: unknown) {
+export async function markNotificationRead(
+  customerId: number,
+  id: unknown,
+  locale: PublicLocale = 'en'
+) {
   const key = { customer_id: customerId, id: positiveId(id) }
   const row = await db.from('customer_notifications').where(key).first()
   if (!row) throw new ApiError(404, 'NOT_FOUND', 'Notification not found')
@@ -298,7 +307,10 @@ export async function markNotificationRead(customerId: number, id: unknown) {
       .update({ read_at: new Date() })
   }
   return {
-    data: customerNotification(await db.from('customer_notifications').where(key).firstOrFail()),
+    data: customerNotification(
+      await db.from('customer_notifications').where(key).firstOrFail(),
+      locale
+    ),
   }
 }
 

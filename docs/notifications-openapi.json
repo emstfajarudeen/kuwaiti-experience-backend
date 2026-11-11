@@ -208,6 +208,16 @@
               "maximum": 50,
               "default": 20
             }
+          },
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "ar"
+            },
+            "description": "ar returns Arabic title/body when available; anything else returns English."
           }
         ],
         "responses": {
@@ -442,6 +452,8 @@
           "type",
           "title",
           "body",
+          "title_en",
+          "body_en",
           "title_ar",
           "body_ar",
           "action_data",
@@ -458,11 +470,13 @@
           },
           "title": {
             "type": "string",
-            "maxLength": 160
+            "maxLength": 160,
+            "description": "In the request language (Accept-Language: ar or en). Arabic only when both title_ar and body_ar exist, otherwise English."
           },
           "body": {
             "type": "string",
-            "maxLength": 1000
+            "maxLength": 1000,
+            "description": "Same language as title."
           },
           "action_data": {
             "type": [
@@ -488,7 +502,7 @@
               "null"
             ],
             "maxLength": 160,
-            "description": "Arabic title, or null. Show with body_ar when the app language is Arabic."
+            "description": "Arabic title, or null."
           },
           "body_ar": {
             "type": [
@@ -496,6 +510,16 @@
               "null"
             ],
             "maxLength": 1000
+          },
+          "title_en": {
+            "type": "string",
+            "maxLength": 160,
+            "description": "English title, always present."
+          },
+          "body_en": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "English body, always present."
           }
         }
       },
