@@ -13,7 +13,7 @@ import {
   revokeSession,
 } from '../../services/auth_service.js'
 import {
-  isAdminPasswordResetTokenValid,
+  passwordTokenPurpose,
   isPasswordResetToken,
   requestAdminPasswordReset,
   resetAdminPassword,
@@ -61,7 +61,7 @@ export default class AdminAuthController {
       const input = await request.validateUsing(passwordValidator)
       await changePassword(admin.id, input.currentPassword, input.newPassword)
       clearAdminCookies(response)
-      session.flash('loginError', 'Password changed. Please sign in again.')
+      session.flash('loginNotice', 'Password changed. Please sign in again.')
       return response.redirect('/admin/login')
     } catch (error) {
       const validationError = error as {
@@ -97,6 +97,7 @@ export default class AdminAuthController {
         canRefresh: Boolean(request.cookie('admin_refresh')),
         csrfToken: request.csrfToken,
         loginError: (session.flashMessages.get('loginError') as string | undefined) ?? null,
+        loginNotice: (session.flashMessages.get('loginNotice') as string | undefined) ?? null,
         email: (session.flashMessages.get('email') as string | undefined) ?? '',
       },
       { bodyClass: 'login-body' }
@@ -133,13 +134,15 @@ export default class AdminAuthController {
 
   async showResetPassword({ request, inertia, session }: HttpContext) {
     const suppliedToken = String(request.input('token') ?? '')
-    const tokenValid = await isAdminPasswordResetTokenValid(suppliedToken)
+    const purpose = await passwordTokenPurpose(suppliedToken)
+    const tokenValid = purpose !== null
     return inertia.render(
       'auth/reset_password',
       {
         csrfToken: request.csrfToken,
         token: tokenValid ? suppliedToken : '',
         tokenValid,
+        invite: purpose === 'invite',
         error: (session.flashMessages.get('error') as string | undefined) ?? null,
       },
       { bodyClass: 'login-body' }
@@ -168,14 +171,14 @@ export default class AdminAuthController {
     }
 
     clearAdminCookies(response)
-    session.flash('loginError', 'Password reset. Please sign in with your new password.')
+    session.flash('loginNotice', 'Password saved. Please sign in with your new password.')
     return response.redirect('/admin/login')
   }
 
   async login({ request, response, session, inertia }: HttpContext) {
     try {
       const payload = await request.validateUsing(loginValidator)
-      const tokens = await loginAdmin(payload.email, payload.password)
+      const tokens = await loginAdmin(payload.email, payload.password, { allowProvider: true })
       setAdminCookies(response, tokens)
       // Authentication changes the document layout; load the authenticated shell afresh.
       if (request.header('X-Inertia')) return inertia.location('/admin')

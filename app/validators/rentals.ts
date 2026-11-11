@@ -156,6 +156,13 @@ export const rentalOptionValidator = vine.compile(
   })
 )
 
+export const rentalProviderLoginValidator = vine.compile(
+  vine.object({
+    name: vine.string().trim().minLength(1).maxLength(120),
+    email: vine.string().trim().email().maxLength(254),
+  })
+)
+
 export const rentalSettingsValidator = vine.compile(
   vine.object({
     bookingFee: money(),

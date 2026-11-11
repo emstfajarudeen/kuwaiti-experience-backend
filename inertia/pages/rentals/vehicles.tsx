@@ -6,7 +6,7 @@ import AdminLayout from '../../layouts/admin_layout'
 import TableToolbar, { useServerFilters } from '../../components/table_toolbar'
 import ConfirmModal from '../../components/confirm_modal'
 import RowActionMenu from '../../components/row_action_menu'
-import { useCan, type SharedProps } from '../../components/rental_ui'
+import { useCan, usePortal, type SharedProps } from '../../components/rental_ui'
 
 type Vehicle = {
   id: number
@@ -40,6 +40,7 @@ export default function RentalVehicles(props: Props) {
   const { adminName, csrfToken, success, error, status, query, providerId, providers, rows, meta } =
     props
   const can = useCan()
+  const portal = usePortal()
   const filters = useServerFilters(
     '/admin/rentals/vehicles',
     { q: query, status, provider: providerId ? String(providerId) : '' },
@@ -95,7 +96,8 @@ export default function RentalVehicles(props: Props) {
               <strong>{row.name_en}</strong>
             </a>
             <span className="tw:text-[12px] tw:text-brand-muted">
-              {row.make} {row.model} {row.year ?? ''} · {row.provider_name}
+              {row.make} {row.model} {row.year ?? ''}
+              {portal ? '' : ` · ${row.provider_name}`}
             </span>
           </div>
         </div>
@@ -105,7 +107,7 @@ export default function RentalVehicles(props: Props) {
       title: 'Type',
       key: 'type',
       render: (_, row) => (
-        <span className="tw:text-[13px] tw:capitalize">
+        <span className="tw:block tw:min-w-[170px] tw:text-[13px] tw:capitalize">
           {row.vehicle_type_name} · {row.transmission} · {row.seats} seats
           {row.rental_mode === 'both'
             ? ' · self-drive or driver'
@@ -153,7 +155,7 @@ export default function RentalVehicles(props: Props) {
   }
   return (
     <AdminLayout
-      title="Rental fleet"
+      title={portal ? 'Vehicles' : 'Rental fleet'}
       active="rental-vehicles"
       adminName={adminName}
       csrfToken={csrfToken}
@@ -161,7 +163,7 @@ export default function RentalVehicles(props: Props) {
       error={error}
     >
       <div className="page-head tw:mb-6">
-        <h1>Rental vehicles</h1>
+        <h1>{portal ? 'My vehicles' : 'Rental vehicles'}</h1>
       </div>
       <section className="panel table-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-0">
         <div className="panel-heading tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-brand-line-subtle tw:px-6 tw:py-5">
@@ -191,16 +193,20 @@ export default function RentalVehicles(props: Props) {
               ],
               onChange: (value) => filters.setSelect('status', value),
             },
-            {
-              key: 'provider',
-              value: filters.values.provider,
-              placeholder: 'All providers',
-              options: providers.map((provider) => ({
-                value: String(provider.id),
-                label: provider.name,
-              })),
-              onChange: (value) => filters.setSelect('provider', value),
-            },
+            ...(portal
+              ? []
+              : [
+                  {
+                    key: 'provider',
+                    value: filters.values.provider,
+                    placeholder: 'All providers',
+                    options: providers.map((provider) => ({
+                      value: String(provider.id),
+                      label: provider.name,
+                    })),
+                    onChange: (value: string) => filters.setSelect('provider', value),
+                  },
+                ]),
           ]}
           active={filters.active}
           onReset={filters.reset}
@@ -220,9 +226,11 @@ export default function RentalVehicles(props: Props) {
             }}
             onChange={changePage}
             locale={{
-              emptyText: providers.length
-                ? 'No vehicles yet.'
-                : 'Add a provider and a pickup location first, then add vehicles.',
+              emptyText: portal
+                ? 'No vehicles yet. Add your first car with “+ Add vehicle”.'
+                : providers.length
+                  ? 'No vehicles yet.'
+                  : 'Add a provider and a pickup location first, then add vehicles.',
             }}
           />
         </div>

@@ -1,10 +1,12 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import env from '#start/env'
+import db from '@adonisjs/lucid/services/db'
 import { ApiError } from '../../services/api_error.js'
 import { cmsImageUrl, imageFiles, prepareImages } from '../../services/image_storage_service.js'
 import * as admin from '../../services/rental_admin_service.js'
 import { rentalMode } from '../../services/rental_catalog_service.js'
 import * as reviews from '../../services/rental_review_service.js'
+import * as portalLogins from '../../services/rental_provider_portal_service.js'
 import { sendProviderEmail } from '../../services/rental_provider_mailer.js'
 import { refundBooking, syncPayment } from '../../services/rental_payment_service.js'
 import { parseSnapshot } from '../../serializers/rental.js'
@@ -15,6 +17,7 @@ import {
   rentalLocationValidator,
   rentalPlaceValidator,
   rentalOptionValidator,
+  rentalProviderLoginValidator,
   rentalProviderValidator,
   rentalSettingsValidator,
   rentalVehicleValidator,
@@ -44,6 +47,27 @@ const ids = (value: unknown) =>
     .flatMap((item) => String(item).split(','))
     .map((item) => Number(item))
     .filter((item) => Number.isSafeInteger(item) && item > 0)
+
+/** The provider a portal login is limited to; undefined for staff. */
+const portal = (ctx: HttpContext) => ctx.admin.providerId ?? undefined
+
+/**
+ * Provider portal logins may only touch their own records. Staff pass through.
+ * A record of another provider answers 404, the same as one that does not exist.
+ */
+async function assertOwned(
+  ctx: HttpContext,
+  table: 'rental_vehicles' | 'rental_locations' | 'rental_bookings',
+  id: number
+) {
+  const providerId = portal(ctx)
+  if (!providerId) return
+  const row = Number.isSafeInteger(id)
+    ? await db.from(table).where('id', id).select('provider_id').first()
+    : null
+  if (!row || Number(row.provider_id) !== providerId)
+    throw new ApiError(404, 'NOT_FOUND', 'Not found')
+}
 
 function shared({ request, session, admin: adminUser }: HttpContext) {
   return {
@@ -183,7 +207,12 @@ export default class AdminRentalsController {
   async bookings(ctx: HttpContext) {
     const status = String(ctx.request.input('status', ''))
     const query = String(ctx.request.input('q', '')).trim().slice(0, 120)
-    const result = await admin.listBookings({ status, q: query, page: ctx.request.input('page') })
+    const result = await admin.listBookings({
+      status,
+      q: query,
+      page: ctx.request.input('page'),
+      providerId: portal(ctx),
+    })
     return render(ctx, 'bookings', {
       status,
       query,
@@ -198,8 +227,11 @@ export default class AdminRentalsController {
   }
 
   async booking(ctx: HttpContext) {
+    await assertOwned(ctx, 'rental_bookings', Number(ctx.params.id))
     const found = await admin.findBooking(Number(ctx.params.id))
     if (!found) return ctx.response.redirect('/admin/rentals/bookings')
+    // Providers see the rental itself, not the booking-fee payments or our email log.
+    const staff = !portal(ctx)
     const snapshot = parseSnapshot(found.row.snapshot)
     return render(ctx, 'booking', {
       booking: {
@@ -218,7 +250,7 @@ export default class AdminRentalsController {
             created_at: date(found.review.created_at),
           }
         : null,
-      providerEmails: found.providerEmails.map((email) => ({
+      providerEmails: (staff ? found.providerEmails : []).map((email) => ({
         id: Number(email.id),
         kind: email.kind,
         recipient: email.recipient,
@@ -226,7 +258,7 @@ export default class AdminRentalsController {
         error: email.error,
         created_at: date(email.created_at),
       })),
-      payments: found.payments.map((payment) => ({
+      payments: (staff ? found.payments : []).map((payment) => ({
         id: Number(payment.id),
         invoice_id: payment.invoice_id,
         payment_id: payment.payment_id,
@@ -250,13 +282,14 @@ export default class AdminRentalsController {
     }
     const returnTo = String(ctx.request.input('returnTo', ''))
     return ctx.response.redirect(
-      returnTo.startsWith('/admin/rentals/bookings')
+      returnTo.startsWith('/admin/rentals/bookings') || returnTo === '/admin'
         ? returnTo
         : `/admin/rentals/bookings/${Number(ctx.params.id)}`
     )
   }
 
   async completeBooking(ctx: HttpContext) {
+    await assertOwned(ctx, 'rental_bookings', Number(ctx.params.id))
     return this.bookingAction(
       ctx,
       () => admin.completeBooking(Number(ctx.params.id), ctx.admin.id),
@@ -405,8 +438,8 @@ export default class AdminRentalsController {
   async vehicles(ctx: HttpContext) {
     const status = String(ctx.request.input('status', ''))
     const query = String(ctx.request.input('q', '')).trim().slice(0, 120)
-    const providerId = optionalNumber(ctx.request.input('provider')) ?? undefined
-    const formOptions = await admin.vehicleFormOptions()
+    const providerId = portal(ctx) ?? optionalNumber(ctx.request.input('provider')) ?? undefined
+    const formOptions = await admin.vehicleFormOptions(portal(ctx))
     const result = await admin.listVehicles({
       status,
       q: query,
@@ -429,6 +462,7 @@ export default class AdminRentalsController {
   }
 
   private async vehicleForm(ctx: HttpContext, id?: number) {
+    if (id) await assertOwned(ctx, 'rental_vehicles', id)
     const found = id ? await admin.findVehicle(id) : null
     if (id && !found) return ctx.response.redirect('/admin/rentals/vehicles')
     return render(ctx, 'vehicle_edit', {
@@ -448,7 +482,7 @@ export default class AdminRentalsController {
           }
         : null,
       form: (ctx.session.flashMessages.get('vehicleForm') as Row | undefined) ?? null,
-      options: await admin.vehicleFormOptions(),
+      options: await admin.vehicleFormOptions(portal(ctx)),
     })
   }
 
@@ -463,8 +497,9 @@ export default class AdminRentalsController {
   async saveVehicle(ctx: HttpContext) {
     const { request, response, session } = ctx
     const id = ctx.params.id ? Number(ctx.params.id) : undefined
+    if (id) await assertOwned(ctx, 'rental_vehicles', id)
     const raw = {
-      providerId: optionalNumber(request.input('providerId')),
+      providerId: portal(ctx) ?? optionalNumber(request.input('providerId')),
       nameEn: request.input('nameEn') ?? '',
       nameAr: blank(request.input('nameAr')),
       make: request.input('make') ?? '',
@@ -519,6 +554,7 @@ export default class AdminRentalsController {
   }
 
   async vehicleStatus(ctx: HttpContext) {
+    await assertOwned(ctx, 'rental_vehicles', Number(ctx.params.id))
     const status = ctx.request.input('status')
     try {
       if (!['draft', 'published'].includes(status))
@@ -538,6 +574,7 @@ export default class AdminRentalsController {
   }
 
   async deleteVehicle(ctx: HttpContext) {
+    await assertOwned(ctx, 'rental_vehicles', Number(ctx.params.id))
     try {
       await admin.deleteVehicle(Number(ctx.params.id), ctx.admin.id)
       ctx.session.flash('success', 'Vehicle deleted.')
@@ -552,6 +589,7 @@ export default class AdminRentalsController {
 
   async providers(ctx: HttpContext) {
     const rows = await admin.listProviders()
+    const logins = await portalLogins.providerLoginStates()
     return render(ctx, 'providers', {
       rows: rows.map((row) => ({
         id: Number(row.id),
@@ -562,6 +600,7 @@ export default class AdminRentalsController {
         vehicle_count: Number(row.vehicle_count),
         branch_count: Number(row.branch_count),
         logo_url: cmsImageUrl(row.logo_image_key),
+        login_state: logins.get(Number(row.id)) ?? null,
       })),
     })
   }
@@ -584,6 +623,9 @@ export default class AdminRentalsController {
           }
         : null,
       branchCount: branchRows.length,
+      login: id ? await portalLogins.providerLogin(id) : null,
+      loginForm: (ctx.session.flashMessages.get('loginForm') as Row | undefined) ?? null,
+      inviteLink: (ctx.session.flashMessages.get('inviteLink') as string | undefined) ?? null,
       form: (ctx.session.flashMessages.get('providerForm') as Row | undefined) ?? null,
     })
   }
@@ -651,15 +693,83 @@ export default class AdminRentalsController {
     return ctx.response.redirect('/admin/rentals/providers')
   }
 
+  // ------------------------------------------------------ provider portal login
+
+  private inviteOutcome(
+    ctx: HttpContext,
+    result: { status: 'sent' | 'failed'; error: string | null; url: string | null },
+    sent: string
+  ) {
+    if (result.status === 'sent') {
+      ctx.session.flash('success', sent)
+      return
+    }
+    ctx.session.flash(
+      'error',
+      `The invite email could not be sent (${result.error ?? 'unknown error'}). Copy the link below and send it to the provider yourself.`
+    )
+    if (result.url) ctx.session.flash('inviteLink', result.url)
+  }
+
+  async createProviderLogin(ctx: HttpContext) {
+    const id = Number(ctx.params.id)
+    const raw = { name: ctx.request.input('name') ?? '', email: ctx.request.input('email') ?? '' }
+    try {
+      const input = await rentalProviderLoginValidator.validate(raw)
+      const result = await portalLogins.createProviderLogin(id, input, ctx.admin.id)
+      this.inviteOutcome(ctx, result, `Login created. An invite was emailed to ${input.email}.`)
+    } catch (error) {
+      fail(ctx, error, 'Unable to create the login.', 'loginForm', raw)
+    }
+    return ctx.response.redirect(`/admin/rentals/providers/${id}/edit`)
+  }
+
+  async resendProviderInvite(ctx: HttpContext) {
+    const id = Number(ctx.params.id)
+    try {
+      const result = await portalLogins.resendProviderInvite(id, ctx.admin.id)
+      this.inviteOutcome(ctx, result, 'A new invite was emailed. Earlier links no longer work.')
+    } catch (error) {
+      fail(ctx, error, 'Unable to send the invite.')
+    }
+    return ctx.response.redirect(`/admin/rentals/providers/${id}/edit`)
+  }
+
+  async providerLoginStatus(ctx: HttpContext) {
+    const id = Number(ctx.params.id)
+    const active = bool(ctx.request.input('active'))
+    try {
+      await portalLogins.setProviderLoginActive(id, active, ctx.admin.id)
+      ctx.session.flash(
+        'success',
+        active ? 'Portal login turned on.' : 'Portal login turned off and signed out.'
+      )
+    } catch (error) {
+      fail(ctx, error, 'Unable to update the login.')
+    }
+    return ctx.response.redirect(`/admin/rentals/providers/${id}/edit`)
+  }
+
+  async deleteProviderLogin(ctx: HttpContext) {
+    const id = Number(ctx.params.id)
+    try {
+      await portalLogins.deleteProviderLogin(id, ctx.admin.id)
+      ctx.session.flash('success', 'Portal login removed.')
+    } catch (error) {
+      fail(ctx, error, 'Unable to remove the login.')
+    }
+    return ctx.response.redirect(`/admin/rentals/providers/${id}/edit`)
+  }
+
   // ----------------------------------------------------------- locations
 
   /** All branches, optionally for one provider. */
   async locations(ctx: HttpContext) {
-    const providerId = optionalNumber(ctx.request.input('provider')) ?? undefined
+    const providerId = portal(ctx) ?? optionalNumber(ctx.request.input('provider')) ?? undefined
     const rows = await admin.listLocations(providerId)
     return render(ctx, 'branches', {
       provider: providerId ? String(providerId) : '',
-      providers: await admin.providerOptions(),
+      providers: await admin.providerOptions(portal(ctx)),
       rows: rows.map((row) => ({
         id: Number(row.id),
         name_en: row.name_en,
@@ -677,11 +787,11 @@ export default class AdminRentalsController {
 
   /** Weekly hours of every branch at a glance. */
   async workingHours(ctx: HttpContext) {
-    const providerId = optionalNumber(ctx.request.input('provider')) ?? undefined
+    const providerId = portal(ctx) ?? optionalNumber(ctx.request.input('provider')) ?? undefined
     const branches = await admin.listBranchHours(providerId)
     return render(ctx, 'working_hours', {
       provider: providerId ? String(providerId) : '',
-      providers: await admin.providerOptions(),
+      providers: await admin.providerOptions(portal(ctx)),
       rows: branches.map(({ row, schedule, closures }) => ({
         id: Number(row.id),
         name_en: row.name_en,
@@ -700,13 +810,15 @@ export default class AdminRentalsController {
   }
 
   private async locationForm(ctx: HttpContext, id?: number) {
+    if (id) await assertOwned(ctx, 'rental_locations', id)
     const found = id ? await admin.findLocation(id) : null
     if (id && !found) return ctx.response.redirect('/admin/rentals/locations')
     const row = found?.row
-    const presetProvider = row?.provider_id ?? optionalNumber(ctx.request.input('providerId'))
+    const presetProvider =
+      portal(ctx) ?? row?.provider_id ?? optionalNumber(ctx.request.input('providerId'))
     return render(ctx, 'location_edit', {
       providerId: presetProvider ? Number(presetProvider) : null,
-      providers: await admin.providerOptions(),
+      providers: await admin.providerOptions(portal(ctx)),
       places: await admin.placeOptions(),
       location: row
         ? {
@@ -737,8 +849,9 @@ export default class AdminRentalsController {
   async saveLocation(ctx: HttpContext) {
     const { request, response, session } = ctx
     const id = ctx.params.id ? Number(ctx.params.id) : undefined
+    if (id) await assertOwned(ctx, 'rental_locations', id)
     const raw = {
-      providerId: optionalNumber(request.input('providerId')),
+      providerId: portal(ctx) ?? optionalNumber(request.input('providerId')),
       placeId: optionalNumber(request.input('placeId')),
       phone: blank(request.input('phone')),
       nameEn: request.input('nameEn') ?? '',
@@ -754,7 +867,11 @@ export default class AdminRentalsController {
       const savedId = await admin.saveLocation(input, ctx.admin.id, id)
       if (id) {
         session.flash('success', 'Branch saved.')
-        return response.redirect(`/admin/rentals/locations?provider=${input.providerId}`)
+        return response.redirect(
+          portal(ctx)
+            ? '/admin/rentals/locations'
+            : `/admin/rentals/locations?provider=${input.providerId}`
+        )
       }
       session.flash('success', 'Branch created. Now set its working hours.')
       return response.redirect(`/admin/rentals/locations/${savedId}/hours`)
@@ -769,6 +886,7 @@ export default class AdminRentalsController {
   }
 
   async branchHours(ctx: HttpContext) {
+    await assertOwned(ctx, 'rental_locations', Number(ctx.params.id))
     const found = await admin.findLocation(Number(ctx.params.id))
     if (!found) return ctx.response.redirect('/admin/rentals/working-hours')
     const provider = found.row.provider_id ? await admin.findProvider(found.row.provider_id) : null
@@ -791,6 +909,7 @@ export default class AdminRentalsController {
 
   async saveBranchHours(ctx: HttpContext) {
     const id = Number(ctx.params.id)
+    await assertOwned(ctx, 'rental_locations', id)
     const { request } = ctx
     const raw = {
       hoursEnabled: bool(request.input('hoursEnabled')),
@@ -815,6 +934,7 @@ export default class AdminRentalsController {
   }
 
   async locationStatus(ctx: HttpContext) {
+    await assertOwned(ctx, 'rental_locations', Number(ctx.params.id))
     const raw = ctx.request.input('active')
     const active = [true, 'true', 1, '1', 'on'].includes(raw)
     try {
@@ -830,6 +950,7 @@ export default class AdminRentalsController {
   }
 
   async deleteLocation(ctx: HttpContext) {
+    await assertOwned(ctx, 'rental_locations', Number(ctx.params.id))
     const found = await admin.findLocation(Number(ctx.params.id))
     try {
       await admin.deleteLocation(Number(ctx.params.id), ctx.admin.id)
@@ -838,7 +959,7 @@ export default class AdminRentalsController {
       fail(ctx, error, 'Unable to delete the branch.')
     }
     return ctx.response.redirect(
-      found?.row.provider_id
+      found?.row.provider_id && !portal(ctx)
         ? `/admin/rentals/locations?provider=${found.row.provider_id}`
         : '/admin/rentals/locations'
     )

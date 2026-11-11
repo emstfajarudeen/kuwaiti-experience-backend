@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Button, Divider, Form, Input, Select, Switch, message } from 'antd'
 import type { FormDataConvertible } from '@inertiajs/core'
 import { useAuthorization } from '../lib/authorization'
+export { usePortal } from '../lib/authorization'
 import { postCmsForm } from '../lib/cms_form'
 import RequiredMark from './required_mark'
 
@@ -129,7 +130,8 @@ export function CreatableSelect({
   value?: string
   onChange?: (value: string) => void
   options: Choice[]
-  createUrl: string
+  /** Leave out to only choose from the list (no "Add new"). */
+  createUrl?: string
   csrfToken: string
   placeholder?: string
   allowClear?: boolean
@@ -142,7 +144,7 @@ export function CreatableSelect({
   const [saving, setSaving] = useState(false)
   const { status } = Form.Item.useStatus()
   const create = async () => {
-    if (!nameEn.trim() || saving) return
+    if (!createUrl || !nameEn.trim() || saving) return
     setSaving(true)
     try {
       const response = await fetch(createUrl, {
@@ -190,47 +192,51 @@ export function CreatableSelect({
         placeholder={placeholder}
         status={status === 'error' ? 'error' : undefined}
         className="tw:w-full"
-        popupRender={(menu) => (
-          <>
-            {menu}
-            <Divider className="tw:my-2" />
-            <div
-              className="tw:flex tw:flex-col tw:gap-2 tw:px-2 tw:pb-2"
-              onKeyDown={(event) => event.stopPropagation()}
-            >
-              <span className="tw:text-[12px] tw:font-semibold tw:text-brand-muted">
-                Add a new {noun}
-              </span>
-              <Input
-                size="small"
-                placeholder="Name in English"
-                value={nameEn}
-                maxLength={80}
-                onChange={(event) => setNameEn(event.target.value)}
-                onPressEnter={() => void create()}
-              />
-              <Input
-                size="small"
-                placeholder="Name in Arabic (optional)"
-                dir="rtl"
-                lang="ar"
-                value={nameAr}
-                maxLength={80}
-                onChange={(event) => setNameAr(event.target.value)}
-                onPressEnter={() => void create()}
-              />
-              <Button
-                size="small"
-                type="primary"
-                loading={saving}
-                disabled={!nameEn.trim()}
-                onClick={() => void create()}
+        popupRender={(menu) =>
+          !createUrl ? (
+            menu
+          ) : (
+            <>
+              {menu}
+              <Divider className="tw:my-2" />
+              <div
+                className="tw:flex tw:flex-col tw:gap-2 tw:px-2 tw:pb-2"
+                onKeyDown={(event) => event.stopPropagation()}
               >
-                + Add {noun}
-              </Button>
-            </div>
-          </>
-        )}
+                <span className="tw:text-[12px] tw:font-semibold tw:text-brand-muted">
+                  Add a new {noun}
+                </span>
+                <Input
+                  size="small"
+                  placeholder="Name in English"
+                  value={nameEn}
+                  maxLength={80}
+                  onChange={(event) => setNameEn(event.target.value)}
+                  onPressEnter={() => void create()}
+                />
+                <Input
+                  size="small"
+                  placeholder="Name in Arabic (optional)"
+                  dir="rtl"
+                  lang="ar"
+                  value={nameAr}
+                  maxLength={80}
+                  onChange={(event) => setNameAr(event.target.value)}
+                  onPressEnter={() => void create()}
+                />
+                <Button
+                  size="small"
+                  type="primary"
+                  loading={saving}
+                  disabled={!nameEn.trim()}
+                  onClick={() => void create()}
+                >
+                  + Add {noun}
+                </Button>
+              </div>
+            </>
+          )
+        }
       />
       <input type="hidden" name={name} value={value ?? ''} />
     </>

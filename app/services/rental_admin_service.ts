@@ -154,11 +154,11 @@ export async function deletePlace(id: number, actorId: number) {
   })
 }
 
-export async function providerOptions() {
-  const rows = await db
-    .from('rental_providers')
-    .select('id', 'name_en', 'active')
-    .orderBy('name_en')
+/** Every provider, or only `onlyId` (a provider portal login sees just its own). */
+export async function providerOptions(onlyId?: number) {
+  const query = db.from('rental_providers').select('id', 'name_en', 'active').orderBy('name_en')
+  if (onlyId) query.where('id', onlyId)
+  const rows = await query
   return rows.map((row) => ({
     value: String(row.id),
     label: row.active ? (row.name_en as string) : `${row.name_en} (inactive)`,
@@ -584,13 +584,18 @@ export async function createInsuranceOption(
   })
 }
 
-export async function vehicleFormOptions() {
+export async function vehicleFormOptions(onlyProviderId?: number) {
   const [providers, locations, types, insurance] = await Promise.all([
-    db.from('rental_providers').select('id', 'name_en', 'active').orderBy('name_en'),
+    db
+      .from('rental_providers')
+      .select('id', 'name_en', 'active')
+      .orderBy('name_en')
+      .if(onlyProviderId, (query) => query.where('id', onlyProviderId!)),
     db
       .from('rental_locations as l')
       .leftJoin('rental_places as pl', 'pl.id', 'l.place_id')
       .whereNotNull('l.provider_id')
+      .if(onlyProviderId, (query) => query.where('l.provider_id', onlyProviderId!))
       .select('l.id', 'l.name_en', 'l.active', 'l.provider_id', 'pl.name_en as place_name')
       .orderBy('l.sort_order')
       .orderBy('l.id'),
@@ -818,13 +823,21 @@ export async function deleteVehicle(id: number, actorId: number) {
 
 // ---------------------------------------------------------------- bookings
 
-export async function listBookings(params: { status?: string; q?: string; page?: unknown }) {
+/** Bookings for the CMS. With `providerId` (provider portal) only that provider's confirmed ones. */
+export async function listBookings(params: {
+  status?: string
+  q?: string
+  page?: unknown
+  providerId?: number
+}) {
   await expireStaleHolds()
   const status = (BOOKING_STATUSES as readonly string[]).includes(params.status ?? '')
     ? params.status
     : ''
   const text = (params.q ?? '').trim().slice(0, 120)
   const apply = (query: any) => {
+    if (params.providerId)
+      query.where('b.provider_id', params.providerId).whereNotNull('b.confirmed_at')
     if (status) query.where('b.status', status)
     if (text)
       query.where((inner: any) =>

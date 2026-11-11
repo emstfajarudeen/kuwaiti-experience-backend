@@ -11,6 +11,7 @@ import {
   formatDateTime,
   StatusBadge,
   useCan,
+  usePortal,
   type SharedProps,
 } from '../../components/rental_ui'
 
@@ -54,6 +55,8 @@ export default function RentalBookings({
     { q: '', status: '' }
   )
   const can = useCan()
+  // Provider portal: their own confirmed bookings; they can mark a rental as completed.
+  const portal = usePortal()
   const [pending, setPending] = useState<{
     row: Booking
     kind: 'complete' | 'cancel' | 'refund'
@@ -62,12 +65,16 @@ export default function RentalBookings({
     const list: Array<{ label: string; href?: string; danger?: boolean; onClick?: () => void }> = [
       { label: 'View details', href: `/admin/rentals/bookings/${row.id}` },
     ]
+    if (
+      (can('rental_bookings.update') || portal) &&
+      row.status === 'confirmed' &&
+      new Date(row.pickup_at) <= new Date()
+    )
+      list.push({
+        label: 'Mark as completed',
+        onClick: () => setPending({ row, kind: 'complete' }),
+      })
     if (can('rental_bookings.update')) {
-      if (row.status === 'confirmed' && new Date(row.pickup_at) <= new Date())
-        list.push({
-          label: 'Mark as completed',
-          onClick: () => setPending({ row, kind: 'complete' }),
-        })
       if (['pending_payment', 'confirmed', 'expired'].includes(row.status))
         list.push({
           label: 'Cancel booking',
@@ -131,7 +138,9 @@ export default function RentalBookings({
             {row.vehicle_name}
             {row.with_driver ? ' · with driver' : ''}
           </span>
-          <span className="tw:text-[12px] tw:text-brand-muted">{row.provider_name}</span>
+          {!portal && (
+            <span className="tw:text-[12px] tw:text-brand-muted">{row.provider_name}</span>
+          )}
         </div>
       ),
     },
@@ -150,12 +159,15 @@ export default function RentalBookings({
     {
       title: 'Amounts (KWD)',
       key: 'amounts',
-      render: (_, row) => (
-        <div className="tw:flex tw:flex-col tw:text-[13px]">
-          <span>Fee {row.booking_fee}</span>
-          <span className="tw:text-brand-muted">At pickup {row.rental_amount}</span>
-        </div>
-      ),
+      render: (_, row) =>
+        portal ? (
+          <span className="tw:text-[13px]">At pickup {row.rental_amount}</span>
+        ) : (
+          <div className="tw:flex tw:flex-col tw:text-[13px]">
+            <span>Fee {row.booking_fee}</span>
+            <span className="tw:text-brand-muted">At pickup {row.rental_amount}</span>
+          </div>
+        ),
     },
     {
       title: 'Booked',
@@ -177,7 +189,7 @@ export default function RentalBookings({
   }
   return (
     <AdminLayout
-      title="Rental bookings"
+      title={portal ? 'Bookings' : 'Rental bookings'}
       active="rental-bookings"
       adminName={adminName}
       csrfToken={csrfToken}
@@ -185,7 +197,7 @@ export default function RentalBookings({
       error={error}
     >
       <div className="page-head tw:mb-6">
-        <h1>Rental bookings</h1>
+        <h1>{portal ? 'Bookings' : 'Rental bookings'}</h1>
       </div>
       <section className="panel table-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-0">
         <div className="panel-heading tw:border-b tw:border-brand-line-subtle tw:px-6 tw:py-5">
@@ -203,7 +215,11 @@ export default function RentalBookings({
               key: 'status',
               value: filters.values.status,
               placeholder: 'All statuses',
-              options: bookingStatusOptions,
+              options: portal
+                ? bookingStatusOptions.filter((option) =>
+                    ['confirmed', 'completed', 'cancelled'].includes(option.value)
+                  )
+                : bookingStatusOptions,
               onChange: (value) => filters.setSelect('status', value),
             },
           ]}
@@ -224,7 +240,11 @@ export default function RentalBookings({
               hideOnSinglePage: true,
             }}
             onChange={changePage}
-            locale={{ emptyText: 'No rental bookings yet.' }}
+            locale={{
+              emptyText: portal
+                ? 'No bookings yet. Confirmed bookings of your cars appear here.'
+                : 'No rental bookings yet.',
+            }}
           />
         </div>
       </section>

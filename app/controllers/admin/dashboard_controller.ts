@@ -3,6 +3,8 @@ import db from '@adonisjs/lucid/services/db'
 import { categoryTypes } from '../../services/category_type_service.js'
 import { formatKuwaitDateTime } from '../../services/date_service.js'
 import { can } from '../../services/authorization_service.js'
+import { providerDashboard } from '../../services/rental_provider_portal_service.js'
+import { kwd, toFils } from '../../services/rental_money.js'
 
 export function formatActionLabel(action: string): string {
   const map: Record<string, string> = {
@@ -40,7 +42,27 @@ export function formatActionLabel(action: string): string {
 }
 
 export default class AdminDashboardController {
-  async index({ inertia, request, admin, authorization }: HttpContext) {
+  async index({ inertia, request, admin, authorization, session }: HttpContext) {
+    if (admin.providerId) {
+      // Rental provider portal home.
+      const data = await providerDashboard(admin.providerId)
+      const money = (rows: typeof data.upcoming) =>
+        rows.map((row) => ({ ...row, rental_amount: kwd(toFils(row.rental_amount)) }))
+      return inertia.render(
+        'rentals/provider_dashboard',
+        {
+          adminName: admin.fullName,
+          csrfToken: request.csrfToken,
+          success: (session.flashMessages.get('success') as string | undefined) ?? null,
+          error: (session.flashMessages.get('error') as string | undefined) ?? null,
+          providerName: admin.providerName ?? 'Provider',
+          stats: data.stats,
+          upcoming: money(data.upcoming),
+          toComplete: money(data.toComplete),
+        },
+        { bodyClass: 'cms-body' }
+      )
+    }
     const showPlaces = can(authorization, 'places.view')
     const showContacts = can(authorization, 'contact_requests.view')
     const showTypes = showPlaces && can(authorization, 'category_types.view')
@@ -70,7 +92,9 @@ export default class AdminDashboardController {
         ? db.from('places').where('status', 'published').count('* as count').first()
         : null,
       showPlaces ? db.from('places').where('status', 'draft').count('* as count').first() : null,
-      showPlaces ? db.from('places').whereIn('status', ['draft', 'archived']).count('* as count').first() : null,
+      showPlaces
+        ? db.from('places').whereIn('status', ['draft', 'archived']).count('* as count').first()
+        : null,
       showPlaces
         ? db.from('places').whereNotNull('featured_order').count('* as count').first()
         : null,

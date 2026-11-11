@@ -163,6 +163,19 @@ router
       .as('cms.rentalProviders.update')
     router.post('/rentals/providers/:id/status', [AdminRentalsController, 'providerStatus'])
     router.post('/rentals/providers/:id/delete', [AdminRentalsController, 'deleteProvider'])
+    router.post('/rentals/providers/:id/login', [AdminRentalsController, 'createProviderLogin'])
+    router.post('/rentals/providers/:id/login/invite', [
+      AdminRentalsController,
+      'resendProviderInvite',
+    ])
+    router.post('/rentals/providers/:id/login/status', [
+      AdminRentalsController,
+      'providerLoginStatus',
+    ])
+    router.post('/rentals/providers/:id/login/delete', [
+      AdminRentalsController,
+      'deleteProviderLogin',
+    ])
     router
       .get('/rentals/address-search', [AdminAddressSearchController, 'search'])
       .as('cms.rentals.address_search')

@@ -147,7 +147,10 @@ function ClosedDatesField() {
                     range ? [range[0].format(DATE), range[1].format(DATE)] : undefined
                   }
                 >
-                  <DatePicker.RangePicker format="D MMM YYYY" className="tw:w-full rental-range-plain" />
+                  <DatePicker.RangePicker
+                    format="D MMM YYYY"
+                    className="tw:w-full rental-range-plain"
+                  />
                 </Form.Item>
                 <Form.Item name={[field.name, 'reason']} className="tw:mb-0">
                   <Input placeholder="Reason (optional), e.g. National Day" maxLength={200} />
@@ -194,7 +197,7 @@ export default function RentalBranchHours({
   return (
     <AdminLayout
       title="Working hours"
-      active="rental-providers"
+      active="rental-hours"
       adminName={adminName}
       csrfToken={csrfToken}
       success={success}

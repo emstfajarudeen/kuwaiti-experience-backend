@@ -7,6 +7,11 @@ import { referencedImageModules } from '../services/image_reference_service.js'
 import { isManagedImageKey } from '../services/image_storage_service.js'
 import { adminLandingUrl } from '../authorization/admin_landing.js'
 import db from '@adonisjs/lucid/services/db'
+import {
+  providerAuthorization,
+  providerMayUse,
+  providerOwnsImage,
+} from '../authorization/provider_portal.js'
 
 const savedDestinations: Record<string, string> = {
   'places': 'places.view',
@@ -33,7 +38,27 @@ export default class AdminAuthorizationMiddleware {
     }
   }
 
+  /** Provider portal logins: allow-listed routes only, and only their own images. */
+  private async handleProvider(ctx: HttpContext, next: NextFn, providerId: number) {
+    const route = ctx.route
+    // Set first, so even the "access denied" page shows the provider portal layout.
+    ctx.authorization = providerAuthorization()
+    if (!route || !providerMayUse(ctx.request.method(), route.pattern)) {
+      throw new ApiError(403, 'FORBIDDEN', 'This page is not part of the provider portal')
+    }
+    if (ctx.admin.mustChangePassword && !route.pattern.startsWith('/admin/account')) {
+      if (route.pattern !== '/admin/logout') return ctx.response.redirect('/admin/account')
+    }
+    if (route.pattern === '/admin/images/:key') {
+      const imageKey = String(ctx.params.key)
+      if (!isManagedImageKey(imageKey) || !(await providerOwnsImage(providerId, imageKey)))
+        throw new ApiError(404, 'NOT_FOUND', 'Image not found')
+    }
+    return next()
+  }
+
   async handle(ctx: HttpContext, next: NextFn) {
+    if (ctx.admin.providerId) return this.handleProvider(ctx, next, ctx.admin.providerId)
     const route = ctx.route
     const policy = route ? resolveAdminRoutePolicy(ctx.request.method(), route.pattern) : undefined
     if (!route || !policy) {

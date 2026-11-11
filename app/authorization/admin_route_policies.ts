@@ -442,6 +442,16 @@ add(
 )
 add('POST', ['/admin/rentals/vehicles/:id/status'], ['rentals.view', 'rentals.publish'])
 add('POST', ['/admin/rentals/providers/:id/status'], ['rentals.view', 'rentals.update'])
+add(
+  'POST',
+  [
+    '/admin/rentals/providers/:id/login',
+    '/admin/rentals/providers/:id/login/invite',
+    '/admin/rentals/providers/:id/login/status',
+  ],
+  ['rentals.view', 'rentals.update']
+)
+add('POST', ['/admin/rentals/providers/:id/login/delete'], ['rentals.view', 'rentals.delete'])
 add('POST', ['/admin/rentals/locations/:id/status'], ['rentals.view', 'rentals.update'])
 add('GET', ['/admin/rentals/address-search', '/admin/rentals/address-reverse'], ['rentals.view'])
 add(

@@ -17,8 +17,17 @@ export type AdminIdentity = {
   email: string
   sessionId: string
   mustChangePassword: boolean
+  /** Set for provider portal logins: every request is limited to this rental provider. */
+  providerId: number | null
+  providerName: string | null
 }
 type TokenPair = { accessToken: string; refreshToken: string; expiresIn: number }
+
+/** CMS users: staff (role 'admin') and rental provider portal logins (role 'provider'). */
+function isCmsUser(row: { role?: unknown; rental_provider_id?: unknown }, allowProvider = true) {
+  if (row.role === 'admin') return true
+  return allowProvider && row.role === 'provider' && Boolean(row.rental_provider_id)
+}
 
 function digest(token: string) {
   return createHash('sha256').update(token).digest('hex')
@@ -38,12 +47,20 @@ function newRefreshToken() {
   return randomBytes(48).toString('base64url')
 }
 
-export async function loginAdmin(email: string, password: string): Promise<TokenPair> {
+/**
+ * Signs in a CMS user. Provider portal logins are accepted only when `allowProvider` is set
+ * (the CMS login page); the admin JSON API stays staff-only.
+ */
+export async function loginAdmin(
+  email: string,
+  password: string,
+  { allowProvider = false }: { allowProvider?: boolean } = {}
+): Promise<TokenPair> {
   const normalizedEmail = email.trim().toLowerCase()
   const user = await db.from('users').where('email', normalizedEmail).first()
   if (
     !user ||
-    user.role !== 'admin' ||
+    !isCmsUser(user, allowProvider) ||
     !user.active ||
     !(await hash.verify(user.password, password))
   ) {
@@ -67,6 +84,7 @@ export async function loginAdmin(email: string, password: string): Promise<Token
       expires_at: expiresAt,
       created_at: new Date(),
     })
+    await trx.from('users').where('id', user.id).update({ last_login_at: new Date() })
   })
   return { accessToken: signAccess(user.id, sessionId), refreshToken, expiresIn: accessSeconds }
 }
@@ -90,13 +108,23 @@ export async function authenticateAdmin(token: string): Promise<AdminIdentity> {
   const row = await db
     .from('auth_sessions as s')
     .join('users as u', 'u.id', 's.user_id')
-    .select('u.id', 'u.full_name', 'u.email', 'u.role', 'u.active', 'u.must_change_password')
+    .leftJoin('rental_providers as rp', 'rp.id', 'u.rental_provider_id')
+    .select(
+      'u.id',
+      'u.full_name',
+      'u.email',
+      'u.role',
+      'u.active',
+      'u.must_change_password',
+      'u.rental_provider_id',
+      'rp.name_en as provider_name'
+    )
     .where('s.id', payload.sid)
     .where('u.id', Number(payload.sub))
     .whereNull('s.revoked_at')
     .where('s.expires_at', '>', new Date())
     .first()
-  if (!row || !row.active || row.role !== 'admin') {
+  if (!row || !row.active || !isCmsUser(row)) {
     throw new ApiError(401, 'UNAUTHENTICATED', 'Authentication required')
   }
   return {
@@ -105,6 +133,8 @@ export async function authenticateAdmin(token: string): Promise<AdminIdentity> {
     email: row.email,
     sessionId: payload.sid,
     mustChangePassword: Boolean(row.must_change_password),
+    providerId: row.role === 'provider' ? Number(row.rental_provider_id) : null,
+    providerName: row.role === 'provider' ? (row.provider_name ?? null) : null,
   }
 }
 
@@ -126,7 +156,8 @@ export async function rotateRefreshToken(token: string): Promise<TokenPair> {
         's.expires_at as session_expires_at',
         'u.id as user_id',
         'u.active',
-        'u.role'
+        'u.role',
+        'u.rental_provider_id'
       )
       .where('r.token_hash', digest(token))
       .forUpdate()
@@ -137,7 +168,7 @@ export async function rotateRefreshToken(token: string): Promise<TokenPair> {
       new Date(old.expires_at) <= new Date() ||
       new Date(old.session_expires_at) <= new Date() ||
       !old.active ||
-      old.role !== 'admin'
+      !isCmsUser(old)
     ) {
       return { kind: 'invalid' as const }
     }
@@ -199,6 +230,7 @@ export async function changePassword(
       .update({
         password: await hash.make(nextPassword),
         must_change_password: false,
+        password_set_at: new Date(),
         updated_at: new Date(),
       })
     await trx

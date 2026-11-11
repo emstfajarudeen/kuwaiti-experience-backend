@@ -4,7 +4,7 @@ import { router } from '@inertiajs/react'
 import AdminLayout from '../../layouts/admin_layout'
 import ConfirmModal from '../../components/confirm_modal'
 import RowActionMenu from '../../components/row_action_menu'
-import { useCan, type SharedProps } from '../../components/rental_ui'
+import { useCan, usePortal, type SharedProps } from '../../components/rental_ui'
 
 type Branch = {
   id: number
@@ -39,33 +39,41 @@ export default function RentalBranches({
   const [deleting, setDeleting] = useState<Branch | null>(null)
   const here =
     typeof window === 'undefined' ? '' : window.location.pathname + window.location.search
+  // Provider portal: the whole page is the provider's own, so no provider name or filter.
+  const portal = usePortal()
   const providerName = providers.find((option) => option.value === provider)?.label
-  const addHref = provider
-    ? `/admin/rentals/locations/new?providerId=${provider}`
-    : '/admin/rentals/locations/new'
+  const named = portal ? '' : providerName
+  const addHref =
+    provider && !portal
+      ? `/admin/rentals/locations/new?providerId=${provider}`
+      : '/admin/rentals/locations/new'
   return (
     <AdminLayout
-      title={providerName ? `${providerName} · Branches` : 'Branches'}
-      active="rental-providers"
+      title={named ? `${named} · Branches` : 'Branches'}
+      active="rental-branches"
       adminName={adminName}
       csrfToken={csrfToken}
       success={success}
       error={error}
     >
-      <a className="back-link tw:mb-4 tw:inline-flex" href="/admin/rentals/providers">
-        ← Back to providers
-      </a>
+      {!portal && (
+        <a className="back-link tw:mb-4 tw:inline-flex" href="/admin/rentals/providers">
+          ← Back to providers
+        </a>
+      )}
       <div className="page-head tw:mb-6">
         <h1>{providerName ? 'Branches' : 'All branches'}</h1>
       </div>
       <section className="panel table-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-0">
         <div className="panel-heading tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-brand-line-subtle tw:px-6 tw:py-5">
-          <h2>{providerName ? `${providerName} - ` : ''}Branches ({rows.length})</h2>
+          <h2>
+            {named ? `${named} - ` : ''}Branches ({rows.length})
+          </h2>
           <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
             <a
               className="button secondary"
               href={
-                provider
+                provider && !portal
                   ? `/admin/rentals/working-hours?provider=${provider}`
                   : '/admin/rentals/working-hours'
               }
@@ -109,7 +117,7 @@ export default function RentalBranches({
                 title: 'Branch',
                 key: 'branch',
                 render: (_: unknown, row: Branch) => (
-                  <div className="tw:flex tw:flex-col">
+                  <div className="tw:flex tw:min-w-[200px] tw:flex-col">
                     <strong>{row.name_en}</strong>
                     <span className="tw:text-[12px] tw:text-brand-muted">{row.address ?? '—'}</span>
                   </div>

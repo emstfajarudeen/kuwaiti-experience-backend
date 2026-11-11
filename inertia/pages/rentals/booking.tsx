@@ -9,6 +9,7 @@ import {
   Panel,
   StatusBadge,
   useCan,
+  usePortal,
   type SharedProps,
 } from '../../components/rental_ui'
 
@@ -93,6 +94,9 @@ export default function RentalBooking({
   const base = `/admin/rentals/bookings/${booking.id}`
   const paid = payments.some((payment) => payment.status === 'paid')
   const canUpdate = can('rental_bookings.update')
+  // Provider portal: the rental and customer only; it can mark the rental as completed.
+  const portal = usePortal()
+  const canComplete = canUpdate || Boolean(portal)
   const [reviewBusy, setReviewBusy] = useState(false)
   const [pending, setPending] = useState<'complete' | 'cancel' | 'refund' | null>(null)
   const [cancelReason, setCancelReason] = useState('')
@@ -137,7 +141,7 @@ export default function RentalBooking({
     >
       <div className="tw:mb-4 tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3">
         <a className="back-link tw:inline-flex" href="/admin/rentals/bookings">
-          ← Back to rental bookings
+          {portal ? '← Back to bookings' : '← Back to rental bookings'}
         </a>
         <StatusBadge status={booking.status} />
       </div>
@@ -145,7 +149,7 @@ export default function RentalBooking({
         <h1>{booking.reference}</h1>
       </div>
 
-      {booking.status === 'refund_required' && (
+      {!portal && booking.status === 'refund_required' && (
         <div className="tw:mb-6 tw:rounded-cms-sm tw:border tw:border-amber-300 tw:bg-amber-50 tw:p-4 tw:text-[14px]">
           The customer paid the booking fee, but the booking could not be confirmed (the hold had
           expired and the vehicle was taken, or the customer had cancelled). Refund the fee.
@@ -158,10 +162,12 @@ export default function RentalBooking({
             label="Vehicle"
             value={`${booking.vehicle_name}${booking.with_driver ? ' (with driver)' : ''}`}
           />
-          <Detail
-            label="Provider"
-            value={`${booking.provider_name}${booking.provider_phone ? ` · ${booking.provider_phone}` : ''}`}
-          />
+          {!portal && (
+            <Detail
+              label="Provider"
+              value={`${booking.provider_name}${booking.provider_phone ? ` · ${booking.provider_phone}` : ''}`}
+            />
+          )}
           <Detail label="Days" value={booking.days} />
           <Detail
             label="Pickup"
@@ -171,12 +177,21 @@ export default function RentalBooking({
             label="Return"
             value={`${formatDateTime(booking.return_at)} · ${booking.return_location}`}
           />
+          {!portal && (
+            <Detail
+              label="Hold expires"
+              value={booking.hold_expires_at ? formatDateTime(booking.hold_expires_at) : null}
+            />
+          )}
+          {!portal && (
+            <Detail label="Booking fee (paid in app)" value={`KWD ${booking.booking_fee}`} />
+          )}
           <Detail
-            label="Hold expires"
-            value={booking.hold_expires_at ? formatDateTime(booking.hold_expires_at) : null}
+            label={
+              portal ? 'Rental amount (collect at pickup)' : 'Rental amount (paid to provider)'
+            }
+            value={`KWD ${booking.rental_amount}`}
           />
-          <Detail label="Booking fee (paid in app)" value={`KWD ${booking.booking_fee}`} />
-          <Detail label="Rental amount (paid to provider)" value={`KWD ${booking.rental_amount}`} />
           <Detail label="Customer notes" value={booking.notes} />
         </dl>
       </Panel>
@@ -212,111 +227,119 @@ export default function RentalBooking({
         </dl>
       </Panel>
 
-      <Panel
-        title="Payments"
-        actions={
-          canUpdate && payments.length > 0 ? (
-            <ActionForm action={`${base}/verify-payment`} csrfToken={csrfToken}>
-              <Button htmlType="submit">Refresh from MyFatoorah</Button>
-            </ActionForm>
-          ) : null
-        }
-      >
-        {payments.length === 0 ? (
-          <p className="tw:text-brand-muted">No payment started.</p>
-        ) : (
-          <table className="tw:w-full tw:text-[13px]">
-            <thead>
-              <tr className="tw:text-left">
-                <th>Invoice</th>
-                <th>Method</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Paid</th>
-                <th>Refund</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payments.map((payment) => (
-                <tr key={payment.id}>
-                  <td>
-                    {payment.invoice_id}
-                    {payment.payment_id ? ` / ${payment.payment_id}` : ''}
-                  </td>
-                  <td>{payment.method ?? '—'}</td>
-                  <td>KWD {payment.amount}</td>
-                  <td>
-                    <StatusBadge status={payment.status} />
-                  </td>
-                  <td>{formatDateTime(payment.paid_at)}</td>
-                  <td>
-                    {payment.refunded_at
-                      ? `${formatDateTime(payment.refunded_at)} (${payment.refund_reference ?? ''})`
-                      : '—'}
-                  </td>
+      {!portal && (
+        <Panel
+          title="Payments"
+          actions={
+            canUpdate && payments.length > 0 ? (
+              <ActionForm action={`${base}/verify-payment`} csrfToken={csrfToken}>
+                <Button htmlType="submit">Refresh from MyFatoorah</Button>
+              </ActionForm>
+            ) : null
+          }
+        >
+          {payments.length === 0 ? (
+            <p className="tw:text-brand-muted">No payment started.</p>
+          ) : (
+            <table className="tw:w-full tw:text-[13px]">
+              <thead>
+                <tr className="tw:text-left">
+                  <th>Invoice</th>
+                  <th>Method</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Paid</th>
+                  <th>Refund</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Panel>
+              </thead>
+              <tbody>
+                {payments.map((payment) => (
+                  <tr key={payment.id}>
+                    <td>
+                      {payment.invoice_id}
+                      {payment.payment_id ? ` / ${payment.payment_id}` : ''}
+                    </td>
+                    <td>{payment.method ?? '—'}</td>
+                    <td>KWD {payment.amount}</td>
+                    <td>
+                      <StatusBadge status={payment.status} />
+                    </td>
+                    <td>{formatDateTime(payment.paid_at)}</td>
+                    <td>
+                      {payment.refunded_at
+                        ? `${formatDateTime(payment.refunded_at)} (${payment.refund_reference ?? ''})`
+                        : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Panel>
+      )}
 
-      <Panel
-        title="Provider emails"
-        actions={
-          canUpdate && booking.confirmed_at ? (
-            <ActionForm action={`${base}/provider-email`} csrfToken={csrfToken}>
-              <Button htmlType="submit">
-                {booking.status === 'cancelled' ? 'Send cancellation email' : 'Send booking email'}
-              </Button>
-            </ActionForm>
-          ) : null
-        }
-      >
-        <p className="tw:mb-3 tw:text-[13px] tw:text-brand-muted">
-          Sent to {booking.provider_email ?? 'the provider (no email address saved)'} when the
-          booking is confirmed and when a confirmed booking is cancelled.
-        </p>
-        {providerEmails.length === 0 ? (
-          <p className="tw:text-brand-muted">No emails sent yet.</p>
-        ) : (
-          <table className="tw:w-full tw:text-[13px]">
-            <thead>
-              <tr className="tw:text-left">
-                <th>Email</th>
-                <th>Recipient</th>
-                <th>Result</th>
-                <th>Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {providerEmails.map((email) => (
-                <tr key={email.id}>
-                  <td>{email.kind === 'confirmed' ? 'Booking confirmed' : 'Booking cancelled'}</td>
-                  <td>{email.recipient ?? '—'}</td>
-                  <td>
-                    <span
-                      className={`status ${email.status === 'sent' ? 'published' : email.status === 'failed' ? 'archived' : 'draft'}`}
-                    >
-                      {email.status === 'sent'
-                        ? 'Sent'
-                        : email.status === 'failed'
-                          ? 'Failed'
-                          : 'Not sent'}
-                    </span>
-                    {email.error && (
-                      <span className="tw:mt-1 tw:block tw:text-[12px] tw:text-brand-muted">
-                        {email.error}
-                      </span>
-                    )}
-                  </td>
-                  <td>{formatDateTime(email.created_at)}</td>
+      {!portal && (
+        <Panel
+          title="Provider emails"
+          actions={
+            canUpdate && booking.confirmed_at ? (
+              <ActionForm action={`${base}/provider-email`} csrfToken={csrfToken}>
+                <Button htmlType="submit">
+                  {booking.status === 'cancelled'
+                    ? 'Send cancellation email'
+                    : 'Send booking email'}
+                </Button>
+              </ActionForm>
+            ) : null
+          }
+        >
+          <p className="tw:mb-3 tw:text-[13px] tw:text-brand-muted">
+            Sent to {booking.provider_email ?? 'the provider (no email address saved)'} when the
+            booking is confirmed and when a confirmed booking is cancelled.
+          </p>
+          {providerEmails.length === 0 ? (
+            <p className="tw:text-brand-muted">No emails sent yet.</p>
+          ) : (
+            <table className="tw:w-full tw:text-[13px]">
+              <thead>
+                <tr className="tw:text-left">
+                  <th>Email</th>
+                  <th>Recipient</th>
+                  <th>Result</th>
+                  <th>Time</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Panel>
+              </thead>
+              <tbody>
+                {providerEmails.map((email) => (
+                  <tr key={email.id}>
+                    <td>
+                      {email.kind === 'confirmed' ? 'Booking confirmed' : 'Booking cancelled'}
+                    </td>
+                    <td>{email.recipient ?? '—'}</td>
+                    <td>
+                      <span
+                        className={`status ${email.status === 'sent' ? 'published' : email.status === 'failed' ? 'archived' : 'draft'}`}
+                      >
+                        {email.status === 'sent'
+                          ? 'Sent'
+                          : email.status === 'failed'
+                            ? 'Failed'
+                            : 'Not sent'}
+                      </span>
+                      {email.error && (
+                        <span className="tw:mt-1 tw:block tw:text-[12px] tw:text-brand-muted">
+                          {email.error}
+                        </span>
+                      )}
+                    </td>
+                    <td>{formatDateTime(email.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Panel>
+      )}
 
       {can('rental_reviews.view') && (
         <Panel
@@ -351,7 +374,7 @@ export default function RentalBooking({
         </Panel>
       )}
 
-      {canUpdate && (
+      {canComplete && (
         <Panel title="Actions">
           <div className="tw:flex tw:flex-col tw:gap-5">
             {booking.status === 'confirmed' && new Date(booking.pickup_at) <= new Date() && (
@@ -361,7 +384,7 @@ export default function RentalBooking({
                 </Button>
               </div>
             )}
-            {['pending_payment', 'confirmed', 'expired'].includes(booking.status) && (
+            {canUpdate && ['pending_payment', 'confirmed', 'expired'].includes(booking.status) && (
               <div className="tw:flex tw:flex-wrap tw:items-end tw:gap-3">
                 <Input
                   value={cancelReason}

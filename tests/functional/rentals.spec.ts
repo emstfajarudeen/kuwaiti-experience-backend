@@ -1182,3 +1182,359 @@ test.group('Rentals CMS', (group) => {
     assert.equal(Number(settings.hold_minutes), 20)
   })
 })
+
+test.group('Rental provider portal', (group) => {
+  let mailer: FakeMailer
+  let restoreMailer: () => void
+  group.each.setup(async () => {
+    const truncate = await testUtils.db().truncate()
+    await limiter.clear()
+    mailer = new FakeMailer()
+    restoreMailer = swapRentalMailer(mailer)
+    return async () => {
+      restoreMailer()
+      await truncate()
+    }
+  })
+
+  const statusOf = async (request: PromiseLike<{ status(): number }>) => {
+    const response = await request
+    return response.status()
+  }
+  const column = async (table: string, id: number, name: string) => {
+    const row = await db.from(table).where('id', id).firstOrFail()
+    return row[name]
+  }
+
+  const page = (response: { text(): string }) => {
+    const match = response
+      .text()
+      .match(/<script data-page="[^"]+" type="application\/json">([^<]+)<\/script>/)
+    if (!match) throw new Error('Expected an Inertia page')
+    return JSON.parse(match[1].replaceAll('&quot;', '"').replaceAll('&amp;', '&')) as {
+      component: string
+      props: Record<string, any>
+    }
+  }
+
+  async function staff() {
+    await db.table('users').insert({
+      full_name: 'Test Admin',
+      email: 'staff@example.com',
+      password: await hash.make('a-very-long-test-password'),
+      role: 'admin',
+      active: true,
+      created_at: new Date(),
+    })
+    return loginAdmin('staff@example.com', 'a-very-long-test-password')
+  }
+
+  async function booking(
+    ids: Awaited<ReturnType<typeof catalog>>,
+    values: { pickupInDays: number; days: number; status: string; confirmed?: boolean }
+  ) {
+    const buyer = await customer()
+    const pickup = new Date(Date.now() + values.pickupInDays * DAY)
+    const snapshot = {
+      vehicle: { name_en: 'Toyota Camry', make: 'Toyota', model: 'Camry' },
+      provider: { name_en: 'Gulf Rent', phone_e164: '+96522223333', email: null },
+      pickup_location: { id: ids.airport, name_en: 'Kuwait Airport' },
+      return_location: { id: ids.airport, name_en: 'Kuwait Airport' },
+    }
+    const [id] = await db.table('rental_bookings').insert({
+      reference: `KR-${randomInt(100000, 999999)}`,
+      customer_id: buyer.id,
+      vehicle_id: ids.vehicleId,
+      provider_id: ids.providerId,
+      pickup_location_id: ids.airportBranch,
+      return_location_id: ids.airportBranch,
+      pickup_at: pickup,
+      return_at: new Date(pickup.getTime() + values.days * DAY),
+      with_driver: false,
+      days: Math.ceil(values.days),
+      daily_rate: '12.500',
+      driver_daily_rate: '0.000',
+      rental_amount: '25.000',
+      booking_fee: '2.000',
+      currency: 'KWD',
+      snapshot: JSON.stringify(snapshot),
+      status: values.status,
+      idempotency_key: randomUUID(),
+      request_hash: randomUUID(),
+      confirmed_at: values.confirmed === false ? null : new Date(),
+      created_at: new Date(),
+    })
+    return Number(id)
+  }
+
+  test('staff invite a provider, who sets a password and signs in', async ({ client, assert }) => {
+    const admin = await staff()
+    const ids = await catalog()
+    const created = await client
+      .post(`/admin/rentals/providers/${ids.providerId}/login`)
+      .redirects(0)
+      .withCsrfToken()
+      .cookie('admin_access', admin.accessToken)
+      .form({ name: 'Gulf Rent desk', email: 'Desk@GulfRent.example' })
+    assert.equal(created.header('location'), `/admin/rentals/providers/${ids.providerId}/edit`)
+    const user = await db.from('users').where('email', 'desk@gulfrent.example').firstOrFail()
+    assert.equal(user.role, 'provider')
+    assert.equal(Number(user.rental_provider_id), ids.providerId)
+    assert.lengthOf(mailer.sent, 1)
+    assert.equal(mailer.sent[0].to, 'desk@gulfrent.example')
+    const link = mailer.sent[0].text.match(/https?:\/\/\S+reset-password\?token=([A-Za-z0-9_-]+)/)
+    assert.isNotNull(link)
+    const token = link![1]
+
+    // One login per provider.
+    await client
+      .post(`/admin/rentals/providers/${ids.providerId}/login`)
+      .withCsrfToken()
+      .cookie('admin_access', admin.accessToken)
+      .form({ name: 'Second', email: 'second@gulfrent.example' })
+    assert.isNull(await db.from('users').where('email', 'second@gulfrent.example').first())
+
+    const editPage = page(
+      await client
+        .get(`/admin/rentals/providers/${ids.providerId}/edit`)
+        .cookie('admin_access', admin.accessToken)
+    )
+    assert.equal(editPage.props.login.state, 'invited')
+
+    // The invite opens a "set your password" page and sets the first password.
+    const setPage = page(await client.get(`/admin/reset-password?token=${token}`))
+    assert.isTrue(setPage.props.invite)
+    const saved = await client.post('/admin/reset-password').redirects(0).withCsrfToken().form({
+      token,
+      newPassword: 'provider-long-password',
+      confirmPassword: 'provider-long-password',
+    })
+    assert.equal(saved.header('location'), '/admin/login')
+    assert.isNotNull(await column('users', user.id, 'password_set_at'))
+
+    // The CMS login page signs providers in; the staff JSON API does not.
+    const signedIn = await client
+      .post('/admin/login')
+      .redirects(0)
+      .withCsrfToken()
+      .form({ email: 'desk@gulfrent.example', password: 'provider-long-password' })
+    assert.equal(signedIn.header('location'), '/admin')
+    const api = await client
+      .post('/api/v1/admin/auth/login')
+      .json({ email: 'desk@gulfrent.example', password: 'provider-long-password' })
+    assert.equal(api.status(), 401)
+
+    const listPage = page(
+      await client.get('/admin/rentals/providers').cookie('admin_access', admin.accessToken)
+    )
+    assert.equal(
+      listPage.props.rows.find((row: any) => row.id === ids.providerId).login_state,
+      'active'
+    )
+  })
+
+  test('a provider only sees and changes its own rental business', async ({ client, assert }) => {
+    const ids = await catalog()
+    const other = await catalog({ name_en: 'Other Patrol' })
+    await db.from('rental_providers').where('id', other.providerId).update({ name_en: 'Other Co' })
+    await db.table('users').insert({
+      full_name: 'Gulf desk',
+      email: 'desk@gulfrent.example',
+      password: await hash.make('provider-long-password'),
+      role: 'provider',
+      rental_provider_id: ids.providerId,
+      password_set_at: new Date(),
+      active: true,
+      created_at: new Date(),
+    })
+    const { loginAdmin: signIn } = await import('../../app/services/auth_service.js')
+    const tokens = await signIn('desk@gulfrent.example', 'provider-long-password', {
+      allowProvider: true,
+    })
+    const get = (path: string) => client.get(path).cookie('admin_access', tokens.accessToken)
+    const post = (path: string) =>
+      client.post(path).redirects(0).withCsrfToken().cookie('admin_access', tokens.accessToken)
+
+    const ownDone = await booking(ids, { pickupInDays: -3, days: 1, status: 'confirmed' })
+    const ownUpcoming = await booking(ids, { pickupInDays: 2, days: 2, status: 'confirmed' })
+    await booking(ids, { pickupInDays: 4, days: 1, status: 'pending_payment', confirmed: false })
+    const othersBooking = await booking(other, { pickupInDays: -3, days: 1, status: 'confirmed' })
+
+    const home = page(await get('/admin'))
+    assert.equal(home.component, 'rentals/provider_dashboard')
+    assert.equal(home.props.auth.provider.id, ids.providerId)
+    assert.equal(home.props.stats.toComplete, 1)
+    assert.deepEqual(
+      home.props.upcoming.map((row: any) => row.id),
+      [ownUpcoming]
+    )
+
+    for (const path of [
+      '/admin/rentals/bookings',
+      `/admin/rentals/bookings/${ownDone}`,
+      '/admin/rentals/vehicles',
+      '/admin/rentals/vehicles/new',
+      `/admin/rentals/vehicles/${ids.vehicleId}/edit`,
+      '/admin/rentals/locations',
+      '/admin/rentals/locations/new',
+      `/admin/rentals/locations/${ids.airportBranch}/edit`,
+      `/admin/rentals/locations/${ids.airportBranch}/hours`,
+      '/admin/rentals/working-hours',
+      '/admin/account',
+    ])
+      assert.equal(await statusOf(get(path)), 200, path)
+
+    const vehicles = page(await get(`/admin/rentals/vehicles?provider=${other.providerId}`))
+    assert.deepEqual(
+      vehicles.props.rows.map((row: any) => row.id),
+      [ids.vehicleId]
+    )
+    const bookings = page(await get('/admin/rentals/bookings'))
+    assert.sameMembers(
+      bookings.props.rows.map((row: any) => row.id),
+      [ownDone, ownUpcoming]
+    )
+    const detail = page(await get(`/admin/rentals/bookings/${ownDone}`))
+    assert.deepEqual(detail.props.payments, [])
+    const branches = page(await get(`/admin/rentals/locations?provider=${other.providerId}`))
+    assert.sameMembers(
+      branches.props.rows.map((row: any) => row.id),
+      [ids.airportBranch, ids.cityBranch]
+    )
+    const form = page(await get('/admin/rentals/vehicles/new'))
+    assert.deepEqual(
+      form.props.options.providers.map((row: any) => row.id),
+      [ids.providerId]
+    )
+
+    // Another provider's records answer 404.
+    for (const path of [
+      `/admin/rentals/vehicles/${other.vehicleId}/edit`,
+      `/admin/rentals/locations/${other.airportBranch}/edit`,
+      `/admin/rentals/locations/${other.airportBranch}/hours`,
+      `/admin/rentals/bookings/${othersBooking}`,
+    ])
+      assert.equal(await statusOf(get(path)), 404, path)
+    assert.equal(
+      await statusOf(
+        post(`/admin/rentals/vehicles/${other.vehicleId}/status`).form({ status: 'draft' })
+      ),
+      404
+    )
+    assert.equal(
+      await statusOf(post(`/admin/rentals/locations/${other.airportBranch}/delete`)),
+      404
+    )
+    assert.equal(await statusOf(post(`/admin/rentals/bookings/${othersBooking}/complete`)), 404)
+    assert.equal(await column('rental_vehicles', other.vehicleId, 'status'), 'published')
+
+    // Staff-only screens and actions are closed.
+    for (const path of [
+      '/admin/rentals/providers',
+      `/admin/rentals/providers/${ids.providerId}/edit`,
+      '/admin/rentals/places',
+      '/admin/rentals/settings',
+      '/admin/rentals/reviews',
+      '/admin/places',
+      '/admin/users',
+      '/admin/customers',
+    ])
+      assert.equal(await statusOf(get(path)), 403, path)
+    assert.equal(await statusOf(post(`/admin/rentals/bookings/${ownUpcoming}/cancel`)), 403)
+    assert.equal(
+      await statusOf(
+        post('/admin/rentals/vehicle-types')
+          .header('Accept', 'application/json')
+          .json({ nameEn: 'Limo' })
+      ),
+      403
+    )
+    assert.equal(
+      await statusOf(client.get('/api/v1/admin/auth/me').bearerToken(tokens.accessToken)),
+      403
+    )
+
+    // New records always belong to the provider, whatever the form says.
+    if (!(await db.from('rental_vehicle_types').where('code', 'sedan').first()))
+      await db
+        .table('rental_vehicle_types')
+        .insert({ code: 'sedan', name_en: 'Sedan', sort_order: 1, created_at: new Date() })
+    const savedVehicle = await post('/admin/rentals/vehicles')
+      .field('providerId', String(other.providerId))
+      .field('nameEn', 'Kia Pegas')
+      .field('make', 'Kia')
+      .field('model', 'Pegas')
+      .field('vehicleType', 'sedan')
+      .field('transmission', 'automatic')
+      .field('fuelType', 'petrol')
+      .field('seats', '5')
+      .field('dailyRate', '9')
+      .field('quantity', '1')
+      .field('locationIds', String(ids.cityBranch))
+    assert.match(savedVehicle.header('location') ?? '', /^\/admin\/rentals\/vehicles\/\d+\/edit$/)
+    const kia = await db.from('rental_vehicles').where('name_en', 'Kia Pegas').firstOrFail()
+    assert.equal(Number(kia.provider_id), ids.providerId)
+    await post('/admin/rentals/locations').json({
+      providerId: other.providerId,
+      placeId: ids.city,
+      nameEn: 'Salmiya counter',
+      active: true,
+      sortOrder: 3,
+    })
+    const branch = await db
+      .from('rental_locations')
+      .where('name_en', 'Salmiya counter')
+      .firstOrFail()
+    assert.equal(Number(branch.provider_id), ids.providerId)
+
+    // Bookings: mark a finished rental as completed.
+    const completed = await post(`/admin/rentals/bookings/${ownDone}/complete`).form({
+      returnTo: '/admin',
+    })
+    assert.equal(completed.header('location'), '/admin')
+    assert.equal(await column('rental_bookings', ownDone, 'status'), 'completed')
+
+    // Only own images.
+    await db
+      .from('rental_vehicles')
+      .where('id', other.vehicleId)
+      .update({
+        cover_image_key: `${randomUUID()}.webp`,
+      })
+    const otherImage = await db.from('rental_vehicles').where('id', other.vehicleId).first()
+    assert.equal(await statusOf(get(`/admin/images/${otherImage.cover_image_key}`)), 404)
+  })
+
+  test('turning a provider login off signs it out', async ({ client, assert }) => {
+    const admin = await staff()
+    const ids = await catalog()
+    await db.table('users').insert({
+      full_name: 'Gulf desk',
+      email: 'desk@gulfrent.example',
+      password: await hash.make('provider-long-password'),
+      role: 'provider',
+      rental_provider_id: ids.providerId,
+      password_set_at: new Date(),
+      active: true,
+      created_at: new Date(),
+    })
+    const { loginAdmin: signIn } = await import('../../app/services/auth_service.js')
+    const tokens = await signIn('desk@gulfrent.example', 'provider-long-password', {
+      allowProvider: true,
+    })
+    assert.equal(
+      await statusOf(client.get('/admin').cookie('admin_access', tokens.accessToken)),
+      200
+    )
+    await client
+      .post(`/admin/rentals/providers/${ids.providerId}/login/status`)
+      .withCsrfToken()
+      .cookie('admin_access', admin.accessToken)
+      .form({ active: 'false' })
+    const after = await client.get('/admin').redirects(0).cookie('admin_access', tokens.accessToken)
+    assert.equal(after.header('location'), '/admin/login')
+    await assert.rejects(() =>
+      signIn('desk@gulfrent.example', 'provider-long-password', { allowProvider: true })
+    )
+  })
+})

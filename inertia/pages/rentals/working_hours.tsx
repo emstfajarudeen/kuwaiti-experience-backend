@@ -1,6 +1,6 @@
 import { Table } from 'antd'
 import AdminLayout from '../../layouts/admin_layout'
-import { useCan, type SharedProps } from '../../components/rental_ui'
+import { useCan, usePortal, type SharedProps } from '../../components/rental_ui'
 
 type Day = { mode: 'closed' | 'open24' | 'shifts'; shifts: { opens: string; closes: string }[] }
 type Closure = { startsOn: string; endsOn: string; reason: string | null }
@@ -53,29 +53,36 @@ export default function RentalWorkingHours({
   rows,
 }: Props) {
   const can = useCan()
+  // Provider portal: the whole page is the provider's own, so no provider name or filter.
+  const portal = usePortal()
   const providerName = providers.find((option) => option.value === provider)?.label
+  const named = portal ? '' : providerName
   return (
     <AdminLayout
-      title={providerName ? `${providerName} · Working hours` : 'Working hours'}
-      active="rental-providers"
+      title={named ? `${named} · Working hours` : 'Working hours'}
+      active="rental-hours"
       adminName={adminName}
       csrfToken={csrfToken}
       success={success}
       error={error}
     >
-      <a className="back-link tw:mb-4 tw:inline-flex" href="/admin/rentals/providers">
-        ← Back to providers
-      </a>
+      {!portal && (
+        <a className="back-link tw:mb-4 tw:inline-flex" href="/admin/rentals/providers">
+          ← Back to providers
+        </a>
+      )}
       <div className="page-head tw:mb-6">
         <h1>{providerName ? 'Working hours' : 'Working hours of all branches'}</h1>
       </div>
       <section className="panel table-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-0">
         <div className="panel-heading tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-brand-line-subtle tw:px-6 tw:py-5">
-          <h2>{providerName ? `${providerName} - ` : ''}Branches ({rows.length})</h2>
+          <h2>
+            {named ? `${named} - ` : ''}Branches ({rows.length})
+          </h2>
           <a
             className="button secondary"
             href={
-              provider
+              provider && !portal
                 ? `/admin/rentals/locations?provider=${provider}`
                 : '/admin/rentals/locations'
             }

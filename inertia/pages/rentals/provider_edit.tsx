@@ -1,11 +1,18 @@
-import { Input } from 'antd'
+import { useState } from 'react'
+import { Button, Input, Switch, message } from 'antd'
+import { router } from '@inertiajs/react'
 import AdminLayout from '../../layouts/admin_layout'
 import ImageUpload from '../../components/image_upload'
+import ConfirmModal from '../../components/confirm_modal'
 import {
+  ActionForm,
   FormField,
   FormSection,
+  Panel,
   RentalFormShell,
   SwitchField,
+  formatDateTime,
+  useCan,
   type SharedProps,
 } from '../../components/rental_ui'
 
@@ -20,10 +27,202 @@ type Provider = {
   logo_url: string | null
 }
 
+type PortalLogin = {
+  id: number
+  name: string
+  email: string
+  state: 'active' | 'invited' | 'invite_expired' | 'disabled'
+  invitedAt: string | null
+  inviteExpiresAt: string | null
+  lastLoginAt: string | null
+}
+
 type Props = SharedProps & {
   provider: Provider | null
   branchCount: number
+  login: PortalLogin | null
+  loginForm: Record<string, unknown> | null
+  /** Shown once when the invite email could not be sent. */
+  inviteLink: string | null
   form: Record<string, unknown> | null
+}
+
+const loginStates: Record<PortalLogin['state'], { label: string; tone: string }> = {
+  active: { label: 'Active', tone: 'published' },
+  invited: { label: 'Invite sent', tone: 'draft' },
+  invite_expired: { label: 'Invite expired', tone: 'archived' },
+  disabled: { label: 'Turned off', tone: 'archived' },
+}
+
+/** The provider's own login to the portal: create, invite, turn off or remove. */
+function PortalLoginPanel({
+  provider,
+  login,
+  loginForm,
+  inviteLink,
+  csrfToken,
+}: {
+  provider: Provider
+  login: PortalLogin | null
+  loginForm: Record<string, unknown> | null
+  inviteLink: string | null
+  csrfToken: string
+}) {
+  const can = useCan()
+  const [switching, setSwitching] = useState(false)
+  const [removing, setRemoving] = useState(false)
+  const base = `/admin/rentals/providers/${provider.id}/login`
+  const canManage = can('rentals.update')
+  const state = login ? loginStates[login.state] : null
+  const copy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      void message.success('Link copied.')
+    } catch {
+      void message.error('Copy the link manually.')
+    }
+  }
+  return (
+    <Panel
+      title="Provider portal login"
+      actions={
+        login && state ? (
+          <span className="tw:flex tw:items-center tw:gap-3">
+            <span className={`status ${state.tone}`}>{state.label}</span>
+            {canManage && (
+              <Switch
+                aria-label={login.state === 'disabled' ? 'Turn login on' : 'Turn login off'}
+                checkedChildren="On"
+                unCheckedChildren="Off"
+                checked={login.state !== 'disabled'}
+                loading={switching}
+                onChange={(checked) =>
+                  router.post(
+                    `${base}/status`,
+                    { active: checked, _csrf: csrfToken },
+                    {
+                      preserveScroll: true,
+                      onStart: () => setSwitching(true),
+                      onFinish: () => setSwitching(false),
+                    }
+                  )
+                }
+              />
+            )}
+          </span>
+        ) : null
+      }
+    >
+      <p className="tw:mb-4 tw:text-[13px] tw:text-brand-muted">
+        The provider signs in at the same CMS address and only sees their own branches, working
+        hours, vehicles and bookings. Their changes go live in the app straight away.
+      </p>
+
+      {inviteLink && (
+        <div className="tw:mb-4 tw:rounded-cms-sm tw:border tw:border-amber-300 tw:bg-amber-50 tw:p-4">
+          <p className="tw:m-0 tw:mb-2 tw:text-[13px] tw:font-semibold">
+            Send this set-password link to the provider (valid for 72 hours, one use):
+          </p>
+          <div className="tw:flex tw:gap-2">
+            <Input readOnly value={inviteLink} onFocus={(event) => event.target.select()} />
+            <Button onClick={() => void copy(inviteLink)}>Copy</Button>
+          </div>
+        </div>
+      )}
+
+      {login ? (
+        <div className="tw:flex tw:flex-col tw:gap-4">
+          <dl className="tw:m-0 tw:grid tw:grid-cols-3 tw:gap-4 tw:max-[900px]:grid-cols-1">
+            <div className="tw:flex tw:flex-col tw:gap-0.5">
+              <dt className="tw:text-[12px] tw:font-semibold tw:uppercase tw:text-brand-muted">
+                Name
+              </dt>
+              <dd className="tw:m-0 tw:text-[14px]">{login.name}</dd>
+            </div>
+            <div className="tw:flex tw:flex-col tw:gap-0.5">
+              <dt className="tw:text-[12px] tw:font-semibold tw:uppercase tw:text-brand-muted">
+                Sign-in email
+              </dt>
+              <dd className="tw:m-0 tw:text-[14px]">{login.email}</dd>
+            </div>
+            <div className="tw:flex tw:flex-col tw:gap-0.5">
+              <dt className="tw:text-[12px] tw:font-semibold tw:uppercase tw:text-brand-muted">
+                {login.state === 'invited' ? 'Invite expires' : 'Last sign-in'}
+              </dt>
+              <dd className="tw:m-0 tw:text-[14px]">
+                {login.state === 'invited'
+                  ? formatDateTime(login.inviteExpiresAt)
+                  : login.lastLoginAt
+                    ? formatDateTime(login.lastLoginAt)
+                    : 'Never'}
+              </dd>
+            </div>
+          </dl>
+          {canManage && (
+            <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
+              {login.state !== 'disabled' && (
+                <ActionForm action={`${base}/invite`} csrfToken={csrfToken}>
+                  <Button htmlType="submit">
+                    {login.state === 'active' ? 'Send password reset link' : 'Resend invite'}
+                  </Button>
+                </ActionForm>
+              )}
+              {can('rentals.delete') && (
+                <Button danger onClick={() => setRemoving(true)}>
+                  Remove login
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      ) : canManage ? (
+        <ActionForm action={base} csrfToken={csrfToken} className="tw:flex tw:flex-col tw:gap-4">
+          <div className="tw:grid tw:grid-cols-2 tw:gap-4 tw:max-[900px]:grid-cols-1">
+            <label className="tw:flex tw:flex-col tw:gap-1.5 tw:text-[13px] tw:font-semibold">
+              Contact name
+              <Input
+                name="name"
+                required
+                maxLength={120}
+                defaultValue={String(loginForm?.name ?? provider.name_en)}
+              />
+            </label>
+            <label className="tw:flex tw:flex-col tw:gap-1.5 tw:text-[13px] tw:font-semibold">
+              Sign-in email
+              <Input
+                name="email"
+                type="email"
+                required
+                maxLength={254}
+                defaultValue={String(loginForm?.email ?? provider.email ?? '')}
+              />
+            </label>
+          </div>
+          <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-3">
+            <Button type="primary" htmlType="submit">
+              Create login and send invite
+            </Button>
+            <span className="tw:text-[12px] tw:text-brand-muted">
+              The provider gets an email to set their own password.
+            </span>
+          </div>
+        </ActionForm>
+      ) : (
+        <p className="tw:m-0 tw:text-brand-muted">No login yet.</p>
+      )}
+
+      <ConfirmModal
+        open={removing}
+        onClose={() => setRemoving(false)}
+        title="Remove login"
+        message={`Remove the portal login of ${login?.email ?? 'this provider'}? They are signed out and can no longer sign in. You can create a new login later.`}
+        action={`${base}/delete`}
+        csrfToken={csrfToken}
+        confirmLabel="Remove login"
+        danger
+      />
+    </Panel>
+  )
 }
 
 export default function RentalProviderEdit({
@@ -33,6 +232,9 @@ export default function RentalProviderEdit({
   error,
   provider,
   branchCount,
+  login,
+  loginForm,
+  inviteLink,
   form,
 }: Props) {
   const value = (key: string, fallback: unknown) =>
@@ -140,6 +342,17 @@ export default function RentalProviderEdit({
           </div>
         </section>
       </RentalFormShell>
+      {provider && (
+        <div className="tw:mt-6">
+          <PortalLoginPanel
+            provider={provider}
+            login={login}
+            loginForm={loginForm}
+            inviteLink={inviteLink}
+            csrfToken={csrfToken}
+          />
+        </div>
+      )}
     </AdminLayout>
   )
 }

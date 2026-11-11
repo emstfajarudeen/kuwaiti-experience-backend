@@ -10,10 +10,12 @@ type Props = {
   csrfToken: string
   token: string
   tokenValid: boolean
+  /** First password of a provider portal login (from the emailed invite). */
+  invite?: boolean
   error: string | null
 }
 
-export default function ResetPassword({ csrfToken, token, tokenValid, error }: Props) {
+export default function ResetPassword({ csrfToken, token, tokenValid, invite, error }: Props) {
   const [form] = Form.useForm<Values>()
   const [processing, setProcessing] = useState(false)
 
@@ -29,7 +31,9 @@ export default function ResetPassword({ csrfToken, token, tokenValid, error }: P
 
   return (
     <>
-      <Head title="Choose a new password · The Kuwaiti Experience" />
+      <Head
+        title={`${invite ? 'Set your password' : 'Choose a new password'} · The Kuwaiti Experience`}
+      />
       <main className="login-shell tw:grid tw:min-h-[540px] tw:w-full tw:max-w-[940px] tw:grid-cols-2 tw:overflow-hidden tw:rounded-cms-lg tw:bg-white tw:shadow-lg tw:max-[900px]:min-h-0 tw:max-[900px]:max-w-[440px] tw:max-[900px]:grid-cols-1">
         <section
           className="login-visual tw:relative tw:flex tw:flex-col tw:justify-between tw:bg-[linear-gradient(135deg,var(--navy-deep)_0%,var(--navy)_100%)] tw:px-8 tw:py-10 tw:text-white tw:max-[900px]:hidden"
@@ -39,17 +43,19 @@ export default function ResetPassword({ csrfToken, token, tokenValid, error }: P
             THE KUWAITI EXPERIENCE
           </div>
           <h1 className="tw:m-0 tw:font-playfair tw:text-[32px] tw:font-medium tw:leading-[1.25] tw:text-white">
-            Secure your account
+            {invite ? 'Welcome to the provider portal' : 'Secure your account'}
           </h1>
         </section>
         <section className="login-panel tw:flex tw:flex-col tw:justify-center tw:px-8 tw:py-10 tw:max-[480px]:px-5 tw:max-[480px]:py-6">
           {tokenValid ? (
             <>
               <h2 className="tw:mb-2 tw:mt-1 tw:text-2xl tw:font-bold tw:text-brand-ink">
-                Choose a new password
+                {invite ? 'Set your password' : 'Choose a new password'}
               </h2>
               <p className="tw:mb-6 tw:text-sm tw:leading-6 tw:text-brand-muted">
-                Use at least 14 characters. This will sign out every active admin session.
+                {invite
+                  ? 'Use at least 14 characters. You will sign in with your email and this password.'
+                  : 'Use at least 14 characters. This will sign out every active admin session.'}
               </p>
               {error && <Notice kind="error" message={error} />}
               <Form<Values> form={form} layout="vertical" className="editor-form" onFinish={submit}>
@@ -87,17 +93,19 @@ export default function ResetPassword({ csrfToken, token, tokenValid, error }: P
                   htmlType="submit"
                   loading={processing}
                 >
-                  Reset password
+                  {invite ? 'Set password' : 'Reset password'}
                 </Button>
               </Form>
             </>
           ) : (
             <>
               <h2 className="tw:mb-2 tw:mt-1 tw:text-2xl tw:font-bold tw:text-brand-ink">
-                This reset link is invalid or has expired
+                This link is invalid or has expired
               </h2>
               <p className="tw:mb-6 tw:text-sm tw:leading-6 tw:text-brand-muted">
-                Reset links expire after 20 minutes and can be used once.
+                Reset links expire after 20 minutes and invite links after 72 hours. Each can be
+                used once. Request a new link below, or ask the Kuwaiti Experience team to resend
+                your invite.
               </p>
               <a className="button primary wide tw:text-center" href="/admin/forgot-password">
                 Request a new reset link

@@ -11,10 +11,12 @@ type Props = {
   canRefresh: boolean
   csrfToken: string
   loginError: string | null
+  /** A neutral message, e.g. after a password was saved. */
+  loginNotice?: string | null
   email: string
 }
 
-export default function Login({ canRefresh, csrfToken, loginError, email }: Props) {
+export default function Login({ canRefresh, csrfToken, loginError, loginNotice, email }: Props) {
   const [form] = Form.useForm<LoginValues>()
   const [processing, setProcessing] = useState(false)
 
@@ -58,6 +60,11 @@ export default function Login({ canRefresh, csrfToken, loginError, email }: Prop
           {loginError && (
             <div className="login-notice">
               <Notice kind="error" message={loginError} />
+            </div>
+          )}
+          {!loginError && loginNotice && (
+            <div className="login-notice">
+              <Notice kind="success" message={loginNotice} />
             </div>
           )}
           <Form<LoginValues>

@@ -11,14 +11,18 @@ type SharedAuth = {
   isSuperAdmin: boolean
   isFullAccessAdmin: boolean
   mustChangePassword: boolean
+  /** Set for rental provider portal logins. */
+  provider?: { id: number; name: string } | null
 } | null
 
-type NavChild = { href: string; label: string; active: string }
+/** A nav item is highlighted when the page's `active` key is one of these. */
+type ActiveKey = string | string[]
+type NavChild = { href: string; label: string; active: ActiveKey }
 type NavLink = {
   href: string
   icon: string
   label: string
-  active: string
+  active: ActiveKey
   permission?: string
   /** Sub-pages shown as a dropdown under this item. */
   children?: NavChild[]
@@ -148,7 +152,11 @@ const navigation: NavSection[] = [
         permission: 'rentals.view',
         children: [
           { href: '/admin/rentals/vehicles', label: 'Vehicles', active: 'rental-vehicles' },
-          { href: '/admin/rentals/providers', label: 'Providers', active: 'rental-providers' },
+          {
+            href: '/admin/rentals/providers',
+            label: 'Providers',
+            active: ['rental-providers', 'rental-branches', 'rental-hours'],
+          },
           { href: '/admin/rentals/places', label: 'Pickup places', active: 'rental-places' },
           { href: '/admin/rentals/settings', label: 'Settings', active: 'rental-settings' },
         ],
@@ -202,6 +210,36 @@ const navigation: NavSection[] = [
   },
 ]
 
+/** Sidebar of a rental provider portal login: only its own rental business. */
+const providerNavigation: NavSection[] = [
+  {
+    label: 'OVERVIEW',
+    links: [{ href: '/admin', icon: '◫', label: 'Dashboard', active: 'dashboard' }],
+  },
+  {
+    label: 'BOOKINGS',
+    links: [
+      { href: '/admin/rentals/bookings', icon: '⎘', label: 'Bookings', active: 'rental-bookings' },
+    ],
+  },
+  {
+    label: 'MY FLEET',
+    links: [
+      { href: '/admin/rentals/vehicles', icon: '⛟', label: 'Vehicles', active: 'rental-vehicles' },
+      { href: '/admin/rentals/locations', icon: '⌂', label: 'Branches', active: 'rental-branches' },
+      {
+        href: '/admin/rentals/working-hours',
+        icon: '◷',
+        label: 'Working hours',
+        active: 'rental-hours',
+      },
+    ],
+  },
+]
+
+const isActive = (key: ActiveKey, active: string) =>
+  Array.isArray(key) ? key.includes(active) : key === active
+
 type Props = {
   title: string
   active: string
@@ -226,9 +264,10 @@ export default function AdminLayout({
   const page = usePage()
   const auth = (page.props as unknown as { auth?: SharedAuth }).auth
   const permissions = new Set(auth?.permissions ?? [])
+  const provider = auth?.provider ?? null
   const visibleNavigation = auth?.mustChangePassword
     ? []
-    : navigation
+    : (provider ? providerNavigation : navigation)
         .map((section) => ({
           ...section,
           links: section.links.filter(
@@ -271,7 +310,7 @@ export default function AdminLayout({
 
   return (
     <>
-      <Head title={`${title} · The Kuwaiti Experience CMS`} />
+      <Head title={`${title} · The Kuwaiti Experience ${provider ? 'provider portal' : 'CMS'}`} />
       <a
         href="#main-content"
         className="skip-link tw:absolute tw:left-5 tw:top-[-100px] tw:z-[10000] tw:rounded-cms-sm tw:bg-brand-navy tw:px-[18px] tw:py-3 tw:font-semibold tw:text-white tw:transition-[top] tw:duration-200 tw:focus:top-4"
@@ -305,8 +344,23 @@ export default function AdminLayout({
               <span className="brand-title tw:text-[18px] tw:leading-none tw:tracking-[0.04em]">
                 THE KUWAITI EXPERIENCE
               </span>
+              {provider && (
+                <span className="tw:mt-1 tw:font-sans tw:text-[10px] tw:font-bold tw:tracking-[0.16em] tw:text-brand-gold">
+                  PROVIDER PORTAL
+                </span>
+              )}
             </span>
           </Link>
+          {provider && (
+            <div className="tw:mx-1 tw:mb-1 tw:rounded-cms-sm tw:border tw:border-white/10 tw:bg-white/5 tw:px-3 tw:py-[10px]">
+              <div className="tw:text-[10px] tw:font-bold tw:uppercase tw:tracking-[0.14em] tw:text-[#8da4b8]">
+                Rental provider
+              </div>
+              <div className="tw:mt-[2px] tw:truncate tw:text-[14px] tw:font-semibold tw:text-white">
+                {provider.name}
+              </div>
+            </div>
+          )}
           {visibleNavigation.map((section) => (
             <div key={section.label}>
               <div className="sidebar-label tw:mx-2 tw:mb-2 tw:mt-5 tw:text-[11px] tw:font-bold tw:uppercase tw:tracking-[0.14em] tw:text-[#8da4b8]">
@@ -318,7 +372,9 @@ export default function AdminLayout({
               >
                 {section.links.map((link) => {
                   if (link.children) {
-                    const childActive = link.children.some((child) => child.active === active)
+                    const childActive = link.children.some((child) =>
+                      isActive(child.active, active)
+                    )
                     const open = openGroups[link.label] ?? childActive
                     return (
                       <div key={link.label} className="cms-nav-group">
@@ -352,8 +408,8 @@ export default function AdminLayout({
                                 href={child.href}
                                 prefetch="hover"
                                 onClick={() => setMenuOpen(false)}
-                                className={linkClass(active === child.active)}
-                                aria-current={active === child.active ? 'page' : undefined}
+                                className={linkClass(isActive(child.active, active))}
+                                aria-current={isActive(child.active, active) ? 'page' : undefined}
                               >
                                 {child.label}
                               </Link>
@@ -369,8 +425,8 @@ export default function AdminLayout({
                       href={link.href}
                       prefetch="hover"
                       onClick={() => setMenuOpen(false)}
-                      className={linkClass(active === link.active)}
-                      aria-current={active === link.active ? 'page' : undefined}
+                      className={linkClass(isActive(link.active, active))}
+                      aria-current={isActive(link.active, active) ? 'page' : undefined}
                     >
                       <span
                         className="nav-icon tw:w-[18px] tw:text-center tw:text-base tw:leading-none tw:opacity-[0.85]"
@@ -401,7 +457,7 @@ export default function AdminLayout({
                 ☰
               </button>
               <span className="topbar-path tw:text-xs tw:font-bold tw:uppercase tw:tracking-[0.08em] tw:text-brand-muted">
-                THE KUWAITI EXPERIENCE <b>/</b> {title}
+                {provider ? provider.name.toUpperCase() : 'THE KUWAITI EXPERIENCE'} <b>/</b> {title}
               </span>
             </div>
             <div className="topbar-right tw:flex tw:items-center tw:gap-2 tw:text-[13px] tw:font-medium tw:text-brand-muted">

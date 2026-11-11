@@ -27,7 +27,11 @@ export default class InertiaMiddleware extends BaseInertiaMiddleware {
             isSuperAdmin: authorization.isSuperAdmin,
             isFullAccessAdmin: authorization.isFullAccessAdmin,
             mustChangePassword: admin.mustChangePassword,
-            landingUrl: adminLandingUrl(authorization),
+            landingUrl: admin.providerId ? '/admin' : adminLandingUrl(authorization),
+            /** Set for rental provider portal logins. */
+            provider: admin.providerId
+              ? { id: admin.providerId, name: admin.providerName ?? 'Provider' }
+              : null,
           }
         })()
       ),

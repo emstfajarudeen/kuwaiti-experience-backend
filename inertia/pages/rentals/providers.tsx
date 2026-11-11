@@ -15,6 +15,7 @@ type Provider = {
   active: boolean
   vehicle_count: number
   branch_count: number
+  login_state: 'active' | 'invited' | 'invite_expired' | 'disabled' | null
   logo_url: string | null
 }
 
@@ -61,7 +62,7 @@ export default function RentalProviders({
       title: 'Provider',
       key: 'name',
       render: (_, row) => (
-        <div className="tw:flex tw:items-center tw:gap-3">
+        <div className="tw:flex tw:min-w-[200px] tw:items-center tw:gap-3">
           {row.logo_url ? (
             <img
               src={row.logo_url}
@@ -79,7 +80,7 @@ export default function RentalProviders({
       title: 'Contact',
       key: 'contact',
       render: (_, row) => (
-        <div className="tw:flex tw:flex-col tw:text-[13px]">
+        <div className="tw:flex tw:min-w-[180px] tw:flex-col tw:text-[13px]">
           <span>{row.phone ?? '—'}</span>
           <span className="tw:text-brand-muted">{row.email ?? ''}</span>
         </div>
@@ -89,7 +90,10 @@ export default function RentalProviders({
       title: 'Branches',
       key: 'branches',
       render: (_, row) => (
-        <a className="button primary tw:min-h-[32px] tw:border-brand-navy-subtle tw:bg-brand-navy-subtle tw:px-3 tw:py-1 tw:text-[13px]" href={`/admin/rentals/locations?provider=${row.id}`}>
+        <a
+          className="button primary tw:min-h-[32px] tw:border-brand-navy-subtle tw:bg-brand-navy-subtle tw:px-3 tw:py-1 tw:text-[13px]"
+          href={`/admin/rentals/locations?provider=${row.id}`}
+        >
           Manage
           <span className="tw:inline-flex tw:h-[22px] tw:min-w-[22px] tw:items-center tw:justify-center tw:rounded-full tw:bg-white tw:px-1.5 tw:text-[12px] tw:font-bold tw:leading-none tw:text-brand-navy-deep">
             {row.branch_count}
@@ -101,10 +105,35 @@ export default function RentalProviders({
       title: 'Working hours',
       key: 'hours',
       render: (_, row) => (
-        <a className="button primary tw:min-h-[32px] tw:border-brand-navy-subtle tw:bg-brand-navy-subtle tw:px-3 tw:py-1 tw:text-[13px]" href={`/admin/rentals/working-hours?provider=${row.id}`}>Manage</a>
+        <a
+          className="button primary tw:min-h-[32px] tw:border-brand-navy-subtle tw:bg-brand-navy-subtle tw:px-3 tw:py-1 tw:text-[13px]"
+          href={`/admin/rentals/working-hours?provider=${row.id}`}
+        >
+          Manage
+        </a>
       ),
     },
     { title: 'Vehicles', dataIndex: 'vehicle_count', key: 'vehicles' },
+    {
+      title: 'Portal login',
+      key: 'login',
+      render: (_, row) => {
+        const state = row.login_state
+        if (!state)
+          return (
+            <a href={`/admin/rentals/providers/${row.id}/edit`} className="tw:text-[13px]">
+              Set up
+            </a>
+          )
+        const label = {
+          active: ['Active', 'published'],
+          invited: ['Invite sent', 'draft'],
+          invite_expired: ['Invite expired', 'archived'],
+          disabled: ['Turned off', 'archived'],
+        }[state]
+        return <span className={`status tw:whitespace-nowrap ${label[1]}`}>{label[0]}</span>
+      },
+    },
     {
       title: 'Status',
       key: 'active',

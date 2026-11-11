@@ -6,6 +6,7 @@ import {
   FormSection,
   RentalFormShell,
   SwitchField,
+  usePortal,
   type SharedProps,
 } from '../../components/rental_ui'
 
@@ -82,16 +83,20 @@ export default function RentalLocationEdit({
   location,
   form,
 }: Props) {
-  const providerName = providers.find((option) => option.value === String(providerId))?.label
-  const listHref = providerId
-    ? `/admin/rentals/locations?provider=${providerId}`
-    : '/admin/rentals/locations'
+  const portal = usePortal()
+  const providerName = portal
+    ? undefined
+    : providers.find((option) => option.value === String(providerId))?.label
+  const listHref =
+    providerId && !portal
+      ? `/admin/rentals/locations?provider=${providerId}`
+      : '/admin/rentals/locations'
   const value = (key: string, fallback: unknown) =>
     form?.[key] !== undefined ? form[key] : (fallback ?? '')
   return (
     <AdminLayout
       title={location ? 'Edit branch' : 'New branch'}
-      active="rental-providers"
+      active="rental-branches"
       adminName={adminName}
       csrfToken={csrfToken}
       success={success}
@@ -137,21 +142,31 @@ export default function RentalLocationEdit({
         }}
       >
         <FormSection title="Branch">
-          <FormField label="Provider" name="providerId" required message="Choose a provider.">
-            <Select
-              showSearch
-              optionFilterProp="label"
-              placeholder="Choose a provider"
-              options={providers}
-              disabled={Boolean(location)}
-            />
-          </FormField>
+          {portal ? (
+            <Form.Item name="providerId" hidden>
+              <Input />
+            </Form.Item>
+          ) : (
+            <FormField label="Provider" name="providerId" required message="Choose a provider.">
+              <Select
+                showSearch
+                optionFilterProp="label"
+                placeholder="Choose a provider"
+                options={providers}
+                disabled={Boolean(location)}
+              />
+            </FormField>
+          )}
           <FormField
             label="Pickup place"
             name="placeId"
             required
             message="Choose the pickup place this branch serves."
-            hint="Customers pick this place in the app. Manage the list under Rental fleet → Pickup places."
+            hint={
+              portal
+                ? 'Customers pick this place in the app. If your place is missing, ask the Kuwaiti Experience team to add it.'
+                : 'Customers pick this place in the app. Manage the list under Rental fleet → Pickup places.'
+            }
           >
             <Select
               showSearch

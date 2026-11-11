@@ -107,8 +107,8 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       })
     }
     if (error instanceof ApiError && error.status === 403 && ctx.admin) {
-      ctx.response.status(403)
-      return ctx.inertia.render(
+      // The rendered page has to be sent explicitly; returning it leaves the body empty.
+      const page = await ctx.inertia.render(
         'errors/forbidden',
         {
           adminName: ctx.admin.fullName,
@@ -117,6 +117,7 @@ export default class HttpExceptionHandler extends ExceptionHandler {
         },
         { bodyClass: 'cms-body' }
       )
+      return ctx.response.status(403).send(page)
     }
     return super.handle(error, ctx)
   }

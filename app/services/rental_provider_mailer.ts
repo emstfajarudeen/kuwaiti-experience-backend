@@ -190,3 +190,33 @@ export async function sendProviderEmail(
     return { status: 'failed' as const, error: 'Unexpected error' }
   }
 }
+
+/** Provider portal account emails: the first-time invite and a password reset. */
+export async function sendProviderPortalEmail(
+  kind: 'invite' | 'reset',
+  { recipient, url, name }: { recipient: string; url: string; name?: string }
+) {
+  if (!mailer.configured())
+    throw new Error('Email delivery is not configured (RESEND_API_KEY, RENTAL_EMAIL_FROM).')
+  const greeting = name ? `Hello ${name},` : 'Hello,'
+  const invite = kind === 'invite'
+  const subject = invite
+    ? 'Your Kuwaiti Experience provider portal login'
+    : 'Reset your provider portal password'
+  const intro = invite
+    ? 'A login was created for you on the Kuwaiti Experience provider portal, where you manage your rental cars, branches, working hours and bookings.'
+    : 'We received a request to reset your provider portal password.'
+  const action = invite ? 'Set your password' : 'Reset your password'
+  const expiry = invite
+    ? 'This link expires in 72 hours and can be used once.'
+    : 'This link expires in 20 minutes and can be used once. If you did not ask for this, ignore this email.'
+  await mailer.send({
+    to: recipient,
+    subject,
+    text: `${greeting}\n\n${intro}\n\n${action}: ${url}\n\n${expiry}`,
+    html:
+      `<p>${escapeHtml(greeting)}</p><p>${escapeHtml(intro)}</p>` +
+      `<p><a href="${escapeHtml(url)}" style="display:inline-block;padding:10px 18px;background:#0f2a44;color:#fff;border-radius:6px;text-decoration:none">${action}</a></p>` +
+      `<p style="color:#667">${escapeHtml(expiry)}</p>`,
+  })
+}

@@ -12,6 +12,7 @@ import {
   RentalFormShell,
   CreatableSelect,
   useCan,
+  usePortal,
   type SharedProps,
 } from '../../components/rental_ui'
 
@@ -59,6 +60,7 @@ type Props = SharedProps & {
 /** Searchable multi-select for pickup and return locations; posts native locationIds inputs. */
 function LocationsField({ locations: all }: { locations: Option[] }) {
   const form = Form.useFormInstance()
+  const portal = usePortal()
   const providerId = Number(Form.useWatch('providerId', form))
   const locations = all.filter((location) => location.provider_id === providerId)
   const selected = (Form.useWatch('locationIds', form) as number[] | undefined) ?? []
@@ -114,7 +116,11 @@ function LocationsField({ locations: all }: { locations: Option[] }) {
           optionFilterProp="label"
           placeholder={providerId ? 'Search and choose branches' : 'Choose a provider first'}
           disabled={!providerId}
-          notFoundContent="This provider has no branches yet. Add them on the provider page."
+          notFoundContent={
+            portal
+              ? 'You have no branches yet. Add them under Branches.'
+              : 'This provider has no branches yet. Add them on the provider page.'
+          }
           options={options}
           maxTagCount="responsive"
           className="tw:w-full"
@@ -242,6 +248,7 @@ export default function RentalVehicleEdit({
   options,
 }: Props) {
   const can = useCan()
+  const portal = usePortal()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [switching, setSwitching] = useState(false)
   const value = (key: string, fallback: unknown) =>
@@ -283,12 +290,19 @@ export default function RentalVehicleEdit({
         <h1>{vehicle ? vehicle.name_en : 'New vehicle'}</h1>
       </div>
 
-      {(options.providers.length === 0 || options.locations.length === 0) && (
-        <div className="tw:mb-6 tw:rounded-cms-sm tw:border tw:border-amber-300 tw:bg-amber-50 tw:p-4 tw:text-[14px]">
-          Add at least one <a href="/admin/rentals/providers/new">provider</a> and one{' '}
-          <a href="/admin/rentals/locations/new">pickup location</a> before adding vehicles.
-        </div>
-      )}
+      {portal
+        ? options.locations.length === 0 && (
+            <div className="tw:mb-6 tw:rounded-cms-sm tw:border tw:border-amber-300 tw:bg-amber-50 tw:p-4 tw:text-[14px]">
+              Add a <a href="/admin/rentals/locations/new">branch</a> first, so customers know where
+              to pick up this vehicle.
+            </div>
+          )
+        : (options.providers.length === 0 || options.locations.length === 0) && (
+            <div className="tw:mb-6 tw:rounded-cms-sm tw:border tw:border-amber-300 tw:bg-amber-50 tw:p-4 tw:text-[14px]">
+              Add at least one <a href="/admin/rentals/providers/new">provider</a> and one{' '}
+              <a href="/admin/rentals/locations/new">pickup location</a> before adding vehicles.
+            </div>
+          )}
 
       <RentalFormShell
         id="rental-vehicle-form"
@@ -310,7 +324,7 @@ export default function RentalVehicleEdit({
           ) : null
         }
         initialValues={{
-          providerId: String(value('providerId', vehicle?.provider_id)),
+          providerId: String(value('providerId', vehicle?.provider_id ?? portal?.id)),
           nameEn: value('nameEn', vehicle?.name_en),
           nameAr: value('nameAr', vehicle?.name_ar),
           make: value('make', vehicle?.make),
@@ -358,24 +372,34 @@ export default function RentalVehicleEdit({
             ) : null
           }
         >
-          <FormField label="Provider" name="providerId" required message="Choose a provider.">
-            <FormSelect
-              name="providerId"
-              required
-              value=""
-              placeholder="Choose a provider"
-              options={options.providers.map((provider) => ({
-                value: String(provider.id),
-                label: provider.active ? provider.name : `${provider.name} (inactive)`,
-              }))}
-              onChange={() => undefined}
-            />
-          </FormField>
+          {portal ? (
+            <Form.Item name="providerId" hidden>
+              <Input name="providerId" />
+            </Form.Item>
+          ) : (
+            <FormField label="Provider" name="providerId" required message="Choose a provider.">
+              <FormSelect
+                name="providerId"
+                required
+                value=""
+                placeholder="Choose a provider"
+                options={options.providers.map((provider) => ({
+                  value: String(provider.id),
+                  label: provider.active ? provider.name : `${provider.name} (inactive)`,
+                }))}
+                onChange={() => undefined}
+              />
+            </FormField>
+          )}
           <FormField
             label="Units available"
             name="quantity"
             required
-            hint="Identical cars the provider can rent out at the same time."
+            hint={
+              portal
+                ? 'Identical cars you can rent out at the same time.'
+                : 'Identical cars the provider can rent out at the same time.'
+            }
           >
             <InputNumber name="quantity" min={1} max={500} precision={0} className="tw:w-full" />
           </FormField>
@@ -410,7 +434,7 @@ export default function RentalVehicleEdit({
               noun="vehicle type"
               placeholder="Choose a vehicle type"
               options={options.vehicleTypes}
-              createUrl="/admin/rentals/vehicle-types"
+              createUrl={portal ? undefined : '/admin/rentals/vehicle-types'}
               csrfToken={csrfToken}
             />
           </FormField>
@@ -452,7 +476,7 @@ export default function RentalVehicleEdit({
               placeholder="Choose the insurance cover"
               allowClear
               options={options.insuranceOptions}
-              createUrl="/admin/rentals/insurance-options"
+              createUrl={portal ? undefined : '/admin/rentals/insurance-options'}
               csrfToken={csrfToken}
             />
           </FormField>
