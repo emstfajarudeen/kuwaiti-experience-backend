@@ -459,6 +459,13 @@ router
         router
           .delete('/customer/me/saved-places/:id', [ExploreController, 'unsave'])
           .use(bookmarkThrottle)
+        router.get('/customer/me/saved-vehicles', [RentalsController, 'saved'])
+        router
+          .put('/customer/me/saved-vehicles/:id', [RentalsController, 'save'])
+          .use(bookmarkThrottle)
+        router
+          .delete('/customer/me/saved-vehicles/:id', [RentalsController, 'unsave'])
+          .use(bookmarkThrottle)
         router.get('/customer/me/saved-videos', [VideosController, 'saved'])
         router
           .put('/customer/me/saved-videos/:id', [VideosController, 'save'])

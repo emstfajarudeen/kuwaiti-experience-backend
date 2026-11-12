@@ -244,7 +244,14 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {},
+          {
+            "customerBearer": []
+          }
+        ],
+        "description": "Optional. Send the customer bearer token to get `is_saved` for this customer; guests always get `false`."
       }
     },
     "/api/v2/rentals/vehicles/{id}": {
@@ -336,7 +343,14 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {},
+          {
+            "customerBearer": []
+          }
+        ],
+        "description": "Optional. Send the customer bearer token to get `is_saved` for this customer; guests always get `false`."
       }
     },
     "/api/v2/rentals/vehicles/{id}/quote": {
@@ -1471,6 +1485,213 @@
           }
         }
       }
+    },
+    "/api/v2/customer/me/saved-vehicles": {
+      "get": {
+        "summary": "My saved vehicles, newest saved first",
+        "description": "Vehicles that are no longer published are left out. Cards have no `quote` because no period is given.",
+        "tags": [
+          "Saved vehicles"
+        ],
+        "security": [
+          {
+            "customerBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "en",
+                "ar"
+              ],
+              "default": "en"
+            },
+            "description": "Localizes names, insurance and terms. Missing Arabic text falls back to English per field."
+          },
+          {
+            "name": "with_driver",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Only affects the driver flags; there is no quote here."
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 12
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedVehicleListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/customer/me/saved-vehicles/{id}": {
+      "put": {
+        "summary": "Save a vehicle",
+        "description": "Saving a vehicle that is already saved returns the same row (200). Unpublished or unknown vehicles return 404.",
+        "tags": [
+          "Saved vehicles"
+        ],
+        "security": [
+          {
+            "customerBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Vehicle id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "data"
+                  ],
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SavedVehicle"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove a saved vehicle",
+        "description": "Always 204, also when it was not saved.",
+        "tags": [
+          "Saved vehicles"
+        ],
+        "security": [
+          {
+            "customerBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Vehicle id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Standard API error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "./customer-openapi.json#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1586,7 +1807,8 @@
           "rating",
           "extra_km_rate",
           "rental_mode",
-          "self_drive_available"
+          "self_drive_available",
+          "is_saved"
         ],
         "properties": {
           "id": {
@@ -1739,6 +1961,10 @@
           },
           "self_drive_available": {
             "type": "boolean"
+          },
+          "is_saved": {
+            "type": "boolean",
+            "description": "True when the signed-in customer saved this vehicle. Always false for guests; send the customer bearer token to get the real value."
           }
         }
       },
@@ -3083,6 +3309,91 @@
               "number",
               "null"
             ]
+          }
+        }
+      },
+      "SavedVehicle": {
+        "type": "object",
+        "required": [
+          "vehicle_id",
+          "is_saved",
+          "saved_at"
+        ],
+        "properties": {
+          "vehicle_id": {
+            "type": "integer"
+          },
+          "is_saved": {
+            "type": "boolean",
+            "const": true
+          },
+          "saved_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SavedVehicleCard": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/VehicleCard"
+          },
+          {
+            "type": "object",
+            "required": [
+              "saved_at"
+            ],
+            "properties": {
+              "saved_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        ]
+      },
+      "SavedVehicleListResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SavedVehicleCard"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "page",
+              "per_page",
+              "total",
+              "last_page",
+              "images"
+            ],
+            "properties": {
+              "page": {
+                "type": "integer"
+              },
+              "per_page": {
+                "type": "integer"
+              },
+              "total": {
+                "type": "integer"
+              },
+              "last_page": {
+                "type": "integer"
+              },
+              "images": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MetaImage"
+                }
+              }
+            }
           }
         }
       }

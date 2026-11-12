@@ -405,7 +405,7 @@ export async function activeLocations(locale: PublicLocale) {
   return { data: rows.map((row) => place(row, locale)) }
 }
 
-export async function listVehicles(input: Row, locale: PublicLocale) {
+export async function listVehicles(input: Row, locale: PublicLocale, customerId?: number) {
   const settings = await rentalSettings()
   const { page, perPage } = pagination(input)
   const window = optionalWindow(input, settings)
@@ -472,10 +472,15 @@ export async function listVehicles(input: Row, locale: PublicLocale) {
       rows.map((row: Row) => Number(row.provider_id))
     ),
   }
+  const saved = await savedVehicleIds(
+    customerId,
+    rows.map((row: Row) => Number(row.id))
+  )
   return {
-    data: rows.map((row: Row) =>
-      vehicleCard(row, locale, settings, window, withDriver, ratings, names)
-    ),
+    data: rows.map((row: Row) => ({
+      ...vehicleCard(row, locale, settings, window, withDriver, ratings, names),
+      is_saved: saved.has(Number(row.id)),
+    })),
     meta: {
       images: imageLinks(
         rows.flatMap((row: Row) => [row.cover_image_key, row.provider_logo_image_key])
@@ -516,7 +521,12 @@ export async function vehicleTerms(client: Client, vehicleId: number) {
     .orderBy('id')) as Row[]
 }
 
-export async function vehicleDetail(id: unknown, input: Row, locale: PublicLocale) {
+export async function vehicleDetail(
+  id: unknown,
+  input: Row,
+  locale: PublicLocale,
+  customerId?: number
+) {
   const settings = await rentalSettings()
   const window = optionalWindow(input, settings)
   const withDriver = booleanParam(input.with_driver, 'with_driver') ?? false
@@ -536,6 +546,7 @@ export async function vehicleDetail(id: unknown, input: Row, locale: PublicLocal
     providers: await ratingSummaries('provider_id', [Number(row.provider_id)]),
   }
   const card = vehicleCard(row, locale, settings, window, withDriver, ratings, await typeNames())
+  const saved = await savedVehicleIds(customerId, [Number(row.id)])
   const galleryKeys = [row.cover_image_key, ...images.map((image) => image.storage_key)].filter(
     (key): key is string => Boolean(key)
   )
@@ -554,6 +565,7 @@ export async function vehicleDetail(id: unknown, input: Row, locale: PublicLocal
         address: row.provider_address ?? null,
       },
       available,
+      is_saved: saved.has(Number(row.id)),
       booking_fee: settings.booking_fee,
       cancellation_cutoff_hours: settings.cancellation_cutoff_hours,
     },
@@ -583,6 +595,99 @@ export async function vehicleQuote(id: unknown, input: Row) {
         withDriver,
         bookingFee: settings.booking_fee,
       }),
+    },
+  }
+}
+
+/** Which of these vehicles the customer has saved. Guests have saved nothing. */
+async function savedVehicleIds(customerId: number | undefined, vehicleIds: number[]) {
+  if (!customerId || !vehicleIds.length) return new Set<number>()
+  const rows = await db
+    .from('customer_saved_rental_vehicles')
+    .where('customer_id', customerId)
+    .whereIn('vehicle_id', vehicleIds)
+    .select('vehicle_id')
+  return new Set(rows.map((row: Row) => Number(row.vehicle_id)))
+}
+
+/** Save a vehicle for the customer. Saving it again is a no-op. */
+export async function saveVehicle(customerId: number, vehicleId: unknown) {
+  const id = positiveId(vehicleId)
+  const row = await db.transaction(async (trx) => {
+    if (!(await trx.from('customers').where('id', customerId).forUpdate().first()))
+      throw new ApiError(401, 'UNAUTHENTICATED', 'Customer authentication required')
+    // Only vehicles customers can see can be saved; the lock keeps it from being deleted meanwhile.
+    await findVisibleVehicle(id, trx, true)
+    const existing = await trx
+      .from('customer_saved_rental_vehicles')
+      .where({ customer_id: customerId, vehicle_id: id })
+      .first()
+    if (existing) return existing
+    await trx
+      .table('customer_saved_rental_vehicles')
+      .insert({ customer_id: customerId, vehicle_id: id, created_at: new Date() })
+    return trx
+      .from('customer_saved_rental_vehicles')
+      .where({ customer_id: customerId, vehicle_id: id })
+      .firstOrFail()
+  })
+  return {
+    data: {
+      vehicle_id: Number(row.vehicle_id),
+      is_saved: true,
+      saved_at: new Date(row.created_at).toISOString(),
+    },
+  }
+}
+
+/** Remove a saved vehicle. Works even if the vehicle has since been hidden. */
+export async function unsaveVehicle(customerId: number, vehicleId: unknown) {
+  await db
+    .from('customer_saved_rental_vehicles')
+    .where({ customer_id: customerId, vehicle_id: positiveId(vehicleId) })
+    .delete()
+}
+
+/** The customer's saved vehicles, newest first. Vehicles no longer published are left out. */
+export async function savedVehicles(customerId: number, input: Row, locale: PublicLocale) {
+  const settings = await rentalSettings()
+  const { page, perPage } = pagination(input)
+  const withDriver = booleanParam(input.with_driver, 'with_driver') ?? false
+  const base = () =>
+    visibleVehicles()
+      .join('customer_saved_rental_vehicles as sv', 'sv.vehicle_id', 'v.id')
+      .where('sv.customer_id', customerId)
+  const count = await base().count('* as total').first()
+  const total = Number(count?.total ?? 0)
+  const rows = (await base()
+    .select('v.*', ...providerColumns, 'sv.created_at as saved_at')
+    .orderBy('sv.created_at', 'desc')
+    .orderBy('v.id', 'desc')
+    .limit(perPage)
+    .offset((page - 1) * perPage)) as Row[]
+  const ratings = {
+    vehicles: await ratingSummaries(
+      'vehicle_id',
+      rows.map((row) => Number(row.id))
+    ),
+    providers: await ratingSummaries(
+      'provider_id',
+      rows.map((row) => Number(row.provider_id))
+    ),
+  }
+  const names = await typeNames()
+  return {
+    data: rows.map((row) => ({
+      ...vehicleCard(row, locale, settings, null, withDriver, ratings, names),
+      is_saved: true,
+      saved_at: new Date(row.saved_at).toISOString(),
+    })),
+    meta: {
+      images: imageLinks(rows.flatMap((row) => [row.cover_image_key, row.provider_logo_image_key])),
+      page,
+      per_page: perPage,
+      total,
+      last_page: Math.max(1, Math.ceil(total / perPage)),
     },
   }
 }

@@ -45,6 +45,11 @@ If the server sets `RENTAL_PAYMENT_RETURN_URL` (for example an app deep link), t
 | GET | `/rentals/providers/{id}/reviews` | – | Published reviews of all vehicles of a provider |
 | PUT | `/customer/me/rental-bookings/{id}/review` | customer | Create or edit my review: `{ "rating": 1-5, "comment"?: string }` |
 | DELETE | `/customer/me/rental-bookings/{id}/review` | customer | Delete my review (204) |
+| GET | `/customer/me/saved-vehicles` | customer | My saved vehicles, newest saved first; `page`/`per_page`. Unpublished vehicles are left out |
+| PUT | `/customer/me/saved-vehicles/{id}` | customer | Save a vehicle (200, `data: { vehicle_id, is_saved, saved_at }`); saving again is a no-op; 404 if not published |
+| DELETE | `/customer/me/saved-vehicles/{id}` | customer | Remove a saved vehicle (204, also when not saved) |
+
+**Saved flag:** every vehicle card in search, detail and the saved list has `is_saved`. Search and detail don't require login, but send the customer bearer token there too, otherwise `is_saved` is always `false`.
 
 **Search filters:** `pickup_at` + `return_at` (both or neither), `pickup_location_id`, `with_driver=true` (vehicles offered with a driver; the quote then includes the driver rate). Without it the search is self-drive and excludes driver-only vehicles. `vehicle_type` (comma list of `code`s from `/rentals/options` `vehicle_types`; the list is managed in the CMS, so never hard-code it), `transmission` (`automatic,manual`), `seats_min`, `sort` (`recommended`, `price_asc`, `price_desc`, `newest`). With a period, the search returns only vehicles that have a free unit.
 

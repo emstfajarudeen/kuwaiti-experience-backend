@@ -4446,6 +4446,16 @@
          "description": "Minimum seats (1-60)"
         }
        ]
+      },
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
       }
      },
      "event": [
@@ -4479,7 +4489,17 @@
         "value": "en"
        }
       ],
-      "url": "{{base_url}}/api/v2/rentals/vehicles/{{rental_vehicle_id}}?pickup_at=2026-12-20T10:00:00%2B03:00&return_at=2026-12-23T10:00:00%2B03:00"
+      "url": "{{base_url}}/api/v2/rentals/vehicles/{{rental_vehicle_id}}?pickup_at=2026-12-20T10:00:00%2B03:00&return_at=2026-12-23T10:00:00%2B03:00",
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
+      }
      },
      "event": [
       {
@@ -4517,6 +4537,124 @@
         "type": "text/javascript",
         "exec": [
          "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Save vehicle",
+     "request": {
+      "method": "PUT",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/customer/me/saved-vehicles/{{rental_vehicle_id}}",
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
+      },
+      "description": "Save (bookmark) a vehicle. Saving again is a no-op. Run Search vehicles first."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "List my saved vehicles",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/customer/me/saved-vehicles?page=1&per_page=12",
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Remove saved vehicle",
+     "request": {
+      "method": "DELETE",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/customer/me/saved-vehicles/{{rental_vehicle_id}}",
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 204\", function () { pm.response.to.have.status(204); });"
         ]
        }
       }

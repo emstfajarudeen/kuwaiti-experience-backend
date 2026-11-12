@@ -5,6 +5,7 @@ import * as bookings from '../../services/rental_booking_service.js'
 import * as payments from '../../services/rental_payment_service.js'
 import * as reviews from '../../services/rental_review_service.js'
 import { publicLanguage } from '../../services/public_localization.js'
+import { optionalCustomer } from '../../middleware/customer_auth_middleware.js'
 import {
   cancelRentalBookingValidator,
   rentalReviewValidator,
@@ -25,12 +26,32 @@ export default class RentalsController {
 
   async vehicles(ctx: HttpContext) {
     ctx.response.header('Cache-Control', 'no-store')
-    return catalog.listVehicles(ctx.request.qs(), locale(ctx))
+    const identity = await optionalCustomer(ctx)
+    return catalog.listVehicles(ctx.request.qs(), locale(ctx), identity?.customer.id)
   }
 
   async vehicle(ctx: HttpContext) {
     ctx.response.header('Cache-Control', 'no-store')
-    return catalog.vehicleDetail(ctx.params.id, ctx.request.qs(), locale(ctx))
+    const identity = await optionalCustomer(ctx)
+    return catalog.vehicleDetail(
+      ctx.params.id,
+      ctx.request.qs(),
+      locale(ctx),
+      identity?.customer.id
+    )
+  }
+
+  async saved(ctx: HttpContext) {
+    return catalog.savedVehicles(ctx.customerIdentity.customer.id, ctx.request.qs(), locale(ctx))
+  }
+
+  async save(ctx: HttpContext) {
+    return catalog.saveVehicle(ctx.customerIdentity.customer.id, ctx.params.id)
+  }
+
+  async unsave(ctx: HttpContext) {
+    await catalog.unsaveVehicle(ctx.customerIdentity.customer.id, ctx.params.id)
+    return ctx.response.noContent()
   }
 
   async quote(ctx: HttpContext) {
