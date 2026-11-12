@@ -5,6 +5,8 @@ import * as admin from '../../app/services/video_admin_service.js'
 import * as pub from '../../app/services/video_public_service.js'
 import drive from '@adonisjs/drive/services/main'
 import { ApiError } from '../../app/services/api_error.js'
+import { deleteCustomer } from '../../app/services/customer_auth_service.js'
+import { recountAll } from '../../app/services/video_counter_service.js'
 
 async function seed() {
   const [staffId] = await db.table('users').insert({
@@ -202,6 +204,54 @@ test.group('Videos', (group) => {
     await pub.deleteComment(list.data[0].id, customers[1])
     assert.equal((await pub.showVideo(id, 'en')).data.counts.comments, 0)
     await assert.rejects(() => pub.addComment(id, customers[0], '   '))
+  })
+
+  test('deleting an account keeps video and comment counts in line with what is left', async ({
+    assert,
+  }) => {
+    const { insertVideo, customers } = await seed()
+    const id = await insertVideo(1)
+    const leaving = customers[1]
+    const kept = (await pub.addComment(id, customers[0], 'Staying')).data
+    const own = (await pub.addComment(id, leaving, 'Bye')).data
+    await pub.setCommentLike(kept.id, leaving, true)
+    await pub.setCommentLike(own.id, customers[0], true)
+    await pub.setLike(id, leaving, true)
+    await pub.setLike(id, customers[0], true)
+    await pub.setSaved(id, leaving, true)
+
+    await deleteCustomer({
+      customer: { id: leaving },
+      authenticated_at: new Date(),
+    } as unknown as Parameters<typeof deleteCustomer>[0])
+
+    const video = await db.from('videos').where('id', id).firstOrFail()
+    assert.equal(video.comment_count, 1)
+    assert.equal(video.like_count, 1)
+    assert.equal(video.save_count, 0)
+    assert.lengthOf((await pub.comments(id, {})).data, 1)
+    const comment = await db.from('video_comments').where('id', kept.id).firstOrFail()
+    assert.equal(comment.like_count, 0)
+  })
+
+  test('counters that drifted are corrected by the next write and by a full recount', async ({
+    assert,
+  }) => {
+    const { insertVideo, customers } = await seed()
+    const id = await insertVideo(1)
+    const comment = (await pub.addComment(id, customers[0], 'Hello')).data
+    await db.from('videos').where('id', id).update({ comment_count: 6, like_count: 9 })
+    await db.from('video_comments').where('id', comment.id).update({ like_count: 1 })
+
+    // A like that changes nothing still returns and stores the real total.
+    assert.equal((await pub.setCommentLike(comment.id, customers[1], false)).data.count, 0)
+    assert.equal((await pub.setLike(id, customers[1], true)).data.count, 1)
+    assert.equal((await db.from('videos').where('id', id).firstOrFail()).comment_count, 1)
+
+    await db.from('videos').where('id', id).update({ comment_count: 6 })
+    assert.deepEqual(await recountAll(), { videos: 1, comments: 0 })
+    assert.equal((await db.from('videos').where('id', id).firstOrFail()).comment_count, 1)
+    assert.deepEqual(await recountAll(), { videos: 0, comments: 0 })
   })
 
   test('reports validate the reason and are stored once per customer', async ({ assert }) => {

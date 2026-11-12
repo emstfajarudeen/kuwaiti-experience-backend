@@ -12,6 +12,7 @@ import { customer, iso } from '../serializers/customer.js'
 import { ApiError } from './api_error.js'
 import { assertSmsConfigured, fixedOtpEnabled, otpSecret, sendSms } from './customer_sms_service.js'
 import { eraseProfilePhoto } from './customer_photo_service.js'
+import { recountComments, recountVideos } from './video_counter_service.js'
 
 const digest = (token: string) => createHash('sha256').update(token).digest('hex')
 const opaque = (prefix: string) => `${prefix}_${randomBytes(48).toString('base64url')}`
@@ -370,6 +371,29 @@ export async function logoutCustomer(identity: CustomerIdentity) {
     .update({ revoked_at: new Date() })
 }
 
+/** Videos and comments whose counters include this customer's activity, locked for update. */
+async function lockVideoActivity(trx: TransactionClientContract, customerId: number) {
+  const videos = await trx.rawQuery(
+    `SELECT video_id AS id FROM video_comments WHERE customer_id = ?
+     UNION SELECT video_id FROM video_likes WHERE customer_id = ?
+     UNION SELECT video_id FROM video_saves WHERE customer_id = ?`,
+    [customerId, customerId, customerId]
+  )
+  // Likes on the customer's own comments vanish with those comments; only others need a recount.
+  const comments = await trx
+    .from('video_comment_likes as l')
+    .join('video_comments as c', 'c.id', 'l.comment_id')
+    .where('l.customer_id', customerId)
+    .whereNot('c.customer_id', customerId)
+    .select('l.comment_id as id')
+  const videoIds = (videos[0] as { id: number }[]).map((item) => Number(item.id))
+  const commentIds = (comments as { id: number }[]).map((item) => Number(item.id))
+  if (videoIds.length) await trx.from('videos').whereIn('id', videoIds).forUpdate().select('id')
+  if (commentIds.length)
+    await trx.from('video_comments').whereIn('id', commentIds).forUpdate().select('id')
+  return { videoIds, commentIds }
+}
+
 export async function deleteCustomer(identity: CustomerIdentity) {
   if (Date.now() - new Date(identity.authenticated_at).getTime() > 600000) {
     throw new ApiError(
@@ -383,8 +407,13 @@ export async function deleteCustomer(identity: CustomerIdentity) {
     if (!row) throw new ApiError(401, 'UNAUTHENTICATED', 'Customer authentication required')
     await trx.from('contact_requests').where('customer_id', row.id).delete()
     await trx.from('customer_otp_challenges').where('phone_e164', row.phone_e164).delete()
+    // The cascade below also removes this customer's video comments, likes and saves, which
+    // would leave stale counters. Lock what they touched, delete, then recount those rows.
+    const { videoIds, commentIds } = await lockVideoActivity(trx, Number(row.id))
     await trx.from('customers').where('id', row.id).delete()
     // FK cascades erase sessions, refresh digests and legal snapshots in the same transaction.
+    await recountVideos(trx, videoIds)
+    await recountComments(trx, commentIds)
     return row.profile_photo_id as string | null
   })
   await eraseProfilePhoto(photoId)

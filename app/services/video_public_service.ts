@@ -3,6 +3,7 @@ import { ApiError } from './api_error.js'
 import { publicImageUrl } from './image_storage_service.js'
 import { publicVideoUrl } from './video_storage_service.js'
 import type { PublicLocale } from './public_localization.js'
+import { recountComments, recountVideos } from './video_counter_service.js'
 
 export const PLATFORM_HANDLE = 'thekuwaitiexperience'
 export const MAX_COMMENT_LENGTH = 500
@@ -342,21 +343,12 @@ async function toggle(
   return withVideo(videoId, customerId, async (trx, video) => {
     const key = { video_id: videoId, customer_id: customerId }
     const exists = Boolean(await trx.from(table).where(key).first())
-    let count = Number(video[counter])
-    if (on && !exists) {
-      await trx.table(table).insert({ ...key, created_at: new Date() })
-      count += 1
-    } else if (!on && exists) {
-      await trx.from(table).where(key).delete()
-      count = Math.max(0, count - 1)
-    }
-    if (count !== Number(video[counter])) {
-      await trx
-        .from('videos')
-        .where('id', videoId)
-        .update({ [counter]: count })
-    }
-    return { data: { video_id: videoId, active: on, count } }
+    if (on && !exists) await trx.table(table).insert({ ...key, created_at: new Date() })
+    else if (!on && exists) await trx.from(table).where(key).delete()
+    // Recount instead of +1/-1 so a counter that had drifted is corrected here.
+    await recountVideos(trx, [Number(video.id)])
+    const fresh = await trx.from('videos').where('id', videoId).select(counter).firstOrFail()
+    return { data: { video_id: videoId, active: on, count: Number(fresh[counter]) } }
   })
 }
 
@@ -393,10 +385,7 @@ export async function addComment(videoId: number, customerId: number, rawBody: u
       status: 'visible',
       created_at: new Date(),
     })
-    await trx
-      .from('videos')
-      .where('id', videoId)
-      .update({ comment_count: Number(video.comment_count) + 1 })
+    await recountVideos(trx, [Number(video.id)])
     const row = await trx
       .from('video_comments as c')
       .join('customers as u', 'u.id', 'c.customer_id')
@@ -414,14 +403,10 @@ export async function deleteComment(commentId: number, customerId: number) {
     if (Number(comment.customer_id) !== customerId) {
       throw new ApiError(403, 'FORBIDDEN', 'You can only delete your own comments')
     }
+    // Lock the video before changing its comments so the recount cannot race another write.
+    await trx.from('videos').where('id', comment.video_id).forUpdate().first()
     await trx.from('video_comments').where('id', commentId).delete()
-    if (comment.status === 'visible') {
-      await trx
-        .from('videos')
-        .where('id', comment.video_id)
-        .whereRaw('comment_count > 0')
-        .decrement('comment_count', 1)
-    }
+    await recountVideos(trx, [Number(comment.video_id)])
     return { data: { id: commentId } }
   })
 }
@@ -442,18 +427,16 @@ export async function setCommentLike(commentId: number, customerId: number, on: 
     await visibleVideo(Number(comment.video_id), trx)
     const key = { comment_id: commentId, customer_id: customerId }
     const exists = Boolean(await trx.from('video_comment_likes').where(key).first())
-    let count = Number(comment.like_count)
-    if (on && !exists) {
+    if (on && !exists)
       await trx.table('video_comment_likes').insert({ ...key, created_at: new Date() })
-      count += 1
-    } else if (!on && exists) {
-      await trx.from('video_comment_likes').where(key).delete()
-      count = Math.max(0, count - 1)
-    }
-    if (count !== Number(comment.like_count)) {
-      await trx.from('video_comments').where('id', commentId).update({ like_count: count })
-    }
-    return { data: { comment_id: commentId, active: on, count } }
+    else if (!on && exists) await trx.from('video_comment_likes').where(key).delete()
+    await recountComments(trx, [commentId])
+    const fresh = await trx
+      .from('video_comments')
+      .where('id', commentId)
+      .select('like_count')
+      .firstOrFail()
+    return { data: { comment_id: commentId, active: on, count: Number(fresh.like_count) } }
   })
 }
 

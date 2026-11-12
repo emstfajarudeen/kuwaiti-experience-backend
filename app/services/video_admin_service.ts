@@ -2,6 +2,7 @@ import db from '@adonisjs/lucid/services/db'
 import { ApiError } from './api_error.js'
 import { withStoredImages, type PreparedImage } from './image_storage_service.js'
 import { deleteVideoFiles, storeVideo, type PreparedVideo } from './video_storage_service.js'
+import { recountVideos } from './video_counter_service.js'
 import { REPORT_REASONS } from './video_public_service.js'
 
 type Row = Record<string, any>
@@ -287,15 +288,7 @@ export async function setCommentStatus(
     if (comment.status === status) return Number(comment.video_id)
     await trx.from('video_comments').where('id', commentId).update({ status })
     const videoId = Number(comment.video_id)
-    const visibleCount = await trx
-      .from('video_comments')
-      .where({ video_id: videoId, status: 'visible' })
-      .count('* as total')
-      .first()
-    await trx
-      .from('videos')
-      .where('id', videoId)
-      .update({ comment_count: Number(visibleCount?.total ?? 0) })
+    await recountVideos(trx, [videoId])
     await audit(trx, actorId, videoId, `comment_${status}`)
     return videoId
   })
