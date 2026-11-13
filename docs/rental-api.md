@@ -16,10 +16,17 @@ All paths are under `/api/v2`. Send `Accept-Language: en|ar` for localized names
 1. `GET /rentals/options`: filter values, pickup locations, the booking fee and the booking rules.
 2. `GET /rentals/vehicles?pickup_at&return_at&pickup_location_id&with_driver&…`: vehicles free for the period, each with a `quote`.
 3. `GET /rentals/vehicles/{id}?pickup_at&return_at&with_driver`: gallery, specs, mileage, insurance, `rental_terms`, provider, locations and `available`.
-4. `POST /customer/me/rental-bookings` with an `Idempotency-Key` header creates a **pending_payment** booking. This holds one unit until `hold_expires_at`.
+4. `POST /customer/me/rental-bookings` with an `Idempotency-Key` header creates a **pending_payment** booking. This holds one unit until `hold_expires_at`. Call it only when the customer taps the final **Pay** button, not when the summary or review screen opens: every call creates a booking record that the customer then sees in their history.
 5. `GET /customer/me/rental-bookings/{id}/payment-methods` lists methods (KNET, card, Apple Pay and others) from MyFatoorah.
 6. `POST /customer/me/rental-bookings/{id}/payment` with `{ "payment_method_id": 1 }` returns `payment_url`. Open it in a web view.
 7. MyFatoorah redirects to `callback_url` (`/api/v2/rentals/payments/callback?paymentId=…`). When the web view reaches that URL, close it and call `POST /customer/me/rental-bookings/{id}/payment/verify`. The booking becomes **confirmed** after the server verifies the payment with MyFatoorah.
+
+### App checklist
+
+- **Show API errors.** A search that fails (for example `422 INVALID_RENTAL_PERIOD` when the pickup is sooner than `min_lead_minutes`) must show `error.message`, not "No cars available".
+- **Send times with a time zone.** `2026-11-20T10:00:00+03:00` is valid; `2026-11-20T10:00:00` is rejected. Branch hours are checked in Kuwait time.
+- **Unpaid bookings in My bookings.** Show `pending_payment` as "Payment pending" with a countdown to `hold_expires_at`, a **Pay now** button (step 6) and a **Cancel** button. Show `expired` as "Not paid" under cancelled/past.
+- **Reuse the same `Idempotency-Key`** when retrying the same checkout, so a double tap or a network retry does not create a second booking.
 
 If the server sets `RENTAL_PAYMENT_RETURN_URL` (for example an app deep link), the callback redirects there with `status=paid|pending|unknown`, `booking_id` and `reference`.
 
@@ -94,18 +101,18 @@ If the server sets `RENTAL_PAYMENT_RETURN_URL` (for example an app deep link), t
 
 ## 4. Booking statuses
 
-| Status | Meaning |
-| --- | --- |
-| `pending_payment` | Reserved; pay before `hold_expires_at` (payment start extends the hold once) |
-| `confirmed` | Fee paid and verified; show the provider phone and the licence/ID reminder |
-| `completed` | Marked by staff after the rental |
-| `cancelled` | By customer (`pending_payment` anytime, `confirmed` until `cancellation_cutoff_hours` before pickup) or by staff |
-| `expired` | Hold ran out unpaid |
-| `refund_required` | The fee was paid but the booking could not be confirmed (car taken after the hold expired, or already cancelled). Staff refund it from the CMS |
+| Status | Meaning | Suggested app label |
+| --- | --- | --- |
+| `pending_payment` | Reserved; pay before `hold_expires_at` (payment start extends the hold once) | Payment pending (countdown, Pay now, Cancel) |
+| `confirmed` | Fee paid and verified; show the provider phone and the licence/ID reminder | Confirmed |
+| `completed` | Marked by staff or the provider after the rental | Completed |
+| `cancelled` | By customer (`pending_payment` anytime, `confirmed` until `cancellation_cutoff_hours` before pickup) or by staff | Cancelled |
+| `expired` | Hold ran out unpaid | Not paid |
+| `refund_required` | The fee was paid but the booking could not be confirmed (car taken after the hold expired, or already cancelled). Staff refund it from the CMS | Refund in progress |
 
 The booking fee is **not refunded automatically** when a customer cancels. Staff can refund it from the CMS booking page. A confirmed booking creates an inbox/push notification of type `rental_booking_confirmed` with `action_data: { type, booking_id, reference }`.
 
-Common errors: `409 VEHICLE_UNAVAILABLE`, `409 TOO_MANY_PENDING_BOOKINGS` (max 3 unpaid holds), `409 BOOKING_NOT_PAYABLE`, `409 CANCELLATION_WINDOW_CLOSED`, `409 REVIEW_NOT_ALLOWED`, `422 INVALID_RENTAL_PERIOD`, `422 INVALID_LOCATION`, `422 BRANCH_CLOSED` (pickup or return time outside the branch's working hours or on a closed date), `422 DRIVER_NOT_AVAILABLE` (vehicle is self-drive only), `422 DRIVER_REQUIRED` (vehicle is only rented with a driver; send `with_driver: true`), `503 PAYMENTS_NOT_CONFIGURED`, `502 PAYMENT_GATEWAY_ERROR`.
+Common errors: `409 VEHICLE_UNAVAILABLE`, `409 TOO_MANY_PENDING_BOOKINGS` (max 3 unpaid holds), `409 BOOKING_NOT_PAYABLE`, `409 ALREADY_PAID`, `409 IDEMPOTENCY_CONFLICT`, `422 VALIDATION_ERROR` (see `fields`), `409 CANCELLATION_WINDOW_CLOSED`, `409 REVIEW_NOT_ALLOWED`, `422 INVALID_RENTAL_PERIOD`, `422 INVALID_LOCATION`, `422 BRANCH_CLOSED` (pickup or return time outside the branch's working hours or on a closed date), `422 DRIVER_NOT_AVAILABLE` (vehicle is self-drive only), `422 DRIVER_REQUIRED` (vehicle is only rented with a driver; send `with_driver: true`), `503 PAYMENTS_NOT_CONFIGURED`, `502 PAYMENT_GATEWAY_ERROR`.
 
 ### Driver (with-driver bookings)
 
@@ -129,7 +136,7 @@ When a booking is confirmed, the provider gets an email with the reference, cust
 
 ## 7. Server setup
 
-- Run the `1760000000027_create_rentals` and `1760000000028_rental_reviews_and_provider_emails` migrations.
+- Run all migrations up to `1760000000035_rental_documents_and_drivers` (`node ace migration:run --force`).
 - Set `RESEND_API_KEY` and `RENTAL_EMAIL_FROM` (a sender on a domain verified in Resend, for example `Kuwaiti Experience <bookings@example.com>`). `RENTAL_EMAIL_REPLY_TO` is optional. Without them, provider emails are logged as not sent. Add an email address to each provider in the CMS.
 - Set `MYFATOORAH_API_KEY` and `MYFATOORAH_BASE_URL`. The default is the test URL `https://apitest.myfatoorah.com`; Kuwait live is `https://api.myfatoorah.com`. `APP_API_BASE_URL` (or `APP_URL`) must be publicly reachable for the payment callback.
 - In the MyFatoorah portal, point the webhook at `https://<api-origin>/api/v2/rentals/payments/webhook`. Webhooks only trigger a status pull from the MyFatoorah API, so webhook signatures are not relied on.
