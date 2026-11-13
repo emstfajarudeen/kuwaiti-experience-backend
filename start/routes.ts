@@ -167,6 +167,7 @@ router
     router.get('/rentals/documents', [AdminRentalsController, 'documents'])
     router.post('/rentals/documents', [AdminRentalsController, 'uploadDocument'])
     router.get('/rentals/documents/:id/file', [AdminRentalsController, 'documentFile'])
+    router.post('/rentals/documents/:id/update', [AdminRentalsController, 'updateDocument'])
     router.post('/rentals/documents/:id/delete', [AdminRentalsController, 'deleteDocument'])
     router.get('/rentals/drivers', [AdminRentalsController, 'drivers'])
     router.get('/rentals/drivers/new', [AdminRentalsController, 'newDriver'])

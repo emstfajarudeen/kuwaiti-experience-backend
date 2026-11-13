@@ -1274,6 +1274,38 @@ test.group('Rental provider portal', (group) => {
     return Number(id)
   }
 
+  test('the staff bookings list leaves out unpaid checkouts unless asked', async ({
+    client,
+    assert,
+  }) => {
+    const admin = await staff()
+    const ids = await catalog()
+    const paid = await booking(ids, { pickupInDays: 2, days: 2, status: 'confirmed' })
+    const held = await booking(ids, {
+      pickupInDays: 3,
+      days: 1,
+      status: 'pending_payment',
+      confirmed: false,
+    })
+    const lapsed = await booking(ids, {
+      pickupInDays: 3,
+      days: 1,
+      status: 'expired',
+      confirmed: false,
+    })
+    const listed = async (query: string) => {
+      const response = await client
+        .get(`/admin/rentals/bookings${query}`)
+        .cookie('admin_access', admin.accessToken)
+      return page(response).props.rows.map((row: any) => row.id)
+    }
+    assert.deepEqual(await listed(''), [paid])
+    assert.deepEqual(await listed('?status=pending_payment'), [held])
+    assert.sameMembers(await listed('?status=all'), [paid, held, lapsed])
+    const reference = await column('rental_bookings', held, 'reference')
+    assert.deepEqual(await listed(`?q=${reference}`), [held])
+  })
+
   test('staff invite a provider, who sets a password and signs in', async ({ client, assert }) => {
     const admin = await staff()
     const ids = await catalog()
@@ -1750,6 +1782,34 @@ test.group('Rental provider portal', (group) => {
       home.props.needsDriver.map((row: any) => row.id),
       [overlapping]
     )
+  })
+
+  test('a new provider with an email is invited to the portal straight away', async ({
+    client,
+    assert,
+  }) => {
+    const admin = await staff()
+    const created = await client
+      .post('/admin/rentals/providers')
+      .redirects(0)
+      .withCsrfToken()
+      .cookie('admin_access', admin.accessToken)
+      .form({ nameEn: 'Sunset Cars', email: 'Hello@Sunset.example', active: 'true' })
+    assert.equal(created.header('location'), '/admin/rentals/providers')
+    const user = await db.from('users').where('email', 'hello@sunset.example').firstOrFail()
+    assert.equal(user.role, 'provider')
+    assert.equal(user.full_name, 'Sunset Cars')
+    assert.lengthOf(mailer.sent, 1)
+    assert.equal(mailer.sent[0].to, 'hello@sunset.example')
+
+    // Without an email there is nobody to invite: the provider is created and no login exists.
+    await client
+      .post('/admin/rentals/providers')
+      .redirects(0)
+      .withCsrfToken()
+      .cookie('admin_access', admin.accessToken)
+      .form({ nameEn: 'No Email Cars', active: 'true' })
+    assert.lengthOf(mailer.sent, 1)
   })
 
   test('turning a provider login off signs it out', async ({ client, assert }) => {

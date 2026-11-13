@@ -454,6 +454,7 @@ add(
 add('POST', ['/admin/rentals/providers/:id/login/delete'], ['rentals.view', 'rentals.delete'])
 add('GET', ['/admin/rentals/documents', '/admin/rentals/documents/:id/file'], ['rentals.view'])
 add('POST', ['/admin/rentals/documents'], ['rentals.view', 'rentals.update'])
+add('POST', ['/admin/rentals/documents/:id/update'], ['rentals.view', 'rentals.update'])
 add('POST', ['/admin/rentals/documents/:id/delete'], ['rentals.view', 'rentals.delete'])
 add('GET', ['/admin/rentals/drivers'], ['rentals.view'])
 add('GET', ['/admin/rentals/drivers/new'], ['rentals.view', 'rentals.create'])

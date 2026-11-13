@@ -5,7 +5,6 @@ import AdminLayout from '../../layouts/admin_layout'
 import ImageUpload from '../../components/image_upload'
 import ConfirmModal from '../../components/confirm_modal'
 import {
-  ActionForm,
   FormField,
   FormSection,
   Panel,
@@ -60,13 +59,13 @@ const loginStates: Record<PortalLogin['state'], { label: string; tone: string }>
 function PortalLoginPanel({
   provider,
   login,
-  loginForm,
   inviteLink,
   csrfToken,
+  embedded = false,
 }: {
   provider: Provider
+  embedded?: boolean
   login: PortalLogin | null
-  loginForm: Record<string, unknown> | null
   inviteLink: string | null
   csrfToken: string
 }) {
@@ -86,7 +85,7 @@ function PortalLoginPanel({
   }
   return (
     <Panel
-      title="Provider portal login"
+      embedded={embedded}
       actions={
         login && state ? (
           <span className="tw:flex tw:items-center tw:gap-3">
@@ -115,11 +114,6 @@ function PortalLoginPanel({
         ) : null
       }
     >
-      <p className="tw:mb-4 tw:text-[13px] tw:text-brand-muted">
-        The provider signs in at the same CMS address and only sees their own branches, working
-        hours, vehicles and bookings. Their changes go live in the app straight away.
-      </p>
-
       {inviteLink && (
         <div className="tw:mb-4 tw:rounded-cms-sm tw:border tw:border-amber-300 tw:bg-amber-50 tw:p-4">
           <p className="tw:m-0 tw:mb-2 tw:text-[13px] tw:font-semibold">
@@ -162,13 +156,6 @@ function PortalLoginPanel({
           </dl>
           {canManage && (
             <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
-              {login.state !== 'disabled' && (
-                <ActionForm action={`${base}/invite`} csrfToken={csrfToken}>
-                  <Button htmlType="submit">
-                    {login.state === 'active' ? 'Send password reset link' : 'Resend invite'}
-                  </Button>
-                </ActionForm>
-              )}
               {can('rentals.delete') && (
                 <Button danger onClick={() => setRemoving(true)}>
                   Remove login
@@ -177,41 +164,7 @@ function PortalLoginPanel({
             </div>
           )}
         </div>
-      ) : canManage ? (
-        <ActionForm action={base} csrfToken={csrfToken} className="tw:flex tw:flex-col tw:gap-4">
-          <div className="tw:grid tw:grid-cols-2 tw:gap-4 tw:max-[900px]:grid-cols-1">
-            <label className="tw:flex tw:flex-col tw:gap-1.5 tw:text-[13px] tw:font-semibold">
-              Contact name
-              <Input
-                name="name"
-                required
-                maxLength={120}
-                defaultValue={String(loginForm?.name ?? provider.name_en)}
-              />
-            </label>
-            <label className="tw:flex tw:flex-col tw:gap-1.5 tw:text-[13px] tw:font-semibold">
-              Sign-in email
-              <Input
-                name="email"
-                type="email"
-                required
-                maxLength={254}
-                defaultValue={String(loginForm?.email ?? provider.email ?? '')}
-              />
-            </label>
-          </div>
-          <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-3">
-            <Button type="primary" htmlType="submit">
-              Create login and send invite
-            </Button>
-            <span className="tw:text-[12px] tw:text-brand-muted">
-              The provider gets an email to set their own password.
-            </span>
-          </div>
-        </ActionForm>
-      ) : (
-        <p className="tw:m-0 tw:text-brand-muted">No login yet.</p>
-      )}
+      ) : null}
 
       <ConfirmModal
         open={removing}
@@ -237,10 +190,11 @@ export default function RentalProviderEdit({
   driverCount,
   documentCount,
   login,
-  loginForm,
   inviteLink,
   form,
 }: Props) {
+  const can = useCan()
+  const [inviting, setInviting] = useState(false)
   const value = (key: string, fallback: unknown) =>
     form?.[key] !== undefined ? form[key] : (fallback ?? '')
   return (
@@ -260,112 +214,158 @@ export default function RentalProviderEdit({
         {provider && (
           <div className="tw:flex tw:flex-wrap tw:gap-2">
             <a
-              className="button secondary"
+              className="button primary tw:border-brand-navy-subtle tw:bg-brand-navy-subtle"
               href={`/admin/rentals/locations?provider=${provider.id}`}
             >
-              Branches ({branchCount})
+              Branches
+              <span className="tw:inline-flex tw:h-[22px] tw:min-w-[22px] tw:items-center tw:justify-center tw:rounded-full tw:bg-white tw:px-1.5 tw:text-[12px] tw:font-bold tw:leading-none tw:text-brand-navy-deep">
+                {branchCount}
+              </span>
             </a>
             <a
-              className="button secondary"
+              className="button primary tw:border-brand-navy-subtle tw:bg-brand-navy-subtle"
               href={`/admin/rentals/working-hours?provider=${provider.id}`}
             >
               Working hours
             </a>
-            <a className="button secondary" href={`/admin/rentals/drivers?provider=${provider.id}`}>
-              Drivers ({driverCount})
+            <a
+              className="button primary tw:border-brand-navy-subtle tw:bg-brand-navy-subtle"
+              href={`/admin/rentals/drivers?provider=${provider.id}`}
+            >
+              Drivers
+              <span className="tw:inline-flex tw:h-[22px] tw:min-w-[22px] tw:items-center tw:justify-center tw:rounded-full tw:bg-white tw:px-1.5 tw:text-[12px] tw:font-bold tw:leading-none tw:text-brand-navy-deep">
+                {driverCount}
+              </span>
             </a>
             <a
-              className="button secondary"
+              className="button primary tw:border-brand-navy-subtle tw:bg-brand-navy-subtle"
               href={`/admin/rentals/documents?provider=${provider.id}`}
             >
-              Documents ({documentCount})
+              Documents
+              <span className="tw:inline-flex tw:h-[22px] tw:min-w-[22px] tw:items-center tw:justify-center tw:rounded-full tw:bg-white tw:px-1.5 tw:text-[12px] tw:font-bold tw:leading-none tw:text-brand-navy-deep">
+                {documentCount}
+              </span>
             </a>
           </div>
         )}
       </div>
-      <RentalFormShell
-        id="rental-provider-form"
-        multipart
-        action={
-          provider ? `/admin/rentals/providers/${provider.id}/save` : '/admin/rentals/providers'
-        }
-        csrfToken={csrfToken}
-        cancelHref="/admin/rentals/providers"
-        submitLabel="Save provider"
-        initialValues={{
-          nameEn: value('nameEn', provider?.name_en),
-          nameAr: value('nameAr', provider?.name_ar),
-          phone: value('phone', provider?.phone),
-          email: value('email', provider?.email),
-          address: value('address', provider?.address),
-          active: form?.active !== undefined ? Boolean(form.active) : (provider?.active ?? true),
-        }}
-      >
-        <FormSection title="Provider details">
-          <FormField
-            label="Name (English)"
-            name="nameEn"
-            required
-            message="Enter the English name."
-          >
-            <Input name="nameEn" maxLength={160} />
-          </FormField>
-          <FormField label="Name (Arabic)" name="nameAr">
-            <Input name="nameAr" dir="rtl" lang="ar" maxLength={160} />
-          </FormField>
-          <FormField
-            label="Phone"
-            name="phone"
-            hint="Shown to customers on confirmed bookings. Use international format, e.g. +96512345678."
-            rules={[
-              {
-                pattern: /^$|^\+[1-9]\d{7,14}$/,
-                message: 'Use international format, e.g. +96512345678.',
-              },
-            ]}
-          >
-            <Input name="phone" maxLength={16} />
-          </FormField>
-          <FormField
-            label="Email"
-            name="email"
-            hint="For staff reference; not shown in the app."
-            rules={[{ type: 'email', message: 'Enter a valid email address.' }]}
-          >
-            <Input name="email" maxLength={254} />
-          </FormField>
-          <FormField label="Address" name="address">
-            <Input name="address" maxLength={500} />
-          </FormField>
-          <SwitchField
-            label="Status"
-            name="active"
-            hint="Vehicles of inactive providers are hidden from the app."
-          />
-        </FormSection>
-        <section className="cms-form-section">
-          <h2>Logo</h2>
-          <div className="image-block tw:mt-4">
-            <ImageUpload
-              name="logo"
-              currentImageUrl={provider?.logo_url}
-              currentImageAlt="Provider logo"
-              removeName="removeLogo"
+      <div className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-6 tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)]">
+        <RentalFormShell
+          id="rental-provider-form"
+          wrap={false}
+          multipart
+          action={
+            provider ? `/admin/rentals/providers/${provider.id}/save` : '/admin/rentals/providers'
+          }
+          csrfToken={csrfToken}
+          cancelHref="/admin/rentals/providers"
+          submitLabel="Save provider"
+          extraActions={
+            provider &&
+            can('rentals.update') &&
+            login?.state !== 'disabled' &&
+            (login || provider.email) ? (
+              <Button
+                type="primary"
+                className="cms-form-actions-start"
+                loading={inviting}
+                onClick={() =>
+                  router.post(
+                    login
+                      ? `/admin/rentals/providers/${provider.id}/login/invite`
+                      : `/admin/rentals/providers/${provider.id}/login`,
+                    login
+                      ? { _csrf: csrfToken }
+                      : { name: provider.name_en, email: provider.email ?? '', _csrf: csrfToken },
+                    {
+                      preserveScroll: true,
+                      onStart: () => setInviting(true),
+                      onFinish: () => setInviting(false),
+                    }
+                  )
+                }
+              >
+                {!login
+                  ? 'Send invite'
+                  : login.state === 'active'
+                    ? 'Send password reset link'
+                    : 'Re-invite'}
+              </Button>
+            ) : null
+          }
+          initialValues={{
+            nameEn: value('nameEn', provider?.name_en),
+            nameAr: value('nameAr', provider?.name_ar),
+            phone: value('phone', provider?.phone),
+            email: value('email', provider?.email),
+            address: value('address', provider?.address),
+            active: form?.active !== undefined ? Boolean(form.active) : (provider?.active ?? true),
+          }}
+        >
+          <FormSection title="Provider details">
+            <FormField
+              label="Name (English)"
+              name="nameEn"
+              required
+              message="Enter the English name."
+            >
+              <Input name="nameEn" maxLength={160} />
+            </FormField>
+            <FormField label="Name (Arabic)" name="nameAr">
+              <Input name="nameAr" dir="rtl" lang="ar" maxLength={160} />
+            </FormField>
+            <FormField
+              label="Phone"
+              name="phone"
+              hint="Shown to customers on confirmed bookings. Use international format, e.g. +96512345678."
+              rules={[
+                {
+                  pattern: /^$|^\+[1-9]\d{7,14}$/,
+                  message: 'Use international format, e.g. +96512345678.',
+                },
+              ]}
+            >
+              <Input name="phone" maxLength={16} />
+            </FormField>
+            <FormField
+              label="Email"
+              name="email"
+              hint="For staff reference; not shown in the app."
+              rules={[{ type: 'email', message: 'Enter a valid email address.' }]}
+            >
+              <Input name="email" maxLength={254} />
+            </FormField>
+            <FormField label="Address" name="address">
+              <Input name="address" maxLength={500} />
+            </FormField>
+            <SwitchField
+              label="Status"
+              name="active"
+              hint="Vehicles of inactive providers are hidden from the app."
             />
-          </div>
-        </section>
-      </RentalFormShell>
-      {provider && (
-        <div className="tw:mt-6">
+          </FormSection>
+          <section className="cms-form-section">
+            <h2>Logo</h2>
+            <div className="image-block tw:mt-4">
+              <ImageUpload
+                name="logo"
+                currentImageUrl={provider?.logo_url}
+                currentImageAlt="Provider logo"
+                removeName="removeLogo"
+              />
+            </div>
+          </section>
+        </RentalFormShell>
+        {provider && (login || inviteLink) && (
           <PortalLoginPanel
+            embedded
             provider={provider}
             login={login}
-            loginForm={loginForm}
             inviteLink={inviteLink}
             csrfToken={csrfToken}
           />
-        </div>
-      )}
+        )}
+      </div>
     </AdminLayout>
   )
 }

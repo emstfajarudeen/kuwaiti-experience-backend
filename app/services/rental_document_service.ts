@@ -125,6 +125,22 @@ export async function addDocument(
   }
 }
 
+export async function updateDocumentLabel(id: number, label: string, actorId: number) {
+  const name = label.trim()
+  if (!name) fieldError('label', 'Enter what this document is, e.g. Trade licence.')
+  if (name.length > 160) fieldError('label', 'Use 160 characters or fewer.')
+  const row = await findDocument(id)
+  if (!row) throw new ApiError(404, 'NOT_FOUND', 'Document not found')
+  await db.from('rental_provider_documents').where('id', id).update({ label: name })
+  await db.table('audit_logs').insert({
+    actor_id: actorId,
+    action: 'rental_provider_document.update',
+    entity_type: 'rental_provider_document',
+    entity_id: String(id),
+    created_at: new Date(),
+  })
+}
+
 export async function deleteDocument(id: number, actorId: number) {
   const row = await findDocument(id)
   if (!row) throw new ApiError(404, 'NOT_FOUND', 'Document not found')

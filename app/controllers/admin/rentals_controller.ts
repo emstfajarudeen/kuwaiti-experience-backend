@@ -673,13 +673,33 @@ export default class AdminRentalsController {
     try {
       const input = await rentalProviderValidator.validate(raw)
       const images = await prepareImages(ctx.admin.id, { logo: imageFiles(request, 'logo') })
-      await admin.saveProvider(
+      const savedId = await admin.saveProvider(
         input,
         { logo: images.logo[0], removeLogo: bool(request.input('removeLogo')) },
         ctx.admin.id,
         id
       )
       session.flash('success', id ? 'Provider saved.' : 'Provider created.')
+      // A new provider with an email gets its portal login and the invite straight away.
+      if (!id && input.email) {
+        try {
+          const result = await portalLogins.createProviderLogin(
+            savedId,
+            { name: input.nameEn, email: input.email },
+            ctx.admin.id
+          )
+          this.inviteOutcome(
+            ctx,
+            result,
+            `Provider created. An invite was emailed to ${input.email}.`
+          )
+          if (result.status === 'failed')
+            return response.redirect(`/admin/rentals/providers/${savedId}/edit`)
+        } catch (error) {
+          fail(ctx, error, 'The provider was created, but the invite could not be sent.')
+          return response.redirect(`/admin/rentals/providers/${savedId}/edit`)
+        }
+      }
       return response.redirect('/admin/rentals/providers')
     } catch (error) {
       fail(ctx, error, 'Unable to save the provider.', 'providerForm', raw)
@@ -832,6 +852,27 @@ export default class AdminRentalsController {
     const row = await documents.findDocument(id)
     if (!row) throw new ApiError(404, 'NOT_FOUND', 'Document not found')
     return documents.streamDocument(ctx.response, row)
+  }
+
+  async updateDocument(ctx: HttpContext) {
+    const id = Number(ctx.params.id)
+    await assertOwned(ctx, 'rental_provider_documents', id)
+    const row = await documents.findDocument(id)
+    try {
+      await documents.updateDocumentLabel(
+        id,
+        String(ctx.request.input('label') ?? ''),
+        ctx.admin.id
+      )
+      ctx.session.flash('success', 'Document renamed.')
+    } catch (error) {
+      fail(ctx, error, 'Unable to rename the document.')
+    }
+    return ctx.response.redirect(
+      row && !portal(ctx)
+        ? `/admin/rentals/documents?provider=${row.provider_id}`
+        : '/admin/rentals/documents'
+    )
   }
 
   async deleteDocument(ctx: HttpContext) {

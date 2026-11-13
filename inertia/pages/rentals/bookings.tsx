@@ -223,7 +223,7 @@ export default function RentalBookings({
             {
               key: 'status',
               value: filters.values.status,
-              placeholder: 'All statuses',
+              placeholder: portal ? 'All statuses' : 'All bookings (paid)',
               options: portal
                 ? bookingStatusOptions.filter((option) =>
                     ['confirmed', 'completed', 'cancelled'].includes(option.value)
@@ -252,7 +252,9 @@ export default function RentalBookings({
             locale={{
               emptyText: portal
                 ? 'No bookings yet. Confirmed bookings of your cars appear here.'
-                : 'No rental bookings yet.',
+                : filters.values.status || filters.values.q
+                  ? 'No rental bookings match.'
+                  : 'No paid rental bookings yet. Unpaid checkouts are under the status filter.',
             }}
           />
         </div>

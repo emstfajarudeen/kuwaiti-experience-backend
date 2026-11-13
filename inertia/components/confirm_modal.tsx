@@ -5,7 +5,9 @@ type Props = {
   onClose: () => void
   title: string
   message: string
-  action: string
+  /** Posts the form to `action`. Pass `onConfirm` instead to handle the confirm in the page. */
+  action?: string
+  onConfirm?: () => void
   csrfToken: string
   confirmLabel: string
   danger?: boolean
@@ -18,7 +20,8 @@ export default function ConfirmModal({
   onClose,
   title,
   message,
-  action,
+  action = '',
+  onConfirm,
   csrfToken,
   confirmLabel,
   danger = false,
@@ -33,15 +36,21 @@ export default function ConfirmModal({
       footer={
         <div className="tw:flex tw:justify-end tw:gap-2">
           <Button onClick={onClose}>Cancel</Button>
-          <form action={action} method="POST">
-            <input type="hidden" name="_csrf" value={csrfToken} />
-            {Object.entries(fields).map(([name, value]) => (
-              <input key={name} type="hidden" name={name} value={value} />
-            ))}
-            <Button htmlType="submit" type={danger ? 'primary' : 'default'} danger={danger}>
+          {onConfirm ? (
+            <Button type={danger ? 'primary' : 'default'} danger={danger} onClick={onConfirm}>
               {confirmLabel}
             </Button>
-          </form>
+          ) : (
+            <form action={action} method="POST">
+              <input type="hidden" name="_csrf" value={csrfToken} />
+              {Object.entries(fields).map(([name, value]) => (
+                <input key={name} type="hidden" name={name} value={value} />
+              ))}
+              <Button htmlType="submit" type={danger ? 'primary' : 'default'} danger={danger}>
+                {confirmLabel}
+              </Button>
+            </form>
+          )}
         </div>
       }
     >

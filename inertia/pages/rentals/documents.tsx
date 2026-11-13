@@ -1,10 +1,13 @@
 import { useRef, useState } from 'react'
-import { Button, Input, Select, Table, message } from 'antd'
+import { Button, Input, Modal, Table, message } from 'antd'
 import { router } from '@inertiajs/react'
 import AdminLayout from '../../layouts/admin_layout'
 import ConfirmModal from '../../components/confirm_modal'
 import RowActionMenu from '../../components/row_action_menu'
 import { formatDateTime, useCan, usePortal, type SharedProps } from '../../components/rental_ui'
+
+// Changes update only this table: the page is not reloaded.
+const keepPage = { preserveScroll: true } as const
 
 type Document = {
   id: number
@@ -49,6 +52,9 @@ export default function RentalDocuments({
   const [label, setLabel] = useState('')
   const [chosen, setChosen] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [uploadOpen, setUploadOpen] = useState(false)
+  const [renaming, setRenaming] = useState<Document | null>(null)
+  const [newLabel, setNewLabel] = useState('')
   const [deleting, setDeleting] = useState<Document | null>(null)
   const canUpload = can('rentals.update') && Boolean(provider)
 
@@ -89,38 +95,38 @@ export default function RentalDocuments({
       </div>
 
       {canUpload && (
-        <section className="panel tw:mb-6 tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-6">
-          <div className="tw:mb-4 tw:flex tw:flex-wrap tw:items-start tw:justify-between tw:gap-3">
-            <div>
-              <h2 className="tw:m-0">Upload a document</h2>
-              <p className="tw:m-0 tw:mt-1 tw:text-[13px] tw:text-brand-muted">
-                Trade licence, insurance certificate, contract and similar. PDF, JPG or PNG up to{' '}
-                {maxMb} MB. Only{' '}
-                {portal ? 'you and the Kuwaiti Experience team' : 'staff and the provider'} can see
-                these; they are never shown in the app.
-              </p>
-            </div>
-            {!portal && (
-              <Select
-                className="tw:min-w-[220px]"
-                value={provider || undefined}
-                options={providers}
-                onChange={(value) => router.get('/admin/rentals/documents', { provider: value })}
-              />
-            )}
-          </div>
+        <Modal
+          open={uploadOpen}
+          title="Upload a document"
+          footer={null}
+          destroyOnClose
+          onCancel={() => setUploadOpen(false)}
+        >
           <form
-            method="post"
-            action="/admin/rentals/documents"
             encType="multipart/form-data"
-            className="tw:grid tw:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] tw:items-end tw:gap-4 tw:max-[900px]:grid-cols-1"
+            className="tw:flex tw:flex-col tw:gap-4"
             onSubmit={(event) => {
+              event.preventDefault()
               if (!label.trim() || !chosen) {
-                event.preventDefault()
                 void message.error(!chosen ? 'Choose a file to upload.' : 'Enter a label.')
                 return
               }
+              const data = new FormData(event.currentTarget)
+              data.set('providerId', provider)
+              data.set('_csrf', csrfToken)
               setUploading(true)
+              router.post('/admin/rentals/documents', data, {
+                forceFormData: true,
+                preserveScroll: true,
+                onSuccess: (page) => {
+                  if (!(page.props as { error?: unknown }).error) {
+                    setUploadOpen(false)
+                    setLabel('')
+                    setChosen(null)
+                  }
+                },
+                onFinish: () => setUploading(false),
+              })
             }}
           >
             <input type="hidden" name="_csrf" value={csrfToken} />
@@ -137,31 +143,82 @@ export default function RentalDocuments({
                 onChange={(event) => setLabel(event.target.value)}
               />
             </label>
-            <label className="tw:flex tw:flex-col tw:gap-1.5 tw:text-[13px] tw:font-semibold">
+            <div className="tw:flex tw:flex-col tw:gap-1.5 tw:text-[13px] tw:font-semibold">
               <span>
                 <span className="tw:text-red-600">* </span>File
               </span>
+              <div
+                className="video-picker-drop"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  const file = event.dataTransfer.files?.[0]
+                  if (!file) return
+                  if (fileInput.current) {
+                    const transfer = new DataTransfer()
+                    transfer.items.add(file)
+                    fileInput.current.files = transfer.files
+                  }
+                  choose(file)
+                }}
+              >
+                <span className="video-picker-file">
+                  {chosen
+                    ? `${chosen.name} · ${(chosen.size / 1024 / 1024).toFixed(1)} MB`
+                    : 'Drag and drop a file here, or browse'}
+                </span>
+                <div className="video-picker-actions">
+                  <button
+                    type="button"
+                    className="gallery-sorter-add-button"
+                    onClick={() => fileInput.current?.click()}
+                  >
+                    {chosen ? 'Replace file' : '+ Choose file'}
+                  </button>
+                  {chosen && (
+                    <button
+                      type="button"
+                      className="video-picker-link"
+                      onClick={() => {
+                        if (fileInput.current) fileInput.current.value = ''
+                        setChosen(null)
+                      }}
+                    >
+                      Remove selected
+                    </button>
+                  )}
+                </div>
+                <ul className="video-picker-rules">
+                  <li>PDF, JPG or PNG</li>
+                  <li>Up to {maxMb} MB</li>
+                </ul>
+              </div>
               <input
                 ref={fileInput}
+                className="image-upload-native"
                 type="file"
                 name="file"
                 accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
                 onChange={(event) => choose(event.target.files?.[0] ?? null)}
-                className="tw:w-full tw:rounded-cms-sm tw:border tw:border-brand-line tw:bg-white tw:p-[5px] tw:text-[13px] tw:font-normal file:tw:mr-3 file:tw:cursor-pointer file:tw:rounded-cms-sm file:tw:border-0 file:tw:bg-brand-surface-subtle file:tw:px-3 file:tw:py-1.5 file:tw:font-semibold file:tw:text-brand-ink"
               />
-            </label>
-            <Button type="primary" htmlType="submit" loading={uploading}>
+            </div>
+            <Button type="primary" htmlType="submit" loading={uploading} block>
               Upload
             </Button>
           </form>
-        </section>
+        </Modal>
       )}
 
       <section className="panel table-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-0">
-        <div className="panel-heading tw:border-b tw:border-brand-line-subtle tw:px-6 tw:py-5">
+        <div className="panel-heading tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-brand-line-subtle tw:px-6 tw:py-5">
           <h2>
             {providerName ? `${providerName} - ` : ''}Documents ({rows.length})
           </h2>
+          {canUpload && (
+            <Button type="primary" onClick={() => setUploadOpen(true)}>
+              + Upload document
+            </Button>
+          )}
         </div>
         <div className="table-scroll">
           <Table<Document>
@@ -175,6 +232,28 @@ export default function RentalDocuments({
                 : 'Add a provider first.',
             }}
             columns={[
+              ...(can('rentals.update')
+                ? [
+                    {
+                      title: '',
+                      key: 'edit',
+                      width: 70,
+                      render: (_: unknown, row: Document) => (
+                        <button
+                          type="button"
+                          className="action-pencil-btn"
+                          aria-label={`Rename ${row.label}`}
+                          onClick={() => {
+                            setNewLabel(row.label)
+                            setRenaming(row)
+                          }}
+                        >
+                          ✎
+                        </button>
+                      ),
+                    },
+                  ]
+                : []),
               {
                 title: 'Document',
                 key: 'label',
@@ -221,10 +300,6 @@ export default function RentalDocuments({
                   <RowActionMenu
                     label={`Actions for ${row.label}`}
                     actions={[
-                      {
-                        label: 'Open',
-                        onClick: () => window.open(row.url, '_blank', 'noopener'),
-                      },
                       ...(can('rentals.delete')
                         ? [{ label: 'Delete', danger: true, onClick: () => setDeleting(row) }]
                         : []),
@@ -236,13 +311,60 @@ export default function RentalDocuments({
           />
         </div>
       </section>
+      <Modal
+        open={Boolean(renaming)}
+        title="Rename document"
+        footer={null}
+        destroyOnClose
+        onCancel={() => setRenaming(null)}
+      >
+        <form
+          className="tw:flex tw:flex-col tw:gap-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (!renaming || !newLabel.trim()) return
+            router.post(
+              `/admin/rentals/documents/${renaming.id}/update`,
+              { label: newLabel, _csrf: csrfToken },
+              {
+                ...keepPage,
+                onSuccess: (page) => {
+                  if (!(page.props as { error?: unknown }).error) setRenaming(null)
+                },
+              }
+            )
+          }}
+        >
+          <label className="tw:flex tw:flex-col tw:gap-1.5 tw:text-[13px] tw:font-semibold">
+            <span>
+              <span className="tw:text-red-600">* </span>Label
+            </span>
+            <Input
+              name="label"
+              maxLength={160}
+              value={newLabel}
+              onChange={(event) => setNewLabel(event.target.value)}
+            />
+          </label>
+          <Button type="primary" htmlType="submit" disabled={!newLabel.trim()} block>
+            Save
+          </Button>
+        </form>
+      </Modal>
       <ConfirmModal
         open={Boolean(deleting)}
         onClose={() => setDeleting(null)}
         title="Delete document"
         message={`Delete “${deleting?.label ?? 'this document'}”? The file is removed and cannot be recovered.`}
-        action={deleting ? `/admin/rentals/documents/${deleting.id}/delete` : ''}
         csrfToken={csrfToken}
+        onConfirm={() => {
+          if (!deleting) return
+          router.post(
+            `/admin/rentals/documents/${deleting.id}/delete`,
+            { _csrf: csrfToken },
+            { ...keepPage, onSuccess: () => setDeleting(null) }
+          )
+        }}
         confirmLabel="Delete"
         danger
       />

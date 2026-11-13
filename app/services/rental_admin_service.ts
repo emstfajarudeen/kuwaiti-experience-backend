@@ -21,6 +21,8 @@ import { BOOKING_STATUSES } from '../serializers/rental.js'
 
 type Row = Record<string, any>
 const PAGE_SIZE = 20
+/** Checkouts the customer never paid for: holding a unit, or with the hold run out. */
+const UNPAID_STATUSES = ['pending_payment', 'expired']
 
 async function audit(
   trx: TransactionClientContract,
@@ -846,12 +848,17 @@ export async function listBookings(params: {
   await expireStaleHolds()
   const status = (BOOKING_STATUSES as readonly string[]).includes(params.status ?? '')
     ? params.status
-    : ''
+    : params.status === 'all'
+      ? 'all'
+      : ''
   const text = (params.q ?? '').trim().slice(0, 120)
   const apply = (query: any) => {
     if (params.providerId)
       query.where('b.provider_id', params.providerId).whereNotNull('b.confirmed_at')
-    if (status) query.where('b.status', status)
+    if (status && status !== 'all') query.where('b.status', status)
+    // Unpaid checkouts are not real bookings yet: the default list leaves them out.
+    // A search by reference, phone or name still finds them.
+    else if (!status && !text) query.whereNotIn('b.status', UNPAID_STATUSES)
     if (text)
       query.where((inner: any) =>
         inner

@@ -18,13 +18,22 @@ export function Panel({
   title,
   children,
   actions,
+  embedded = false,
 }: {
   title?: string
   children: ReactNode
   actions?: ReactNode
+  /** Sits inside another card: only a divider above, no card border or shadow. */
+  embedded?: boolean
 }) {
   return (
-    <section className="panel tw:mb-6 tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-6 tw:shadow-[0_4px_14px_rgba(0,23,46,0.06)]">
+    <section
+      className={
+        embedded
+          ? 'cms-form-section-separated'
+          : 'panel tw:mb-6 tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-6 tw:shadow-[0_4px_14px_rgba(0,23,46,0.06)]'
+      }
+    >
       {(title || actions) && (
         <div className="tw:mb-4 tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3">
           {title && <h2>{title}</h2>}
@@ -288,6 +297,7 @@ export function RentalFormShell({
   submitLabel,
   extraActions,
   disabled = false,
+  wrap = true,
   children,
 }: {
   id: string
@@ -299,6 +309,8 @@ export function RentalFormShell({
   submitLabel: string
   extraActions?: ReactNode
   disabled?: boolean
+  /** false: the caller provides the card around this form. */
+  wrap?: boolean
   children: ReactNode
 }) {
   const [form] = Form.useForm()
@@ -346,9 +358,13 @@ export function RentalFormShell({
       }}
     >
       <input type="hidden" name="_csrf" value={csrfToken} />
-      <div className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-6 tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)]">
-        {children}
-      </div>
+      {wrap ? (
+        <div className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-6 tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)]">
+          {children}
+        </div>
+      ) : (
+        children
+      )}
       <div className="cms-form-actions">
         {extraActions}
         <Button href={cancelHref}>Cancel</Button>
@@ -363,11 +379,11 @@ export function RentalFormShell({
 }
 
 const statusLabels: Record<string, string> = {
-  pending_payment: 'Awaiting payment',
+  pending_payment: 'Unpaid (on hold)',
   confirmed: 'Confirmed',
   completed: 'Completed',
   cancelled: 'Cancelled',
-  expired: 'Hold expired',
+  expired: 'Unpaid (expired)',
   refund_required: 'Refund required',
   draft: 'Draft',
   published: 'Published',
@@ -397,13 +413,11 @@ export function StatusBadge({ status }: { status: string }) {
 }
 
 export const bookingStatusOptions = [
-  'pending_payment',
-  'confirmed',
-  'completed',
-  'cancelled',
-  'expired',
-  'refund_required',
-].map((value) => ({ value, label: statusLabels[value] }))
+  ...['confirmed', 'completed', 'cancelled', 'refund_required', 'pending_payment', 'expired'].map(
+    (value) => ({ value, label: statusLabels[value] })
+  ),
+  { value: 'all', label: 'All, including unpaid' },
+]
 
 export function formatDateTime(value: string | null | undefined) {
   if (!value) return '—'

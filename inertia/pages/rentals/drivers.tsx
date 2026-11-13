@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Select, Switch, Table } from 'antd'
+import { Switch, Table } from 'antd'
 import { router } from '@inertiajs/react'
 import AdminLayout from '../../layouts/admin_layout'
 import ConfirmModal from '../../components/confirm_modal'
@@ -62,28 +62,10 @@ export default function RentalDrivers({
       </div>
       <section className="panel table-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-0">
         <div className="panel-heading tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-brand-line-subtle tw:px-6 tw:py-5">
-          <div className="tw:flex tw:flex-col tw:gap-1">
-            <h2>
-              {providerName ? `${providerName} - ` : ''}Drivers ({rows.length})
-            </h2>
-            <span className="tw:text-[13px] tw:text-brand-muted">
-              Assign a driver on each with-driver booking. The customer sees the driver&apos;s name,
-              photo and phone in the app.
-            </span>
-          </div>
+          <h2>
+            {providerName ? `${providerName} - ` : ''}Drivers ({rows.length})
+          </h2>
           <div className="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
-            {!portal && (
-              <Select
-                className="tw:min-w-[200px]"
-                value={provider || undefined}
-                allowClear
-                placeholder="All providers"
-                options={providers}
-                onChange={(value) =>
-                  router.get('/admin/rentals/drivers', value ? { provider: value } : {})
-                }
-              />
-            )}
             {can('rentals.create') && (
               <a className="button primary" href={addHref}>
                 + Add driver
