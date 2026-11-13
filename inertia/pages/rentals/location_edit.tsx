@@ -142,7 +142,7 @@ export default function RentalLocationEdit({
         }}
       >
         <FormSection title="Branch">
-          {portal ? (
+          {portal || providerId ? (
             <Form.Item name="providerId" hidden>
               <Input />
             </Form.Item>

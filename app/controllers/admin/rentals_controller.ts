@@ -1165,6 +1165,7 @@ export default class AdminRentalsController {
         id: Number(found.row.id),
         name_en: found.row.name_en,
         provider_name: provider?.name_en ?? null,
+        provider_id: found.row.provider_id ? Number(found.row.provider_id) : null,
         hours_enabled: Boolean(found.row.hours_enabled),
       },
       schedule: found.schedule,
@@ -1183,7 +1184,16 @@ export default class AdminRentalsController {
     const { request } = ctx
     const raw = {
       hoursEnabled: bool(request.input('hoursEnabled')),
-      schedule: Array.isArray(request.input('schedule')) ? request.input('schedule') : [],
+      // Only open days with filled-in times keep their shifts; a closed or 24-hour day has none.
+      schedule: (Array.isArray(request.input('schedule')) ? request.input('schedule') : []).map(
+        (day: Row) => ({
+          mode: day?.mode,
+          shifts:
+            day?.mode === 'shifts' && Array.isArray(day.shifts)
+              ? day.shifts.filter((item: Row) => item?.opens && item?.closes)
+              : [],
+        })
+      ),
       closures: (Array.isArray(request.input('closures')) ? request.input('closures') : []).map(
         (item: Row) => ({
           startsOn: item?.range?.[0] ?? item?.startsOn ?? '',
@@ -1196,7 +1206,12 @@ export default class AdminRentalsController {
       const input = await rentalBranchHoursValidator.validate(raw)
       await admin.saveBranchHours(id, input, ctx.admin.id)
       ctx.session.flash('success', 'Working hours saved.')
-      return ctx.response.redirect('/admin/rentals/working-hours')
+      const saved = await admin.findLocation(id)
+      return ctx.response.redirect(
+        saved?.row.provider_id
+          ? `/admin/rentals/working-hours?provider=${saved.row.provider_id}`
+          : '/admin/rentals/working-hours'
+      )
     } catch (error) {
       fail(ctx, error, 'Unable to save the working hours.', 'hoursForm', raw)
       return ctx.response.redirect(`/admin/rentals/locations/${id}/hours`)

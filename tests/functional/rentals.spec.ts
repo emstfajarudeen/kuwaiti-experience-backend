@@ -398,6 +398,32 @@ test.group('Rental catalog and bookings', (group) => {
     lunchBreak.assertStatus(422)
     assert.equal(lunchBreak.body().error.code, 'BRANCH_CLOSED')
 
+    // The summary screen's quote runs the same place and hours checks, without booking.
+    const quote = (pickup: Date, extra: Record<string, unknown> = {}) =>
+      client.get(`/api/v2/rentals/vehicles/${ids.vehicleId}/quote`).qs({
+        pickup_at: pickup.toISOString(),
+        return_at: new Date(pickup.getTime() + 2 * DAY).toISOString(),
+        ...extra,
+      })
+    const closedQuote = await quote(kuwait(offset, 14), { pickup_location_id: ids.airport })
+    closedQuote.assertStatus(422)
+    assert.equal(closedQuote.body().error.code, 'BRANCH_CLOSED')
+    const priceOnly = await quote(kuwait(offset, 14))
+    priceOnly.assertStatus(200)
+    assert.isNull(priceOnly.body().data.pickup_location)
+    const openQuote = await quote(kuwait(offset, 10), { pickup_location_id: ids.airport })
+    openQuote.assertStatus(200)
+    assert.equal(openQuote.body().data.pickup_location.id, ids.airport)
+    assert.equal(openQuote.body().data.pickup_location.branch.id, ids.airportBranch)
+    const otherReturn = await quote(kuwait(offset, 10), {
+      pickup_location_id: ids.airport,
+      return_location_id: ids.city,
+    })
+    otherReturn.assertStatus(422)
+    assert.equal(otherReturn.body().error.code, 'INVALID_LOCATION')
+    const bookingCount = await db.from('rental_bookings').count('* as total').first()
+    assert.equal(Number(bookingCount.total), 0, 'quotes never create bookings')
+
     const places = await client.get('/api/v2/rentals/locations')
     const place = places.body().data.find((item: { id: number }) => item.id === ids.airport)
     assert.deepEqual(place, {
@@ -1072,6 +1098,24 @@ test.group('Rentals CMS', (group) => {
     const jahra = await db.from('rental_locations').where('name_en', 'Jahra').firstOrFail()
     // A new branch goes straight to its working-hours page.
     assert.equal(jsonLocation.header('location'), `/admin/rentals/locations/${jahra.id}/hours`)
+    // Closed days may still carry leftover shift values from the form; they must not fail.
+    const closedDays = await post(`/admin/rentals/locations/${jahra.id}/hours`).json({
+      hoursEnabled: true,
+      schedule: [
+        { mode: 'closed', shifts: [{ opens: '', closes: '' }] },
+        { mode: 'closed', shifts: [{ opens: '09:00', closes: '21:00' }] },
+        shifts,
+        shifts,
+        shifts,
+        { mode: 'closed' },
+        { mode: 'open24', shifts: [{ opens: '', closes: '' }] },
+      ],
+      closures: [],
+    })
+    assert.equal(
+      closedDays.header('location'),
+      `/admin/rentals/working-hours?provider=${ids.providerId}`
+    )
     const savedHours = await post(`/admin/rentals/locations/${jahra.id}/hours`).json({
       hoursEnabled: true,
       schedule: [
@@ -1091,7 +1135,10 @@ test.group('Rentals CMS', (group) => {
       ],
       closures: [{ range: ['2026-12-01', '2026-12-02'], reason: 'National Day' }],
     })
-    assert.equal(savedHours.header('location'), '/admin/rentals/working-hours')
+    assert.equal(
+      savedHours.header('location'),
+      `/admin/rentals/working-hours?provider=${ids.providerId}`
+    )
     assert.isNull(jahra.longitude)
     assert.isTrue(Boolean(jahra.active))
     assert.equal(Number(jahra.provider_id), ids.providerId)

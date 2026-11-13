@@ -1,4 +1,4 @@
-import { Switch, Table } from 'antd'
+import { Button, Dropdown, Switch, Table } from 'antd'
 import { router } from '@inertiajs/react'
 import type { ColumnsType } from 'antd/es/table'
 import AdminLayout from '../../layouts/admin_layout'
@@ -84,6 +84,36 @@ export default function RentalProviders({
           <span>{row.phone ?? '—'}</span>
           <span className="tw:text-brand-muted">{row.email ?? ''}</span>
         </div>
+      ),
+    },
+    {
+      title: 'Manage',
+      key: 'manage',
+      width: 120,
+      render: (_, row) => (
+        <Dropdown
+          trigger={['click']}
+          menu={{
+            items: [
+              ['Branches', 'locations'],
+              ['Working hours', 'working-hours'],
+              ['Drivers', 'drivers'],
+              ['Documents', 'documents'],
+            ].map(([label, path]) => ({
+              key: path,
+              label: <a href={`/admin/rentals/${path}?provider=${row.id}`}>{label}</a>,
+            })),
+          }}
+        >
+          <Button
+            type="primary"
+            size="small"
+            className="tw:border-brand-navy-subtle tw:bg-brand-navy-subtle"
+            aria-label={`Manage ${row.name_en}`}
+          >
+            Manage ▾
+          </Button>
+        </Dropdown>
       ),
     },
     { title: 'Vehicles', dataIndex: 'vehicle_count', key: 'vehicles' },

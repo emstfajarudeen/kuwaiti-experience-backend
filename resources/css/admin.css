@@ -1631,3 +1631,6 @@ textarea[aria-invalid="true"], input[aria-invalid="true"] { border-color: #b4231
   box-shadow: none !important;
   background: transparent !important;
 }
+
+/* Wide tables scroll sideways inside their card on every screen size. */
+.table-scroll .ant-table-content { overflow-x: auto !important; overflow-y: hidden; }

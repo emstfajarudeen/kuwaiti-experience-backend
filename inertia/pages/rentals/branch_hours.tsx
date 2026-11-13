@@ -177,7 +177,13 @@ function ClosedDatesField() {
 }
 
 type Props = SharedProps & {
-  branch: { id: number; name_en: string; provider_name: string | null; hours_enabled: boolean }
+  branch: {
+    id: number
+    name_en: string
+    provider_name: string | null
+    provider_id: number | null
+    hours_enabled: boolean
+  }
   schedule: Day[]
   closures: Closure[]
   form: Record<string, unknown> | null
@@ -193,6 +199,9 @@ export default function RentalBranchHours({
   closures,
   form,
 }: Props) {
+  const backHref = branch.provider_id
+    ? `/admin/rentals/working-hours?provider=${branch.provider_id}`
+    : '/admin/rentals/working-hours'
   const hasHours = schedule.some((day) => day.mode !== 'closed')
   return (
     <AdminLayout
@@ -203,7 +212,7 @@ export default function RentalBranchHours({
       success={success}
       error={error}
     >
-      <a className="back-link tw:mb-4 tw:inline-flex" href="/admin/rentals/working-hours">
+      <a className="back-link tw:mb-4 tw:inline-flex" href={backHref}>
         ← Back to working hours
       </a>
       <div className="page-head tw:mb-6">
@@ -216,7 +225,7 @@ export default function RentalBranchHours({
         id="rental-branch-hours-form"
         action={`/admin/rentals/locations/${branch.id}/hours`}
         csrfToken={csrfToken}
-        cancelHref="/admin/rentals/working-hours"
+        cancelHref={backHref}
         submitLabel="Save working hours"
         initialValues={{
           hoursEnabled:
