@@ -66,7 +66,9 @@ function LocationsField({ locations: all }: { locations: Option[] }) {
   const selected = (Form.useWatch('locationIds', form) as number[] | undefined) ?? []
   const allowed = new Set(locations.map((location) => location.id))
   useEffect(() => {
-    // Branches belong to one provider: drop picks that no longer match.
+    // Branches belong to one provider: drop picks that no longer match. Wait until the
+    // provider is known, or the saved picks are cleared while the form is still loading.
+    if (!providerId) return
     const current = (form.getFieldValue('locationIds') as number[] | undefined) ?? []
     const kept = current.filter((id) => allowed.has(id))
     if (kept.length !== current.length) form.setFieldValue('locationIds', kept)
@@ -542,6 +544,7 @@ export default function RentalVehicleEdit({
           </div>
           <div className="image-block">
             <GallerySorter
+              key={(vehicle?.images ?? []).map((image) => image.id).join('-') || 'new'}
               images={(vehicle?.images ?? []).map((image) => ({
                 id: image.id,
                 url: image.url,
