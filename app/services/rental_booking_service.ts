@@ -10,13 +10,12 @@ import {
   findVisibleVehicle,
   freeUnits,
   rentalSettings,
+  pickupBranch,
   requireWindow,
-  vehicleLocations,
   vehicleTerms,
   type RentalSettings,
 } from './rental_catalog_service.js'
 import { kwd, quoteFor, toFils } from './rental_money.js'
-import { assertBranchOpen } from './rental_branch_service.js'
 import {
   BOOKING_STATUSES,
   rentalBooking,
@@ -188,32 +187,13 @@ export async function createBooking(
       const vehicle = await findVisibleVehicle(input.vehicle_id, trx, true)
       const withDriver = Boolean(input.with_driver)
       assertDriverChoice(vehicle, withDriver)
-      const locations = await vehicleLocations(trx, Number(vehicle.id))
-      // Customers choose places; resolve the provider branch serving each one.
-      const pickup = locations.find((row: Row) => Number(row.place_id) === input.pickup_location_id)
-      if (!pickup)
-        throw new ApiError(
-          422,
-          'INVALID_LOCATION',
-          'This vehicle is not available at that pickup location',
-          {
-            pickup_location_id: ['Choose one of this vehicle’s pickup locations'],
-          }
-        )
-      // The car is returned where it was picked up.
-      const dropoff = pickup
-      if (
-        input.return_location_id !== undefined &&
-        input.return_location_id !== input.pickup_location_id
+      const pickup = await pickupBranch(
+        trx,
+        Number(vehicle.id),
+        window,
+        input.pickup_location_id,
+        input.return_location_id
       )
-        throw new ApiError(
-          422,
-          'INVALID_LOCATION',
-          'The car must be returned at its pickup location',
-          { return_location_id: ['Return the car where you picked it up'] }
-        )
-      await assertBranchOpen(trx, pickup, window.pickupAt, 'pickup_at')
-      await assertBranchOpen(trx, dropoff, window.returnAt, 'return_at')
       if ((await freeUnits(trx, vehicle, window)) < 1)
         throw new ApiError(
           409,
@@ -259,7 +239,7 @@ export async function createBooking(
           address: vehicle.provider_address ?? null,
         },
         pickup_location: snapshotLocation(pickup),
-        return_location: snapshotLocation(dropoff),
+        return_location: snapshotLocation(pickup),
       }
       const now = new Date()
       const [id] = await trx.table('rental_bookings').insert({
@@ -268,7 +248,7 @@ export async function createBooking(
         vehicle_id: vehicle.id,
         provider_id: vehicle.provider_id,
         pickup_location_id: pickup.id,
-        return_location_id: dropoff.id,
+        return_location_id: pickup.id,
         pickup_at: window.pickupAt,
         return_at: window.returnAt,
         with_driver: withDriver,

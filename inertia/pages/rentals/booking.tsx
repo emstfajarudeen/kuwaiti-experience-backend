@@ -300,12 +300,6 @@ export default function RentalBooking({
             value={`${formatDateTime(booking.return_at)} · ${booking.return_location}`}
           />
           {!portal && (
-            <Detail
-              label="Hold expires"
-              value={booking.hold_expires_at ? formatDateTime(booking.hold_expires_at) : null}
-            />
-          )}
-          {!portal && (
             <Detail label="Booking fee (paid in app)" value={`KWD ${booking.booking_fee}`} />
           )}
           <Detail
@@ -359,16 +353,7 @@ export default function RentalBooking({
       </Panel>
 
       {!portal && (
-        <Panel
-          title="Payments"
-          actions={
-            canUpdate && payments.length > 0 ? (
-              <ActionForm action={`${base}/verify-payment`} csrfToken={csrfToken}>
-                <Button htmlType="submit">Refresh from MyFatoorah</Button>
-              </ActionForm>
-            ) : null
-          }
-        >
+        <Panel title="Payments">
           {payments.length === 0 ? (
             <p className="tw:text-brand-muted">No payment started.</p>
           ) : (

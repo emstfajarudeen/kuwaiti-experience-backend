@@ -4,7 +4,12 @@ import { ApiError } from './api_error.js'
 import { imageLinks, pagination, positiveId } from './explore_read_service.js'
 import { quoteFor, toFils, kwd } from './rental_money.js'
 import type { PublicLocale } from './public_localization.js'
-import { branchSchedules, publicSchedule, whereBranchOpen } from './rental_branch_service.js'
+import {
+  assertBranchOpen,
+  branchSchedules,
+  publicSchedule,
+  whereBranchOpen,
+} from './rental_branch_service.js'
 import { ratingSummaries, summaryFor, type RatingSummary } from './rental_review_service.js'
 
 type Row = Record<string, any>
@@ -575,12 +580,59 @@ export async function vehicleDetail(
   }
 }
 
-export async function vehicleQuote(id: unknown, input: Row) {
+/**
+ * The provider branch serving a pickup place for this vehicle, checked to be open at pickup and
+ * return. The car is returned where it was picked up. Shared by the quote and the booking.
+ */
+export async function pickupBranch(
+  client: Client,
+  vehicleId: number,
+  window: RentalWindow,
+  placeId: number,
+  returnPlaceId?: number
+) {
+  const locations = await vehicleLocations(client, vehicleId)
+  const pickup = locations.find((row: Row) => Number(row.place_id) === placeId)
+  if (!pickup)
+    throw new ApiError(
+      422,
+      'INVALID_LOCATION',
+      'This vehicle is not available at that pickup location',
+      {
+        pickup_location_id: ['Choose one of this vehicle’s pickup locations'],
+      }
+    )
+  if (returnPlaceId !== undefined && returnPlaceId !== placeId)
+    throw new ApiError(422, 'INVALID_LOCATION', 'The car must be returned at its pickup location', {
+      return_location_id: ['Return the car where you picked it up'],
+    })
+  await assertBranchOpen(client, pickup, window.pickupAt, 'pickup_at')
+  await assertBranchOpen(client, pickup, window.returnAt, 'return_at')
+  return pickup
+}
+
+/**
+ * Price for a period. With `pickup_location_id` it also checks the place and the branch hours,
+ * like the booking does, and returns the branch.
+ */
+export async function vehicleQuote(id: unknown, input: Row, locale: PublicLocale) {
   const settings = await rentalSettings()
   const window = requireWindow(input, settings)
   const withDriver = booleanParam(input.with_driver, 'with_driver') ?? false
   const row = await findVisibleVehicle(id)
   assertDriverChoice(row, withDriver)
+  const placeId =
+    input.pickup_location_id === undefined || input.pickup_location_id === ''
+      ? null
+      : positiveId(input.pickup_location_id)
+  const returnPlaceId =
+    input.return_location_id === undefined || input.return_location_id === ''
+      ? undefined
+      : positiveId(input.return_location_id)
+  const branch = placeId
+    ? await pickupBranch(db, Number(row.id), window, placeId, returnPlaceId)
+    : null
+  const pickupLocation = branch ? await serializeBranches([branch], locale) : []
   return {
     data: {
       vehicle_id: Number(row.id),
@@ -595,6 +647,7 @@ export async function vehicleQuote(id: unknown, input: Row) {
         withDriver,
         bookingFee: settings.booking_fee,
       }),
+      pickup_location: pickupLocation[0] ?? null,
     },
   }
 }

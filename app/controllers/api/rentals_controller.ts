@@ -56,7 +56,7 @@ export default class RentalsController {
 
   async quote(ctx: HttpContext) {
     ctx.response.header('Cache-Control', 'no-store')
-    return catalog.vehicleQuote(ctx.params.id, ctx.request.qs())
+    return catalog.vehicleQuote(ctx.params.id, ctx.request.qs(), locale(ctx))
   }
 
   async vehicleReviews(ctx: HttpContext) {

@@ -131,7 +131,6 @@ router
     router.post('/rentals/bookings/:id/complete', [AdminRentalsController, 'completeBooking'])
     router.post('/rentals/bookings/:id/cancel', [AdminRentalsController, 'cancelBooking'])
     router.post('/rentals/bookings/:id/refund', [AdminRentalsController, 'refundBooking'])
-    router.post('/rentals/bookings/:id/verify-payment', [AdminRentalsController, 'verifyPayment'])
     router.post('/rentals/bookings/:id/provider-email', [
       AdminRentalsController,
       'sendProviderEmail',

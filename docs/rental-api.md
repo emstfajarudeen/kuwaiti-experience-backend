@@ -16,7 +16,7 @@ All paths are under `/api/v2`. Send `Accept-Language: en|ar` for localized names
 1. `GET /rentals/options`: filter values, pickup locations, the booking fee and the booking rules.
 2. `GET /rentals/vehicles?pickup_at&return_at&pickup_location_id&with_driver&…`: vehicles free for the period, each with a `quote`.
 3. `GET /rentals/vehicles/{id}?pickup_at&return_at&with_driver`: gallery, specs, mileage, insurance, `rental_terms`, provider, locations and `available`.
-4. `POST /customer/me/rental-bookings` with an `Idempotency-Key` header creates a **pending_payment** booking. This holds one unit until `hold_expires_at`. Call it only when the customer taps the final **Pay** button, not when the summary or review screen opens: every call creates a booking record that the customer then sees in their history.
+4. `POST /customer/me/rental-bookings` with an `Idempotency-Key` header creates a **pending_payment** booking. This holds one unit until `hold_expires_at`. Call it only when the customer taps the final **Pay** button, not when the summary or review screen opens: every call creates a booking record that the customer then sees in their history. For the summary screen use `GET /rentals/vehicles/{id}/quote` with `pickup_location_id`: it returns the price and the same place and branch-hours errors without booking anything.
 5. `GET /customer/me/rental-bookings/{id}/payment-methods` lists methods (KNET, card, Apple Pay and others) from MyFatoorah.
 6. `POST /customer/me/rental-bookings/{id}/payment` with `{ "payment_method_id": 1 }` returns `payment_url`. Open it in a web view.
 7. MyFatoorah redirects to `callback_url` (`/api/v2/rentals/payments/callback?paymentId=…`). When the web view reaches that URL, close it and call `POST /customer/me/rental-bookings/{id}/payment/verify`. The booking becomes **confirmed** after the server verifies the payment with MyFatoorah.
@@ -38,7 +38,7 @@ If the server sets `RENTAL_PAYMENT_RETURN_URL` (for example an app deep link), t
 | GET | `/rentals/locations` | – | Pickup places for the location picker (shared list; each provider has a branch there) |
 | GET | `/rentals/vehicles` | – | Search (see filters below), paginated `page`/`per_page` (max 50) |
 | GET | `/rentals/vehicles/{id}` | – | Detail; with a period it includes `quote` and `available` |
-| GET | `/rentals/vehicles/{id}/quote` | – | `pickup_at`, `return_at` required; `with_driver` optional |
+| GET | `/rentals/vehicles/{id}/quote` | – | Price for the summary screen; creates nothing. `pickup_at`, `return_at` required; `with_driver`, `pickup_location_id` optional. With `pickup_location_id` it runs the booking's place and branch-hours checks (`422 INVALID_LOCATION`, `422 BRANCH_CLOSED`) and returns `pickup_location` (place with `branch`), otherwise `pickup_location: null` |
 | POST | `/customer/me/rental-bookings` | customer | Reserve (hold) a vehicle |
 | GET | `/customer/me/rental-bookings` | customer | History; `status=active,past,cancelled` or raw statuses |
 | GET | `/customer/me/rental-bookings/{id}` | customer | Detail (owner only; others get 404) |

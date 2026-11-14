@@ -355,7 +355,7 @@
     },
     "/api/v2/rentals/vehicles/{id}/quote": {
       "get": {
-        "summary": "Price quote and availability for a period",
+        "summary": "Price quote and availability for a period (summary screen; creates no booking)",
         "tags": [
           "Car rental"
         ],
@@ -409,6 +409,24 @@
               "type": "boolean",
               "default": false
             }
+          },
+          {
+            "name": "pickup_location_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Place id. When sent, runs the booking's place and branch-hours checks (422 INVALID_LOCATION, 422 BRANCH_CLOSED) and returns pickup_location."
+          },
+          {
+            "name": "return_location_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Optional; must equal pickup_location_id."
           }
         ],
         "responses": {
@@ -423,7 +441,53 @@
                   ],
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/Quote"
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/Quote"
+                        },
+                        {
+                          "type": "object",
+                          "required": [
+                            "vehicle_id",
+                            "pickup_at",
+                            "return_at",
+                            "with_driver",
+                            "available",
+                            "pickup_location"
+                          ],
+                          "properties": {
+                            "vehicle_id": {
+                              "type": "integer"
+                            },
+                            "pickup_at": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "return_at": {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            "with_driver": {
+                              "type": "boolean"
+                            },
+                            "available": {
+                              "type": "boolean",
+                              "description": "A unit is free for the period."
+                            },
+                            "pickup_location": {
+                              "oneOf": [
+                                {
+                                  "$ref": "#/components/schemas/VehicleLocation"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "The place with its branch when pickup_location_id was sent, otherwise null."
+                            }
+                          }
+                        }
+                      ]
                     }
                   }
                 }

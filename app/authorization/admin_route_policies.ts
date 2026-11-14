@@ -511,11 +511,7 @@ add('POST', ['/admin/rentals/reviews/:id/status'], ['rental_reviews.view', 'rent
 add('POST', ['/admin/rentals/reviews/:id/delete'], ['rental_reviews.view', 'rental_reviews.delete'])
 add(
   'POST',
-  [
-    '/admin/rentals/bookings/:id/complete',
-    '/admin/rentals/bookings/:id/cancel',
-    '/admin/rentals/bookings/:id/verify-payment',
-  ],
+  ['/admin/rentals/bookings/:id/complete', '/admin/rentals/bookings/:id/cancel'],
   ['rental_bookings.view', 'rental_bookings.update']
 )
 add(

@@ -10,7 +10,7 @@ import * as portalLogins from '../../services/rental_provider_portal_service.js'
 import * as documents from '../../services/rental_document_service.js'
 import * as drivers from '../../services/rental_driver_service.js'
 import { sendProviderEmail } from '../../services/rental_provider_mailer.js'
-import { refundBooking, syncPayment } from '../../services/rental_payment_service.js'
+import { refundBooking } from '../../services/rental_payment_service.js'
 import { parseSnapshot } from '../../serializers/rental.js'
 import { kwd, toFils } from '../../services/rental_money.js'
 import { validationErrorBag } from '../../services/validation_error_bag.js'
@@ -337,20 +337,6 @@ export default class AdminRentalsController {
           blank(ctx.request.input('reason')) ?? 'Rental booking fee refund'
         ),
       'Booking fee refunded and booking cancelled.'
-    )
-  }
-
-  async verifyPayment(ctx: HttpContext) {
-    return this.bookingAction(
-      ctx,
-      async () => {
-        const found = await admin.findBooking(Number(ctx.params.id))
-        const latest = found?.payments[0]
-        if (!latest)
-          throw new ApiError(409, 'NO_PAYMENT', 'No payment was started for this booking.')
-        await syncPayment(String(latest.invoice_id), 'InvoiceId')
-      },
-      'Payment status refreshed from MyFatoorah.'
     )
   }
 
