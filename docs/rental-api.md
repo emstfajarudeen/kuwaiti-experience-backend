@@ -75,6 +75,16 @@ If the server sets `RENTAL_PAYMENT_RETURN_URL` (for example an app deep link), t
 
 `Idempotency-Key` is required: 8–80 characters of letters, digits, `-` and `_`. Generate one per checkout attempt and reuse it on retries. A replay returns `200` with the same booking. The same key with a different body returns `409 IDEMPOTENCY_CONFLICT`. `return_location_id` is optional and must match the pickup location.
 
+**With a driver, the pickup can be the customer's address** instead of a place (see *Pickup at the customer's address*). Send one of these instead of `pickup_location_id`:
+
+```json
+{ "with_driver": true, "pickup_name": "Block 5, Street 12, Salmiya", "pickup_lat": 29.34, "pickup_lng": 48.07 }
+```
+
+```json
+{ "with_driver": true, "pickup_saved_address_id": 7 }
+```
+
 ## 3. Pricing
 
 `days` = each started 24 hours, minimum 1. `rental_amount` = `days × (daily_rate + driver_daily_rate when with_driver)`. `pay_now` = `booking_fee`, charged in the app. `pay_at_pickup` = `rental_amount`, paid to the provider. Each booking stores a snapshot of the amounts and of the vehicle, provider, mileage, insurance and rental terms, so later catalogue edits do not change it.
@@ -87,6 +97,18 @@ If the server sets `RENTAL_PAYMENT_RETURN_URL` (for example an app deep link), t
 - Vehicle detail `locations` lists the places where this car can be picked up. Each item is the place plus `branch: { id, name, address, phone_e164, working_hours, closed_dates }` for that provider. Use `branch.working_hours` and `branch.closed_dates` to grey out times in the date/time pickers.
 - `working_hours`: `null` means no fixed hours. Otherwise 7 items, Sunday first: `{ weekday, day, open_24h, closed, shifts: [{ opens, closes }] }` with up to two shifts, times `HH:MM` in Kuwait time. `closed_dates`: upcoming `[{ starts_on, ends_on, reason }]`, inclusive.
 - Booking returns `422 BRANCH_CLOSED` when the pickup or return time is outside the branch's hours or on a closed date. The booking's `pickup_location` / `return_location` show the place name with the branch address and `phone_e164`.
+
+### Pickup at the customer's address (with driver)
+
+- Only with `with_driver: true`; otherwise `422 ADDRESS_PICKUP_NEEDS_DRIVER`. Self-drive always uses a pickup place.
+- Booking body: either `pickup_location_id`, **or** `pickup_name` + `pickup_lat` + `pickup_lng` (a spot picked on the map; `pickup_name` is the address text, up to 500 characters), **or** `pickup_saved_address_id` (from `GET /customer/me/saved-addresses`). Sending more than one, or none, returns `422 VALIDATION_ERROR`.
+- **Service areas** are managed in the CMS (Rental fleet → Service areas): named areas of Kuwait, each with a pin. An address belongs to the area whose pin is nearest. An address outside Kuwait, or more than 25 km from every pin, returns `422 OUTSIDE_SERVICE_AREA`. While no areas exist, every address in Kuwait is accepted.
+- Each provider can be marked as **not serving** some areas (on the provider's CMS page). Their cars are left out of the search for those addresses, and booking or quoting one returns `422 OUTSIDE_SERVICE_AREA`.
+- Search: add `with_driver=true&pickup_lat=…&pickup_lng=…` (instead of `pickup_location_id`). Only cars whose provider serves that area are returned; `meta.pickup_area` is `{ id, name }` (or `null` while no areas exist).
+- Quote: the same `pickup_lat` / `pickup_lng` run the same checks and return `pickup_type: "address"` and `pickup_area`.
+- The driver sets off from the nearest of the car's branches that is open at the pickup and return times; that branch is the booking's `pickup_location`. Branch hours still apply (`422 BRANCH_CLOSED`).
+- Every booking has `pickup`: `{ type: "branch", address: null, latitude: null, longitude: null, area: null }`, or for an address pickup `{ type: "address", address, latitude, longitude, area: { id, name } | null }`. Show `pickup.address` on the summary and booking screens when `type` is `address`.
+- There is no delivery fee: the price is the same as a branch pickup. The provider gets the address and a map link in the booking email and on the CMS booking page. The car is returned with the driver at the end of the rental.
 
 ### Rental mode and insurance
 

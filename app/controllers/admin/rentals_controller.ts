@@ -10,6 +10,7 @@ import * as portalLogins from '../../services/rental_provider_portal_service.js'
 import * as documents from '../../services/rental_document_service.js'
 import * as drivers from '../../services/rental_driver_service.js'
 import { sendProviderEmail } from '../../services/rental_provider_mailer.js'
+import * as serviceAreas from '../../services/rental_service_area_service.js'
 import { refundBooking } from '../../services/rental_payment_service.js'
 import { parseSnapshot } from '../../serializers/rental.js'
 import { kwd, toFils } from '../../services/rental_money.js'
@@ -248,6 +249,13 @@ export default class AdminRentalsController {
         ...serializeBooking(found.row),
         pickup_location: snapshot.pickup_location.name_en,
         return_location: snapshot.return_location.name_en,
+        pickup_address: snapshot.pickup_address
+          ? {
+              address: snapshot.pickup_address.address,
+              area: snapshot.pickup_address.area?.name_en ?? null,
+              map_url: `https://www.google.com/maps/search/?api=1&query=${snapshot.pickup_address.latitude},${snapshot.pickup_address.longitude}`,
+            }
+          : null,
         provider_phone: snapshot.provider.phone_e164,
         provider_email: snapshot.provider.email,
         driver_id: found.row.driver_id === null ? null : Number(found.row.driver_id),
@@ -627,6 +635,8 @@ export default class AdminRentalsController {
             logo_url: cmsImageUrl(row.logo_image_key),
           }
         : null,
+      areaOptions: await serviceAreas.areaOptions(),
+      excludedAreaIds: id ? await serviceAreas.providerExcludedAreaIds(id) : [],
       branchCount: branchRows.length,
       driverCount: driverRows.length,
       documentCount: documentRows.length,
@@ -655,6 +665,7 @@ export default class AdminRentalsController {
       email: blank(request.input('email')),
       address: blank(request.input('address')),
       active: bool(request.input('active')),
+      excludedAreaIds: ids(request.input('excludedAreaIds')),
     }
     try {
       const input = await rentalProviderValidator.validate(raw)
@@ -665,6 +676,11 @@ export default class AdminRentalsController {
         ctx.admin.id,
         id
       )
+      // Only when the form showed the areas field, so other posts never clear the choice.
+      if (request.input('excludedAreasSent'))
+        await db.transaction((trx) =>
+          serviceAreas.setProviderExcludedAreas(trx, savedId, raw.excludedAreaIds)
+        )
       session.flash('success', id ? 'Provider saved.' : 'Provider created.')
       // A new provider with an email gets its portal login and the invite straight away.
       if (!id && input.email) {

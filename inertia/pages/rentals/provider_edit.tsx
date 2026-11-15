@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Input, Switch, message } from 'antd'
+import { Button, Form, Input, Select, Switch, message } from 'antd'
 import { router } from '@inertiajs/react'
 import AdminLayout from '../../layouts/admin_layout'
 import ImageUpload from '../../components/image_upload'
@@ -38,6 +38,9 @@ type PortalLogin = {
 
 type Props = SharedProps & {
   provider: Provider | null
+  /** Service areas for pickup at the customer's address (with-driver bookings). */
+  areaOptions: { value: number; label: string }[]
+  excludedAreaIds: number[]
   branchCount: number
   driverCount: number
   documentCount: number
@@ -46,6 +49,39 @@ type Props = SharedProps & {
   /** Shown once when the invite email could not be sent. */
   inviteLink: string | null
   form: Record<string, unknown> | null
+}
+
+/** Areas this provider's drivers do not go to; posts native excludedAreaIds inputs. */
+function ExcludedAreasField({ options }: { options: { value: number; label: string }[] }) {
+  const form = Form.useFormInstance()
+  const selected = (Form.useWatch('excludedAreaIds', form) as number[] | undefined) ?? []
+  return (
+    <section className="cms-form-section">
+      <h2>Areas not served</h2>
+      <p className="tw:mt-1 tw:text-[13px] tw:text-brand-muted">
+        For with-driver bookings, the driver picks the customer up at their address. This
+        provider&apos;s cars are not offered for addresses in the areas chosen here. Leave empty if
+        the provider serves everywhere.
+      </p>
+      <Form.Item name="excludedAreaIds" className="tw:mt-4">
+        <Select
+          mode="multiple"
+          allowClear
+          showSearch
+          optionFilterProp="label"
+          placeholder={options.length ? 'Search and choose areas' : 'No service areas yet'}
+          disabled={!options.length}
+          notFoundContent="Add areas under Rental fleet → Service areas."
+          options={options}
+          className="tw:w-full"
+        />
+      </Form.Item>
+      <input type="hidden" name="excludedAreasSent" value="1" />
+      {selected.map((id) => (
+        <input key={id} type="hidden" name="excludedAreaIds" value={id} />
+      ))}
+    </section>
+  )
 }
 
 const loginStates: Record<PortalLogin['state'], { label: string; tone: string }> = {
@@ -186,6 +222,8 @@ export default function RentalProviderEdit({
   success,
   error,
   provider,
+  areaOptions,
+  excludedAreaIds,
   branchCount,
   driverCount,
   documentCount,
@@ -300,6 +338,9 @@ export default function RentalProviderEdit({
             email: value('email', provider?.email),
             address: value('address', provider?.address),
             active: form?.active !== undefined ? Boolean(form.active) : (provider?.active ?? true),
+            excludedAreaIds: Array.isArray(form?.excludedAreaIds)
+              ? (form.excludedAreaIds as unknown[]).map(Number)
+              : excludedAreaIds,
           }}
         >
           <FormSection title="Provider details">
@@ -344,6 +385,7 @@ export default function RentalProviderEdit({
               hint="Vehicles of inactive providers are hidden from the app."
             />
           </FormSection>
+          <ExcludedAreasField options={areaOptions} />
           <section className="cms-form-section">
             <h2>Logo</h2>
             <div className="image-block tw:mt-4">

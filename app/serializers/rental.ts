@@ -34,6 +34,14 @@ export type BookingSnapshot = {
   }
   pickup_location: SnapshotLocation
   return_location: SnapshotLocation
+  /** Only on with-driver bookings picked up at the customer's address. */
+  pickup_address?: SnapshotAddress
+}
+export type SnapshotAddress = {
+  address: string
+  latitude: number
+  longitude: number
+  area: { id: number; name_en: string; name_ar: string | null } | null
 }
 type SnapshotLocation = {
   /** Pickup place id (branch id on bookings made before places existed). */
@@ -82,6 +90,25 @@ function snapshotLocation(item: SnapshotLocation, locale: PublicLocale) {
     phone_e164: item.phone_e164 ?? null,
     latitude: item.latitude,
     longitude: item.longitude,
+  }
+}
+
+/**
+ * Where the rental starts. 'branch': the customer collects the car at `pickup_location`.
+ * 'address': the driver collects the customer at `address` and sets off from `pickup_location`.
+ */
+export function rentalPickup(snapshot: BookingSnapshot, locale: PublicLocale) {
+  const address = snapshot.pickup_address
+  if (!address)
+    return { type: 'branch' as const, address: null, latitude: null, longitude: null, area: null }
+  return {
+    type: 'address' as const,
+    address: address.address,
+    latitude: address.latitude,
+    longitude: address.longitude,
+    area: address.area
+      ? { id: address.area.id, name: pick(address.area.name_en, address.area.name_ar, locale) }
+      : null,
   }
 }
 
@@ -153,6 +180,7 @@ export function rentalBooking(
     },
     /** The provider's driver, once assigned to a confirmed with-driver booking. */
     driver: rentalDriver(row, driver),
+    pickup: rentalPickup(snapshot, locale),
     pickup_location: snapshotLocation(snapshot.pickup_location, locale),
     return_location: snapshotLocation(snapshot.return_location, locale),
     price: {

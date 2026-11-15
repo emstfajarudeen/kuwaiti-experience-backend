@@ -77,6 +77,9 @@ const kuwaitTime = (value: unknown) =>
     timeZone: 'Asia/Kuwait',
   }).format(new Date(value as string))
 
+const mapLink = (latitude: number, longitude: number) =>
+  `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`
+
 function compose(kind: ProviderEmailKind, booking: Row, customer: Row | undefined) {
   const snapshot = parseSnapshot(booking.snapshot)
   const customerName =
@@ -86,7 +89,18 @@ function compose(kind: ProviderEmailKind, booking: Row, customer: Row | undefine
     ['Vehicle', `${snapshot.vehicle.name_en} (${snapshot.vehicle.make} ${snapshot.vehicle.model})`],
     ['Customer', customerName],
     ['Customer phone', customer?.phone_e164 ?? '—'],
-    ['Pickup', `${kuwaitTime(booking.pickup_at)} — ${snapshot.pickup_location.name_en}`],
+    ...(snapshot.pickup_address
+      ? ([
+          [
+            'Pick up the customer at',
+            `${kuwaitTime(booking.pickup_at)} — ${snapshot.pickup_address.address}${snapshot.pickup_address.area ? ` (${snapshot.pickup_address.area.name_en})` : ''}`,
+          ],
+          ['Map', mapLink(snapshot.pickup_address.latitude, snapshot.pickup_address.longitude)],
+          ['Driver leaves from', snapshot.pickup_location.name_en],
+        ] as Array<[string, string]>)
+      : ([
+          ['Pickup', `${kuwaitTime(booking.pickup_at)} — ${snapshot.pickup_location.name_en}`],
+        ] as Array<[string, string]>)),
     ['Return', `${kuwaitTime(booking.return_at)} — ${snapshot.return_location.name_en}`],
     ['With driver', booking.with_driver ? 'Yes' : 'No'],
     ['Days', String(booking.days)],

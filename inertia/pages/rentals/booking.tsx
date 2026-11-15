@@ -38,6 +38,8 @@ type Props = SharedProps & {
     provider_email: string | null
     pickup_location: string
     return_location: string
+    /** Set when the driver collects the customer at their address. */
+    pickup_address: { address: string; area: string | null; map_url: string } | null
     pickup_at: string
     return_at: string
     with_driver: boolean
@@ -291,10 +293,28 @@ export default function RentalBooking({
             />
           )}
           <Detail label="Days" value={booking.days} />
-          <Detail
-            label="Pickup"
-            value={`${formatDateTime(booking.pickup_at)} · ${booking.pickup_location}`}
-          />
+          {booking.pickup_address ? (
+            <>
+              <Detail
+                label="Pick up the customer at"
+                value={
+                  <>
+                    {formatDateTime(booking.pickup_at)} · {booking.pickup_address.address}
+                    {booking.pickup_address.area ? ` (${booking.pickup_address.area})` : ''} ·{' '}
+                    <a href={booking.pickup_address.map_url} target="_blank" rel="noreferrer">
+                      Open map
+                    </a>
+                  </>
+                }
+              />
+              <Detail label="Driver leaves from" value={booking.pickup_location} />
+            </>
+          ) : (
+            <Detail
+              label="Pickup"
+              value={`${formatDateTime(booking.pickup_at)} · ${booking.pickup_location}`}
+            />
+          )}
           <Detail
             label="Return"
             value={`${formatDateTime(booking.return_at)} · ${booking.return_location}`}

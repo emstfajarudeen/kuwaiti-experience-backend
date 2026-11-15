@@ -5,8 +5,14 @@ export const createRentalBookingValidator = vine.compile(
     vehicle_id: vine.number().withoutDecimals().positive(),
     pickup_at: vine.string().trim().maxLength(40),
     return_at: vine.string().trim().maxLength(40),
-    pickup_location_id: vine.number().withoutDecimals().positive(),
+    // Either a pickup place, or (with a driver) the customer's address: a saved address or a
+    // map location. The service checks that exactly one is sent.
+    pickup_location_id: vine.number().withoutDecimals().positive().optional(),
     return_location_id: vine.number().withoutDecimals().positive().optional(),
+    pickup_saved_address_id: vine.number().withoutDecimals().positive().optional(),
+    pickup_name: vine.string().trim().maxLength(500).optional(),
+    pickup_lat: vine.number().range([-90, 90]).optional(),
+    pickup_lng: vine.number().range([-180, 180]).optional(),
     with_driver: vine.boolean().optional(),
     notes: vine.string().trim().maxLength(500).nullable().optional(),
   })
@@ -184,5 +190,16 @@ export const rentalSettingsValidator = vine.compile(
     maxRentalDays: vine.number().withoutDecimals().range([1, 365]),
     // Hidden in the CMS until the app offers customer cancellation; omitted keeps the stored value.
     cancellationCutoffHours: vine.number().withoutDecimals().range([0, 720]).nullable().optional(),
+  })
+)
+
+export const rentalServiceAreaValidator = vine.compile(
+  vine.object({
+    nameEn: vine.string().trim().minLength(2).maxLength(160),
+    nameAr: vine.string().trim().maxLength(160).nullable(),
+    latitude: vine.number().range([28.5, 30.15]),
+    longitude: vine.number().range([46.5, 48.5]),
+    active: vine.boolean(),
+    sortOrder: vine.number().withoutDecimals().range([0, 9999]),
   })
 )

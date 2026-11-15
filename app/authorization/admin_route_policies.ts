@@ -502,6 +502,16 @@ add(
   ['rentals.view', 'rentals.update']
 )
 add('POST', ['/admin/rentals/places/:id/delete'], ['rentals.view', 'rentals.delete'])
+add('GET', ['/admin/rentals/service-areas'], ['rentals.view'])
+add('GET', ['/admin/rentals/service-areas/new'], ['rentals.view', 'rentals.create'])
+add('GET', ['/admin/rentals/service-areas/:id/edit'], ['rentals.view', 'rentals.update'])
+add('POST', ['/admin/rentals/service-areas'], ['rentals.view', 'rentals.create'])
+add(
+  'POST',
+  ['/admin/rentals/service-areas/:id/save', '/admin/rentals/service-areas/:id/status'],
+  ['rentals.view', 'rentals.update']
+)
+add('POST', ['/admin/rentals/service-areas/:id/delete'], ['rentals.view', 'rentals.delete'])
 add(
   'POST',
   ['/admin/rentals/vehicle-types', '/admin/rentals/insurance-options'],

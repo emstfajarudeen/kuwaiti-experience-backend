@@ -4476,6 +4476,88 @@
      "response": []
     },
     {
+     "name": "Search vehicles at an address (with driver)",
+     "request": {
+      "method": "GET",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       }
+      ],
+      "url": {
+       "raw": "{{base_url}}/api/v2/rentals/vehicles?pickup_at=2026-12-20T10:00:00%2B03:00&return_at=2026-12-23T10:00:00%2B03:00&with_driver=true&pickup_lat=29.34&pickup_lng=48.07",
+       "host": [
+        "{{base_url}}"
+       ],
+       "path": [
+        "api",
+        "v2",
+        "rentals",
+        "vehicles"
+       ],
+       "query": [
+        {
+         "key": "pickup_at",
+         "value": "2026-12-20T10:00:00%2B03:00",
+         "description": "ISO 8601 with offset; optional, but needed for prices and availability"
+        },
+        {
+         "key": "return_at",
+         "value": "2026-12-23T10:00:00%2B03:00",
+         "description": "Must be after pickup_at"
+        },
+        {
+         "key": "with_driver",
+         "value": "true",
+         "description": "Required for an address pickup"
+        },
+        {
+         "key": "pickup_lat",
+         "value": "29.34",
+         "description": "Latitude of the customer's address"
+        },
+        {
+         "key": "pickup_lng",
+         "value": "48.07",
+         "description": "Longitude of the customer's address"
+        }
+       ]
+      },
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
+      },
+      "description": "Cars whose provider picks up at this address. meta.pickup_area is the service area. 422 OUTSIDE_SERVICE_AREA when the address is not served."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+         "const first = pm.response.json().data[0];",
+         "if (first) pm.environment.set(\"rental_vehicle_id\", first.id);",
+         "if (first) pm.environment.set(\"rental_provider_id\", first.provider.id);",
+         "if (first && !pm.environment.get(\"rental_location_id\") && first.locations && first.locations[0]) pm.environment.set(\"rental_location_id\", first.locations[0].id);"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
      "name": "Vehicle detail with period",
      "request": {
       "method": "GET",
@@ -4761,6 +4843,122 @@
        }
       },
       "description": "Same as Create booking, with a driver and an explicit return location. The vehicle must have with_driver_available = true (search with with_driver=true first), otherwise 422. return_location_id is optional and defaults to the pickup location. Send a new Idempotency-Key per booking; repeating a key returns the original booking with 200."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 201 or 200\", function () { pm.expect([200, 201]).to.include(pm.response.code); });",
+         "if (pm.response.code === 201 || pm.response.code === 200) pm.environment.set(\"rental_booking_id\", pm.response.json().data.id);"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Create booking: driver picks up at a map address",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Idempotency-Key",
+        "value": "{{$guid}}"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/customer/me/rental-bookings",
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"vehicle_id\": {{rental_vehicle_id}},\n  \"pickup_at\": \"2026-12-20T10:00:00+03:00\",\n  \"return_at\": \"2026-12-23T10:00:00+03:00\",\n  \"with_driver\": true,\n  \"pickup_name\": \"Block 5, Street 12, Salmiya\",\n  \"pickup_lat\": 29.34,\n  \"pickup_lng\": 48.07,\n  \"notes\": null\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      },
+      "description": "With a driver, the driver collects the customer at their address. Send pickup_name + pickup_lat + pickup_lng instead of pickup_location_id. Needs with_driver: true (else 422 ADDRESS_PICKUP_NEEDS_DRIVER). 422 OUTSIDE_SERVICE_AREA when the address is outside the service areas or the provider does not serve that area. Run 'Search vehicles at an address' first."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test(\"HTTP 201 or 200\", function () { pm.expect([200, 201]).to.include(pm.response.code); });",
+         "if (pm.response.code === 201 || pm.response.code === 200) pm.environment.set(\"rental_booking_id\", pm.response.json().data.id);"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Create booking: driver picks up at a saved address",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Accept",
+        "value": "application/json"
+       },
+       {
+        "key": "Accept-Language",
+        "value": "en"
+       },
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "Idempotency-Key",
+        "value": "{{$guid}}"
+       }
+      ],
+      "url": "{{base_url}}/api/v2/customer/me/rental-bookings",
+      "auth": {
+       "type": "bearer",
+       "bearer": [
+        {
+         "key": "token",
+         "value": "{{access_token}}",
+         "type": "string"
+        }
+       ]
+      },
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"vehicle_id\": {{rental_vehicle_id}},\n  \"pickup_at\": \"2026-12-20T10:00:00+03:00\",\n  \"return_at\": \"2026-12-23T10:00:00+03:00\",\n  \"with_driver\": true,\n  \"pickup_saved_address_id\": {{saved_address_id}},\n  \"notes\": null\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      },
+      "description": "Same as the map address, using one of the customer's saved addresses (GET /customer/me/saved-addresses) as pickup_saved_address_id."
      },
      "event": [
       {

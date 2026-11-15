@@ -164,6 +164,11 @@ const navigation: NavSection[] = [
             ],
           },
           { href: '/admin/rentals/places', label: 'Pickup places', active: 'rental-places' },
+          {
+            href: '/admin/rentals/service-areas',
+            label: 'Service areas',
+            active: 'rental-service-areas',
+          },
           { href: '/admin/rentals/settings', label: 'Settings', active: 'rental-settings' },
         ],
       },

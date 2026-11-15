@@ -10,12 +10,18 @@ import {
   findVisibleVehicle,
   freeUnits,
   rentalSettings,
+  addressPickup,
   pickupBranch,
   requireWindow,
   vehicleTerms,
   type RentalSettings,
 } from './rental_catalog_service.js'
 import { kwd, quoteFor, toFils } from './rental_money.js'
+import {
+  hasAddress,
+  resolvePickupAddress,
+  type PickupAddress,
+} from './rental_service_area_service.js'
 import {
   BOOKING_STATUSES,
   rentalBooking,
@@ -34,10 +40,14 @@ export type CreateBookingInput = {
   vehicle_id: number
   pickup_at: string
   return_at: string
-  pickup_location_id: number
+  pickup_location_id?: number
   return_location_id?: number
   with_driver?: boolean
   notes?: string | null
+  pickup_saved_address_id?: number
+  pickup_name?: string
+  pickup_lat?: number
+  pickup_lng?: number
 }
 
 /** Marks unpaid holds whose time ran out. A late payment can still confirm them. */
@@ -103,15 +113,23 @@ function newReference() {
 }
 
 function requestHash(input: CreateBookingInput) {
-  const canonical = {
+  const canonical: Record<string, unknown> = {
     vehicle_id: input.vehicle_id,
     pickup_at: input.pickup_at,
     return_at: input.return_at,
-    pickup_location_id: input.pickup_location_id,
-    return_location_id: input.return_location_id ?? input.pickup_location_id,
+    pickup_location_id: input.pickup_location_id ?? null,
+    return_location_id: input.return_location_id ?? input.pickup_location_id ?? null,
     with_driver: Boolean(input.with_driver),
     notes: input.notes ?? null,
   }
+  // Address fields join the hash only when sent, so older keys keep matching their bookings.
+  if (hasAddress(input))
+    Object.assign(canonical, {
+      pickup_saved_address_id: input.pickup_saved_address_id ?? null,
+      pickup_name: input.pickup_name ?? null,
+      pickup_lat: input.pickup_lat ?? null,
+      pickup_lng: input.pickup_lng ?? null,
+    })
   return createHash('sha256').update(JSON.stringify(canonical)).digest('hex')
 }
 
@@ -156,6 +174,54 @@ function snapshotLocation(row: Row) {
   }
 }
 
+function snapshotAddress(address: PickupAddress) {
+  return {
+    address: address.address,
+    latitude: address.latitude,
+    longitude: address.longitude,
+    area: address.area
+      ? {
+          id: Number(address.area.id),
+          name_en: address.area.name_en as string,
+          name_ar: (address.area.name_ar as string | null) ?? null,
+        }
+      : null,
+  }
+}
+
+/**
+ * The customer's address for a with-driver pickup, or null for a pickup place. Exactly one of
+ * the two must be sent.
+ */
+async function pickupAddress(
+  client: TransactionClientContract,
+  customerId: number,
+  input: CreateBookingInput,
+  withDriver: boolean
+) {
+  if (!hasAddress(input)) {
+    if (input.pickup_location_id === undefined)
+      throw new ApiError(422, 'VALIDATION_ERROR', 'Choose where to pick up the car', {
+        pickup_location_id: [
+          'Send pickup_location_id, or with a driver pickup_lat/pickup_lng or pickup_saved_address_id',
+        ],
+      })
+    return null
+  }
+  if (input.pickup_location_id !== undefined || input.return_location_id !== undefined)
+    throw new ApiError(422, 'VALIDATION_ERROR', 'Send a pickup place or an address, not both', {
+      pickup_location_id: ['Send pickup_location_id or an address, not both'],
+    })
+  if (!withDriver)
+    throw new ApiError(
+      422,
+      'ADDRESS_PICKUP_NEEDS_DRIVER',
+      'Pickup at an address is only available with a driver',
+      { with_driver: ['Send with_driver: true for pickup at an address'] }
+    )
+  return resolvePickupAddress(client, customerId, input)
+}
+
 export async function createBooking(
   customerId: number,
   key: string,
@@ -187,13 +253,24 @@ export async function createBooking(
       const vehicle = await findVisibleVehicle(input.vehicle_id, trx, true)
       const withDriver = Boolean(input.with_driver)
       assertDriverChoice(vehicle, withDriver)
-      const pickup = await pickupBranch(
-        trx,
-        Number(vehicle.id),
-        window,
-        input.pickup_location_id,
-        input.return_location_id
-      )
+      const address = await pickupAddress(trx, customerId, input, withDriver)
+      const pickup = address
+        ? await addressPickup(
+            trx,
+            vehicle,
+            window,
+            address.latitude,
+            address.longitude,
+            address.area,
+            input.pickup_saved_address_id !== undefined ? 'pickup_saved_address_id' : 'pickup_lat'
+          )
+        : await pickupBranch(
+            trx,
+            Number(vehicle.id),
+            window,
+            input.pickup_location_id as number,
+            input.return_location_id
+          )
       if ((await freeUnits(trx, vehicle, window)) < 1)
         throw new ApiError(
           409,
@@ -240,6 +317,7 @@ export async function createBooking(
         },
         pickup_location: snapshotLocation(pickup),
         return_location: snapshotLocation(pickup),
+        ...(address && { pickup_address: snapshotAddress(address) }),
       }
       const now = new Date()
       const [id] = await trx.table('rental_bookings').insert({
@@ -252,6 +330,11 @@ export async function createBooking(
         pickup_at: window.pickupAt,
         return_at: window.returnAt,
         with_driver: withDriver,
+        pickup_type: address ? 'address' : 'branch',
+        pickup_address: address?.address ?? null,
+        pickup_latitude: address?.latitude ?? null,
+        pickup_longitude: address?.longitude ?? null,
+        pickup_area_id: address?.area ? Number(address.area.id) : null,
         days: quote.days,
         daily_rate: quote.daily_rate,
         driver_daily_rate: quote.driver_daily_rate,

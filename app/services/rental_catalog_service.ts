@@ -10,6 +10,13 @@ import {
   publicSchedule,
   whereBranchOpen,
 } from './rental_branch_service.js'
+import {
+  areaFor,
+  areaSummary,
+  assertProviderServes,
+  distanceKm,
+  excludedProviderIds,
+} from './rental_service_area_service.js'
 import { ratingSummaries, summaryFor, type RatingSummary } from './rental_review_service.js'
 
 type Row = Record<string, any>
@@ -433,6 +440,19 @@ export async function listVehicles(input: Row, locale: PublicLocale, customerId?
     input.pickup_location_id === undefined || input.pickup_location_id === ''
       ? null
       : positiveId(input.pickup_location_id)
+  // Pickup at the customer's address: only providers serving that area, with a driver.
+  const address = addressParams(input, withDriver)
+  if (address && locationId)
+    throw new ApiError(
+      422,
+      'VALIDATION_ERROR',
+      'Search by a pickup place or an address, not both',
+      {
+        pickup_location_id: ['Send pickup_location_id or pickup_lat/pickup_lng, not both'],
+      }
+    )
+  const area = address ? await areaFor(db, address.latitude, address.longitude, 'pickup_lat') : null
+  const excluded = [...(await excludedProviderIds(db, area ? Number(area.id) : null))]
 
   const now = new Date()
   const apply = (query: any) => {
@@ -453,6 +473,18 @@ export async function listVehicles(input: Row, locale: PublicLocale, customerId?
           .where('l.active', true)
         if (window) whereBranchOpen(sub, 'l', window.pickupAt)
       })
+    if (address) {
+      if (excluded.length) query.whereNotIn('v.provider_id', excluded)
+      // A driver leaves from one of the vehicle's branches, open at the pickup time.
+      query.whereExists((sub: any) => {
+        sub
+          .from('rental_vehicle_locations as vl')
+          .join('rental_locations as l', 'l.id', 'vl.location_id')
+          .whereColumn('vl.vehicle_id', 'v.id')
+          .where('l.active', true)
+        if (window) whereBranchOpen(sub, 'l', window.pickupAt)
+      })
+    }
     if (window) whereAvailable(query, window, now)
     return query
   }
@@ -497,8 +529,92 @@ export async function listVehicles(input: Row, locale: PublicLocale, customerId?
       pickup_at: window?.pickupAt.toISOString() ?? null,
       return_at: window?.returnAt.toISOString() ?? null,
       with_driver: withDriver,
+      /** The service area of the searched address; null without an address or areas. */
+      pickup_area: areaSummary(area, locale),
     },
   }
+}
+
+function coordinate(value: unknown, field: string, min: number, max: number) {
+  if (value === undefined || value === null || value === '') return undefined
+  const number = Number(value)
+  if (!Number.isFinite(number) || number < min || number > max)
+    throw new ApiError(422, 'VALIDATION_ERROR', 'Invalid location', {
+      [field]: [`Enter a number between ${min} and ${max}`],
+    })
+  return number
+}
+
+/** `pickup_lat` + `pickup_lng` from a search or quote; address pickup needs a driver. */
+function addressParams(input: Row, withDriver: boolean) {
+  const latitude = coordinate(input.pickup_lat, 'pickup_lat', -90, 90)
+  const longitude = coordinate(input.pickup_lng, 'pickup_lng', -180, 180)
+  if (latitude === undefined && longitude === undefined) return null
+  if (latitude === undefined || longitude === undefined)
+    throw new ApiError(422, 'VALIDATION_ERROR', 'Send both pickup_lat and pickup_lng', {
+      [latitude === undefined ? 'pickup_lat' : 'pickup_lng']: [
+        'Send both pickup_lat and pickup_lng',
+      ],
+    })
+  if (!withDriver)
+    throw new ApiError(
+      422,
+      'ADDRESS_PICKUP_NEEDS_DRIVER',
+      'Pickup at an address is only available with a driver',
+      { with_driver: ['Send with_driver=true for pickup at an address'] }
+    )
+  return { latitude, longitude }
+}
+
+/**
+ * The branch a driver leaves from for an address pickup: the nearest of the vehicle's branches
+ * that is open at both the pickup and the return time.
+ */
+export async function addressBranch(
+  client: Client,
+  vehicleId: number,
+  window: RentalWindow,
+  latitude: number,
+  longitude: number
+) {
+  const locations = await vehicleLocations(client, vehicleId)
+  const away = (row: Row) => {
+    const lat = row.latitude ?? row.place_latitude
+    const lng = row.longitude ?? row.place_longitude
+    return lat === null || lat === undefined || lng === null || lng === undefined
+      ? Number.POSITIVE_INFINITY
+      : distanceKm(latitude, longitude, Number(lat), Number(lng))
+  }
+  const sorted = [...locations].sort((a, b) => away(a) - away(b))
+  let closed: unknown = null
+  for (const branch of sorted) {
+    try {
+      await assertBranchOpen(client, branch, window.pickupAt, 'pickup_at')
+      await assertBranchOpen(client, branch, window.returnAt, 'return_at')
+      return branch
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.code !== 'BRANCH_CLOSED') throw error
+      closed ??= error
+    }
+  }
+  if (closed) throw closed
+  throw new ApiError(422, 'INVALID_LOCATION', 'This vehicle has no branch to send a driver from', {
+    pickup_lat: ['Choose another car'],
+  })
+}
+
+/** Checks an address pickup for this vehicle and returns the branch and the area. */
+export async function addressPickup(
+  client: Client,
+  vehicle: Row,
+  window: RentalWindow,
+  latitude: number,
+  longitude: number,
+  area: Row | null,
+  field: string
+) {
+  await assertProviderServes(client, Number(vehicle.provider_id), area, field)
+  return addressBranch(client, Number(vehicle.id), window, latitude, longitude)
 }
 
 export async function findVisibleVehicle(id: unknown, client: Client = db, lock = false) {
@@ -629,9 +745,25 @@ export async function vehicleQuote(id: unknown, input: Row, locale: PublicLocale
     input.return_location_id === undefined || input.return_location_id === ''
       ? undefined
       : positiveId(input.return_location_id)
+  const address = addressParams(input, withDriver)
+  if (address && placeId)
+    throw new ApiError(422, 'VALIDATION_ERROR', 'Quote a pickup place or an address, not both', {
+      pickup_location_id: ['Send pickup_location_id or pickup_lat/pickup_lng, not both'],
+    })
+  const area = address ? await areaFor(db, address.latitude, address.longitude, 'pickup_lat') : null
   const branch = placeId
     ? await pickupBranch(db, Number(row.id), window, placeId, returnPlaceId)
-    : null
+    : address
+      ? await addressPickup(
+          db,
+          row,
+          window,
+          address.latitude,
+          address.longitude,
+          area,
+          'pickup_lat'
+        )
+      : null
   const pickupLocation = branch ? await serializeBranches([branch], locale) : []
   return {
     data: {
@@ -648,6 +780,8 @@ export async function vehicleQuote(id: unknown, input: Row, locale: PublicLocale
         bookingFee: settings.booking_fee,
       }),
       pickup_location: pickupLocation[0] ?? null,
+      pickup_type: address ? 'address' : 'branch',
+      pickup_area: areaSummary(area, locale),
     },
   }
 }
