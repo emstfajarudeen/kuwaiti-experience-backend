@@ -415,6 +415,27 @@ test.group('Rental catalog and bookings', (group) => {
     openQuote.assertStatus(200)
     assert.equal(openQuote.body().data.pickup_location.id, ids.airport)
     assert.equal(openQuote.body().data.pickup_location.branch.id, ids.airportBranch)
+    // The list applies the same gate at pickup and at return, so it never shows a car the
+    // quote would refuse.
+    let returnDay = offset + 1
+    while (new Date(kuwait(returnDay, 12).getTime() + 3 * 60 * 60 * 1000).getUTCDay() === 5)
+      returnDay++
+    const searchWithReturn = (returnAt: Date) =>
+      client.get('/api/v2/rentals/vehicles').qs({
+        pickup_location_id: ids.airport,
+        pickup_at: kuwait(offset, 10).toISOString(),
+        return_at: returnAt.toISOString(),
+      })
+    const openReturn = await searchWithReturn(kuwait(returnDay, 10))
+    assert.include(
+      openReturn.body().data.map((item: { id: number }) => item.id),
+      ids.vehicleId
+    )
+    const closedReturn = await searchWithReturn(kuwait(returnDay, 14))
+    assert.notInclude(
+      closedReturn.body().data.map((item: { id: number }) => item.id),
+      ids.vehicleId
+    )
     const otherReturn = await quote(kuwait(offset, 10), {
       pickup_location_id: ids.airport,
       return_location_id: ids.city,
@@ -466,7 +487,10 @@ test.group('Rental catalog and bookings', (group) => {
     )
 
     const open = await book('hours-key-03', kuwait(offset + 1, 10))
-    if (new Date(kuwait(offset + 1, 10).getTime() + 3 * 60 * 60 * 1000).getUTCDay() !== 5) {
+    // Only when neither the pickup day nor the return day (two days later) is a Friday.
+    const weekdayIn = (days: number) =>
+      new Date(kuwait(days, 10).getTime() + 3 * 60 * 60 * 1000).getUTCDay()
+    if (weekdayIn(offset + 1) !== 5 && weekdayIn(offset + 3) !== 5) {
       open.assertStatus(201)
       assert.equal(open.body().data.return_location.id, ids.airport)
     }
@@ -780,6 +804,80 @@ test.group('Rental catalog and bookings', (group) => {
     taken.assertStatus(201)
     const fullyBooked = await post('key-second', {})
     fullyBooked.assertStatus(409)
+  })
+
+  test('a pickup place with two branches uses the one that is open', async ({ client, assert }) => {
+    const ids = await catalog()
+    const user = await customer()
+    const [airportPlace] = await db
+      .from('rental_locations')
+      .where('id', ids.airportBranch)
+      .select('place_id')
+    // The first branch closes at 13:00; a second branch at the same place has no fixed hours.
+    await db.from('rental_locations').where('id', ids.airportBranch).update({ hours_enabled: true })
+    await db.table('rental_location_hours').multiInsert(
+      [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+        location_id: ids.airportBranch,
+        weekday,
+        opens_at: '09:00',
+        closes_at: '13:00',
+      }))
+    )
+    const [second] = await db.table('rental_locations').insert({
+      provider_id: ids.providerId,
+      place_id: airportPlace.place_id,
+      name_en: 'Airport Terminal 2',
+      active: true,
+      sort_order: 3,
+      created_at: new Date(),
+    })
+    await db
+      .table('rental_vehicle_locations')
+      .insert({ vehicle_id: ids.vehicleId, location_id: second })
+    const kuwait = (days: number, hour: number) => {
+      const local = new Date(Date.now() + days * DAY + 3 * 60 * 60 * 1000)
+      local.setUTCHours(hour, 0, 0, 0)
+      return new Date(local.getTime() - 3 * 60 * 60 * 1000)
+    }
+    const pickup = kuwait(3, 15)
+    const range = {
+      pickup_at: pickup.toISOString(),
+      return_at: new Date(pickup.getTime() + DAY).toISOString(),
+    }
+    const search = () =>
+      client.get('/api/v2/rentals/vehicles').qs({ pickup_location_id: ids.airport, ...range })
+    const quote = () =>
+      client
+        .get(`/api/v2/rentals/vehicles/${ids.vehicleId}/quote`)
+        .qs({ pickup_location_id: ids.airport, ...range })
+
+    // 15:00: the first branch is closed, the second one is open, so the car is offered...
+    const listed = await search()
+    assert.include(
+      listed.body().data.map((item: { id: number }) => item.id),
+      ids.vehicleId
+    )
+    // ...and the quote and the booking go through the open branch instead of failing.
+    const quoted = await quote()
+    quoted.assertStatus(200)
+    assert.equal(quoted.body().data.pickup_location.branch.id, Number(second))
+    const booked = await client
+      .post('/api/v2/customer/me/rental-bookings')
+      .header('Authorization', user.token)
+      .header('Idempotency-Key', 'two-branch-01')
+      .json({ vehicle_id: ids.vehicleId, pickup_location_id: ids.airport, ...range })
+    booked.assertStatus(201)
+
+    // When every branch at the place is closed, the car is hidden and the quote says why.
+    await db.from('rental_locations').where('id', second).update({ hours_enabled: true })
+    const hidden = await search()
+    assert.notInclude(
+      hidden.body().data.map((item: { id: number }) => item.id),
+      ids.vehicleId
+    )
+    const refused = await quote()
+    refused.assertStatus(422)
+    assert.equal(refused.body().error.code, 'BRANCH_CLOSED')
   })
 
   test('MyFatoorah payment confirms the booking once and notifies the customer', async ({
@@ -1320,6 +1418,149 @@ test.group('Rental provider portal', (group) => {
     })
     return Number(id)
   }
+
+  async function payment(bookingId: number, status: string, amount = '2.000') {
+    const now = new Date()
+    await db.table('rental_payments').insert({
+      booking_id: bookingId,
+      invoice_id: `INV-${randomUUID()}`,
+      payment_id: status === 'initiated' ? null : `PAY-${randomUUID()}`,
+      payment_method: 'KNET',
+      amount,
+      status,
+      paid_at: status === 'initiated' ? null : now,
+      refunded_at: status === 'refunded' ? now : null,
+      refund_reference: status === 'refunded' ? 'RF-1' : null,
+      created_at: now,
+    })
+  }
+
+  test('reports total fees, refunds and provider earnings, and export them', async ({
+    client,
+    assert,
+  }) => {
+    const admin = await staff()
+    const ids = await catalog()
+    const paid = await booking(ids, { pickupInDays: 1, days: 2, status: 'confirmed' })
+    const done = await booking(ids, { pickupInDays: 2, days: 2, status: 'completed' })
+    const refunded = await booking(ids, { pickupInDays: 3, days: 2, status: 'cancelled' })
+    const waiting = await booking(ids, { pickupInDays: 4, days: 2, status: 'refund_required' })
+    const unpaid = await booking(ids, {
+      pickupInDays: 5,
+      days: 1,
+      status: 'pending_payment',
+      confirmed: false,
+    })
+    await payment(paid, 'paid')
+    await payment(done, 'paid')
+    await payment(refunded, 'refunded')
+    await payment(waiting, 'paid')
+    await payment(unpaid, 'initiated')
+    const day = (offset: number) =>
+      new Date(Date.now() + offset * DAY + 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const range = `from=${day(-2)}&to=${day(10)}`
+    const get = (path: string) =>
+      client.get(path).cookie('admin_access', admin.accessToken).redirects(0)
+    const summary = (response: any) =>
+      Object.fromEntries(page(response).props.summary.map((item: any) => [item.label, item.value]))
+
+    assert.equal(page(await get('/admin/rentals/reports')).component, 'rentals/reports')
+
+    // 4 paid payments of 2.000, one of them refunded; the unpaid checkout is not revenue.
+    const fees = summary(await get(`/admin/rentals/reports/booking-fees?${range}`))
+    assert.equal(fees.Collected, '8.000')
+    assert.equal(fees.Refunded, '2.000')
+    assert.equal(fees['Net revenue'], '6.000')
+    assert.equal(fees['Failed or unfinished'], '1')
+    const grouped = page(await get(`/admin/rentals/reports/booking-fees?${range}&view=provider`))
+    assert.equal(grouped.props.rows.length, 1)
+    assert.equal(grouped.props.rows[0].net, '6.000')
+
+    const refunds = summary(await get(`/admin/rentals/reports/refunds?${range}`))
+    assert.equal(refunds['Refunds issued'], '1')
+    assert.equal(refunds['Awaiting refund'], '1')
+    assert.equal(refunds['Amount awaiting'], '2.000')
+
+    // Confirmed and completed rentals earn; cancelled and refund-required do not.
+    const statement = summary(await get(`/admin/rentals/reports/provider-statement?${range}`))
+    assert.equal(statement.Rentals, '2')
+    assert.equal(statement['Rental value'], '50.000')
+    const lines = page(
+      await get(`/admin/rentals/reports/provider-statement?${range}&view=bookings`)
+    )
+    assert.equal(lines.props.rows.length, 4)
+
+    const detail = page(await get(`/admin/rentals/reports/bookings?${range}`))
+    assert.equal(detail.props.meta.total, 4)
+    assert.equal(
+      page(await get(`/admin/rentals/reports/bookings?${range}&status=all`)).props.meta.total,
+      5
+    )
+
+    // Export: same filters, CSV and Excel, and the export is logged.
+    const csv = await get(`/admin/rentals/reports/bookings/export?${range}&format=csv`)
+    assert.equal(csv.status(), 200)
+    assert.include(csv.header('content-type'), 'text/csv')
+    assert.include(csv.header('content-disposition'), 'attachment')
+    assert.isTrue(csv.text().startsWith('\uFEFFReference,Status'))
+    assert.include(csv.text(), await column('rental_bookings', paid, 'reference'))
+    assert.notInclude(csv.text(), await column('rental_bookings', unpaid, 'reference'))
+    const xlsx = await get(`/admin/rentals/reports/booking-fees/export?${range}&format=xlsx`)
+    assert.equal(xlsx.status(), 200)
+    assert.include(xlsx.header('content-type'), 'spreadsheetml')
+    assert.isTrue(xlsx.text().startsWith('PK'))
+    const logged = await db.from('audit_logs').where('action', 'rental_report.export')
+    assert.equal(logged.length, 2)
+
+    // Bad ranges are refused with a message, not a crash.
+    const tooLong = await get(`/admin/rentals/reports/bookings?from=${day(-500)}&to=${day(0)}`)
+    assert.include(page(tooLong).props.problem, 'one year')
+  })
+
+  test('report exports keep text cells from running as spreadsheet formulas', async ({
+    assert,
+  }) => {
+    const { toCsv } = await import('../../app/services/rental_report_export.js')
+    const csv = toCsv({
+      columns: [
+        { key: 'name', label: 'Name', type: 'text' },
+        { key: 'amount', label: 'Amount', type: 'money' },
+      ],
+      rows: [{ name: '=HYPERLINK("http://x")', amount: -1500 }],
+      summary: [],
+    })
+    assert.include(csv, `"'=HYPERLINK(""http://x"")"`)
+    assert.include(csv, '-1.500')
+  })
+
+  test('providers cannot open the reports', async ({ client, assert }) => {
+    const ids = await catalog()
+    await db.table('users').insert({
+      full_name: 'Gulf desk',
+      email: 'desk@gulfrent.example',
+      password: await hash.make('provider-long-password'),
+      role: 'provider',
+      rental_provider_id: ids.providerId,
+      password_set_at: new Date(),
+      active: true,
+      created_at: new Date(),
+    })
+    const { loginAdmin: signIn } = await import('../../app/services/auth_service.js')
+    const tokens = await signIn('desk@gulfrent.example', 'provider-long-password', {
+      allowProvider: true,
+    })
+    for (const path of [
+      '/admin/rentals/reports',
+      '/admin/rentals/reports/booking-fees',
+      '/admin/rentals/reports/bookings/export?format=csv',
+    ]) {
+      const response = await client
+        .get(path)
+        .redirects(0)
+        .cookie('admin_access', tokens.accessToken)
+      assert.equal(response.status(), 403, path)
+    }
+  })
 
   test('the staff bookings list leaves out unpaid checkouts unless asked', async ({
     client,

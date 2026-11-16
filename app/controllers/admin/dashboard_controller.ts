@@ -36,6 +36,7 @@ export function formatActionLabel(action: string): string {
     'contact.status': 'Updated contact request',
     'home.save': 'Updated homepage',
     'settings.save': 'Updated site settings',
+    'rental_report.export': 'Exported rental report',
     'notification.broadcast': 'Sent push notification',
   }
   return map[action] ?? action.replace(/[_.]/g, ' ')

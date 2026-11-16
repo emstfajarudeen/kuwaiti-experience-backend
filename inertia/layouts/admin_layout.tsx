@@ -173,6 +173,13 @@ const navigation: NavSection[] = [
         ],
       },
       {
+        href: '/admin/rentals/reports',
+        icon: '▦',
+        label: 'Rental reports',
+        active: 'rental-reports',
+        permission: 'rental_reports.view',
+      },
+      {
         href: '/admin/rentals/reviews',
         icon: '★',
         label: 'Rental reviews',

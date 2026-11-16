@@ -36,6 +36,7 @@ const AdminVideosController = () => import('#controllers/admin/videos_controller
 const ExploreController = () => import('#controllers/api/explore_controller')
 const HomeController = () => import('#controllers/api/home_controller')
 const RentalsController = () => import('#controllers/api/rentals_controller')
+const AdminRentalReportsController = () => import('#controllers/admin/rental_reports_controller')
 const AdminRentalsController = () => import('#controllers/admin/rentals_controller')
 const AdminServiceAreasController = () =>
   import('#controllers/admin/rental_service_areas_controller')
@@ -137,6 +138,9 @@ router
       AdminRentalsController,
       'sendProviderEmail',
     ])
+    router.get('/rentals/reports', [AdminRentalReportsController, 'index'])
+    router.get('/rentals/reports/:key', [AdminRentalReportsController, 'show'])
+    router.get('/rentals/reports/:key/export', [AdminRentalReportsController, 'export'])
     router.get('/rentals/reviews', [AdminRentalsController, 'reviews'])
     router.post('/rentals/vehicle-types', [AdminRentalsController, 'createVehicleType'])
     router.post('/rentals/insurance-options', [AdminRentalsController, 'createInsuranceOption'])

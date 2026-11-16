@@ -15,6 +15,7 @@ const destinations = [
   ['rental_bookings.view', '/admin/rentals/bookings'],
   ['rentals.view', '/admin/rentals/vehicles'],
   ['rental_reviews.view', '/admin/rentals/reviews'],
+  ['rental_reports.view', '/admin/rentals/reports'],
   ['customers.view', '/admin/customers'],
   ['notifications.view', '/admin/notifications'],
   ['staff.view', '/admin/users'],

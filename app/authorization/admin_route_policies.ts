@@ -488,6 +488,8 @@ add(
   ['/admin/rentals/bookings/:id/provider-email'],
   ['rental_bookings.view', 'rental_bookings.update']
 )
+add('GET', ['/admin/rentals/reports', '/admin/rentals/reports/:key'], ['rental_reports.view'])
+add('GET', ['/admin/rentals/reports/:key/export'], ['rental_reports.view', 'rental_reports.export'])
 add('GET', ['/admin/rentals/reviews'], ['rental_reviews.view'])
 add('GET', ['/admin/rentals/places'], ['rentals.view'])
 add('GET', ['/admin/rentals/working-hours'], ['rentals.view'])

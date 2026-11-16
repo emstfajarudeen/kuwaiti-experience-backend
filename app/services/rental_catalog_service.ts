@@ -462,7 +462,7 @@ export async function listVehicles(input: Row, locale: PublicLocale, customerId?
     // A self-drive search excludes driver-only vehicles, and the other way round.
     if (withDriver) query.where('v.with_driver_available', true)
     else query.where('v.self_drive_available', true)
-    // The pickup place must have one of this vehicle's branches, open at the pickup time.
+    // The pickup place must have one of this vehicle's branches, open at pickup and at return.
     if (locationId)
       query.whereExists((sub: any) => {
         sub
@@ -471,7 +471,10 @@ export async function listVehicles(input: Row, locale: PublicLocale, customerId?
           .whereColumn('vl.vehicle_id', 'v.id')
           .where('l.place_id', locationId)
           .where('l.active', true)
-        if (window) whereBranchOpen(sub, 'l', window.pickupAt)
+        if (window) {
+          whereBranchOpen(sub, 'l', window.pickupAt)
+          whereBranchOpen(sub, 'l', window.returnAt)
+        }
       })
     if (address) {
       if (excluded.length) query.whereNotIn('v.provider_id', excluded)
@@ -708,8 +711,8 @@ export async function pickupBranch(
   returnPlaceId?: number
 ) {
   const locations = await vehicleLocations(client, vehicleId)
-  const pickup = locations.find((row: Row) => Number(row.place_id) === placeId)
-  if (!pickup)
+  const atPlace = locations.filter((row: Row) => Number(row.place_id) === placeId)
+  if (!atPlace.length)
     throw new ApiError(
       422,
       'INVALID_LOCATION',
@@ -722,9 +725,20 @@ export async function pickupBranch(
     throw new ApiError(422, 'INVALID_LOCATION', 'The car must be returned at its pickup location', {
       return_location_id: ['Return the car where you picked it up'],
     })
-  await assertBranchOpen(client, pickup, window.pickupAt, 'pickup_at')
-  await assertBranchOpen(client, pickup, window.returnAt, 'return_at')
-  return pickup
+  // A place can have several branches of this provider: use the first one open at both times,
+  // the same rule the vehicle list applies.
+  let firstError: unknown = null
+  for (const branch of atPlace) {
+    try {
+      await assertBranchOpen(client, branch, window.pickupAt, 'pickup_at')
+      await assertBranchOpen(client, branch, window.returnAt, 'return_at')
+      return branch
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.code !== 'BRANCH_CLOSED') throw error
+      firstError ??= error
+    }
+  }
+  throw firstError
 }
 
 /**

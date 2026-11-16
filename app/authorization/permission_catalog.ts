@@ -74,6 +74,12 @@ const permissionDefinitions = [
     action,
     label: `${action[0].toUpperCase()}${action.slice(1)} rental bookings`,
   })),
+  ...(['view', 'export'] as const).map((action) => ({
+    key: `rental_reports.${action}` as const,
+    module: 'rental_reports',
+    action,
+    label: `${action[0].toUpperCase()}${action.slice(1)} rental reports`,
+  })),
   ...(['view', 'update', 'delete'] as const).map((action) => ({
     key: `rental_reviews.${action}` as const,
     module: 'rental_reviews',
