@@ -27,7 +27,7 @@ export function toCsv(result: ReportResult) {
       result.columns.map((column) => csvCell(column, row[column.key])).join(',')
     ),
   ]
-  return `﻿${lines.join('\r\n')}\r\n`
+  return `\uFEFF${lines.join('\r\n')}\r\n`
 }
 
 /** Excel stores dates without a zone, so write the Kuwait wall-clock time. */
@@ -83,7 +83,7 @@ export async function toXlsx(
   })
 
   const info = workbook.addWorksheet('Summary')
-  info.columns = [{ width: 28 }, { width: 40 }]
+  info.columns = [{ width: 28 }, { width: 18 }, { width: 36 }]
   info.addRow([title]).font = { bold: true, size: 14 }
   info.addRow([`Period ${filters.from} to ${filters.to} (Kuwait time)`])
   for (const line of filterLabels) info.addRow([line])
@@ -91,14 +91,10 @@ export async function toXlsx(
   info.addRow([])
   for (const item of result.summary) {
     const scale = item.type === 'money' ? 1000 : item.type === 'percent' ? 100 : 1
-    const row = info.addRow([item.label, Number(item.value) / scale])
+    const row = info.addRow([item.label, Number(item.value) / scale, item.hint])
     row.getCell(2).numFmt = { money: '#,##0.000', percent: '0.0%', decimal: '0.0', int: '0' }[
       item.type
     ]
-  }
-  if (result.note) {
-    info.addRow([])
-    info.addRow([result.note])
   }
   return Buffer.from(await workbook.xlsx.writeBuffer())
 }

@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Input, Select } from 'antd'
+import { DatePicker, Input, Select } from 'antd'
 import { router } from '@inertiajs/react'
+import dayjs from 'dayjs'
+
+const DAY = 'YYYY-MM-DD'
 
 export type ToolbarSelect = {
   key: string
@@ -10,6 +13,16 @@ export type ToolbarSelect = {
   onChange: (value: string) => void
   /** Select with no "all" state (e.g. sort). Cannot be cleared. */
   required?: boolean
+  /** Lets the person type to find an option (long lists such as providers). */
+  searchable?: boolean
+}
+
+/** A from–to day range, as YYYY-MM-DD strings. Both ends are always set. */
+export type ToolbarDateRange = {
+  from: string
+  to: string
+  label: string
+  onChange: (from: string, to: string) => void
 }
 
 type Props = {
@@ -20,6 +33,7 @@ type Props = {
     label: string
   }
   selects?: ToolbarSelect[]
+  dateRange?: ToolbarDateRange
   /** Shows the Reset link when filters differ from their defaults. */
   active?: boolean
   onReset?: () => void
@@ -29,9 +43,22 @@ type Props = {
  * The one filter bar every CMS table uses. It sits inside the table card, has no
  * submit button, and applies as the person types or picks a value.
  */
-export default function TableToolbar({ search, selects = [], active, onReset }: Props) {
+export default function TableToolbar({ search, selects = [], dateRange, active, onReset }: Props) {
   return (
     <div className="cms-table-toolbar">
+      {dateRange && (
+        <DatePicker.RangePicker
+          aria-label={dateRange.label}
+          allowClear={false}
+          format="D MMM YYYY"
+          value={[dayjs(dateRange.from, DAY), dayjs(dateRange.to, DAY)]}
+          onChange={(range) => {
+            if (range?.[0] && range[1])
+              dateRange.onChange(range[0].format(DAY), range[1].format(DAY))
+          }}
+          className="cms-table-toolbar-range"
+        />
+      )}
       {search && (
         <Input.Search
           aria-label={search.label}
@@ -50,6 +77,8 @@ export default function TableToolbar({ search, selects = [], active, onReset }: 
           value={select.value || undefined}
           placeholder={select.placeholder}
           allowClear={!select.required}
+          showSearch={select.searchable}
+          optionFilterProp="label"
           onChange={(value) => select.onChange(value ?? '')}
           options={select.options}
           className="cms-table-toolbar-select"
@@ -108,6 +137,13 @@ export function useServerFilters<T extends Record<string, string>>(
 
   return {
     values,
+    /** Changes several filters in one visit (e.g. both ends of a date range). */
+    setMany: (patch: Partial<T>) => {
+      const next = { ...values, ...patch }
+      setValues(next)
+      clearTimeout(timer.current)
+      visit(next)
+    },
     setSearch: (key: keyof T, value: string) => set(key, value, true),
     setSelect: (key: keyof T, value: string) => set(key, value),
     reset: () => {

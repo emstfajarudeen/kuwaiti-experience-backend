@@ -13,11 +13,19 @@ export const MAX_REPORT_ROWS = 50000
 const MAX_RANGE_DAYS = 366
 
 export type ColumnType = 'text' | 'money' | 'int' | 'decimal' | 'percent' | 'datetime' | 'date'
-export type ReportColumn = { key: string; label: string; type: ColumnType }
+export type ReportColumn = {
+  key: string
+  label: string
+  type: ColumnType
+  /** Shown only in the row's detail view and in exports, not as a table column. */
+  detail?: true
+}
 export type SummaryItem = {
   label: string
   value: string | number
   type: 'money' | 'int' | 'decimal' | 'percent'
+  /** How the number is worked out, in a few words. */
+  hint: string
 }
 export type FilterOption = { value: string; label: string }
 export type ReportFilter = {
@@ -43,14 +51,13 @@ export type ReportResult = {
   columns: ReportColumn[]
   rows: Row[]
   summary: SummaryItem[]
-  note?: string
 }
 
 export type ReportDefinition = {
   key: string
   title: string
-  group: 'Financial' | 'Bookings' | 'Fleet'
-  description: string
+  /** Short name for the sidebar. */
+  menuLabel: string
   filters: (providers: FilterOption[]) => ReportFilter[]
   run: (filters: ReportFilters) => Promise<ReportResult>
 }
@@ -62,6 +69,12 @@ const text = (value: unknown, max = 60) =>
   typeof value === 'string' ? value.trim().slice(0, max) : ''
 
 const today = () => DateTime.now().setZone(KUWAIT).startOf('day')
+
+/** The range a report opens with: the last 30 days, today included (Kuwait time). */
+export function defaultRange() {
+  const to = today()
+  return { from: to.minus({ days: 29 }).toFormat('yyyy-MM-dd'), to: to.toFormat('yyyy-MM-dd') }
+}
 
 /** Reads the query string into safe filter values. The default range is the last 30 days. */
 export function readFilters(input: Record<string, unknown>): ReportFilters {
@@ -157,6 +170,7 @@ async function feeReport(filters: ReportFilters): Promise<ReportResult> {
     )
     .select(
       'rp.id',
+      'b.id as booking_id',
       'rp.invoice_id',
       'rp.payment_id',
       'rp.payment_method',
@@ -181,18 +195,35 @@ async function feeReport(filters: ReportFilters): Promise<ReportResult> {
   const collected = rows.filter((row) => ['paid', 'refunded'].includes(row.status))
   const refunded = rows.filter((row) => row.status === 'refunded')
   const summary: SummaryItem[] = [
-    { label: 'Collected', value: sum(collected, (row) => fils(row.amount)), type: 'money' },
-    { label: 'Refunded', value: sum(refunded, (row) => fils(row.amount)), type: 'money' },
+    {
+      label: 'Collected',
+      value: sum(collected, (row) => fils(row.amount)),
+      type: 'money',
+      hint: 'All booking fees paid',
+    },
+    {
+      label: 'Refunded',
+      value: sum(refunded, (row) => fils(row.amount)),
+      type: 'money',
+      hint: 'Fees given back',
+    },
     {
       label: 'Net revenue',
       value: sum(collected, (row) => fils(row.amount)) - sum(refunded, (row) => fils(row.amount)),
       type: 'money',
+      hint: 'Collected minus refunded',
     },
-    { label: 'Paid payments', value: collected.length, type: 'int' },
+    {
+      label: 'Paid payments',
+      value: collected.length,
+      type: 'int',
+      hint: 'Payments that went through',
+    },
     {
       label: 'Failed or unfinished',
       value: rows.filter((row) => ['failed', 'initiated'].includes(row.status)).length,
       type: 'int',
+      hint: 'Declined or not completed',
     },
   ]
 
@@ -204,15 +235,16 @@ async function feeReport(filters: ReportFilters): Promise<ReportResult> {
         { key: 'when', label: 'Date', type: 'datetime' },
         { key: 'reference', label: 'Booking', type: 'text' },
         { key: 'provider', label: 'Provider', type: 'text' },
-        { key: 'customer', label: 'Customer', type: 'text' },
-        { key: 'method', label: 'Payment method', type: 'text' },
+        { key: 'customer', label: 'Customer', type: 'text', detail: true },
+        { key: 'method', label: 'Payment method', type: 'text', detail: true },
         { key: 'amount', label: 'Amount (KWD)', type: 'money' },
         { key: 'status', label: 'Status', type: 'text' },
-        { key: 'refunded_at', label: 'Refunded at', type: 'datetime' },
-        { key: 'invoice_id', label: 'Invoice ID', type: 'text' },
-        { key: 'payment_id', label: 'Payment ID', type: 'text' },
+        { key: 'refunded_at', label: 'Refunded at', type: 'datetime', detail: true },
+        { key: 'invoice_id', label: 'Invoice ID', type: 'text', detail: true },
+        { key: 'payment_id', label: 'Payment ID', type: 'text', detail: true },
       ],
       rows: rows.map((row) => ({
+        _href: `/admin/rentals/bookings/${row.booking_id}`,
         when: iso(row.paid_at ?? row.created_at),
         reference: row.reference,
         provider: row.provider_name,
@@ -272,224 +304,7 @@ async function feeReport(filters: ReportFilters): Promise<ReportResult> {
   }
 }
 
-// -------------------------------------------------------------- 2. refunds
-
-async function refundReport(filters: ReportFilters): Promise<ReportResult> {
-  const { start, end } = bounds(filters)
-  const wanted = filters.status || 'all'
-  const base = () =>
-    feeBase().select(
-      'rp.amount',
-      'rp.paid_at',
-      'rp.refunded_at',
-      'rp.refund_reference',
-      'b.id as booking_id',
-      'b.reference',
-      'b.status as booking_status',
-      'b.cancelled_by',
-      'b.cancel_reason',
-      'p.name_en as provider_name',
-      'c.first_name',
-      'c.last_name',
-      db.raw(
-        `(select u.full_name from audit_logs a join users u on u.id = a.actor_id
-           where a.entity_type = 'rental_booking' and a.entity_id = b.id
-             and a.action = 'rental_booking.refund' order by a.id desc limit 1) as refunded_by`
-      )
-    )
-  const refundedQuery = base()
-    .where('rp.status', 'refunded')
-    .where('rp.refunded_at', '>=', start)
-    .where('rp.refunded_at', '<', end)
-    .orderBy('rp.refunded_at', 'desc')
-    .limit(MAX_REPORT_ROWS + 1)
-  if (filters.provider) refundedQuery.where('b.provider_id', filters.provider)
-  const refunded: Row[] = wanted === 'awaiting' ? [] : ((await refundedQuery) as Row[])
-  // Paid bookings that must be refunded but have not been yet: shown whatever the date range.
-  const awaitingQuery = base()
-    .where('rp.status', 'paid')
-    .where('b.status', 'refund_required')
-    .orderBy('b.id', 'desc')
-    .limit(MAX_REPORT_ROWS + 1)
-  if (filters.provider) awaitingQuery.where('b.provider_id', filters.provider)
-  const awaiting: Row[] = wanted === 'refunded' ? [] : ((await awaitingQuery) as Row[])
-  limited(refunded)
-  const rows: Row[] = [
-    ...awaiting.map((row) => ({ kind: 'Awaiting refund', ...row })),
-    ...refunded.map((row) => ({ kind: 'Refunded', ...row })),
-  ]
-  return {
-    note: 'Bookings awaiting a refund are always listed, whatever the date range.',
-    summary: [
-      { label: 'Refunds issued', value: refunded.length, type: 'int' },
-      { label: 'Refunded', value: sum(refunded, (row) => fils(row.amount)), type: 'money' },
-      { label: 'Awaiting refund', value: awaiting.length, type: 'int' },
-      { label: 'Amount awaiting', value: sum(awaiting, (row) => fils(row.amount)), type: 'money' },
-    ],
-    columns: [
-      { key: 'kind', label: 'Type', type: 'text' },
-      { key: 'refunded_at', label: 'Refunded at', type: 'datetime' },
-      { key: 'reference', label: 'Booking', type: 'text' },
-      { key: 'booking_status', label: 'Booking status', type: 'text' },
-      { key: 'provider', label: 'Provider', type: 'text' },
-      { key: 'customer', label: 'Customer', type: 'text' },
-      { key: 'amount', label: 'Amount (KWD)', type: 'money' },
-      { key: 'paid_at', label: 'Paid at', type: 'datetime' },
-      { key: 'refund_reference', label: 'Refund reference', type: 'text' },
-      { key: 'refunded_by', label: 'Refunded by', type: 'text' },
-      { key: 'cancelled_by', label: 'Cancelled by', type: 'text' },
-      { key: 'cancel_reason', label: 'Cancel reason', type: 'text' },
-    ],
-    rows: rows.map((row) => ({
-      kind: row.kind,
-      refunded_at: iso(row.refunded_at),
-      reference: row.reference,
-      booking_status: label(row.booking_status),
-      provider: row.provider_name,
-      customer: customerName(row),
-      amount: fils(row.amount),
-      paid_at: iso(row.paid_at),
-      refund_reference: row.refund_reference ?? '',
-      refunded_by: row.refunded_by ?? '',
-      cancelled_by: row.cancelled_by ?? '',
-      cancel_reason: row.cancel_reason ?? '',
-    })),
-  }
-}
-
-// -------------------------------------------------- 3. provider statement
-
-async function providerStatement(filters: ReportFilters): Promise<ReportResult> {
-  const { start, end } = bounds(filters)
-  const query = db
-    .from('rental_bookings as b')
-    .join('rental_providers as p', 'p.id', 'b.provider_id')
-    .join('customers as c', 'c.id', 'b.customer_id')
-    .join('rental_vehicles as v', 'v.id', 'b.vehicle_id')
-    .leftJoin('rental_drivers as dr', 'dr.id', 'b.driver_id')
-    .whereIn('b.status', ['confirmed', 'completed', 'cancelled', 'refund_required'])
-    .whereNotNull('b.confirmed_at')
-    .where('b.pickup_at', '>=', start)
-    .where('b.pickup_at', '<', end)
-    .select(
-      'b.id',
-      'b.reference',
-      'b.status',
-      'b.pickup_at',
-      'b.return_at',
-      'b.days',
-      'b.with_driver',
-      'b.driver_daily_rate',
-      'b.rental_amount',
-      'b.booking_fee',
-      'b.provider_id',
-      'p.name_en as provider_name',
-      'v.name_en as vehicle_name',
-      'c.first_name',
-      'c.last_name',
-      'dr.name as driver_name',
-      db.raw(
-        "(select count(*) from rental_payments rp where rp.booking_id = b.id and rp.status = 'paid') as fee_paid"
-      )
-    )
-    .orderBy('b.pickup_at', 'desc')
-    .limit(MAX_REPORT_ROWS + 1)
-  if (filters.provider) query.where('b.provider_id', filters.provider)
-  const all = limited((await query) as Row[])
-  // Rentals that count towards what the provider earns.
-  const earning = (row: Row) => ['confirmed', 'completed'].includes(row.status)
-  const driverCharge = (row: Row) =>
-    row.with_driver ? Number(row.days) * fils(row.driver_daily_rate) : 0
-  const feeOf = (row: Row) => (Number(row.fee_paid) > 0 ? fils(row.booking_fee) : 0)
-  const rentals = all.filter(earning)
-  const summary: SummaryItem[] = [
-    { label: 'Rentals', value: rentals.length, type: 'int' },
-    { label: 'Rental value', value: sum(rentals, (row) => fils(row.rental_amount)), type: 'money' },
-    { label: 'of which driver', value: sum(rentals, driverCharge), type: 'money' },
-    { label: 'Booking fees (ours)', value: sum(rentals, feeOf), type: 'money' },
-  ]
-  const note =
-    'Rental value is paid by the customer to the provider at pickup. The booking fee is paid in the app to the platform. Rentals are counted by pickup date; cancelled ones are not included in the amounts.'
-
-  if (filters.view === 'bookings') {
-    return {
-      note,
-      summary,
-      columns: [
-        { key: 'provider', label: 'Provider', type: 'text' },
-        { key: 'reference', label: 'Booking', type: 'text' },
-        { key: 'status', label: 'Status', type: 'text' },
-        { key: 'pickup_at', label: 'Pickup', type: 'datetime' },
-        { key: 'return_at', label: 'Return', type: 'datetime' },
-        { key: 'days', label: 'Days', type: 'int' },
-        { key: 'vehicle', label: 'Vehicle', type: 'text' },
-        { key: 'customer', label: 'Customer', type: 'text' },
-        { key: 'driver', label: 'Driver', type: 'text' },
-        { key: 'rental', label: 'Rental value (KWD)', type: 'money' },
-        { key: 'driver_charge', label: 'Driver charge (KWD)', type: 'money' },
-        { key: 'fee', label: 'Booking fee (KWD)', type: 'money' },
-      ],
-      rows: [...all]
-        .sort(
-          (a, b) =>
-            String(a.provider_name).localeCompare(String(b.provider_name)) ||
-            new Date(b.pickup_at).getTime() - new Date(a.pickup_at).getTime()
-        )
-        .map((row) => ({
-          provider: row.provider_name,
-          reference: row.reference,
-          status: label(row.status),
-          pickup_at: iso(row.pickup_at),
-          return_at: iso(row.return_at),
-          days: Number(row.days),
-          vehicle: row.vehicle_name,
-          customer: customerName(row),
-          driver: row.driver_name ?? (row.with_driver ? 'Not assigned' : ''),
-          rental: earning(row) ? fils(row.rental_amount) : 0,
-          driver_charge: earning(row) ? driverCharge(row) : 0,
-          fee: earning(row) ? feeOf(row) : 0,
-        })),
-    }
-  }
-
-  const byProvider = new Map<number, Row[]>()
-  for (const row of all) {
-    const id = Number(row.provider_id)
-    byProvider.set(id, [...(byProvider.get(id) ?? []), row])
-  }
-  return {
-    note,
-    summary,
-    columns: [
-      { key: 'provider', label: 'Provider', type: 'text' },
-      { key: 'rentals', label: 'Rentals', type: 'int' },
-      { key: 'completed', label: 'Completed', type: 'int' },
-      { key: 'cancelled', label: 'Cancelled', type: 'int' },
-      { key: 'days', label: 'Rental days', type: 'int' },
-      { key: 'rental', label: 'Rental value (KWD)', type: 'money' },
-      { key: 'driver_charge', label: 'of which driver (KWD)', type: 'money' },
-      { key: 'fee', label: 'Booking fees (KWD)', type: 'money' },
-    ],
-    rows: [...byProvider.values()]
-      .map((items) => {
-        const earned = items.filter(earning)
-        return {
-          provider: items[0].provider_name,
-          rentals: earned.length,
-          completed: items.filter((row) => row.status === 'completed').length,
-          cancelled: items.filter((row) => ['cancelled', 'refund_required'].includes(row.status))
-            .length,
-          days: sum(earned, (row) => Number(row.days)),
-          rental: sum(earned, (row) => fils(row.rental_amount)),
-          driver_charge: sum(earned, driverCharge),
-          fee: sum(earned, feeOf),
-        }
-      })
-      .sort((a, b) => String(a.provider).localeCompare(String(b.provider))),
-  }
-}
-
-// ------------------------------------------------------ 5. bookings detail
+// ------------------------------------------------------ 2. bookings detail
 
 async function bookingsDetail(filters: ReportFilters): Promise<ReportResult> {
   await expireStaleHolds()
@@ -537,44 +352,61 @@ async function bookingsDetail(filters: ReportFilters): Promise<ReportResult> {
   const live = rows.filter((row) => ['confirmed', 'completed'].includes(row.status))
   return {
     summary: [
-      { label: 'Bookings', value: rows.length, type: 'int' },
-      { label: 'Confirmed or completed', value: live.length, type: 'int' },
+      { label: 'Bookings', value: rows.length, type: 'int', hint: 'All bookings in the period' },
+      {
+        label: 'Confirmed or completed',
+        value: live.length,
+        type: 'int',
+        hint: 'Paid and not cancelled',
+      },
       {
         label: 'Cancelled',
         value: rows.filter((row) => ['cancelled', 'refund_required'].includes(row.status)).length,
         type: 'int',
+        hint: 'By customer or staff',
       },
-      { label: 'Rental value', value: sum(live, (row) => fils(row.rental_amount)), type: 'money' },
-      { label: 'Booking fees', value: sum(live, (row) => fils(row.booking_fee)), type: 'money' },
+      {
+        label: 'Rental value',
+        value: sum(live, (row) => fils(row.rental_amount)),
+        type: 'money',
+        hint: 'Paid to providers at pickup',
+      },
+      {
+        label: 'Booking fees',
+        value: sum(live, (row) => fils(row.booking_fee)),
+        type: 'money',
+        hint: 'Paid in the app',
+      },
     ],
     columns: [
       { key: 'reference', label: 'Reference', type: 'text' },
       { key: 'status', label: 'Status', type: 'text' },
-      { key: 'created_at', label: 'Booked at', type: 'datetime' },
+      { key: 'created_at', label: 'Booked at', type: 'datetime', detail: true },
       { key: 'customer', label: 'Customer', type: 'text' },
-      { key: 'phone', label: 'Phone', type: 'text' },
+      { key: 'phone', label: 'Phone', type: 'text', detail: true },
       { key: 'provider', label: 'Provider', type: 'text' },
-      { key: 'vehicle', label: 'Vehicle', type: 'text' },
-      { key: 'pickup_branch', label: 'Pickup branch', type: 'text' },
-      { key: 'return_branch', label: 'Return branch', type: 'text' },
+      { key: 'vehicle', label: 'Vehicle', type: 'text', detail: true },
+      { key: 'pickup_branch', label: 'Pickup branch', type: 'text', detail: true },
+      { key: 'return_branch', label: 'Return branch', type: 'text', detail: true },
       { key: 'pickup_at', label: 'Pickup', type: 'datetime' },
-      { key: 'return_at', label: 'Return', type: 'datetime' },
-      { key: 'days', label: 'Days', type: 'int' },
-      { key: 'with_driver', label: 'With driver', type: 'text' },
-      { key: 'driver', label: 'Driver', type: 'text' },
-      { key: 'daily_rate', label: 'Daily rate (KWD)', type: 'money' },
+      { key: 'return_at', label: 'Return', type: 'datetime', detail: true },
+      { key: 'days', label: 'Days', type: 'int', detail: true },
+      { key: 'with_driver', label: 'With driver', type: 'text', detail: true },
+      { key: 'driver', label: 'Driver', type: 'text', detail: true },
+      { key: 'daily_rate', label: 'Daily rate (KWD)', type: 'money', detail: true },
       { key: 'rental_amount', label: 'Rental value (KWD)', type: 'money' },
-      { key: 'fee', label: 'Booking fee (KWD)', type: 'money' },
+      { key: 'fee', label: 'Booking fee (KWD)', type: 'money', detail: true },
       { key: 'payment_status', label: 'Fee status', type: 'text' },
-      { key: 'payment_method', label: 'Payment method', type: 'text' },
-      { key: 'paid_at', label: 'Paid at', type: 'datetime' },
-      { key: 'refunded_at', label: 'Refunded at', type: 'datetime' },
-      { key: 'cancelled_by', label: 'Cancelled by', type: 'text' },
-      { key: 'cancel_reason', label: 'Cancel reason', type: 'text' },
+      { key: 'payment_method', label: 'Payment method', type: 'text', detail: true },
+      { key: 'paid_at', label: 'Paid at', type: 'datetime', detail: true },
+      { key: 'refunded_at', label: 'Refunded at', type: 'datetime', detail: true },
+      { key: 'cancelled_by', label: 'Cancelled by', type: 'text', detail: true },
+      { key: 'cancel_reason', label: 'Cancel reason', type: 'text', detail: true },
     ],
     rows: rows.map((row) => {
       const snapshot = parseSnapshot(row.snapshot)
       return {
+        _href: `/admin/rentals/bookings/${row.id}`,
         reference: row.reference,
         status: label(row.status),
         created_at: iso(row.created_at),
@@ -603,286 +435,12 @@ async function bookingsDetail(filters: ReportFilters): Promise<ReportResult> {
   }
 }
 
-// ------------------------------------------------- 4. payment reconciliation
-
-const ISSUES = {
-  no_paid_fee: 'Active without a paid fee',
-  paid_twice: 'Paid more than once',
-  not_refunded: 'Paid but not refunded',
-  refund_pending: 'Refund pending',
-  amount_mismatch: 'Amount differs from fee',
-} as const
-type IssueCode = keyof typeof ISSUES
-
-/** Loads payments for many bookings without one huge `where in`. */
-async function paymentsFor(bookingIds: number[]) {
-  const byBooking = new Map<number, Row[]>()
-  for (let index = 0; index < bookingIds.length; index += 1000) {
-    const rows = (await db
-      .from('rental_payments')
-      .whereIn('booking_id', bookingIds.slice(index, index + 1000))
-      .orderBy('id')) as Row[]
-    for (const row of rows) {
-      const id = Number(row.booking_id)
-      byBooking.set(id, [...(byBooking.get(id) ?? []), row])
-    }
-  }
-  return byBooking
-}
-
-async function reconciliation(filters: ReportFilters): Promise<ReportResult> {
-  await expireStaleHolds()
-  const { start, end } = bounds(filters)
-  const query = db
-    .from('rental_bookings as b')
-    .join('rental_providers as p', 'p.id', 'b.provider_id')
-    .join('customers as c', 'c.id', 'b.customer_id')
-    .where('b.created_at', '>=', start)
-    .where('b.created_at', '<', end)
-    .select(
-      'b.id',
-      'b.reference',
-      'b.status',
-      'b.booking_fee',
-      'b.created_at',
-      'p.name_en as provider_name',
-      'c.first_name',
-      'c.last_name'
-    )
-    .orderBy('b.id', 'desc')
-    .limit(MAX_REPORT_ROWS + 1)
-  if (filters.provider) query.where('b.provider_id', filters.provider)
-  const bookings = limited((await query) as Row[])
-  const payments = await paymentsFor(bookings.map((row) => Number(row.id)))
-
-  const issues: Row[] = []
-  for (const booking of bookings) {
-    const list = payments.get(Number(booking.id)) ?? []
-    const paid = list.filter((row) => row.status === 'paid')
-    const refunded = list.filter((row) => row.status === 'refunded')
-    const add = (code: IssueCode, detail: string, amount: number, payment?: Row) =>
-      issues.push({
-        code,
-        issue: ISSUES[code],
-        reference: booking.reference,
-        booking_status: label(booking.status),
-        provider: booking.provider_name,
-        customer: customerName(booking),
-        created_at: iso(booking.created_at),
-        amount,
-        detail,
-        invoice_id: payment?.invoice_id ?? '',
-        payment_id: payment?.payment_id ?? '',
-      })
-    if (['confirmed', 'completed'].includes(booking.status) && !paid.length)
-      add(
-        'no_paid_fee',
-        refunded.length
-          ? 'The fee was refunded but the booking is still active.'
-          : 'No paid payment is recorded for this booking.',
-        0,
-        refunded[0] ?? list[list.length - 1]
-      )
-    if (paid.length > 1)
-      add(
-        'paid_twice',
-        `${paid.length} paid payments for one booking. Refund the extra one.`,
-        sum(paid.slice(1), (row) => fils(row.amount)),
-        paid[1]
-      )
-    if (['cancelled', 'expired'].includes(booking.status) && paid.length)
-      add(
-        'not_refunded',
-        `The booking is ${label(booking.status).toLowerCase()} but the fee is still paid.`,
-        sum(paid, (row) => fils(row.amount)),
-        paid[0]
-      )
-    if (booking.status === 'refund_required' && paid.length)
-      add(
-        'refund_pending',
-        'Marked for refund; the refund has not been made yet.',
-        sum(paid, (row) => fils(row.amount)),
-        paid[0]
-      )
-    for (const payment of [...paid, ...refunded])
-      if (fils(payment.amount) !== fils(booking.booking_fee))
-        add(
-          'amount_mismatch',
-          `Payment ${kwd(fils(payment.amount))} KWD, booking fee ${kwd(fils(booking.booking_fee))} KWD.`,
-          fils(payment.amount) - fils(booking.booking_fee),
-          payment
-        )
-  }
-  const shown = issues.filter((row) => !filters.status || row.code === filters.status)
-  return {
-    note: 'Compares each booking with the payment results stored from MyFatoorah. Bookings are taken by checkout date. Unfinished checkouts are normal and not listed.',
-    summary: [
-      { label: 'Bookings checked', value: bookings.length, type: 'int' },
-      { label: 'Issues', value: shown.length, type: 'int' },
-      {
-        label: 'Bookings with issues',
-        value: new Set(shown.map((row) => row.reference)).size,
-        type: 'int',
-      },
-      {
-        label: 'Amount involved',
-        value: sum(shown, (row) => Math.abs(Number(row.amount))),
-        type: 'money',
-      },
-    ],
-    columns: [
-      { key: 'issue', label: 'Issue', type: 'text' },
-      { key: 'reference', label: 'Booking', type: 'text' },
-      { key: 'booking_status', label: 'Booking status', type: 'text' },
-      { key: 'provider', label: 'Provider', type: 'text' },
-      { key: 'customer', label: 'Customer', type: 'text' },
-      { key: 'created_at', label: 'Booked at', type: 'datetime' },
-      { key: 'amount', label: 'Amount (KWD)', type: 'money' },
-      { key: 'detail', label: 'Detail', type: 'text' },
-      { key: 'invoice_id', label: 'Invoice ID', type: 'text' },
-      { key: 'payment_id', label: 'Payment ID', type: 'text' },
-    ],
-    rows: shown,
-  }
-}
-
-// ------------------------------------------------ 6. funnel and cancellations
+// ----------------------------------------------------------------- shared
 
 const percent = (part: number, whole: number) =>
   whole ? Math.round((part / whole) * 1000) / 10 : 0
 const isCancelled = (row: Row) => ['cancelled', 'refund_required'].includes(row.status)
 const isEarning = (row: Row) => ['confirmed', 'completed'].includes(row.status)
-
-async function funnelReport(filters: ReportFilters): Promise<ReportResult> {
-  await expireStaleHolds()
-  const { start, end } = bounds(filters)
-  const query = db
-    .from('rental_bookings as b')
-    .join('rental_providers as p', 'p.id', 'b.provider_id')
-    .where('b.created_at', '>=', start)
-    .where('b.created_at', '<', end)
-    .select(
-      'b.status',
-      'b.created_at',
-      'b.confirmed_at',
-      'b.cancelled_by',
-      'b.cancel_reason',
-      'b.rental_amount',
-      'p.name_en as provider_name'
-    )
-    .limit(MAX_REPORT_ROWS + 1)
-  if (filters.provider) query.where('b.provider_id', filters.provider)
-  const rows = limited((await query) as Row[])
-  const paid = rows.filter((row) => row.confirmed_at)
-  const cancelledBy = (who: string) =>
-    rows.filter((row) => isCancelled(row) && row.cancelled_by === who).length
-  const summary: SummaryItem[] = [
-    { label: 'Checkouts started', value: rows.length, type: 'int' },
-    { label: 'Paid', value: paid.length, type: 'int' },
-    { label: 'Conversion', value: percent(paid.length, rows.length), type: 'percent' },
-    {
-      label: 'Completed',
-      value: rows.filter((row) => row.status === 'completed').length,
-      type: 'int',
-    },
-    { label: 'Cancelled by customer', value: cancelledBy('customer'), type: 'int' },
-    { label: 'Cancelled by staff', value: cancelledBy('staff'), type: 'int' },
-    {
-      label: 'Left unpaid',
-      value: rows.filter((row) => row.status === 'expired').length,
-      type: 'int',
-    },
-  ]
-  const note =
-    'Counted by the day the checkout started. Paid means the booking fee went through; left unpaid means the hold ran out before payment.'
-
-  if (filters.view === 'reasons') {
-    const groups = new Map<string, Row[]>()
-    for (const row of rows.filter(isCancelled)) {
-      const reason = String(row.cancel_reason ?? '').trim() || 'No reason given'
-      const key = `${row.cancelled_by ?? 'unknown'}\u0000${reason}`
-      groups.set(key, [...(groups.get(key) ?? []), row])
-    }
-    return {
-      note,
-      summary,
-      columns: [
-        { key: 'cancelled_by', label: 'Cancelled by', type: 'text' },
-        { key: 'reason', label: 'Reason', type: 'text' },
-        { key: 'bookings', label: 'Bookings', type: 'int' },
-        { key: 'paid', label: 'Paid before cancelling', type: 'int' },
-        { key: 'lost', label: 'Rental value lost (KWD)', type: 'money' },
-      ],
-      rows: [...groups.entries()]
-        .map(([key, items]) => {
-          const [who, reason] = key.split('\u0000')
-          const wasPaid = items.filter((row) => row.confirmed_at)
-          return {
-            cancelled_by: who === 'customer' ? 'Customer' : who === 'staff' ? 'Staff' : who,
-            reason,
-            bookings: items.length,
-            paid: wasPaid.length,
-            lost: sum(wasPaid, (row) => fils(row.rental_amount)),
-          }
-        })
-        .sort((a, b) => b.bookings - a.bookings),
-    }
-  }
-
-  const group = ['month', 'provider'].includes(filters.view) ? filters.view : 'day'
-  const keyOf = (row: Row) => {
-    if (group === 'provider') return row.provider_name
-    const at = DateTime.fromJSDate(new Date(row.created_at)).setZone(KUWAIT)
-    return at.toFormat(group === 'month' ? 'yyyy-MM' : 'yyyy-MM-dd')
-  }
-  const groups = new Map<string, Row[]>()
-  for (const row of rows) {
-    const key = keyOf(row)
-    groups.set(key, [...(groups.get(key) ?? []), row])
-  }
-  return {
-    note,
-    summary,
-    columns: [
-      {
-        key: 'group',
-        label: { day: 'Day', month: 'Month', provider: 'Provider' }[group]!,
-        type: 'text',
-      },
-      { key: 'started', label: 'Checkouts started', type: 'int' },
-      { key: 'paid', label: 'Paid', type: 'int' },
-      { key: 'conversion', label: 'Conversion', type: 'percent' },
-      { key: 'completed', label: 'Completed', type: 'int' },
-      { key: 'cancelled', label: 'Cancelled', type: 'int' },
-      { key: 'expired', label: 'Left unpaid', type: 'int' },
-    ],
-    rows: [...groups.entries()]
-      .sort(([a], [b]) => (group === 'provider' ? a.localeCompare(b) : b.localeCompare(a)))
-      .map(([key, items]) => {
-        const done = items.filter((row) => row.confirmed_at).length
-        return {
-          group: key,
-          started: items.length,
-          paid: done,
-          conversion: percent(done, items.length),
-          completed: items.filter((row) => row.status === 'completed').length,
-          cancelled: items.filter(isCancelled).length,
-          expired: items.filter((row) => row.status === 'expired').length,
-        }
-      }),
-  }
-}
-
-// ---------------------------------------------- 7. vehicle and fleet performance
-
-const DAY_MS = 24 * 60 * 60 * 1000
-
-/** Days of a rental that fall inside the report range. */
-function overlapDays(row: Row, start: Date, end: Date) {
-  const from = Math.max(new Date(row.pickup_at).getTime(), start.getTime())
-  const to = Math.min(new Date(row.return_at).getTime(), end.getTime())
-  return Math.max(0, to - from) / DAY_MS
-}
 
 /** Published review average and count per vehicle or provider (all time). */
 async function ratings(column: 'vehicle_id' | 'provider_id') {
@@ -928,108 +486,7 @@ function overlapping(start: Date, end: Date, provider: number | null) {
   return query
 }
 
-async function vehicleReport(filters: ReportFilters): Promise<ReportResult> {
-  const { start, end } = bounds(filters)
-  const rangeDays = (end.getTime() - start.getTime()) / DAY_MS
-  const vehicleQuery = db
-    .from('rental_vehicles as v')
-    .join('rental_providers as p', 'p.id', 'v.provider_id')
-    .leftJoin('rental_vehicle_types as t', 't.code', 'v.vehicle_type')
-    .select(
-      'v.id',
-      'v.name_en',
-      'v.quantity',
-      'v.status',
-      'v.vehicle_type',
-      't.name_en as type_name',
-      'p.name_en as provider_name'
-    )
-    .orderBy('v.name_en')
-    .limit(MAX_REPORT_ROWS + 1)
-  if (filters.provider) vehicleQuery.where('v.provider_id', filters.provider)
-  const [vehicles, bookings, reviews, lastRows] = await Promise.all([
-    vehicleQuery as Promise<Row[]>,
-    overlapping(start, end, filters.provider) as Promise<Row[]>,
-    ratings('vehicle_id'),
-    db
-      .from('rental_bookings')
-      .whereNotNull('confirmed_at')
-      .groupBy('vehicle_id')
-      .select('vehicle_id')
-      .max('pickup_at as last') as Promise<Row[]>,
-  ])
-  limited(vehicles)
-  limited(bookings)
-  const last = new Map(lastRows.map((row) => [Number(row.vehicle_id), row.last]))
-  const pickedUpInRange = (row: Row) =>
-    new Date(row.pickup_at) >= start && new Date(row.pickup_at) < end
-  const rows = vehicles.map((vehicle) => {
-    const mine = bookings.filter((row) => Number(row.vehicle_id) === Number(vehicle.id))
-    const earning = mine.filter(isEarning)
-    const units = Math.max(1, Number(vehicle.quantity))
-    const booked = sum(earning, (row) => overlapDays(row, start, end))
-    const review = reviews.get(Number(vehicle.id))
-    return {
-      vehicle: vehicle.name_en,
-      provider: vehicle.provider_name,
-      type: vehicle.type_name ?? vehicle.vehicle_type,
-      status: vehicle.status === 'published' ? 'Published' : 'Draft',
-      units,
-      rentals: earning.filter(pickedUpInRange).length,
-      booked_days: Math.round(booked * 10) / 10,
-      utilization: percent(booked, units * rangeDays),
-      rental: sum(earning.filter(pickedUpInRange), (row) => fils(row.rental_amount)),
-      cancelled: mine.filter(isCancelled).filter(pickedUpInRange).length,
-      rating: review ? Math.round(review.average * 10) / 10 : null,
-      reviews: review?.total ?? 0,
-      last_booked: iso(last.get(Number(vehicle.id))),
-      _booked: booked,
-      _units: units,
-    }
-  })
-  const shown = (filters.view === 'unbooked' ? rows.filter((row) => row._booked === 0) : rows).sort(
-    (a, b) => b.rental - a.rental || b.booked_days - a.booked_days
-  )
-  return {
-    note: 'Utilization is booked days divided by available days (units × days in the range). Rentals and rental value count pickups in the range; ratings are all time.',
-    summary: [
-      { label: 'Vehicles', value: shown.length, type: 'int' },
-      {
-        label: 'Not booked in period',
-        value: shown.filter((row) => row._booked === 0).length,
-        type: 'int',
-      },
-      { label: 'Rentals', value: sum(shown, (row) => row.rentals), type: 'int' },
-      {
-        label: 'Fleet utilization',
-        value: percent(
-          sum(shown, (row) => row._booked),
-          sum(shown, (row) => row._units) * rangeDays
-        ),
-        type: 'percent',
-      },
-      { label: 'Rental value', value: sum(shown, (row) => row.rental), type: 'money' },
-    ],
-    columns: [
-      { key: 'vehicle', label: 'Vehicle', type: 'text' },
-      { key: 'provider', label: 'Provider', type: 'text' },
-      { key: 'type', label: 'Type', type: 'text' },
-      { key: 'status', label: 'Status', type: 'text' },
-      { key: 'units', label: 'Units', type: 'int' },
-      { key: 'rentals', label: 'Rentals', type: 'int' },
-      { key: 'booked_days', label: 'Booked days', type: 'decimal' },
-      { key: 'utilization', label: 'Utilization', type: 'percent' },
-      { key: 'rental', label: 'Rental value (KWD)', type: 'money' },
-      { key: 'cancelled', label: 'Cancelled', type: 'int' },
-      { key: 'rating', label: 'Rating', type: 'decimal' },
-      { key: 'reviews', label: 'Reviews', type: 'int' },
-      { key: 'last_booked', label: 'Last pickup', type: 'datetime' },
-    ],
-    rows: shown.map(({ _booked, _units, ...row }) => row),
-  }
-}
-
-// -------------------------------------------- 8. provider and branch performance
+// ------------------------------------------------ 3. provider and branch performance
 
 async function providerPerformance(filters: ReportFilters): Promise<ReportResult> {
   const { start, end } = bounds(filters)
@@ -1042,18 +499,26 @@ async function providerPerformance(filters: ReportFilters): Promise<ReportResult
   const cancelled = bookings.filter(isCancelled)
   const reviews = await ratings('provider_id')
   const summary: SummaryItem[] = [
-    { label: 'Rentals', value: earning.length, type: 'int' },
-    { label: 'Rental value', value: sum(earning, (row) => fils(row.rental_amount)), type: 'money' },
-    { label: 'Cancelled', value: cancelled.length, type: 'int' },
+    {
+      label: 'Rentals',
+      value: earning.length,
+      type: 'int',
+      hint: 'Confirmed or completed pickups',
+    },
+    {
+      label: 'Rental value',
+      value: sum(earning, (row) => fils(row.rental_amount)),
+      type: 'money',
+      hint: 'Paid to providers at pickup',
+    },
+    { label: 'Cancelled', value: cancelled.length, type: 'int', hint: 'Paid, then cancelled' },
     {
       label: 'Cancellation rate',
       value: percent(cancelled.length, bookings.length),
       type: 'percent',
+      hint: 'Cancelled ÷ all paid bookings',
     },
   ]
-  const note =
-    'Paid bookings counted by pickup date. Cancellation rate is cancelled ÷ all paid bookings. Ratings are all time.'
-
   if (filters.view === 'branch') {
     const branchQuery = db
       .from('rental_locations as l')
@@ -1071,17 +536,16 @@ async function providerPerformance(filters: ReportFilters): Promise<ReportResult
     if (filters.provider) branchQuery.where('l.provider_id', filters.provider)
     const branches = (await branchQuery) as Row[]
     return {
-      note,
       summary,
       columns: [
         { key: 'branch', label: 'Branch', type: 'text' },
-        { key: 'place', label: 'Pickup place', type: 'text' },
+        { key: 'place', label: 'Pickup place', type: 'text', detail: true },
         { key: 'provider', label: 'Provider', type: 'text' },
-        { key: 'active', label: 'Active', type: 'text' },
+        { key: 'active', label: 'Active', type: 'text', detail: true },
         { key: 'pickups', label: 'Pickups', type: 'int' },
         { key: 'returns', label: 'Returns', type: 'int' },
         { key: 'rental', label: 'Rental value (KWD)', type: 'money' },
-        { key: 'cancelled', label: 'Cancelled', type: 'int' },
+        { key: 'cancelled', label: 'Cancelled', type: 'int', detail: true },
       ],
       rows: branches
         .map((branch) => {
@@ -1116,22 +580,21 @@ async function providerPerformance(filters: ReportFilters): Promise<ReportResult
   if (filters.provider) providerQuery.where('p.id', filters.provider)
   const providers = (await providerQuery) as Row[]
   return {
-    note,
     summary,
     columns: [
       { key: 'provider', label: 'Provider', type: 'text' },
-      { key: 'active', label: 'Active', type: 'text' },
-      { key: 'published', label: 'Published vehicles', type: 'int' },
+      { key: 'active', label: 'Active', type: 'text', detail: true },
+      { key: 'published', label: 'Published vehicles', type: 'int', detail: true },
       { key: 'rentals', label: 'Rentals', type: 'int' },
-      { key: 'with_driver', label: 'With driver', type: 'int' },
-      { key: 'needs_driver', label: 'Needs a driver', type: 'int' },
+      { key: 'with_driver', label: 'With driver', type: 'int', detail: true },
+      { key: 'needs_driver', label: 'Needs a driver', type: 'int', detail: true },
       { key: 'rental', label: 'Rental value (KWD)', type: 'money' },
       { key: 'cancelled', label: 'Cancelled', type: 'int' },
-      { key: 'by_customer', label: 'by customer', type: 'int' },
-      { key: 'by_staff', label: 'by staff', type: 'int' },
+      { key: 'by_customer', label: 'by customer', type: 'int', detail: true },
+      { key: 'by_staff', label: 'by staff', type: 'int', detail: true },
       { key: 'cancel_rate', label: 'Cancellation rate', type: 'percent' },
       { key: 'rating', label: 'Rating', type: 'decimal' },
-      { key: 'reviews', label: 'Reviews', type: 'int' },
+      { key: 'reviews', label: 'Reviews', type: 'int', detail: true },
     ],
     rows: providers
       .map((provider) => {
@@ -1162,6 +625,133 @@ async function providerPerformance(filters: ReportFilters): Promise<ReportResult
   }
 }
 
+// ------------------------------------------------------------ 4. customers
+
+async function customerReport(filters: ReportFilters): Promise<ReportResult> {
+  const { start, end } = bounds(filters)
+  // Paid bookings made in the range.
+  const query = db
+    .from('rental_bookings as b')
+    .join('customers as c', 'c.id', 'b.customer_id')
+    .whereNotNull('b.confirmed_at')
+    .where('b.created_at', '>=', start)
+    .where('b.created_at', '<', end)
+    .select(
+      'b.customer_id',
+      'b.status',
+      'b.rental_amount',
+      'b.booking_fee',
+      'b.created_at',
+      'c.first_name',
+      'c.last_name',
+      'c.phone_e164',
+      'c.email',
+      'c.created_at as registered_at'
+    )
+    .limit(MAX_REPORT_ROWS + 1)
+  if (filters.provider) query.where('b.provider_id', filters.provider)
+  const bookings = limited((await query) as Row[])
+  const byCustomer = new Map<number, Row[]>()
+  for (const row of bookings) {
+    const id = Number(row.customer_id)
+    byCustomer.set(id, [...(byCustomer.get(id) ?? []), row])
+  }
+  // Lifetime paid bookings tell a new customer from a returning one.
+  const lifetime = new Map<number, { total: number; first: Date }>()
+  const ids = [...byCustomer.keys()]
+  for (let index = 0; index < ids.length; index += 1000) {
+    const rows = (await db
+      .from('rental_bookings')
+      .whereNotNull('confirmed_at')
+      .whereIn('customer_id', ids.slice(index, index + 1000))
+      .groupBy('customer_id')
+      .select('customer_id')
+      .count('* as total')
+      .min('created_at as first')) as Row[]
+    for (const row of rows)
+      lifetime.set(Number(row.customer_id), {
+        total: Number(row.total),
+        first: new Date(row.first),
+      })
+  }
+  const rows = [...byCustomer.entries()].map(([id, items]) => {
+    const earned = items.filter(isEarning)
+    const lost = items.filter(isCancelled)
+    const life = lifetime.get(id)
+    const isNew = life ? life.first >= start : true
+    return {
+      customer: customerName(items[0]),
+      phone: items[0].phone_e164 ?? '',
+      email: items[0].email ?? '',
+      registered_at: iso(items[0].registered_at),
+      type: isNew ? 'New' : 'Returning',
+      bookings: items.length,
+      completed: items.filter((row) => row.status === 'completed').length,
+      cancelled: lost.length,
+      cancel_rate: percent(lost.length, items.length),
+      rental: sum(earned, (row) => fils(row.rental_amount)),
+      fees: sum(items, (row) => fils(row.booking_fee)),
+      lifetime: life?.total ?? items.length,
+      last_booking: iso(
+        items.reduce(
+          (latest, row) => (new Date(row.created_at) > latest ? new Date(row.created_at) : latest),
+          new Date(0)
+        )
+      ),
+    }
+  })
+  const shown = rows
+    .filter((row) =>
+      filters.view === 'repeat'
+        ? row.lifetime >= 2
+        : filters.view === 'cancellers'
+          ? row.cancelled >= 2
+          : true
+    )
+    .sort((a, b) => b.rental - a.rental || b.bookings - a.bookings)
+  const returning = shown.filter((row) => row.type === 'Returning').length
+  return {
+    summary: [
+      { label: 'Customers', value: shown.length, type: 'int', hint: 'With a paid booking' },
+      {
+        label: 'New',
+        value: shown.length - returning,
+        type: 'int',
+        hint: 'First booking in this period',
+      },
+      { label: 'Returning', value: returning, type: 'int', hint: 'Booked before this period' },
+      {
+        label: 'Returning share',
+        value: percent(returning, shown.length),
+        type: 'percent',
+        hint: 'Returning ÷ all customers',
+      },
+      {
+        label: 'Value per customer',
+        value: shown.length ? Math.round(sum(shown, (row) => row.rental) / shown.length) : 0,
+        type: 'money',
+        hint: 'Rental value ÷ customers',
+      },
+    ],
+    columns: [
+      { key: 'customer', label: 'Customer', type: 'text' },
+      { key: 'phone', label: 'Phone', type: 'text' },
+      { key: 'email', label: 'Email', type: 'text', detail: true },
+      { key: 'type', label: 'Type', type: 'text' },
+      { key: 'bookings', label: 'Paid bookings', type: 'int' },
+      { key: 'completed', label: 'Completed', type: 'int', detail: true },
+      { key: 'cancelled', label: 'Cancelled', type: 'int', detail: true },
+      { key: 'cancel_rate', label: 'Cancellation rate', type: 'percent', detail: true },
+      { key: 'rental', label: 'Rental value (KWD)', type: 'money' },
+      { key: 'fees', label: 'Booking fees (KWD)', type: 'money', detail: true },
+      { key: 'lifetime', label: 'All-time bookings', type: 'int', detail: true },
+      { key: 'last_booking', label: 'Last booking', type: 'datetime' },
+      { key: 'registered_at', label: 'Registered', type: 'datetime', detail: true },
+    ],
+    rows: shown,
+  }
+}
+
 // --------------------------------------------------------------- registry
 
 const providerFilter = (providers: FilterOption[]): ReportFilter => ({
@@ -1177,9 +767,7 @@ export const reports: ReportDefinition[] = [
   {
     key: 'booking-fees',
     title: 'Booking fee collection',
-    group: 'Financial',
-    description:
-      'Booking fees paid in the app, with refunds and net revenue. Group by day, month, provider or payment method.',
+    menuLabel: 'Booking fees',
     filters: (providers) => [
       from,
       to,
@@ -1205,71 +793,9 @@ export const reports: ReportDefinition[] = [
     run: feeReport,
   },
   {
-    key: 'refunds',
-    title: 'Refunds',
-    group: 'Financial',
-    description:
-      'Every booking fee refunded, who issued it, and the bookings still waiting for a refund.',
-    filters: (providers) => [
-      from,
-      to,
-      providerFilter(providers),
-      {
-        key: 'status',
-        label: 'Refunded and awaiting',
-        kind: 'select',
-        options: [
-          { value: 'refunded', label: 'Refunded only' },
-          { value: 'awaiting', label: 'Awaiting refund only' },
-        ],
-      },
-    ],
-    run: refundReport,
-  },
-  {
-    key: 'provider-statement',
-    title: 'Provider statement',
-    group: 'Financial',
-    description:
-      'Per provider: rentals, rental value, driver charges and booking fees for settlement.',
-    filters: (providers) => [
-      from,
-      to,
-      providerFilter(providers),
-      {
-        key: 'view',
-        label: 'Summary per provider',
-        kind: 'select',
-        options: [{ value: 'bookings', label: 'Booking by booking' }],
-      },
-    ],
-    run: providerStatement,
-  },
-  {
-    key: 'reconciliation',
-    title: 'Payment reconciliation',
-    group: 'Financial',
-    description:
-      'Bookings whose payments do not add up: active without a paid fee, paid twice, cancelled but not refunded, or a different amount.',
-    filters: (providers) => [
-      from,
-      to,
-      providerFilter(providers),
-      {
-        key: 'status',
-        label: 'All issues',
-        kind: 'select',
-        options: Object.entries(ISSUES).map(([value, text]) => ({ value, label: text })),
-      },
-    ],
-    run: reconciliation,
-  },
-  {
     key: 'bookings',
     title: 'Bookings detail',
-    group: 'Bookings',
-    description:
-      'Every booking with customer, vehicle, branches, amounts and payment. Filter by date, status or provider.',
+    menuLabel: 'Bookings',
     filters: (providers) => [
       from,
       to,
@@ -1291,53 +817,9 @@ export const reports: ReportDefinition[] = [
     run: bookingsDetail,
   },
   {
-    key: 'funnel',
-    title: 'Funnel and cancellations',
-    group: 'Bookings',
-    description:
-      'Checkouts started, paid, completed and left unpaid, with conversion. See cancellations by reason and who cancelled.',
-    filters: (providers) => [
-      from,
-      to,
-      providerFilter(providers),
-      {
-        key: 'view',
-        label: 'By day',
-        kind: 'select',
-        options: [
-          { value: 'month', label: 'By month' },
-          { value: 'provider', label: 'By provider' },
-          { value: 'reasons', label: 'Cancellation reasons' },
-        ],
-      },
-    ],
-    run: funnelReport,
-  },
-  {
-    key: 'vehicles',
-    title: 'Vehicle performance',
-    group: 'Fleet',
-    description:
-      'Rentals, booked days, utilization, rental value and rating per vehicle, and the vehicles that were not booked.',
-    filters: (providers) => [
-      from,
-      to,
-      providerFilter(providers),
-      {
-        key: 'view',
-        label: 'All vehicles',
-        kind: 'select',
-        options: [{ value: 'unbooked', label: 'Not booked in period' }],
-      },
-    ],
-    run: vehicleReport,
-  },
-  {
     key: 'providers',
     title: 'Provider and branch performance',
-    group: 'Fleet',
-    description:
-      'Per provider: rentals, value, cancellations, drivers and rating. Per branch: pickups, returns and value.',
+    menuLabel: 'Providers and branches',
     filters: (providers) => [
       from,
       to,
@@ -1350,6 +832,26 @@ export const reports: ReportDefinition[] = [
       },
     ],
     run: providerPerformance,
+  },
+  {
+    key: 'customers',
+    title: 'Customers',
+    menuLabel: 'Customers',
+    filters: (providers) => [
+      from,
+      to,
+      providerFilter(providers),
+      {
+        key: 'view',
+        label: 'All customers',
+        kind: 'select',
+        options: [
+          { value: 'repeat', label: 'Repeat customers' },
+          { value: 'cancellers', label: 'Cancelled 2 or more' },
+        ],
+      },
+    ],
+    run: customerReport,
   },
 ]
 

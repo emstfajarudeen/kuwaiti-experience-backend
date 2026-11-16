@@ -1438,7 +1438,7 @@ test.group('Rental provider portal', (group) => {
     })
   }
 
-  test('reports total fees, refunds and provider earnings, and export them', async ({
+  test('booking fee and bookings reports total correctly and export', async ({
     client,
     assert,
   }) => {
@@ -1467,7 +1467,9 @@ test.group('Rental provider portal', (group) => {
     const summary = (response: any) =>
       Object.fromEntries(page(response).props.summary.map((item: any) => [item.label, item.value]))
 
-    assert.equal(page(await get('/admin/rentals/reports')).component, 'rentals/reports')
+    // The reports live in the sidebar; the old index opens the first one.
+    const index = await get('/admin/rentals/reports')
+    assert.equal(index.header('location'), '/admin/rentals/reports/booking-fees')
 
     // 4 paid payments of 2.000, one of them refunded; the unpaid checkout is not revenue.
     const fees = summary(await get(`/admin/rentals/reports/booking-fees?${range}`))
@@ -1478,20 +1480,6 @@ test.group('Rental provider portal', (group) => {
     const grouped = page(await get(`/admin/rentals/reports/booking-fees?${range}&view=provider`))
     assert.equal(grouped.props.rows.length, 1)
     assert.equal(grouped.props.rows[0].net, '6.000')
-
-    const refunds = summary(await get(`/admin/rentals/reports/refunds?${range}`))
-    assert.equal(refunds['Refunds issued'], '1')
-    assert.equal(refunds['Awaiting refund'], '1')
-    assert.equal(refunds['Amount awaiting'], '2.000')
-
-    // Confirmed and completed rentals earn; cancelled and refund-required do not.
-    const statement = summary(await get(`/admin/rentals/reports/provider-statement?${range}`))
-    assert.equal(statement.Rentals, '2')
-    assert.equal(statement['Rental value'], '50.000')
-    const lines = page(
-      await get(`/admin/rentals/reports/provider-statement?${range}&view=bookings`)
-    )
-    assert.equal(lines.props.rows.length, 4)
 
     const detail = page(await get(`/admin/rentals/reports/bookings?${range}`))
     assert.equal(detail.props.meta.total, 4)
@@ -1520,7 +1508,7 @@ test.group('Rental provider portal', (group) => {
     assert.include(page(tooLong).props.problem, 'one year')
   })
 
-  test('phase 2 reports: reconciliation, funnel, vehicles and providers', async ({
+  test('provider and branch performance counts rentals and cancellations', async ({
     client,
     assert,
   }) => {
@@ -1548,55 +1536,6 @@ test.group('Rental provider portal', (group) => {
     const range = `from=${day(-2)}&to=${day(10)}`
     const open = async (path: string) =>
       page(await client.get(path).cookie('admin_access', admin.accessToken).redirects(0)).props
-    const summary = (props: any) =>
-      Object.fromEntries(props.summary.map((item: any) => [item.label, item.value]))
-
-    // Reconciliation flags exactly the four broken bookings.
-    const issues = await open(`/admin/rentals/reports/reconciliation?${range}`)
-    assert.sameMembers(
-      issues.rows.map((row: any) => row.issue),
-      [
-        'Paid but not refunded',
-        'Active without a paid fee',
-        'Paid more than once',
-        'Amount differs from fee',
-      ]
-    )
-    assert.equal(summary(issues)['Bookings checked'], '7')
-    const onlyTwice = await open(`/admin/rentals/reports/reconciliation?${range}&status=paid_twice`)
-    assert.equal(onlyTwice.rows.length, 1)
-    assert.equal(onlyTwice.rows[0].amount, '2.000')
-
-    // Funnel: 7 checkouts, 6 paid, one customer cancellation, one left unpaid.
-    const funnel = summary(await open(`/admin/rentals/reports/funnel?${range}`))
-    assert.equal(funnel['Checkouts started'], '7')
-    assert.equal(funnel.Paid, '6')
-    assert.equal(funnel.Conversion, '85.7%')
-    assert.equal(funnel['Cancelled by customer'], '1')
-    assert.equal(funnel['Left unpaid'], '1')
-    const reasons = await open(`/admin/rentals/reports/funnel?${range}&view=reasons`)
-    assert.deepEqual(reasons.rows, [
-      {
-        cancelled_by: 'Customer',
-        reason: 'Plans changed',
-        bookings: '1',
-        paid: '1',
-        lost: '25.000',
-      },
-    ])
-
-    // Vehicle and provider performance count the five active rentals.
-    const vehicles = await open(`/admin/rentals/reports/vehicles?${range}`)
-    const car = vehicles.rows.find((row: any) => row.rentals === '5')
-    assert.exists(car)
-    assert.equal(car.rental, '125.000')
-    assert.equal(car.booked_days, '10.0')
-    assert.match(car.utilization, /%$/)
-    const unbooked = await open(`/admin/rentals/reports/vehicles?${range}&view=unbooked`)
-    assert.notInclude(
-      unbooked.rows.map((row: any) => row.vehicle),
-      car.vehicle
-    )
     const providers = await open(
       `/admin/rentals/reports/providers?${range}&provider=${ids.providerId}`
     )
@@ -1609,9 +1548,68 @@ test.group('Rental provider portal', (group) => {
     assert.exists(airport)
 
     const xlsx = await client
-      .get(`/admin/rentals/reports/vehicles/export?${range}&format=xlsx`)
+      .get(`/admin/rentals/reports/providers/export?${range}&format=xlsx&view=branch`)
       .cookie('admin_access', admin.accessToken)
     assert.equal(xlsx.status(), 200)
+    // The removed reports are gone.
+    for (const key of [
+      'refunds',
+      'provider-statement',
+      'reconciliation',
+      'funnel',
+      'vehicles',
+      'drivers',
+    ]) {
+      const gone = await client
+        .get(`/admin/rentals/reports/${key}`)
+        .cookie('admin_access', admin.accessToken)
+        .redirects(0)
+      assert.equal(gone.header('location'), '/admin/rentals/reports/booking-fees')
+    }
+  })
+
+  test('customers report tells new from returning customers and finds cancellers', async ({
+    client,
+    assert,
+  }) => {
+    const admin = await staff()
+    const ids = await catalog()
+    const loyal = await customer()
+    const first = await customer()
+    // An old booking makes `loyal` a returning customer.
+    const old = await booking(ids, {
+      pickupInDays: -60,
+      days: 1,
+      status: 'completed',
+      buyer: loyal,
+    })
+    await db
+      .from('rental_bookings')
+      .where('id', old)
+      .update({ created_at: new Date(Date.now() - 61 * DAY) })
+    await booking(ids, { pickupInDays: 1, days: 2, status: 'confirmed', buyer: loyal })
+    await booking(ids, { pickupInDays: 2, days: 2, status: 'confirmed', buyer: first })
+    await booking(ids, { pickupInDays: 3, days: 2, status: 'cancelled', buyer: first })
+    await booking(ids, { pickupInDays: 4, days: 2, status: 'cancelled', buyer: first })
+
+    const day = (offset: number) =>
+      new Date(Date.now() + offset * DAY + 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const range = `from=${day(-2)}&to=${day(10)}`
+    const get = (path: string) => client.get(path).cookie('admin_access', admin.accessToken)
+    const open = async (path: string) => page(await get(path)).props
+    const summary = (props: any) =>
+      Object.fromEntries(props.summary.map((item: any) => [item.label, item.value]))
+
+    const customers = await open(
+      `/admin/rentals/reports/customers?${range}&provider=${ids.providerId}`
+    )
+    const loyalRow = customers.rows.find((row: any) => row.type === 'Returning')
+    assert.equal(loyalRow.lifetime, '2')
+    assert.equal(summary(customers).Returning, '1')
+    const cancellers = await open(`/admin/rentals/reports/customers?${range}&view=cancellers`)
+    assert.equal(cancellers.rows.length, 1)
+    assert.equal(cancellers.rows[0].cancelled, '2')
+    assert.equal(cancellers.rows[0].cancel_rate, '66.7%')
   })
 
   test('report exports keep text cells from running as spreadsheet formulas', async ({

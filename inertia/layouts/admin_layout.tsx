@@ -43,6 +43,36 @@ const navigation: NavSection[] = [
     ],
   },
   {
+    label: 'REPORTS',
+    links: [
+      {
+        href: '/admin/rentals/reports/booking-fees',
+        icon: '▦',
+        label: 'Reports',
+        active: 'reports',
+        permission: 'rental_reports.view',
+        children: [
+          {
+            href: '/admin/rentals/reports/booking-fees',
+            label: 'Booking fees',
+            active: 'report-booking-fees',
+          },
+          { href: '/admin/rentals/reports/bookings', label: 'Bookings', active: 'report-bookings' },
+          {
+            href: '/admin/rentals/reports/providers',
+            label: 'Providers and branches',
+            active: 'report-providers',
+          },
+          {
+            href: '/admin/rentals/reports/customers',
+            label: 'Customers',
+            active: 'report-customers',
+          },
+        ],
+      },
+    ],
+  },
+  {
     label: 'MASTERS',
     links: [
       {
@@ -171,13 +201,6 @@ const navigation: NavSection[] = [
           },
           { href: '/admin/rentals/settings', label: 'Settings', active: 'rental-settings' },
         ],
-      },
-      {
-        href: '/admin/rentals/reports',
-        icon: '▦',
-        label: 'Rental reports',
-        active: 'rental-reports',
-        permission: 'rental_reports.view',
       },
       {
         href: '/admin/rentals/reviews',

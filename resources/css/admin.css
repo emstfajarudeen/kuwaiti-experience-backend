@@ -519,6 +519,9 @@
   .ant-table-wrapper .ant-table-tbody > tr > td { overflow-wrap: anywhere; }
   .ant-table-wrapper .ant-table-thead > tr > th { white-space: nowrap; }
   .ant-table-wrapper .ant-table-content { overflow: visible !important; }
+  /* Wide tables scroll sideways inside their card on every screen size. This must stay in
+     this layer: an !important rule outside it would lose to the one above. */
+  .table-scroll .ant-table-content { overflow-x: auto !important; overflow-y: hidden; }
   @media (max-width: 900px) {
     .cms-table-toolbar { padding: 16px; }
     .cms-table-toolbar-search { flex: 1 1 100%; max-width: none; }
@@ -1632,5 +1635,19 @@ textarea[aria-invalid="true"], input[aria-invalid="true"] { border-color: #b4231
   background: transparent !important;
 }
 
-/* Wide tables scroll sideways inside their card on every screen size. */
-.table-scroll .ant-table-content { overflow-x: auto !important; overflow-y: hidden; }
+
+/* Date range in the table toolbar: one box like the selects next to it. The global input
+   style would otherwise draw a bordered field around each date inside the picker. */
+.cms-table-toolbar-range.ant-picker { flex: 0 0 auto; width: 280px; }
+.cms-table-toolbar-range.ant-picker input,
+.cms-table-toolbar-range.ant-picker input:focus {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+@media (max-width: 900px) {
+  .cms-table-toolbar-range.ant-picker { flex: 1 1 100%; width: 100%; }
+}

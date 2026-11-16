@@ -5,13 +5,14 @@ import { can } from '../../services/authorization_service.js'
 import {
   displayCell,
   displaySummary,
+  defaultRange,
   findReport,
   providerOptions,
   readFilters,
   reports,
   type ReportFilters,
 } from '../../services/rental_report_service.js'
-import { toCsv, toXlsx } from '../../services/rental_report_export.js'
+import { readFormat, reportFile } from '../../services/rental_report_files.js'
 
 const PAGE_SIZE = 50
 
@@ -33,25 +34,14 @@ function queryString(filters: ReportFilters) {
 }
 
 export default class AdminRentalReportsController {
+  /** The reports are listed in the sidebar; the old index opens the first one. */
   async index(ctx: HttpContext) {
-    return ctx.inertia.render(
-      'rentals/reports' as any,
-      {
-        ...shared(ctx),
-        reports: reports.map(({ key, title, group, description }) => ({
-          key,
-          title,
-          group,
-          description,
-        })),
-      },
-      { bodyClass: 'cms-body' }
-    )
+    return ctx.response.redirect(`/admin/rentals/reports/${reports[0].key}`)
   }
 
   async show(ctx: HttpContext) {
     const report = findReport(String(ctx.params.key))
-    if (!report) return ctx.response.redirect('/admin/rentals/reports')
+    if (!report) return ctx.response.redirect(`/admin/rentals/reports/${reports[0].key}`)
     const filters = readFilters(ctx.request.qs())
     const providers = await providerOptions()
     let result
@@ -71,8 +61,9 @@ export default class AdminRentalReportsController {
       'rentals/report' as any,
       {
         ...shared(ctx),
-        report: { key: report.key, title: report.title, description: report.description },
+        report: { key: report.key, title: report.title },
         filterFields: report.filters(providers),
+        defaults: defaultRange(),
         values: {
           from: filters.from,
           to: filters.to,
@@ -89,18 +80,15 @@ export default class AdminRentalReportsController {
           label: item.label,
           value: displaySummary(item),
           type: item.type,
+          hint: item.hint,
         })),
-        note: result?.note ?? null,
-        rows: rows
-          .slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE)
-          .map((row) =>
-            Object.fromEntries(
-              result!.columns.map((column) => [
-                column.key,
-                displayCell(column.type, row[column.key]),
-              ])
-            )
+        rows: rows.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE).map((row) => ({
+          ...Object.fromEntries(
+            result!.columns.map((column) => [column.key, displayCell(column.type, row[column.key])])
           ),
+          // Link to the record behind the row (the booking), when there is one.
+          _href: typeof row._href === 'string' ? row._href : '',
+        })),
         meta: { total: rows.length, page: current, lastPage, perPage: PAGE_SIZE },
         exportBase: mayExport && !problem ? `/admin/rentals/reports/${report.key}/export` : null,
         exportQuery: queryString(filters),
@@ -111,49 +99,30 @@ export default class AdminRentalReportsController {
 
   async export(ctx: HttpContext) {
     const report = findReport(String(ctx.params.key))
-    if (!report) return ctx.response.redirect('/admin/rentals/reports')
+    if (!report) return ctx.response.redirect(`/admin/rentals/reports/${reports[0].key}`)
     const filters = readFilters(ctx.request.qs())
-    const format = ctx.request.input('format') === 'xlsx' ? 'xlsx' : 'csv'
-    let result
+    const format = readFormat(ctx.request.input('format'))
+    let file
     try {
-      result = await report.run(filters)
+      file = await reportFile(report, filters, format)
     } catch (error) {
       if (!(error instanceof ApiError)) throw error
       ctx.session.flash('error', error.message)
       return ctx.response.redirect(`/admin/rentals/reports/${report.key}?${queryString(filters)}`)
     }
-
-    const providers = await providerOptions()
-    const labels = report
-      .filters(providers)
-      .filter((field) => field.kind !== 'date')
-      .flatMap((field) => {
-        const value = String(filters[field.key as keyof ReportFilters] ?? '')
-        if (!value) return []
-        const shown = field.options?.find((option) => option.value === value)?.label ?? value
-        return [`${field.label.startsWith('All') ? 'Filter' : field.label}: ${shown}`]
-      })
-    const name = `${report.key}_${filters.from}_to_${filters.to}`
     // The export is recorded: it contains customer and money data.
     await db.table('audit_logs').insert({
       actor_id: ctx.admin.id,
       action: 'rental_report.export',
       entity_type: 'rental_report',
       entity_id: report.key,
-      changed_fields: JSON.stringify({ format, ...filters, rows: result.rows.length }),
+      changed_fields: JSON.stringify({ format, ...filters, rows: file.result.rows.length }),
       created_at: new Date(),
     })
     ctx.response.header('Cache-Control', 'no-store')
     ctx.response.header('X-Content-Type-Options', 'nosniff')
-    ctx.response.header('Content-Disposition', `attachment; filename="${name}.${format}"`)
-    if (format === 'xlsx') {
-      ctx.response.header(
-        'Content-Type',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      )
-      return ctx.response.send(await toXlsx(report.title, filters, labels, result))
-    }
-    ctx.response.header('Content-Type', 'text/csv; charset=utf-8')
-    return ctx.response.send(toCsv(result))
+    ctx.response.header('Content-Disposition', `attachment; filename="${file.name}"`)
+    ctx.response.header('Content-Type', file.contentType)
+    return ctx.response.send(file.body)
   }
 }
