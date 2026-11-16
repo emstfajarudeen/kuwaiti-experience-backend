@@ -378,9 +378,12 @@ test.group('Rental catalog and bookings', (group) => {
       local.setUTCHours(hour, 0, 0, 0)
       return new Date(local.getTime() - 3 * 60 * 60 * 1000)
     }
-    // A day at least two days ahead that is not a Friday in Kuwait.
+    // A day at least two days ahead such that it and the next three days (the two-day
+    // rentals below pick up and return within them) are not Fridays in Kuwait.
+    const isFriday = (days: number) =>
+      new Date(kuwait(days, 12).getTime() + 3 * 60 * 60 * 1000).getUTCDay() === 5
     let offset = 2
-    while (new Date(kuwait(offset, 12).getTime() + 3 * 60 * 60 * 1000).getUTCDay() === 5) offset++
+    while ([0, 1, 2, 3].some((step) => isFriday(offset + step))) offset++
     const book = (key: string, pickup: Date, extra: Record<string, unknown> = {}) =>
       client
         .post('/api/v2/customer/me/rental-bookings')
@@ -1515,6 +1518,100 @@ test.group('Rental provider portal', (group) => {
     // Bad ranges are refused with a message, not a crash.
     const tooLong = await get(`/admin/rentals/reports/bookings?from=${day(-500)}&to=${day(0)}`)
     assert.include(page(tooLong).props.problem, 'one year')
+  })
+
+  test('phase 2 reports: reconciliation, funnel, vehicles and providers', async ({
+    client,
+    assert,
+  }) => {
+    const admin = await staff()
+    const ids = await catalog()
+    const make = (pickupInDays: number, status: string, confirmed = true) =>
+      booking(ids, { pickupInDays, days: 2, status, confirmed })
+    const fine = await make(1, 'confirmed')
+    const done = await make(2, 'completed')
+    const cancelled = await make(3, 'cancelled')
+    await make(4, 'confirmed') // active, but no payment recorded
+    const twice = await make(5, 'confirmed')
+    const odd = await make(6, 'confirmed')
+    const lapsed = await make(7, 'expired', false)
+    await db.from('rental_bookings').where('id', cancelled).update({
+      cancelled_by: 'customer',
+      cancel_reason: 'Plans changed',
+      cancelled_at: new Date(),
+    })
+    for (const id of [fine, done, cancelled, twice, twice]) await payment(id, 'paid')
+    await payment(odd, 'paid', '3.000')
+    await payment(lapsed, 'initiated')
+    const day = (offset: number) =>
+      new Date(Date.now() + offset * DAY + 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const range = `from=${day(-2)}&to=${day(10)}`
+    const open = async (path: string) =>
+      page(await client.get(path).cookie('admin_access', admin.accessToken).redirects(0)).props
+    const summary = (props: any) =>
+      Object.fromEntries(props.summary.map((item: any) => [item.label, item.value]))
+
+    // Reconciliation flags exactly the four broken bookings.
+    const issues = await open(`/admin/rentals/reports/reconciliation?${range}`)
+    assert.sameMembers(
+      issues.rows.map((row: any) => row.issue),
+      [
+        'Paid but not refunded',
+        'Active without a paid fee',
+        'Paid more than once',
+        'Amount differs from fee',
+      ]
+    )
+    assert.equal(summary(issues)['Bookings checked'], '7')
+    const onlyTwice = await open(`/admin/rentals/reports/reconciliation?${range}&status=paid_twice`)
+    assert.equal(onlyTwice.rows.length, 1)
+    assert.equal(onlyTwice.rows[0].amount, '2.000')
+
+    // Funnel: 7 checkouts, 6 paid, one customer cancellation, one left unpaid.
+    const funnel = summary(await open(`/admin/rentals/reports/funnel?${range}`))
+    assert.equal(funnel['Checkouts started'], '7')
+    assert.equal(funnel.Paid, '6')
+    assert.equal(funnel.Conversion, '85.7%')
+    assert.equal(funnel['Cancelled by customer'], '1')
+    assert.equal(funnel['Left unpaid'], '1')
+    const reasons = await open(`/admin/rentals/reports/funnel?${range}&view=reasons`)
+    assert.deepEqual(reasons.rows, [
+      {
+        cancelled_by: 'Customer',
+        reason: 'Plans changed',
+        bookings: '1',
+        paid: '1',
+        lost: '25.000',
+      },
+    ])
+
+    // Vehicle and provider performance count the five active rentals.
+    const vehicles = await open(`/admin/rentals/reports/vehicles?${range}`)
+    const car = vehicles.rows.find((row: any) => row.rentals === '5')
+    assert.exists(car)
+    assert.equal(car.rental, '125.000')
+    assert.equal(car.booked_days, '10.0')
+    assert.match(car.utilization, /%$/)
+    const unbooked = await open(`/admin/rentals/reports/vehicles?${range}&view=unbooked`)
+    assert.notInclude(
+      unbooked.rows.map((row: any) => row.vehicle),
+      car.vehicle
+    )
+    const providers = await open(
+      `/admin/rentals/reports/providers?${range}&provider=${ids.providerId}`
+    )
+    assert.equal(providers.rows.length, 1)
+    assert.equal(providers.rows[0].rentals, '5')
+    assert.equal(providers.rows[0].cancelled, '1')
+    assert.equal(providers.rows[0].cancel_rate, '16.7%')
+    const branches = await open(`/admin/rentals/reports/providers?${range}&view=branch`)
+    const airport = branches.rows.find((row: any) => row.pickups === '5')
+    assert.exists(airport)
+
+    const xlsx = await client
+      .get(`/admin/rentals/reports/vehicles/export?${range}&format=xlsx`)
+      .cookie('admin_access', admin.accessToken)
+    assert.equal(xlsx.status(), 200)
   })
 
   test('report exports keep text cells from running as spreadsheet formulas', async ({

@@ -61,7 +61,8 @@ export async function toXlsx(
           const value = row[column.key]
           if (value === null || value === undefined || value === '') return [column.key, null]
           if (column.type === 'money') return [column.key, Number(value) / 1000]
-          if (column.type === 'int') return [column.key, Number(value)]
+          if (column.type === 'int' || column.type === 'decimal') return [column.key, Number(value)]
+          if (column.type === 'percent') return [column.key, Number(value) / 100]
           if (column.type === 'datetime' || column.type === 'date')
             return [column.key, wallClock(String(value))]
           return [column.key, safeText(String(value))]
@@ -72,6 +73,8 @@ export async function toXlsx(
   result.columns.forEach((column, index) => {
     const target = sheet.getColumn(index + 1)
     if (column.type === 'money') target.numFmt = '#,##0.000'
+    if (column.type === 'decimal') target.numFmt = '0.0'
+    if (column.type === 'percent') target.numFmt = '0.0%'
     if (column.type === 'datetime') {
       target.numFmt = 'yyyy-mm-dd hh:mm'
       target.width = 18
@@ -87,11 +90,11 @@ export async function toXlsx(
   info.addRow([`Generated ${DateTime.now().setZone(KUWAIT).toFormat('yyyy-MM-dd HH:mm')}`])
   info.addRow([])
   for (const item of result.summary) {
-    const row = info.addRow([
-      item.label,
-      item.type === 'money' ? Number(item.value) / 1000 : Number(item.value),
-    ])
-    if (item.type === 'money') row.getCell(2).numFmt = '#,##0.000'
+    const scale = item.type === 'money' ? 1000 : item.type === 'percent' ? 100 : 1
+    const row = info.addRow([item.label, Number(item.value) / scale])
+    row.getCell(2).numFmt = { money: '#,##0.000', percent: '0.0%', decimal: '0.0', int: '0' }[
+      item.type
+    ]
   }
   if (result.note) {
     info.addRow([])

@@ -12,7 +12,11 @@ type Field = {
   kind: 'date' | 'select' | 'search'
   options?: { value: string; label: string }[]
 }
-type Column = { key: string; label: string; type: 'text' | 'money' | 'int' | 'datetime' | 'date' }
+type Column = {
+  key: string
+  label: string
+  type: 'text' | 'money' | 'int' | 'decimal' | 'percent' | 'datetime' | 'date'
+}
 type Values = Record<string, string>
 
 type Props = SharedProps & {
@@ -21,7 +25,7 @@ type Props = SharedProps & {
   values: Values
   problem: string | null
   columns: Column[]
-  summary: { label: string; value: string; type: 'money' | 'int' }[]
+  summary: { label: string; value: string; type: 'money' | 'int' | 'decimal' | 'percent' }[]
   note: string | null
   rows: Record<string, string>[]
   meta: { total: number; page: number; lastPage: number; perPage: number }
@@ -50,7 +54,7 @@ export default function RentalReport(props: Props) {
     title: column.label,
     dataIndex: column.key,
     key: column.key,
-    align: column.type === 'money' || column.type === 'int' ? 'right' : 'left',
+    align: ['money', 'int', 'decimal', 'percent'].includes(column.type) ? 'right' : 'left',
     render: (value: string) => (
       <span className={column.type === 'text' ? '' : 'tw:whitespace-nowrap'}>{value || '—'}</span>
     ),
