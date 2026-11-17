@@ -505,6 +505,17 @@ export class CustomerSavedPlaceSchema extends BaseModel {
   declare placeId: number
 }
 
+export class CustomerSavedRentalVehicleSchema extends BaseModel {
+  static $columns = ['createdAt', 'customerId', 'vehicleId'] as const
+  $columns = CustomerSavedRentalVehicleSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare customerId: number
+  @column()
+  declare vehicleId: number
+}
+
 export class CustomerSessionSchema extends BaseModel {
   static $columns = [
     'accessExpiresAt',
@@ -1078,8 +1089,13 @@ export class RentalBookingSchema extends BaseModel {
     'id',
     'idempotencyKey',
     'notes',
+    'pickupAddress',
+    'pickupAreaId',
     'pickupAt',
+    'pickupLatitude',
     'pickupLocationId',
+    'pickupLongitude',
+    'pickupType',
     'providerId',
     'reference',
     'rentalAmount',
@@ -1129,10 +1145,20 @@ export class RentalBookingSchema extends BaseModel {
   declare idempotencyKey: string
   @column()
   declare notes: string | null
+  @column()
+  declare pickupAddress: string | null
+  @column()
+  declare pickupAreaId: number | null
   @column.dateTime()
   declare pickupAt: DateTime
   @column()
+  declare pickupLatitude: string | null
+  @column()
   declare pickupLocationId: number
+  @column()
+  declare pickupLongitude: string | null
+  @column()
+  declare pickupType: string
   @column()
   declare providerId: number
   @column()
@@ -1444,6 +1470,15 @@ export class RentalProviderEmailSchema extends BaseModel {
   declare status: string
 }
 
+export class RentalProviderExcludedAreaSchema extends BaseModel {
+  static $columns = ['areaId', 'providerId'] as const
+  $columns = RentalProviderExcludedAreaSchema.$columns
+  @column()
+  declare areaId: number
+  @column({ isPrimary: true })
+  declare providerId: number
+}
+
 export class RentalProviderSchema extends BaseModel {
   static $columns = [
     'active',
@@ -1520,6 +1555,39 @@ export class RentalReviewSchema extends BaseModel {
   declare updatedAt: DateTime | null
   @column()
   declare vehicleId: number
+}
+
+export class RentalServiceAreaSchema extends BaseModel {
+  static $columns = [
+    'active',
+    'createdAt',
+    'id',
+    'latitude',
+    'longitude',
+    'nameAr',
+    'nameEn',
+    'sortOrder',
+    'updatedAt',
+  ] as const
+  $columns = RentalServiceAreaSchema.$columns
+  @column()
+  declare active: boolean
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare latitude: string
+  @column()
+  declare longitude: string
+  @column()
+  declare nameAr: string | null
+  @column()
+  declare nameEn: string
+  @column()
+  declare sortOrder: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
 }
 
 export class RentalSettingSchema extends BaseModel {
@@ -2002,6 +2070,8 @@ export class VideoSchema extends BaseModel {
     'commentCount',
     'createdAt',
     'createdBy',
+    'durationMs',
+    'height',
     'id',
     'latitude',
     'likeCount',
@@ -2010,14 +2080,20 @@ export class VideoSchema extends BaseModel {
     'longitude',
     'phoneE164',
     'placeId',
+    'processingAttempts',
+    'processingError',
+    'processingStartedAt',
+    'processingStatus',
     'publishedAt',
     'saveCount',
     'shareCount',
     'sizeBytes',
+    'sourceKey',
     'status',
     'thumbnailKey',
     'updatedAt',
     'videoKey',
+    'width',
   ] as const
   $columns = VideoSchema.$columns
   @column()
@@ -2032,6 +2108,10 @@ export class VideoSchema extends BaseModel {
   declare createdAt: DateTime
   @column()
   declare createdBy: number | null
+  @column()
+  declare durationMs: number | null
+  @column()
+  declare height: number | null
   @column({ isPrimary: true })
   declare id: number
   @column()
@@ -2048,6 +2128,14 @@ export class VideoSchema extends BaseModel {
   declare phoneE164: string | null
   @column()
   declare placeId: number | null
+  @column()
+  declare processingAttempts: boolean
+  @column()
+  declare processingError: string | null
+  @column.dateTime()
+  declare processingStartedAt: DateTime | null
+  @column()
+  declare processingStatus: string
   @column.dateTime()
   declare publishedAt: DateTime | null
   @column()
@@ -2057,11 +2145,15 @@ export class VideoSchema extends BaseModel {
   @column()
   declare sizeBytes: number
   @column()
+  declare sourceKey: string | null
+  @column()
   declare status: string
   @column()
   declare thumbnailKey: string | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
   @column()
-  declare videoKey: string
+  declare videoKey: string | null
+  @column()
+  declare width: number | null
 }

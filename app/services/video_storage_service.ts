@@ -10,8 +10,8 @@ import env from '#start/env'
 import { ApiError } from '#services/api_error'
 
 /** Largest accepted video. The request limit in config/bodyparser.ts leaves room for a cover image. */
-export const MAX_VIDEO_BYTES = 25 * 1024 * 1024
-export const MAX_VIDEO_MB = 25
+export const MAX_VIDEO_BYTES = 100 * 1024 * 1024
+export const MAX_VIDEO_MB = 100
 const videoOptions = { size: `${MAX_VIDEO_MB}mb`, extnames: ['mp4', 'mov', 'webm'] }
 const keyPattern =
   /^videos\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(?:mp4|webm)$/
@@ -84,6 +84,12 @@ export async function deleteVideoFiles(keys: Iterable<string | null | undefined>
 
 function storageRoot() {
   return app.makePath(env.get('NODE_ENV') === 'test' ? 'storage/test-uploads' : 'storage/uploads')
+}
+
+/** Local path of a stored video, for ffmpeg. */
+export function videoFilePath(key: string) {
+  if (!isManagedVideoKey(key)) throw new Error('Not a managed video key')
+  return `${storageRoot()}/${key}`
 }
 
 /** Streams a stored video with HTTP Range support, so players can seek. */

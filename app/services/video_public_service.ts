@@ -23,22 +23,26 @@ const iso = (value: unknown) => (value ? new Date(value as string).toISOString()
 const pick = (locale: PublicLocale, en: unknown, ar: unknown) =>
   locale === 'ar' && typeof ar === 'string' && ar.trim() ? ar : en
 
-/** A video is visible to the public when published, and its business (if any) is published too. */
+/** A video is visible to the public when published, playable, and its business (if any) is published too. */
 function visible(query: ReturnType<typeof db.from>) {
-  return query
-    .where('videos.status', 'published')
-    .where('videos.published_at', '<=', new Date())
-    .where((builder) =>
-      builder
-        .whereNull('videos.place_id')
-        .orWhereExists((sub) =>
-          sub
-            .from('places')
-            .whereRaw('places.id = videos.place_id')
-            .where('places.status', 'published')
-            .where('places.published_at', '<=', new Date())
-        )
-    )
+  return (
+    query
+      .where('videos.status', 'published')
+      // A new upload has no playable file until its conversion finishes.
+      .whereNotNull('videos.video_key')
+      .where('videos.published_at', '<=', new Date())
+      .where((builder) =>
+        builder
+          .whereNull('videos.place_id')
+          .orWhereExists((sub) =>
+            sub
+              .from('places')
+              .whereRaw('places.id = videos.place_id')
+              .where('places.status', 'published')
+              .where('places.published_at', '<=', new Date())
+          )
+      )
+  )
 }
 
 export function reportReasons(locale: PublicLocale) {

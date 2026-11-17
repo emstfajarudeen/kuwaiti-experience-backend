@@ -15,7 +15,7 @@ The Videos API powers the app's short-video feed: browsing, watching, and intera
 
 **Who is shown as the creator.** If the video is linked to a business, the creator is that business. Otherwise it is the platform account with handle `thekuwaitiexperience`.
 
-**Video files.** Uploads are MP4, MOV or WebM up to 25 MB; the stored file is delivered as MP4 or WebM with HTTP Range support, so the native player can seek.
+**Video files.** Admins upload MP4, MOV or WebM up to 100 MB. The server converts every upload to an MP4 that phones play reliably: H.264 Main (level 4.1), at most 720×1280 (1280×720 for landscape), at most 30 fps, about 3 Mbps, AAC stereo 128 kbps, rotation applied, index at the start (fast start). A new video appears in the feed only after its conversion finishes (usually under a minute); a replaced video keeps playing the old file until then. Files are delivered with HTTP Range support, so the native player can seek. If a video has no cover image, one is taken from the video.
 
 ## Conventions
 
@@ -281,7 +281,7 @@ Video file requests (`/api/v1/video-files/…`) return `404 NOT_FOUND` for an un
 **Video playback**
 
 - Build the URL as `{BASE_URL}` + `video_url`. It is public: no auth header needed, and a standard player can stream it with Range requests.
-- Files are MP4 or WebM, up to 25 MB, sent with a five-minute public cache header.
+- Files are converted MP4 (see above), sent with a five-minute public cache header.
 - If a file request returns `404`, the video was unpublished after you loaded the list; refresh the feed.
 
 **Edge cases**

@@ -3,6 +3,7 @@ import { ApiError } from './api_error.js'
 import { withStoredImages, type PreparedImage } from './image_storage_service.js'
 import { deleteVideoFiles, storeVideo, type PreparedVideo } from './video_storage_service.js'
 import { recountVideos } from './video_counter_service.js'
+import { dispatchVideoProcessing } from './video_processing_service.js'
 import { REPORT_REASONS } from './video_public_service.js'
 
 type Row = Record<string, any>
@@ -204,9 +205,15 @@ export async function saveVideo(
           updated_at: now,
         }
         if (newVideoKey) {
-          values.video_key = newVideoKey
-          values.size_bytes = files.video!.size
-          if (existing?.video_key) releasedVideo.push(existing.video_key)
+          // The upload converts in the background; the current file keeps playing until then.
+          values.source_key = newVideoKey
+          values.processing_status = 'pending'
+          values.processing_attempts = 0
+          values.processing_error = null
+          values.processing_started_at = null
+          if (!existing) values.size_bytes = files.video!.size
+          if (existing?.source_key && existing.source_key !== existing.video_key)
+            releasedVideo.push(existing.source_key)
         }
         if (imageKeys[0]) {
           values.thumbnail_key = imageKeys[0]
@@ -227,6 +234,7 @@ export async function saveVideo(
         return Number(created)
       })
       await deleteVideoFiles(releasedVideo)
+      if (newVideoKey) dispatchVideoProcessing()
       return { result: savedId, released }
     })
   } catch (error) {
@@ -261,7 +269,7 @@ export async function deleteVideo(id: number, actorId: number) {
     await audit(trx, actorId, id, 'deleted')
     return row
   })
-  await deleteVideoFiles([video.video_key])
+  await deleteVideoFiles(new Set([video.video_key, video.source_key]))
   const { deleteImages } = await import('./image_storage_service.js')
   await deleteImages([video.thumbnail_key])
 }

@@ -7,6 +7,7 @@ import { useAuthorization } from '../../lib/authorization'
 import RowActionMenu from '../../components/row_action_menu'
 import ConfirmModal from '../../components/confirm_modal'
 import TableToolbar, { useServerFilters } from '../../components/table_toolbar'
+import { processingLabel } from '../../components/video_processing'
 
 type VideoRow = {
   id: number
@@ -15,6 +16,8 @@ type VideoRow = {
   place_title: string | null
   category_name: string | null
   thumbnail_url: string | null
+  processing_status: string
+  processing_error: string | null
   likes: number
   comments: number
   saves: number
@@ -92,6 +95,11 @@ export default function VideosIndex({
               {row.place_title ?? 'thekuwaitiexperience'}
               {row.category_name ? ` · ${row.category_name}` : ''}
             </span>
+            {processingLabel(row) && (
+              <span className={`tw:text-[12px] tw:font-semibold ${processingLabel(row)!.tone}`}>
+                {row.processing_status === 'failed' ? 'Conversion failed' : 'Converting…'}
+              </span>
+            )}
           </div>
         </div>
       ),

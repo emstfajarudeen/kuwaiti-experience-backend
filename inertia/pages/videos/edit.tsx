@@ -8,6 +8,7 @@ import ImageUpload from '../../components/image_upload'
 import OpenMapAddressSearch from '../../components/open_map_address_search'
 import { useAuthorization } from '../../lib/authorization'
 import { postCmsForm } from '../../lib/cms_form'
+import { processingLabel } from '../../components/video_processing'
 
 type Option = { id: number; name: string }
 type PlaceOption = {
@@ -34,6 +35,11 @@ type Video = {
   video_url: string | null
   thumbnail_url: string | null
   size_bytes: number
+  processing_status: string
+  processing_error: string | null
+  width: number | null
+  height: number | null
+  duration_ms: number | null
   likes: number
   comments: number
   shares: number
@@ -293,8 +299,18 @@ export default function VideoEdit({
                 ) : (
                   <span className="video-picker-file">
                     {video
-                      ? `${(video.size_bytes / 1024 / 1024).toFixed(1)} MB · drop a file to replace it`
+                      ? `${(video.size_bytes / 1024 / 1024).toFixed(1)} MB${
+                          video.width && video.height ? ` · ${video.width}×${video.height}` : ''
+                        } · drop a file to replace it`
                       : 'Drag and drop a file here, or browse'}
+                  </span>
+                )}
+                {video && !picked && processingLabel(video) && (
+                  <span
+                    role="status"
+                    className={`tw:text-[12px] tw:font-semibold ${processingLabel(video)!.tone}`}
+                  >
+                    {processingLabel(video)!.text}
                   </span>
                 )}
                 <div className="video-picker-actions">
@@ -315,6 +331,7 @@ export default function VideoEdit({
                   <li>MP4, MOV or WebM</li>
                   <li>Up to {maxVideoMb} MB</li>
                   <li>Vertical 9:16 looks best</li>
+                  <li>Converted automatically for phones (720×1280, 30 fps, H.264)</li>
                 </ul>
                 <input
                   ref={fileInput}
