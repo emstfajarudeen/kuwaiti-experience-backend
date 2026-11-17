@@ -25,8 +25,9 @@ type Props = SharedProps & {
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 function DayCell({ day }: { day: Day }) {
-  if (day.mode === 'closed') return <span className="tw:text-red-700">Closed</span>
-  if (day.mode === 'open24') return <span>24 hours</span>
+  if (day.mode === 'closed')
+    return <span className="tw:whitespace-nowrap tw:text-red-700">Closed</span>
+  if (day.mode === 'open24') return <span className="tw:whitespace-nowrap">24 hours</span>
   return (
     <span className="tw:flex tw:flex-col tw:whitespace-nowrap tw:text-[13px]">
       {day.shifts.map((shift) => (
@@ -77,7 +78,8 @@ export default function RentalWorkingHours({
       <section className="panel table-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-0">
         <div className="panel-heading tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3 tw:border-b tw:border-brand-line-subtle tw:px-6 tw:py-5">
           <h2>
-            {named ? `${named} - ` : ''}Branches ({rows.length})
+            {named ? `${named} - ` : ''}Working hours ({rows.length}{' '}
+            {rows.length === 1 ? 'branch' : 'branches'})
           </h2>
           <a
             className="button secondary"
@@ -96,6 +98,7 @@ export default function RentalWorkingHours({
             rowKey="id"
             dataSource={rows}
             pagination={false}
+            scroll={{ x: 'max-content' }}
             locale={{ emptyText: 'No branches yet.' }}
             columns={[
               ...(can('rentals.update')
@@ -103,7 +106,8 @@ export default function RentalWorkingHours({
                     {
                       title: '',
                       key: 'edit',
-                      width: 70,
+                      width: 60,
+                      fixed: 'left' as const,
                       render: (_: unknown, row: Row) => (
                         <a
                           href={`/admin/rentals/locations/${row.id}/hours`}
@@ -119,6 +123,7 @@ export default function RentalWorkingHours({
               {
                 title: 'Branch',
                 key: 'branch',
+                width: 220,
                 fixed: 'left',
                 render: (_: unknown, row: Row) => (
                   <div className="tw:flex tw:min-w-[180px] tw:flex-col">
@@ -135,6 +140,7 @@ export default function RentalWorkingHours({
               ...DAYS.map((label, index) => ({
                 title: label,
                 key: label,
+                width: 120,
                 render: (_: unknown, row: Row) =>
                   row.hours_enabled ? (
                     <DayCell day={row.schedule[index]} />
@@ -146,6 +152,7 @@ export default function RentalWorkingHours({
               {
                 title: 'Closed dates',
                 key: 'closures',
+                width: 220,
                 render: (_: unknown, row: Row) =>
                   row.closures.length ? (
                     <span className="tw:flex tw:flex-col tw:text-[13px]">
