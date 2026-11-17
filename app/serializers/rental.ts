@@ -181,6 +181,8 @@ export function rentalBooking(
     /** The provider's driver, once assigned to a confirmed with-driver booking. */
     driver: rentalDriver(row, driver),
     pickup: rentalPickup(snapshot, locale),
+    /** Where the rental ends. With an address pickup the driver drops the customer back there. */
+    return: rentalPickup(snapshot, locale),
     pickup_location: snapshotLocation(snapshot.pickup_location, locale),
     return_location: snapshotLocation(snapshot.return_location, locale),
     price: {

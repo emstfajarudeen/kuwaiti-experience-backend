@@ -2505,7 +2505,8 @@
           "cancelled_at",
           "completed_at",
           "review",
-          "can_review"
+          "can_review",
+          "return"
         ],
         "properties": {
           "id": {
@@ -2910,6 +2911,14 @@
           },
           "pickup": {
             "$ref": "#/components/schemas/BookingPickup"
+          },
+          "return": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BookingPickup"
+              }
+            ],
+            "description": "Where the rental ends. For an address pickup it is the same address (the driver drops the customer back there); for a branch pickup type is 'branch' and return_location applies."
           }
         }
       },

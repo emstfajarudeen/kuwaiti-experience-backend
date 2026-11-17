@@ -101,7 +101,12 @@ function compose(kind: ProviderEmailKind, booking: Row, customer: Row | undefine
       : ([
           ['Pickup', `${kuwaitTime(booking.pickup_at)} — ${snapshot.pickup_location.name_en}`],
         ] as Array<[string, string]>)),
-    ['Return', `${kuwaitTime(booking.return_at)} — ${snapshot.return_location.name_en}`],
+    snapshot.pickup_address
+      ? [
+          'Drop the customer back at',
+          `${kuwaitTime(booking.return_at)} — ${snapshot.pickup_address.address} (same as pickup)`,
+        ]
+      : ['Return', `${kuwaitTime(booking.return_at)} — ${snapshot.return_location.name_en}`],
     ['With driver', booking.with_driver ? 'Yes' : 'No'],
     ['Days', String(booking.days)],
     ['Rental amount (collect at pickup)', `KWD ${kwd(toFils(booking.rental_amount))}`],

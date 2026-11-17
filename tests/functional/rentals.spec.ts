@@ -5,12 +5,14 @@ import hash from '@adonisjs/core/services/hash'
 import limiter from '@adonisjs/limiter/services/main'
 import { createHash, randomBytes, randomInt, randomUUID } from 'node:crypto'
 import {
+  GatewayRejectedError,
   swapPaymentGateway,
   type GatewayInvoiceStatus,
   type PaymentGateway,
 } from '../../app/services/myfatoorah_service.js'
 import { quoteFor, toFils, kwd, rentalDays } from '../../app/services/rental_money.js'
 import { loginAdmin } from '../helpers/admin_auth.js'
+import { refundBooking } from '../../app/services/rental_payment_service.js'
 import {
   sendProviderEmail,
   swapRentalMailer,
@@ -185,7 +187,9 @@ class FakeGateway implements PaymentGateway {
     if (!invoice) throw new Error('unknown invoice')
     return structuredClone(invoice)
   }
+  refuseRefunds: string | null = null
   async makeRefund(paymentId: string, amount: number) {
+    if (this.refuseRefunds) throw new GatewayRejectedError(this.refuseRefunds)
     this.refunds.push({ paymentId, amount })
     return { RefundId: 77, RefundReference: 'RF-77' }
   }
@@ -989,6 +993,25 @@ test.group('Rental catalog and bookings', (group) => {
     assert.equal(verified.body().data.status, 'refund_required')
   })
 
+  test('a refund MyFatoorah turns down shows their reason and changes nothing', async ({
+    client,
+    assert,
+  }) => {
+    const ids = await catalog()
+    const user = await customer()
+    const id = await confirmedBooking(client, user, ids, 'refund-key-01')
+    gateway.refuseRefunds = 'Insufficient balance for vendor'
+    await assert.rejects(
+      () => refundBooking(id, 1, ''),
+      'MyFatoorah refused the refund: Insufficient balance for vendor. Nothing was changed.'
+    )
+    const booking = await db.from('rental_bookings').where('id', id).firstOrFail()
+    assert.equal(booking.status, 'confirmed')
+    const payment = await db.from('rental_payments').where('booking_id', id).firstOrFail()
+    assert.equal(payment.status, 'paid')
+    assert.lengthOf(gateway.refunds, 0)
+  })
+
   test('customers can cancel only before the cut-off', async ({ client, assert }) => {
     const ids = await catalog({ quantity: 2 })
     const user = await customer()
@@ -1447,11 +1470,24 @@ test.group('Rental provider portal', (group) => {
     const paid = await booking(ids, { pickupInDays: 1, days: 2, status: 'confirmed' })
     const done = await booking(ids, { pickupInDays: 2, days: 2, status: 'completed' })
     const refunded = await booking(ids, { pickupInDays: 3, days: 2, status: 'cancelled' })
-    const waiting = await booking(ids, { pickupInDays: 4, days: 2, status: 'refund_required' })
+    // Paid too late, so never confirmed: still a paid order.
+    const waiting = await booking(ids, {
+      pickupInDays: 4,
+      days: 2,
+      status: 'refund_required',
+      confirmed: false,
+    })
     const unpaid = await booking(ids, {
       pickupInDays: 5,
       days: 1,
       status: 'pending_payment',
+      confirmed: false,
+    })
+    // Cancelled by the customer before paying: never a real booking.
+    const dropped = await booking(ids, {
+      pickupInDays: 5,
+      days: 1,
+      status: 'cancelled',
       confirmed: false,
     })
     await payment(paid, 'paid')
@@ -1459,6 +1495,7 @@ test.group('Rental provider portal', (group) => {
     await payment(refunded, 'refunded')
     await payment(waiting, 'paid')
     await payment(unpaid, 'initiated')
+    await payment(dropped, 'failed')
     const day = (offset: number) =>
       new Date(Date.now() + offset * DAY + 3 * 60 * 60 * 1000).toISOString().slice(0, 10)
     const range = `from=${day(-2)}&to=${day(10)}`
@@ -1476,17 +1513,42 @@ test.group('Rental provider portal', (group) => {
     assert.equal(fees.Collected, '8.000')
     assert.equal(fees.Refunded, '2.000')
     assert.equal(fees['Net revenue'], '6.000')
-    assert.equal(fees['Failed or unfinished'], '1')
+    // Failed and unfinished attempts are not money: the report never lists them.
+    assert.notProperty(fees, 'Failed or unfinished')
+    const feeRows = page(await get(`/admin/rentals/reports/booking-fees?${range}`)).props
+    assert.equal(feeRows.meta.total, 4)
+    const attempts = page(await get(`/admin/rentals/reports/booking-fees?${range}&status=failed`))
+    assert.equal(attempts.props.meta.total, 4)
     const grouped = page(await get(`/admin/rentals/reports/booking-fees?${range}&view=provider`))
     assert.equal(grouped.props.rows.length, 1)
     assert.equal(grouped.props.rows[0].net, '6.000')
 
     const detail = page(await get(`/admin/rentals/reports/bookings?${range}`))
     assert.equal(detail.props.meta.total, 4)
-    assert.equal(
-      page(await get(`/admin/rentals/reports/bookings?${range}&status=all`)).props.meta.total,
-      5
-    )
+    // Fees kept match the fee report's net revenue; rental value counts live bookings only.
+    const detailSummary = summary(await get(`/admin/rentals/reports/bookings?${range}`))
+    assert.equal(detailSummary['Booking fees'], fees['Net revenue'])
+    assert.equal(detailSummary['Rental value'], '50.000')
+    // Unpaid checkouts never appear, whatever the filter; a paid order that needs a refund does.
+    for (const status of ['all', 'pending_payment', 'expired'])
+      assert.equal(
+        page(await get(`/admin/rentals/reports/bookings?${range}&status=${status}`)).props.meta
+          .total,
+        4,
+        status
+      )
+    const statusOptions = page(await get(`/admin/rentals/reports/bookings?${range}`))
+      .props.filterFields.find((filter: any) => filter.key === 'status')
+      .options.map((option: any) => option.value)
+    assert.sameMembers(statusOptions, ['confirmed', 'completed', 'cancelled', 'refund_required'])
+    // The same totals come out of the customers and provider reports for the same range.
+    const customerRows = page(await get(`/admin/rentals/reports/customers?${range}`)).props.rows
+    const total = (key: string) =>
+      customerRows.reduce((sum: number, row: any) => sum + Number(row[key]), 0).toFixed(3)
+    assert.equal(total('rental'), '50.000')
+    assert.equal(total('fees'), '6.000')
+    const providerTotals = summary(await get(`/admin/rentals/reports/providers?${range}`))
+    assert.equal(providerTotals['Rental value'], '50.000')
 
     // Export: same filters, CSV and Excel, and the export is logged.
     const csv = await get(`/admin/rentals/reports/bookings/export?${range}&format=csv`)

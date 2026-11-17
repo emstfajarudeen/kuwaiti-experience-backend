@@ -1,4 +1,4 @@
-import vine from '@vinejs/vine'
+import vine, { SimpleMessagesProvider } from '@vinejs/vine'
 
 export const createRentalBookingValidator = vine.compile(
   vine.object({
@@ -203,3 +203,11 @@ export const rentalServiceAreaValidator = vine.compile(
     sortOrder: vine.number().withoutDecimals().range([0, 9999]),
   })
 )
+
+const outsideKuwait = 'This pin is outside Kuwait. Move it inside Kuwait, then save.'
+rentalServiceAreaValidator.messagesProvider = new SimpleMessagesProvider({
+  'latitude.required': 'Place the pin on the map.',
+  'longitude.required': 'Place the pin on the map.',
+  'latitude.range': outsideKuwait,
+  'longitude.range': outsideKuwait,
+})

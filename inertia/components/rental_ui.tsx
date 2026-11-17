@@ -412,6 +412,24 @@ export function StatusBadge({ status }: { status: string }) {
   )
 }
 
+/** Booking status, plus a "Driver assigned" tag on confirmed with-driver bookings that have one. */
+export function BookingStatus({
+  status,
+  driverAssigned,
+}: {
+  status: string
+  driverAssigned: boolean
+}) {
+  return (
+    <span className="tw:inline-flex tw:flex-wrap tw:items-center tw:gap-1.5">
+      <StatusBadge status={status} />
+      {driverAssigned && status === 'confirmed' && (
+        <span className="status info tw:whitespace-nowrap">Driver assigned</span>
+      )}
+    </span>
+  )
+}
+
 export const bookingStatusOptions = [
   ...['confirmed', 'completed', 'cancelled', 'refund_required', 'pending_payment', 'expired'].map(
     (value) => ({ value, label: statusLabels[value] })

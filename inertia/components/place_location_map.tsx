@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { CircleMarker, Map } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -18,6 +18,32 @@ export default function PlaceLocationMap({ latitude, longitude, onSelectLocation
   onSelectRef.current = onSelectLocation
   const coordinatesRef = useRef({ latitude, longitude })
   coordinatesRef.current = { latitude, longitude }
+  const [locating, setLocating] = useState(false)
+  const [locateError, setLocateError] = useState<string | null>(null)
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) {
+      setLocateError('This browser cannot share your location.')
+      return
+    }
+    setLocating(true)
+    setLocateError(null)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocating(false)
+        onSelectRef.current(position.coords.latitude, position.coords.longitude)
+      },
+      (failure) => {
+        setLocating(false)
+        setLocateError(
+          failure.code === failure.PERMISSION_DENIED
+            ? 'Location access is blocked. Allow it in the browser, or click the map instead.'
+            : 'Could not find your location. Click the map instead.'
+        )
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }
 
   useEffect(() => {
     let active = true
@@ -29,7 +55,7 @@ export default function PlaceLocationMap({ latitude, longitude, onSelectLocation
       const instance = leaflet.map(element.current, {
         center,
         zoom: selected ? 15 : 10,
-        scrollWheelZoom: false,
+        scrollWheelZoom: true,
       })
       leaflet
         .tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -72,7 +98,8 @@ export default function PlaceLocationMap({ latitude, longitude, onSelectLocation
       return
     }
     const position: [number, number] = [latitude, longitude]
-    instance.setView(position, 15)
+    // Keep the admin's zoom; only bring the pin into view when it is off screen.
+    if (!instance.getBounds().contains(position)) instance.panTo(position)
     if (marker.current) marker.current.setLatLng(position)
     else {
       void import('leaflet').then((leaflet) => {
@@ -91,10 +118,36 @@ export default function PlaceLocationMap({ latitude, longitude, onSelectLocation
   }, [latitude, longitude])
 
   return (
-    <div
-      ref={element}
-      aria-label="Place location on OpenStreetMap"
-      className="tw:relative tw:isolate tw:z-0 tw:mt-3 tw:h-[240px] tw:w-full tw:overflow-hidden tw:rounded-lg tw:border tw:border-brand-line"
-    />
+    <div className="tw:mt-3">
+      <div className="tw:relative tw:isolate tw:z-0">
+        <div
+          ref={element}
+          aria-label="Place location on OpenStreetMap"
+          className="tw:h-[240px] tw:w-full tw:overflow-hidden tw:rounded-lg tw:border tw:border-brand-line"
+        />
+        <button
+          type="button"
+          onClick={useMyLocation}
+          disabled={locating}
+          className="tw:absolute tw:top-2.5 tw:right-2.5 tw:z-[1000] tw:inline-flex tw:cursor-pointer tw:items-center tw:gap-1.5 tw:rounded-md tw:border tw:border-brand-line tw:bg-white tw:px-3 tw:py-1.5 tw:text-[13px] tw:font-semibold tw:text-brand-navy tw:shadow-sm tw:hover:bg-brand-surface tw:disabled:cursor-wait tw:disabled:opacity-70"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2" />
+            <path
+              d="M12 2v3M12 19v3M2 12h3M19 12h3"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+          {locating ? 'Finding you…' : 'My location'}
+        </button>
+      </div>
+      {locateError && (
+        <p role="alert" className="tw:mt-2 tw:text-[12px] tw:text-red-700">
+          {locateError}
+        </p>
+      )}
+    </div>
   )
 }

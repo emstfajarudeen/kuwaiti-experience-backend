@@ -7,6 +7,7 @@ import {
   ActionForm,
   formatDateTime,
   Panel,
+  BookingStatus,
   StatusBadge,
   useCan,
   usePortal,
@@ -267,7 +268,7 @@ export default function RentalBooking({
         <a className="back-link tw:inline-flex" href="/admin/rentals/bookings">
           {portal ? '← Back to bookings' : '← Back to rental bookings'}
         </a>
-        <StatusBadge status={booking.status} />
+        <BookingStatus status={booking.status} driverAssigned={booking.driver_id !== null} />
       </div>
       <div className="page-head tw:mb-6">
         <h1>{booking.reference}</h1>
@@ -315,10 +316,26 @@ export default function RentalBooking({
               value={`${formatDateTime(booking.pickup_at)} · ${booking.pickup_location}`}
             />
           )}
-          <Detail
-            label="Return"
-            value={`${formatDateTime(booking.return_at)} · ${booking.return_location}`}
-          />
+          {booking.pickup_address ? (
+            // The driver drops the customer back at the address they were picked up from.
+            <Detail
+              label="Drop the customer back at"
+              value={
+                <>
+                  {formatDateTime(booking.return_at)} · {booking.pickup_address.address}
+                  {booking.pickup_address.area ? ` (${booking.pickup_address.area})` : ''} ·{' '}
+                  <a href={booking.pickup_address.map_url} target="_blank" rel="noreferrer">
+                    Open map
+                  </a>
+                </>
+              }
+            />
+          ) : (
+            <Detail
+              label="Return"
+              value={`${formatDateTime(booking.return_at)} · ${booking.return_location}`}
+            />
+          )}
           {!portal && (
             <Detail label="Booking fee (paid in app)" value={`KWD ${booking.booking_fee}`} />
           )}

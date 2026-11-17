@@ -26,11 +26,18 @@ const coordinate = (value: unknown) =>
     ? null
     : Number(value)
 
+/** Same box the server checks: service areas are inside Kuwait. */
+const insideKuwait = (latitude: number, longitude: number) =>
+  latitude >= 28.5 && latitude <= 30.15 && longitude >= 46.5 && longitude <= 48.5
+
+const OUTSIDE_KUWAIT = 'This pin is outside Kuwait. Move it inside Kuwait, then save.'
+
 /** Pin in the middle of the area; each address belongs to the area with the nearest pin. */
 function PinField() {
   const form = Form.useFormInstance()
   const latitude = coordinate(Form.useWatch('latitude', form))
   const longitude = coordinate(Form.useWatch('longitude', form))
+  const outside = latitude !== null && longitude !== null && !insideKuwait(latitude, longitude)
   return (
     <div className="tw:col-span-full">
       <span className="tw:text-[13px] tw:font-semibold">Map pin</span>
@@ -41,15 +48,28 @@ function PinField() {
           form.setFieldsValue({ latitude: String(lat), longitude: String(lng) })
         }
       />
-      <p className="tw:mt-2 tw:text-[12px] tw:text-brand-muted">
-        Click the middle of the area. An address belongs to the area whose pin is nearest.
-      </p>
+      {outside ? (
+        <p role="alert" className="tw:mt-2 tw:text-[12px] tw:font-semibold tw:text-red-700">
+          {OUTSIDE_KUWAIT}
+        </p>
+      ) : (
+        <p className="tw:mt-2 tw:text-[12px] tw:text-brand-muted">
+          Click the middle of the area, or use My location. Scroll to zoom. An address belongs to
+          the area whose pin is nearest.
+        </p>
+      )}
       {['latitude', 'longitude'].map((name) => (
         <Form.Item
           key={name}
           name={name}
           hidden
-          rules={[{ required: true, message: 'Place the pin on the map.' }]}
+          rules={[
+            { required: true, message: 'Place the pin on the map.' },
+            {
+              validator: () =>
+                outside ? Promise.reject(new Error(OUTSIDE_KUWAIT)) : Promise.resolve(),
+            },
+          ]}
         >
           <Input />
         </Form.Item>

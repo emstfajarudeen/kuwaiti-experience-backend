@@ -571,7 +571,8 @@ function addressParams(input: Row, withDriver: boolean) {
 
 /**
  * The branch a driver leaves from for an address pickup: the nearest of the vehicle's branches
- * that is open at both the pickup and the return time.
+ * that is open at the pickup time. The driver drops the customer back at the same address, so
+ * the branch's hours at the return time don't matter (the vehicle list applies the same rule).
  */
 export async function addressBranch(
   client: Client,
@@ -593,7 +594,6 @@ export async function addressBranch(
   for (const branch of sorted) {
     try {
       await assertBranchOpen(client, branch, window.pickupAt, 'pickup_at')
-      await assertBranchOpen(client, branch, window.returnAt, 'return_at')
       return branch
     } catch (error) {
       if (!(error instanceof ApiError) || error.code !== 'BRANCH_CLOSED') throw error

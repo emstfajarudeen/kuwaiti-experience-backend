@@ -294,6 +294,16 @@
     background: var(--warning-text);
   }
 
+  .status.info {
+    background: #eaf1fb;
+    border-color: #c8d8ee;
+    color: var(--navy);
+  }
+
+  .status.info::before {
+    background: var(--navy);
+  }
+
   .status.archived,
   .status.cancelled,
   .status.hidden {

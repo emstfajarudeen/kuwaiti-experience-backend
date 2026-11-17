@@ -129,7 +129,8 @@ function limited<T>(rows: T[]): T[] {
 
 const customerName = (row: Row) => `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim()
 
-const PAYMENT_STATUSES = ['paid', 'refunded', 'failed', 'initiated']
+/** Reports show money that came in: payments that went through (some later refunded). */
+const PAYMENT_STATUSES = ['paid', 'refunded']
 const STATUS_LABEL: Record<string, string> = {
   pending_payment: 'Unpaid (on hold)',
   confirmed: 'Confirmed',
@@ -144,12 +145,41 @@ const STATUS_LABEL: Record<string, string> = {
 }
 const label = (status: unknown) => STATUS_LABEL[String(status)] ?? String(status ?? '')
 
-const BOOKING_STATUS_OPTIONS: FilterOption[] = [
-  ...['confirmed', 'completed', 'cancelled', 'refund_required', 'pending_payment', 'expired'].map(
-    (value) => ({ value, label: STATUS_LABEL[value] })
-  ),
-  { value: 'all', label: 'All, including unpaid' },
-]
+/** Booking-based reports count bookings by the day they were made, or by the pickup day. */
+const dateColumn = (filters: ReportFilters) =>
+  filters.date_by === 'pickup' ? 'b.pickup_at' : 'b.created_at'
+const byDate = (filters: ReportFilters) =>
+  filters.date_by === 'pickup' ? 'by pickup date' : 'by booking date'
+/** 1 when the booking fee was paid and not refunded: the fee we kept. */
+const feeKeptColumn = () =>
+  db.raw(
+    "(select count(*) from rental_payments as kept where kept.booking_id = b.id and kept.status = 'paid') as fee_kept"
+  )
+const keptFee = (row: Row) => (Number(row.fee_kept) > 0 ? fils(row.booking_fee) : 0)
+
+/** Reports only ever show orders the customer paid for. */
+const PAID_STATUSES = ['confirmed', 'completed', 'cancelled', 'refund_required']
+const BOOKING_STATUS_OPTIONS: FilterOption[] = PAID_STATUSES.map((value) => ({
+  value,
+  label: STATUS_LABEL[value],
+}))
+
+/**
+ * Keeps orders the customer paid for: confirmed at some point, or with a booking fee that went
+ * through (a late payment that needs a refund is never confirmed). Unpaid checkouts are left out.
+ */
+function wherePaid(query: any, alias = 'b') {
+  return query.where((paid: any) =>
+    paid
+      .whereNotNull(`${alias}.confirmed_at`)
+      .orWhereExists((payments: any) =>
+        payments
+          .from('rental_payments as paidfee')
+          .whereColumn('paidfee.booking_id', `${alias}.id`)
+          .whereIn('paidfee.status', ['paid', 'refunded'])
+      )
+  )
+}
 
 // ------------------------------------------------- 1. booking-fee collection
 
@@ -189,6 +219,7 @@ async function feeReport(filters: ReportFilters): Promise<ReportResult> {
     .limit(MAX_REPORT_ROWS + 1)
   if (filters.provider) query.where('b.provider_id', filters.provider)
   if (PAYMENT_STATUSES.includes(filters.status)) query.where('rp.status', filters.status)
+  else query.whereIn('rp.status', PAYMENT_STATUSES)
   if (filters.method) query.where('rp.payment_method', filters.method)
   const rows = limited((await query) as Row[])
 
@@ -199,13 +230,13 @@ async function feeReport(filters: ReportFilters): Promise<ReportResult> {
       label: 'Collected',
       value: sum(collected, (row) => fils(row.amount)),
       type: 'money',
-      hint: 'All booking fees paid',
+      hint: 'Booking fees paid in the period',
     },
     {
       label: 'Refunded',
       value: sum(refunded, (row) => fils(row.amount)),
       type: 'money',
-      hint: 'Fees given back',
+      hint: 'Of the fees paid in the period',
     },
     {
       label: 'Net revenue',
@@ -218,12 +249,6 @@ async function feeReport(filters: ReportFilters): Promise<ReportResult> {
       value: collected.length,
       type: 'int',
       hint: 'Payments that went through',
-    },
-    {
-      label: 'Failed or unfinished',
-      value: rows.filter((row) => ['failed', 'initiated'].includes(row.status)).length,
-      type: 'int',
-      hint: 'Declined or not completed',
     },
   ]
 
@@ -285,7 +310,6 @@ async function feeReport(filters: ReportFilters): Promise<ReportResult> {
       { key: 'collected', label: 'Collected (KWD)', type: 'money' },
       { key: 'refunded', label: 'Refunded (KWD)', type: 'money' },
       { key: 'net', label: 'Net (KWD)', type: 'money' },
-      { key: 'failed', label: 'Failed or unfinished', type: 'int' },
     ],
     rows: ordered.map(([key, items]) => {
       const paid = items.filter((row) => ['paid', 'refunded'].includes(row.status))
@@ -298,7 +322,6 @@ async function feeReport(filters: ReportFilters): Promise<ReportResult> {
         collected: gross,
         refunded: returned,
         net: gross - returned,
-        failed: items.filter((row) => ['failed', 'initiated'].includes(row.status)).length,
       }
     }),
   }
@@ -309,7 +332,7 @@ async function feeReport(filters: ReportFilters): Promise<ReportResult> {
 async function bookingsDetail(filters: ReportFilters): Promise<ReportResult> {
   await expireStaleHolds()
   const { start, end } = bounds(filters)
-  const dateColumn = filters.date_by === 'pickup' ? 'b.pickup_at' : 'b.created_at'
+  const dateBy = dateColumn(filters)
   const query = db
     .from('rental_bookings as b')
     .join('customers as c', 'c.id', 'b.customer_id')
@@ -319,10 +342,11 @@ async function bookingsDetail(filters: ReportFilters): Promise<ReportResult> {
     .joinRaw(
       'left join rental_payments as rp on rp.id = (select max(x.id) from rental_payments x where x.booking_id = b.id)'
     )
-    .where(dateColumn, '>=', start)
-    .where(dateColumn, '<', end)
+    .where(dateBy, '>=', start)
+    .where(dateBy, '<', end)
     .select(
       'b.*',
+      feeKeptColumn(),
       'c.first_name',
       'c.last_name',
       'c.phone_e164',
@@ -337,9 +361,8 @@ async function bookingsDetail(filters: ReportFilters): Promise<ReportResult> {
     .orderBy('b.id', 'desc')
     .limit(MAX_REPORT_ROWS + 1)
   if (filters.provider) query.where('b.provider_id', filters.provider)
-  if (filters.status && filters.status !== 'all') query.where('b.status', filters.status)
-  // Unpaid checkouts are not real bookings; they only appear when asked for.
-  else if (!filters.status) query.whereNotIn('b.status', ['pending_payment', 'expired'])
+  wherePaid(query)
+  if (PAID_STATUSES.includes(filters.status)) query.where('b.status', filters.status)
   if (filters.q)
     query.where((inner) =>
       inner
@@ -352,7 +375,12 @@ async function bookingsDetail(filters: ReportFilters): Promise<ReportResult> {
   const live = rows.filter((row) => ['confirmed', 'completed'].includes(row.status))
   return {
     summary: [
-      { label: 'Bookings', value: rows.length, type: 'int', hint: 'All bookings in the period' },
+      {
+        label: 'Bookings',
+        value: rows.length,
+        type: 'int',
+        hint: `Paid orders, ${byDate(filters)}`,
+      },
       {
         label: 'Confirmed or completed',
         value: live.length,
@@ -373,9 +401,9 @@ async function bookingsDetail(filters: ReportFilters): Promise<ReportResult> {
       },
       {
         label: 'Booking fees',
-        value: sum(live, (row) => fils(row.booking_fee)),
+        value: sum(rows, keptFee),
         type: 'money',
-        hint: 'Paid in the app',
+        hint: 'Paid in the app, minus refunds',
       },
     ],
     columns: [
@@ -395,7 +423,7 @@ async function bookingsDetail(filters: ReportFilters): Promise<ReportResult> {
       { key: 'driver', label: 'Driver', type: 'text', detail: true },
       { key: 'daily_rate', label: 'Daily rate (KWD)', type: 'money', detail: true },
       { key: 'rental_amount', label: 'Rental value (KWD)', type: 'money' },
-      { key: 'fee', label: 'Booking fee (KWD)', type: 'money', detail: true },
+      { key: 'fee', label: 'Booking fee kept (KWD)', type: 'money', detail: true },
       { key: 'payment_status', label: 'Fee status', type: 'text' },
       { key: 'payment_method', label: 'Payment method', type: 'text', detail: true },
       { key: 'paid_at', label: 'Paid at', type: 'datetime', detail: true },
@@ -423,7 +451,7 @@ async function bookingsDetail(filters: ReportFilters): Promise<ReportResult> {
         driver: row.driver_name ?? '',
         daily_rate: fils(row.daily_rate),
         rental_amount: fils(row.rental_amount),
-        fee: fils(row.booking_fee),
+        fee: keptFee(row),
         payment_status: row.payment_status ? label(row.payment_status) : '',
         payment_method: row.payment_method ?? '',
         paid_at: iso(row.paid_at),
@@ -459,14 +487,14 @@ async function ratings(column: 'vehicle_id' | 'provider_id') {
   )
 }
 
-/** Paid rentals that overlap the range (by pickup, return or both). */
-function overlapping(start: Date, end: Date, provider: number | null) {
+/** Paid bookings (cancelled ones included) made, or picked up, in the range. */
+function paidBookings(filters: ReportFilters, start: Date, end: Date) {
+  const dateBy = dateColumn(filters)
   const query = db
     .from('rental_bookings as b')
-    .whereNotNull('b.confirmed_at')
-    .whereIn('b.status', ['confirmed', 'completed', 'cancelled', 'refund_required'])
-    .where('b.pickup_at', '<', end)
-    .where('b.return_at', '>', start)
+    .whereIn('b.status', PAID_STATUSES)
+    .where(dateBy, '>=', start)
+    .where(dateBy, '<', end)
     .select(
       'b.id',
       'b.vehicle_id',
@@ -482,19 +510,15 @@ function overlapping(start: Date, end: Date, provider: number | null) {
       'b.rental_amount'
     )
     .limit(MAX_REPORT_ROWS + 1)
-  if (provider) query.where('b.provider_id', provider)
-  return query
+  if (filters.provider) query.where('b.provider_id', filters.provider)
+  return wherePaid(query)
 }
 
 // ------------------------------------------------ 3. provider and branch performance
 
 async function providerPerformance(filters: ReportFilters): Promise<ReportResult> {
   const { start, end } = bounds(filters)
-  const all = limited((await overlapping(start, end, filters.provider)) as Row[])
-  // Performance counts bookings by pickup date.
-  const bookings = all.filter(
-    (row) => new Date(row.pickup_at) >= start && new Date(row.pickup_at) < end
-  )
+  const bookings = limited((await paidBookings(filters, start, end)) as Row[])
   const earning = bookings.filter(isEarning)
   const cancelled = bookings.filter(isCancelled)
   const reviews = await ratings('provider_id')
@@ -503,7 +527,7 @@ async function providerPerformance(filters: ReportFilters): Promise<ReportResult
       label: 'Rentals',
       value: earning.length,
       type: 'int',
-      hint: 'Confirmed or completed pickups',
+      hint: `Confirmed or completed, ${byDate(filters)}`,
     },
     {
       label: 'Rental value',
@@ -629,14 +653,16 @@ async function providerPerformance(filters: ReportFilters): Promise<ReportResult
 
 async function customerReport(filters: ReportFilters): Promise<ReportResult> {
   const { start, end } = bounds(filters)
-  // Paid bookings made in the range.
+  // Paid bookings made, or picked up, in the range.
+  const dateBy = dateColumn(filters)
   const query = db
     .from('rental_bookings as b')
     .join('customers as c', 'c.id', 'b.customer_id')
-    .whereNotNull('b.confirmed_at')
-    .where('b.created_at', '>=', start)
-    .where('b.created_at', '<', end)
+    .whereIn('b.status', PAID_STATUSES)
+    .where(dateBy, '>=', start)
+    .where(dateBy, '<', end)
     .select(
+      feeKeptColumn(),
       'b.customer_id',
       'b.status',
       'b.rental_amount',
@@ -650,6 +676,7 @@ async function customerReport(filters: ReportFilters): Promise<ReportResult> {
     )
     .limit(MAX_REPORT_ROWS + 1)
   if (filters.provider) query.where('b.provider_id', filters.provider)
+  wherePaid(query)
   const bookings = limited((await query) as Row[])
   const byCustomer = new Map<number, Row[]>()
   for (const row of bookings) {
@@ -660,14 +687,17 @@ async function customerReport(filters: ReportFilters): Promise<ReportResult> {
   const lifetime = new Map<number, { total: number; first: Date }>()
   const ids = [...byCustomer.keys()]
   for (let index = 0; index < ids.length; index += 1000) {
-    const rows = (await db
-      .from('rental_bookings')
-      .whereNotNull('confirmed_at')
-      .whereIn('customer_id', ids.slice(index, index + 1000))
-      .groupBy('customer_id')
-      .select('customer_id')
+    const rows = (await wherePaid(
+      db
+        .from('rental_bookings as lb')
+        .whereIn('lb.status', PAID_STATUSES)
+        .whereIn('lb.customer_id', ids.slice(index, index + 1000)),
+      'lb'
+    )
+      .groupBy('lb.customer_id')
+      .select('lb.customer_id')
       .count('* as total')
-      .min('created_at as first')) as Row[]
+      .min('lb.created_at as first')) as Row[]
     for (const row of rows)
       lifetime.set(Number(row.customer_id), {
         total: Number(row.total),
@@ -690,7 +720,7 @@ async function customerReport(filters: ReportFilters): Promise<ReportResult> {
       cancelled: lost.length,
       cancel_rate: percent(lost.length, items.length),
       rental: sum(earned, (row) => fils(row.rental_amount)),
-      fees: sum(items, (row) => fils(row.booking_fee)),
+      fees: sum(items, keptFee),
       lifetime: life?.total ?? items.length,
       last_booking: iso(
         items.reduce(
@@ -712,7 +742,12 @@ async function customerReport(filters: ReportFilters): Promise<ReportResult> {
   const returning = shown.filter((row) => row.type === 'Returning').length
   return {
     summary: [
-      { label: 'Customers', value: shown.length, type: 'int', hint: 'With a paid booking' },
+      {
+        label: 'Customers',
+        value: shown.length,
+        type: 'int',
+        hint: `With a paid booking, ${byDate(filters)}`,
+      },
       {
         label: 'New',
         value: shown.length - returning,
@@ -743,7 +778,7 @@ async function customerReport(filters: ReportFilters): Promise<ReportResult> {
       { key: 'cancelled', label: 'Cancelled', type: 'int', detail: true },
       { key: 'cancel_rate', label: 'Cancellation rate', type: 'percent', detail: true },
       { key: 'rental', label: 'Rental value (KWD)', type: 'money' },
-      { key: 'fees', label: 'Booking fees (KWD)', type: 'money', detail: true },
+      { key: 'fees', label: 'Booking fees kept (KWD)', type: 'money', detail: true },
       { key: 'lifetime', label: 'All-time bookings', type: 'int', detail: true },
       { key: 'last_booking', label: 'Last booking', type: 'datetime' },
       { key: 'registered_at', label: 'Registered', type: 'datetime', detail: true },
@@ -761,6 +796,12 @@ const providerFilter = (providers: FilterOption[]): ReportFilter => ({
   options: providers,
 })
 const from: ReportFilter = { key: 'from', label: 'From', kind: 'date' }
+const dateBy: ReportFilter = {
+  key: 'date_by',
+  label: 'By booking date',
+  kind: 'select',
+  options: [{ value: 'pickup', label: 'By pickup date' }],
+}
 const to: ReportFilter = { key: 'to', label: 'To', kind: 'date' }
 
 export const reports: ReportDefinition[] = [
@@ -799,12 +840,7 @@ export const reports: ReportDefinition[] = [
     filters: (providers) => [
       from,
       to,
-      {
-        key: 'date_by',
-        label: 'By booking date',
-        kind: 'select',
-        options: [{ value: 'pickup', label: 'By pickup date' }],
-      },
+      dateBy,
       providerFilter(providers),
       {
         key: 'status',
@@ -823,6 +859,7 @@ export const reports: ReportDefinition[] = [
     filters: (providers) => [
       from,
       to,
+      dateBy,
       providerFilter(providers),
       {
         key: 'view',
@@ -840,6 +877,7 @@ export const reports: ReportDefinition[] = [
     filters: (providers) => [
       from,
       to,
+      dateBy,
       providerFilter(providers),
       {
         key: 'view',

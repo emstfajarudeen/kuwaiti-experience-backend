@@ -70,7 +70,7 @@ Rules:
 
 - Send the data in the **JSON body**, not in the URL.
 - Exactly one pickup: `pickup_location_id`, **or** the map fields, **or** `pickup_saved_address_id`.
-- Don't send `return_location_id` with an address pickup. The driver returns the car.
+- Don't send `return_location_id` with an address pickup. The driver drops the customer back at the **same address** at `return_at`.
 
 ## 4. Booking response
 
@@ -93,6 +93,8 @@ For a normal branch pickup:
 ```
 
 When `pickup.type` is `"address"`, show `pickup.address` as the pickup on the summary, booking detail and history screens. `pickup_location` is then the provider's branch the driver sets off from (you don't need to show it).
+
+Every booking also has `return`, with the same shape as `pickup`. For an address pickup it is the same address: the driver drops the customer back there at `return_at`. Show `return.address` as the return on the summary, booking detail and history screens. For a branch pickup, `return.type` is `"branch"`; show `return_location` as before. Branch working hours apply only to the pickup time of an address booking.
 
 ## Errors
 

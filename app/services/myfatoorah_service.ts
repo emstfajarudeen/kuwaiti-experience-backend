@@ -4,6 +4,16 @@ import { ApiError } from './api_error.js'
 
 /** MyFatoorah v2 REST client: https://docs.myfatoorah.com/docs/api-reference */
 
+/**
+ * MyFatoorah turned a request down. `reason` is their own explanation (for example
+ * "Insufficient balance for vendor"), meant for staff screens, not for customers.
+ */
+export class GatewayRejectedError extends ApiError {
+  constructor(public reason: string | null) {
+    super(502, 'PAYMENT_GATEWAY_ERROR', 'The payment service rejected the request')
+  }
+}
+
 export type GatewayPaymentMethod = {
   PaymentMethodId: number
   PaymentMethodEn: string
@@ -106,7 +116,10 @@ class MyFatoorahGateway implements PaymentGateway {
         },
         'MyFatoorah rejected a request'
       )
-      throw new ApiError(502, 'PAYMENT_GATEWAY_ERROR', 'The payment service rejected the request')
+      const details = (payload?.ValidationErrors ?? []).map((item) => item.Error).filter(Boolean)
+      throw new GatewayRejectedError(
+        (details.length ? details.join('; ') : payload?.Message)?.slice(0, 300) || null
+      )
     }
     return payload.Data
   }

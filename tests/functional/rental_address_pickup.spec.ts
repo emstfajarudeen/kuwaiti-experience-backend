@@ -5,6 +5,7 @@ import limiter from '@adonisjs/limiter/services/main'
 import { createHash, randomBytes, randomInt, randomUUID } from 'node:crypto'
 import hash from '@adonisjs/core/services/hash'
 import { loginAdmin } from '../helpers/admin_auth.js'
+import { rentalServiceAreaValidator } from '#validators/rentals'
 
 const DAY = 24 * 60 * 60 * 1000
 const base = '/api/v2'
@@ -218,6 +219,8 @@ test.group('Rental pickup at the customer address', (group) => {
       longitude: NEAR_SALMIYA.lng,
       area: { id: ids.salmiya, name: 'Salmiya' },
     })
+    // The driver drops the customer back at the same address.
+    assert.deepEqual(booking.return, booking.pickup)
     // The driver sets off from the provider's branch.
     assert.equal(booking.pickup_location.name, 'Kuwait City')
     const row = await db.from('rental_bookings').where('id', booking.id).firstOrFail()
@@ -254,6 +257,7 @@ test.group('Rental pickup at the customer address', (group) => {
     branchBooking.assertStatus(201)
     assert.equal(branchBooking.body().data.pickup.type, 'branch')
     assert.isNull(branchBooking.body().data.pickup.address)
+    assert.equal(branchBooking.body().data.return.type, 'branch')
 
     // The CMS booking page shows the address and a map link.
     const admin = await staff()
@@ -443,5 +447,25 @@ test.group('Rental pickup at the customer address', (group) => {
       .from('rental_provider_excluded_areas')
       .where('provider_id', ids.cityOnly.providerId)
     assert.lengthOf(after, 1)
+  })
+
+  test('a pin outside Kuwait gets a plain message', async ({ assert }) => {
+    const error = await rentalServiceAreaValidator
+      .validate({
+        nameEn: 'Kochi',
+        nameAr: null,
+        latitude: 9.94,
+        longitude: 76.26,
+        active: true,
+        sortOrder: 0,
+      })
+      .catch((failure) => failure)
+    assert.deepEqual(
+      error.messages.map((item: { message: string }) => item.message),
+      [
+        'This pin is outside Kuwait. Move it inside Kuwait, then save.',
+        'This pin is outside Kuwait. Move it inside Kuwait, then save.',
+      ]
+    )
   })
 })

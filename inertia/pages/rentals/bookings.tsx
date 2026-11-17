@@ -9,7 +9,7 @@ import RowActionMenu from '../../components/row_action_menu'
 import {
   bookingStatusOptions,
   formatDateTime,
-  StatusBadge,
+  BookingStatus,
   useCan,
   usePortal,
   type SharedProps,
@@ -119,7 +119,13 @@ export default function RentalBookings({
         </a>
       ),
     },
-    { title: 'Status', key: 'status', render: (_, row) => <StatusBadge status={row.status} /> },
+    {
+      title: 'Status',
+      key: 'status',
+      render: (_, row) => (
+        <BookingStatus status={row.status} driverAssigned={Boolean(row.driver_name)} />
+      ),
+    },
     {
       title: 'Customer',
       key: 'customer',

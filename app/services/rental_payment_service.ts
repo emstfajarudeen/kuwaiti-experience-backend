@@ -2,7 +2,12 @@ import db from '@adonisjs/lucid/services/db'
 import logger from '@adonisjs/core/services/logger'
 import env from '#start/env'
 import { ApiError } from './api_error.js'
-import { paymentGateway, type GatewayInvoiceStatus } from './myfatoorah_service.js'
+import {
+  GatewayRejectedError,
+  paymentGateway,
+  type GatewayInvoiceStatus,
+  type PaymentGateway,
+} from './myfatoorah_service.js'
 import { freeUnits, rentalSettings } from './rental_catalog_service.js'
 import {
   expireStaleHolds,
@@ -303,11 +308,25 @@ export async function refundBooking(bookingId: number, actorId: number, comment:
     .first()
   if (!payment || !payment.payment_id)
     throw new ApiError(409, 'NOTHING_TO_REFUND', 'This booking has no paid booking fee to refund')
-  const refund = await paymentGateway().makeRefund(
-    String(payment.payment_id),
-    toFils(payment.amount) / 1000,
-    comment.slice(0, 200) || 'Rental booking fee refund'
-  )
+  let refund: Awaited<ReturnType<PaymentGateway['makeRefund']>>
+  try {
+    refund = await paymentGateway().makeRefund(
+      String(payment.payment_id),
+      toFils(payment.amount) / 1000,
+      comment.slice(0, 200) || 'Rental booking fee refund'
+    )
+  } catch (error) {
+    // Staff see MyFatoorah's own reason, e.g. "Insufficient balance for vendor".
+    if (error instanceof GatewayRejectedError)
+      throw new ApiError(
+        502,
+        'REFUND_REJECTED',
+        error.reason
+          ? `MyFatoorah refused the refund: ${error.reason}. Nothing was changed.`
+          : 'MyFatoorah refused the refund. Nothing was changed.'
+      )
+    throw error
+  }
   let wasConfirmed = false
   await db.transaction(async (trx) => {
     const now = new Date()
