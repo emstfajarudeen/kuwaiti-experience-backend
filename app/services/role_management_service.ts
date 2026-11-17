@@ -4,6 +4,7 @@ import { ApiError } from './api_error.js'
 import { ensureRbacState } from './permission_sync_service.js'
 import { requireLiveAdminOperator } from './authorization_service.js'
 import {
+  hiddenPermissionKeys,
   permissionCatalog,
   permissionKeys,
   reservedPermissionKeys,
@@ -80,6 +81,17 @@ async function audit(
   })
 }
 
+/** What the roles pages show: no hidden permissions, and the catalogue's current labels. */
+function shownPermissions<T extends { key: string; label: string }>(permissions: T[]) {
+  return permissions
+    .filter((permission) => !hiddenPermissionKeys.has(permission.key))
+    .map((permission) => ({
+      ...permission,
+      label:
+        permissionCatalog.find((item) => item.key === permission.key)?.label ?? permission.label,
+    }))
+}
+
 async function loadRolePermissions(trx: TransactionClientContract, roleId: number) {
   return trx
     .from('role_permissions as rp')
@@ -106,9 +118,11 @@ export async function listRoles() {
       id: Number(role.id),
       is_system: Boolean(role.is_system),
       staff_count: Number(role.staff_count ?? 0),
-      permissions: role.is_system
-        ? await loadSuperAdminPermissions()
-        : await loadRolePermissionsFromDb(Number(role.id)),
+      permissions: shownPermissions(
+        role.is_system
+          ? await loadSuperAdminPermissions()
+          : await loadRolePermissionsFromDb(Number(role.id))
+      ),
     }))
   )
 }
@@ -119,9 +133,9 @@ export async function getRole(roleIdValue: unknown) {
   const role = await db.from('roles').where('id', roleId).first()
   if (!role) throw new ApiError(404, 'NOT_FOUND', 'Role not found')
   const isSystem = Boolean(role.is_system)
-  const permissions = isSystem
-    ? await loadSuperAdminPermissions()
-    : await loadRolePermissionsFromDb(roleId)
+  const permissions = shownPermissions(
+    isSystem ? await loadSuperAdminPermissions() : await loadRolePermissionsFromDb(roleId)
+  )
   return { ...role, id: Number(role.id), is_system: isSystem, permissions }
 }
 
@@ -182,6 +196,10 @@ export async function updateRole(
     }
     const before = await loadRolePermissions(trx, roleId)
     const oldKeys = before.map((permission) => String(permission.key)).sort()
+    // The roles page can't show hidden permissions, so saving keeps the ones the role has.
+    for (const key of oldKeys)
+      if (hiddenPermissionKeys.has(key) && !keys.includes(key)) keys.push(key)
+    keys.sort()
     await trx
       .from('roles')
       .where('id', roleId)
@@ -241,6 +259,6 @@ async function writeGrants(trx: TransactionClientContract, roleId: number, keys:
 
 export async function permissionOptions() {
   return permissionCatalog
-    .filter((permission) => !('reserved' in permission))
+    .filter((permission) => !('reserved' in permission) && !('hidden' in permission))
     .map(({ key, module, action, label, ...rest }) => ({ key, module, action, label, ...rest }))
 }

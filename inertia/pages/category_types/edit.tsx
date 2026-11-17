@@ -4,6 +4,7 @@ import { postCmsForm } from '../../lib/cms_form'
 import AdminLayout from '../../layouts/admin_layout'
 import ConfirmModal from '../../components/confirm_modal'
 import ImageUpload from '../../components/image_upload'
+import { ReadOnlyFieldset, ReadOnlyNotice, useReadOnly } from '../../components/read_only'
 
 type CategoryType = { code: string; name_en: string; name_ar: string | null; sort_order: number }
 type FormValues = {
@@ -35,12 +36,15 @@ export default function CategoryTypeEdit({
   const [antdForm] = Form.useForm()
   const [processing, setProcessing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const readOnly = useReadOnly('category_types.update', Boolean(categoryType))
   const action = categoryType
     ? `/admin/category-types/${encodeURIComponent(categoryType.code)}/save`
     : '/admin/category-types'
   return (
     <AdminLayout
-      title={categoryType ? 'Edit category type' : 'New category type'}
+      title={
+        readOnly ? 'View category type' : categoryType ? 'Edit category type' : 'New category type'
+      }
       active="category-types"
       adminName={adminName}
       csrfToken={csrfToken}
@@ -55,11 +59,13 @@ export default function CategoryTypeEdit({
       <div className="page-head form-page-head tw:mb-6 tw:flex tw:flex-wrap tw:items-start tw:justify-between tw:gap-4">
         <h1>{categoryType?.name_en || 'Create category type'}</h1>
       </div>
+      {readOnly && <ReadOnlyNotice thing="category type" />}
       <Form
         form={antdForm}
         component="form"
         id="category-type-editor"
         layout="vertical"
+        disabled={readOnly}
         initialValues={{
           code: form?.code ?? '',
           nameEn: form?.nameEn ?? categoryType?.name_en ?? '',
@@ -138,29 +144,39 @@ export default function CategoryTypeEdit({
                 <Input name="nameAr" dir="rtl" lang="ar" maxLength={160} placeholder="المتاحف" />
               </Form.Item>
               <Form.Item label="Image" className="full tw:col-span-full">
-                <ImageUpload
-                  name="image"
-                  currentImageUrl={imageUrl}
-                  currentImageAlt={categoryType?.name_en ?? 'Current category image'}
-                  removeName="removeImage"
-                  initiallyRemoved={form?.removeImage === 'on'}
-                />
+                <ReadOnlyFieldset readOnly={readOnly}>
+                  <ImageUpload
+                    name="image"
+                    currentImageUrl={imageUrl}
+                    currentImageAlt={categoryType?.name_en ?? 'Current category image'}
+                    removeName="removeImage"
+                    initiallyRemoved={form?.removeImage === 'on'}
+                  />
+                </ReadOnlyFieldset>
               </Form.Item>
             </div>
             <div className="cms-form-actions">
-              {categoryType && (
-                <Button
-                  danger
-                  className="cms-form-actions-start"
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  Delete category type
+              {readOnly ? (
+                <Button href="/admin/category-types" disabled={false}>
+                  Back to category types
                 </Button>
+              ) : (
+                <>
+                  {categoryType && (
+                    <Button
+                      danger
+                      className="cms-form-actions-start"
+                      onClick={() => setConfirmDelete(true)}
+                    >
+                      Delete category type
+                    </Button>
+                  )}
+                  <Button href="/admin/category-types">Cancel</Button>
+                  <Button type="primary" htmlType="submit" loading={processing}>
+                    Save {categoryType ? 'changes' : 'category type'}
+                  </Button>
+                </>
               )}
-              <Button href="/admin/category-types">Cancel</Button>
-              <Button type="primary" htmlType="submit" loading={processing}>
-                Save {categoryType ? 'changes' : 'category type'}
-              </Button>
             </div>
           </section>
         </div>

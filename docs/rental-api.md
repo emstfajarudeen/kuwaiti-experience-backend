@@ -58,7 +58,7 @@ If the server sets `RENTAL_PAYMENT_RETURN_URL` (for example an app deep link), t
 
 **Saved flag:** every vehicle card in search, detail and the saved list has `is_saved`. Search and detail don't require login, but send the customer bearer token there too, otherwise `is_saved` is always `false`.
 
-**Search filters:** `pickup_at` + `return_at` (both or neither), `pickup_location_id`, `with_driver=true` (vehicles offered with a driver; the quote then includes the driver rate). Without it the search is self-drive and excludes driver-only vehicles. `vehicle_type` (comma list of `code`s from `/rentals/options` `vehicle_types`; the list is managed in the CMS, so never hard-code it), `transmission` (`automatic,manual`), `seats_min`, `sort` (`recommended`, `price_asc`, `price_desc`, `newest`). With a period, the search returns only vehicles that have a free unit.
+**Search filters:** `pickup_at` + `return_at` (both or neither), `pickup_location_id`, `with_driver=true` (vehicles offered with a driver; the quote then includes the driver rate). Without it the search is self-drive and excludes driver-only vehicles. `vehicle_type` (comma list of `code`s from `/rentals/options` `vehicle_types`; the list is managed in the CMS, so never hard-code it), `transmission` (`automatic,manual`), `seats_min`, `sort` (`recommended`, `price_asc`, `price_desc`, `newest`). `recommended` (the default) puts the best-rated cars first: the car's published rating, pulled towards 3.5 stars until it has a few reviews, then the provider's rating the same way, then cars with a photo, then the lower price. With a period, the search returns only vehicles that have a free unit.
 
 **Create booking body:**
 

@@ -217,7 +217,8 @@
                 "newest"
               ],
               "default": "recommended"
-            }
+            },
+            "description": "recommended (default): best-rated cars first (car rating weighted towards 3.5 until it has a few reviews, then provider rating, then cars with a photo, then lower price). price_asc, price_desc, newest."
           },
           {
             "name": "page",

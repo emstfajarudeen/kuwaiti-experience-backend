@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { RowEditLink } from '../../components/read_only'
+import { useAuthorization } from '../../lib/authorization'
 import AdminLayout from '../../layouts/admin_layout'
 import RowActionMenu from '../../components/row_action_menu'
 import ConfirmModal from '../../components/confirm_modal'
@@ -21,6 +23,7 @@ type Props = {
 }
 
 export default function CategoryTypesIndex({ adminName, csrfToken, success, error, rows }: Props) {
+  const { can } = useAuthorization()
   const [deleting, setDeleting] = useState<CategoryType | null>(null)
   const filters = useLocalFilters({ q: '' })
   const needle = filters.values.q.trim().toLocaleLowerCase()
@@ -69,17 +72,15 @@ export default function CategoryTypesIndex({ adminName, csrfToken, success, erro
               locale={{ emptyText: 'No category types match these filters.' }}
               columns={[
                 {
-                  title: 'Edit',
+                  title: can('category_types.update') ? 'Edit' : 'View',
                   key: 'edit',
                   width: 64,
-                  render: (_: unknown, row) => (
-                    <a
+                  render: (_: unknown, row: CategoryType) => (
+                    <RowEditLink
                       href={`/admin/category-types/${encodeURIComponent(row.code)}/edit`}
-                      className="action-pencil-btn"
-                      aria-label={`Edit ${row.name_en}`}
-                    >
-                      ✎
-                    </a>
+                      label={row.name_en}
+                      canEdit={can('category_types.update')}
+                    />
                   ),
                 },
                 {

@@ -9,6 +9,8 @@ type Props = {
   format: string
   required?: boolean
   rtl?: boolean
+  /** Shows the content without the toolbar and without editing. */
+  readOnly?: boolean
   error?: string | null
   hint?: string
   onChange?: (value: string) => void
@@ -23,6 +25,7 @@ export default function RichTextField({
   format,
   required = false,
   rtl = false,
+  readOnly = false,
   error,
   hint,
   onChange,
@@ -44,14 +47,17 @@ export default function RichTextField({
       if (disposed) return
       const quill = new Quill(editor, {
         theme: 'snow',
+        readOnly,
         modules: {
-          toolbar: [
-            [{ header: [2, 3, false] }],
-            ['bold', 'italic', 'underline'],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            ['blockquote', 'link'],
-            ['clean'],
-          ],
+          toolbar: readOnly
+            ? false
+            : [
+                [{ header: [2, 3, false] }],
+                ['bold', 'italic', 'underline'],
+                [{ list: 'ordered' }, { list: 'bullet' }],
+                ['blockquote', 'link'],
+                ['clean'],
+              ],
         },
         formats: ['header', 'bold', 'italic', 'underline', 'list', 'blockquote', 'link'],
         placeholder: 'Write page content here…',
@@ -71,7 +77,10 @@ export default function RichTextField({
       formatInput.value = 'html'
       toolbar = editor.parentElement?.querySelector('.ql-toolbar') ?? null
       const sync = () => {
-        const visibleText = quill.getText().replace(/\uFEFF/g, '').trim()
+        const visibleText = quill
+          .getText()
+          .replace(/\uFEFF/g, '')
+          .trim()
         source.value = visibleText ? quill.getSemanticHTML() : ''
         source.dispatchEvent(new Event('input', { bubbles: true }))
         onChangeRef.current?.(source.value)
@@ -86,7 +95,7 @@ export default function RichTextField({
       toolbar?.remove()
       if (editor) editor.innerHTML = ''
     }
-  }, [value, format, required])
+  }, [value, format, required, readOnly])
   useEffect(() => {
     const editable = editorRef.current?.querySelector('[contenteditable="true"]')
     if (!editable) return

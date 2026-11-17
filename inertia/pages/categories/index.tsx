@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import ConfirmModal from '../../components/confirm_modal'
 import RowActionMenu from '../../components/row_action_menu'
+import { RowEditLink } from '../../components/read_only'
 import AdminLayout from '../../layouts/admin_layout'
 import { Table } from 'antd'
 import TableToolbar, { useLocalFilters } from '../../components/table_toolbar'
@@ -110,24 +111,18 @@ export default function CategoryIndex({
               pagination={false}
               dataSource={visibleRows}
               columns={[
-                ...(can('categories.update')
-                  ? [
-                      {
-                        title: 'Edit',
-                        key: 'edit',
-                        width: 64,
-                        render: (_: unknown, row: Category) => (
-                          <a
-                            href={`/admin/categories/${row.id}/edit`}
-                            className="action-pencil-btn"
-                            aria-label={`Edit ${categoryName(row)}`}
-                          >
-                            ✎
-                          </a>
-                        ),
-                      },
-                    ]
-                  : []),
+                {
+                  title: can('categories.update') ? 'Edit' : 'View',
+                  key: 'edit',
+                  width: 64,
+                  render: (_: unknown, row: Category) => (
+                    <RowEditLink
+                      href={`/admin/categories/${row.id}/edit`}
+                      label={categoryName(row)}
+                      canEdit={can('categories.update')}
+                    />
+                  ),
+                },
                 {
                   title: 'Category',
                   key: 'category',

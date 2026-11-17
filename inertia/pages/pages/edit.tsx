@@ -3,6 +3,7 @@ import { Button, Form, Input } from 'antd'
 import AdminLayout from '../../layouts/admin_layout'
 import RichTextField from '../../components/rich_text_field'
 import { postCmsForm } from '../../lib/cms_form'
+import { ReadOnlyNotice, useReadOnly } from '../../components/read_only'
 
 type Translation = {
   title: string | null
@@ -40,6 +41,7 @@ export default function PageEdit({
   const initialSlug = value('slug', page?.slug)
   const initialBody = value('bodyEn', en?.body)
   const [processing, setProcessing] = useState(false)
+  const readOnly = useReadOnly('pages.update', Boolean(page))
   const [titleError, setTitleError] = useState(fieldErrors?.titleEn?.[0] ?? '')
   const [slugError, setSlugError] = useState(fieldErrors?.slug?.[0] ?? '')
   const [bodyError, setBodyError] = useState(fieldErrors?.bodyEn?.[0] ?? '')
@@ -96,7 +98,7 @@ export default function PageEdit({
   }
   return (
     <AdminLayout
-      title={page ? 'Edit page' : 'New page'}
+      title={readOnly ? 'View page' : page ? 'Edit page' : 'New page'}
       active="pages"
       adminName={adminName}
       csrfToken={csrfToken}
@@ -118,12 +120,14 @@ export default function PageEdit({
           </span>
         )}
       </div>
+      {readOnly && <ReadOnlyNotice thing="page" />}
       <div className="panel form-panel tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)]">
         <Form
           id="cms-page-editor"
           component="form"
           form={antdForm}
           layout="vertical"
+          disabled={readOnly}
           initialValues={{
             titleEn: initialTitle,
             eyebrowEn: value('eyebrowEn', en?.eyebrow),
@@ -222,6 +226,7 @@ export default function PageEdit({
                   </Form.Item>
                 </label>
                 <RichTextField
+                  readOnly={readOnly}
                   key={`en-${page?.id ?? 'new'}`}
                   id="page-body-en"
                   label="Formatted body"
@@ -279,6 +284,7 @@ export default function PageEdit({
                   </Form.Item>
                 </label>
                 <RichTextField
+                  readOnly={readOnly}
                   key={`ar-${page?.id ?? 'new'}`}
                   id="page-body-ar"
                   label="المحتوى العربي"
@@ -293,57 +299,63 @@ export default function PageEdit({
           </div>
         </Form>
         <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-end tw:gap-3 tw:border-t tw:border-brand-line tw:px-6 tw:py-5">
-          {page && (
-            <div className="form-delete-actions tw:!m-0">
-              {page.status !== 'published' && (
-                <form
-                  action={`/admin/pages/${page.id}/publish`}
-                  method="POST"
-                  onSubmit={(event) => {
-                    const title = String(antdForm.getFieldValue('titleEn') ?? '').trim()
-                    if (title.length < 2) {
-                      event.preventDefault()
-                      setTitleError('Enter an English page title before publishing.')
-                      antdForm.scrollToField('titleEn')
-                      return
-                    }
-                    if (!bodyHasText(bodyContent)) {
-                      event.preventDefault()
-                      setBodyError('Add English page content before publishing.')
-                      focusBody()
-                      return
-                    }
-                    if (bodyLength(bodyContent) > 50000) {
-                      event.preventDefault()
-                      setBodyError('Page content must be 50,000 characters or fewer.')
-                      focusBody()
-                      return
-                    }
-                    if (placeholderCopy(bodyContent)) {
-                      event.preventDefault()
-                      setBodyError(
-                        'Replace the demo text with approved page copy, save the page, then publish again.'
-                      )
-                      focusBody()
-                    }
-                  }}
-                >
-                  <input type="hidden" name="_csrf" value={csrfToken} />
-                  <button className="button secondary" type="submit">
-                    Set status to Published
-                  </button>
-                </form>
+          {readOnly ? (
+            <Button href="/admin/pages">Back to pages</Button>
+          ) : (
+            <>
+              {page && (
+                <div className="form-delete-actions tw:!m-0">
+                  {page.status !== 'published' && (
+                    <form
+                      action={`/admin/pages/${page.id}/publish`}
+                      method="POST"
+                      onSubmit={(event) => {
+                        const title = String(antdForm.getFieldValue('titleEn') ?? '').trim()
+                        if (title.length < 2) {
+                          event.preventDefault()
+                          setTitleError('Enter an English page title before publishing.')
+                          antdForm.scrollToField('titleEn')
+                          return
+                        }
+                        if (!bodyHasText(bodyContent)) {
+                          event.preventDefault()
+                          setBodyError('Add English page content before publishing.')
+                          focusBody()
+                          return
+                        }
+                        if (bodyLength(bodyContent) > 50000) {
+                          event.preventDefault()
+                          setBodyError('Page content must be 50,000 characters or fewer.')
+                          focusBody()
+                          return
+                        }
+                        if (placeholderCopy(bodyContent)) {
+                          event.preventDefault()
+                          setBodyError(
+                            'Replace the demo text with approved page copy, save the page, then publish again.'
+                          )
+                          focusBody()
+                        }
+                      }}
+                    >
+                      <input type="hidden" name="_csrf" value={csrfToken} />
+                      <button className="button secondary" type="submit">
+                        Set status to Published
+                      </button>
+                    </form>
+                  )}
+                </div>
               )}
-            </div>
+              <Button
+                className="button primary"
+                htmlType="submit"
+                form="cms-page-editor"
+                loading={processing}
+              >
+                Save page
+              </Button>
+            </>
           )}
-          <Button
-            className="button primary"
-            htmlType="submit"
-            form="cms-page-editor"
-            loading={processing}
-          >
-            Save page
-          </Button>
         </div>
       </div>
     </AdminLayout>

@@ -1,11 +1,19 @@
 const permissionDefinitions = [
   { key: 'dashboard.view', module: 'dashboard', action: 'view', label: 'View dashboard' },
-  ...(['view', 'create', 'update', 'delete', 'publish', 'archive'] as const).map((action) => ({
+  ...(['view', 'create', 'update', 'delete'] as const).map((action) => ({
     key: `places.${action}` as const,
     module: 'places',
     action,
     label: `${action[0].toUpperCase()}${action.slice(1)} places`,
   })),
+  // The places list turns a place on (publish) or off (archive, shown as "Inactive").
+  { key: 'places.publish', module: 'places', action: 'publish', label: 'Turn places on (active)' },
+  {
+    key: 'places.archive',
+    module: 'places',
+    action: 'archive',
+    label: 'Turn places off (inactive)',
+  },
   ...(['view', 'create', 'update', 'delete'] as const).flatMap((action) =>
     (['categories', 'category_types', 'countries', 'pages', 'place_features'] as const).map(
       (module) => ({
@@ -16,23 +24,28 @@ const permissionDefinitions = [
       })
     )
   ),
+  // `hidden`: used by the admin API but with no CMS screen yet, so the roles page doesn't offer
+  // them. Roles that already have them keep them.
   ...(['publish', 'archive'] as const).map((action) => ({
     key: `pages.${action}` as const,
     module: 'pages',
     action,
     label: `${action[0].toUpperCase()}${action.slice(1)} pages`,
+    hidden: true as const,
   })),
   ...(['view', 'create', 'update', 'delete', 'publish', 'archive'] as const).map((action) => ({
     key: `movies.${action}` as const,
     module: 'movies',
     action,
     label: `${action[0].toUpperCase()}${action.slice(1)} movies`,
+    hidden: true as const,
   })),
   ...(['view', 'create', 'update', 'delete', 'publish', 'cancel'] as const).map((action) => ({
     key: `showtimes.${action}` as const,
     module: 'showtimes',
     action,
     label: `${action[0].toUpperCase()}${action.slice(1)} showtimes`,
+    hidden: true as const,
   })),
   {
     key: 'contact_requests.view',
@@ -128,6 +141,10 @@ export const permissionCatalog = Object.freeze(
 export type PermissionKey = (typeof permissionCatalog)[number]['key']
 export type PermissionDefinition = (typeof permissionCatalog)[number]
 export const permissionKeys = new Set<string>(permissionCatalog.map(({ key }) => key))
+/** Permissions the roles page doesn't show (no CMS screen for them yet). */
+export const hiddenPermissionKeys = new Set<string>(
+  permissionCatalog.filter((permission) => 'hidden' in permission).map(({ key }) => key)
+)
 export const reservedPermissionKeys = new Set<string>(
   permissionCatalog.filter((permission) => 'reserved' in permission).map(({ key }) => key)
 )

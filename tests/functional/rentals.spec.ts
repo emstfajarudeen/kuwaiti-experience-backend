@@ -1751,6 +1751,50 @@ test.group('Rental provider portal', (group) => {
     assert.deepEqual(await listed(`?q=${reference}`), [held])
   })
 
+  test('recommended puts well-rated cars first, then cars with a photo, then the cheaper', async ({
+    client,
+    assert,
+  }) => {
+    const ids = await catalog()
+    const base = await db.from('rental_vehicles').where('id', ids.vehicleId).firstOrFail()
+    const copy = async (name: string, rate: string, cover: string | null) => {
+      const rest: Record<string, unknown> = { ...base }
+      delete rest.id
+      const [id] = await db.table('rental_vehicles').insert({
+        ...rest,
+        name_en: name,
+        daily_rate: rate,
+        cover_image_key: cover,
+        created_at: new Date(),
+      })
+      return Number(id)
+    }
+    const cheap = await copy('Cheap, no photo', '5.000', null)
+    const pictured = await copy('With a photo', '9.000', 'vehicles/pictured.webp')
+    // The Camry (12.500) has three 5-star reviews, and one hidden 1-star review that doesn't count.
+    for (const rating of [5, 5, 5, 1]) {
+      const done = await booking(ids, { pickupInDays: -5, days: 1, status: 'completed' })
+      const row = await db.from('rental_bookings').where('id', done).firstOrFail()
+      await db.table('rental_reviews').insert({
+        booking_id: done,
+        customer_id: row.customer_id,
+        vehicle_id: ids.vehicleId,
+        provider_id: ids.providerId,
+        rating,
+        status: rating === 1 ? 'hidden' : 'published',
+        created_at: new Date(),
+      })
+    }
+    const order = async (sort?: string) => {
+      const response = await client.get('/api/v2/rentals/vehicles').qs(sort ? { sort } : {})
+      response.assertStatus(200)
+      return response.body().data.map((card: { id: number }) => card.id)
+    }
+    assert.deepEqual(await order(), [ids.vehicleId, pictured, cheap])
+    assert.deepEqual(await order('recommended'), [ids.vehicleId, pictured, cheap])
+    assert.deepEqual(await order('price_asc'), [cheap, pictured, ids.vehicleId])
+  })
+
   test('staff invite a provider, who sets a password and signs in', async ({ client, assert }) => {
     const admin = await staff()
     const ids = await catalog()

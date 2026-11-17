@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { RowEditLink } from '../../components/read_only'
+import { useAuthorization } from '../../lib/authorization'
 import AdminLayout from '../../layouts/admin_layout'
 import RowActionMenu from '../../components/row_action_menu'
 import ConfirmModal from '../../components/confirm_modal'
@@ -55,6 +57,7 @@ export default function PlacesIndex({
   pagination,
   filters,
 }: Props) {
+  const { can } = useAuthorization()
   const [deleting, setDeleting] = useState<Place | null>(null)
   const [changingStatus, setChangingStatus] = useState<number | null>(null)
   const defaults = { q: '', type: '', status: '', sort: 'updated_desc' }
@@ -95,9 +98,11 @@ export default function PlacesIndex({
               ? `Showing ${(pagination.page - 1) * pagination.perPage + 1}–${Math.min(pagination.page * pagination.perPage, pagination.total)} of ${pagination.total} business/places`
               : '0 business/places found'}
           </h2>
-          <a className="button primary" href="/admin/places/new">
-            + Add business/place
-          </a>
+          {can('places.create') && (
+            <a className="button primary" href="/admin/places/new">
+              + Add business/place
+            </a>
+          )}
         </div>
         <TableToolbar
           search={{
@@ -151,17 +156,15 @@ export default function PlacesIndex({
                 dataSource={rows}
                 columns={[
                   {
-                    title: 'Edit',
+                    title: can('places.update') ? 'Edit' : 'View',
                     key: 'edit',
                     width: 64,
-                    render: (_: unknown, row) => (
-                      <a
+                    render: (_: unknown, row: Place) => (
+                      <RowEditLink
                         href={`/admin/places/${row.id}/edit`}
-                        className="action-pencil-btn"
-                        aria-label={`Edit ${row.title}`}
-                      >
-                        ✎
-                      </a>
+                        label={row.title}
+                        canEdit={can('places.update')}
+                      />
                     ),
                   },
                   {
@@ -195,7 +198,10 @@ export default function PlacesIndex({
                         title={`Current status: ${row.status}`}
                         checked={row.status === 'published'}
                         loading={changingStatus === row.id}
-                        disabled={changingStatus !== null}
+                        disabled={
+                          changingStatus !== null ||
+                          !can(row.status === 'published' ? 'places.archive' : 'places.publish')
+                        }
                         onChange={(checked) => changeStatus(row, checked)}
                       />
                     ),
@@ -211,7 +217,9 @@ export default function PlacesIndex({
                             label: 'Explore details',
                             href: `/admin/places/${row.id}/explore`,
                           },
-                          { label: 'Delete', danger: true, onClick: () => setDeleting(row) },
+                          ...(can('places.delete')
+                            ? [{ label: 'Delete', danger: true, onClick: () => setDeleting(row) }]
+                            : []),
                         ]}
                       />
                     ),
@@ -221,7 +229,8 @@ export default function PlacesIndex({
             </div>
             <div className="pagination-bar tw:[display:flex] tw:[justify-content:space-between] tw:[align-items:center] tw:[flex-wrap:wrap] tw:[gap:var(--space-3)] tw:[padding:var(--space-4)_var(--space-6)] tw:[border-top:1px_solid_var(--line-subtle)] tw:[background:var(--surface)] tw:[font-size:13px] tw:[color:var(--muted)]">
               <span>
-                Page {pagination.page} of {pagination.lastPage} ({pagination.total} total business/places)
+                Page {pagination.page} of {pagination.lastPage} ({pagination.total} total
+                business/places)
               </span>
               <div className="pagination-links tw:[display:flex] tw:[align-items:center] tw:[gap:6px]">
                 {pagination.hasPrev ? (

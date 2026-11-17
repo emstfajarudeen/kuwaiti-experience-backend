@@ -3,6 +3,7 @@ import { Button, Form, Input, InputNumber, Select, Switch } from 'antd'
 import ConfirmModal from '../../components/confirm_modal'
 import AdminLayout from '../../layouts/admin_layout'
 import { postCmsForm } from '../../lib/cms_form'
+import { ReadOnlyNotice, useReadOnly } from '../../components/read_only'
 
 type Category = { id: number; type: string; slug: string; sort_order: number; active: boolean }
 type Values = {
@@ -39,7 +40,8 @@ export default function CategoryEdit({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [antdForm] = Form.useForm<Values>()
-  const title = category ? 'Edit category' : 'New category'
+  const readOnly = useReadOnly('categories.update', Boolean(category))
+  const title = readOnly ? 'View category' : category ? 'Edit category' : 'New category'
   const action = category ? `/admin/categories/${category.id}/save` : '/admin/categories'
   const initialValues: Values = {
     type: form?.type ?? category?.type ?? defaultType ?? '',
@@ -66,11 +68,13 @@ export default function CategoryEdit({
       <div className="page-head form-page-head tw:mb-6">
         <h1>{category ? enName || category.slug : 'Create category'}</h1>
       </div>
+      {readOnly && <ReadOnlyNotice thing="category" />}
       <Form
         id="cms-category-editor"
         form={antdForm}
         initialValues={initialValues}
         layout="vertical"
+        disabled={readOnly}
         onFinish={(values) =>
           postCmsForm({
             action,
@@ -152,19 +156,27 @@ export default function CategoryEdit({
               </Form.Item>
             </div>
             <div className="cms-form-actions">
-              {category && (
-                <Button
-                  danger
-                  className="cms-form-actions-start"
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  Delete category
+              {readOnly ? (
+                <Button href="/admin/categories" disabled={false}>
+                  Back to categories
                 </Button>
+              ) : (
+                <>
+                  {category && (
+                    <Button
+                      danger
+                      className="cms-form-actions-start"
+                      onClick={() => setConfirmDelete(true)}
+                    >
+                      Delete category
+                    </Button>
+                  )}
+                  <Button href="/admin/categories">Cancel</Button>
+                  <Button type="primary" htmlType="submit" loading={processing}>
+                    Save {category ? 'changes' : 'category'}
+                  </Button>
+                </>
               )}
-              <Button href="/admin/categories">Cancel</Button>
-              <Button type="primary" htmlType="submit" loading={processing}>
-                Save {category ? 'changes' : 'category'}
-              </Button>
             </div>
           </section>
         </div>

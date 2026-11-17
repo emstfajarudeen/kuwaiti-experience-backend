@@ -37,6 +37,22 @@ export type FuelType = keyof typeof FUEL_TYPES
 
 const SORTS = ['recommended', 'price_asc', 'price_desc', 'newest'] as const
 
+/**
+ * "Recommended": best-rated cars first. A rating is pulled towards 3.5 stars until it has a few
+ * reviews (weighted average with 3 reviews' weight), so one 5-star review doesn't beat twenty
+ * 4.8s and new cars sit in the middle. Then the provider's rating the same way, then cars with
+ * a photo, then the lower price. Only published reviews count.
+ */
+const weightedRating = (column: 'vehicle_id' | 'provider_id', id: string) =>
+  `(select (coalesce(sum(r.rating), 0) + 3 * 3.5) / (count(r.id) + 3) from rental_reviews as r
+     where r.${column} = ${id} and r.status = 'published')`
+const RECOMMENDED_ORDER = [
+  `${weightedRating('vehicle_id', 'v.id')} desc`,
+  `${weightedRating('provider_id', 'v.provider_id')} desc`,
+  `(case when v.cover_image_key is null then 1 else 0 end) asc`,
+  'v.daily_rate asc',
+].join(', ')
+
 export type RentalSettings = {
   booking_fee: string
   hold_minutes: number
@@ -497,7 +513,7 @@ export async function listVehicles(input: Row, locale: PublicLocale, customerId?
   if (sort === 'price_asc') query.orderBy('v.daily_rate', 'asc')
   else if (sort === 'price_desc') query.orderBy('v.daily_rate', 'desc')
   else if (sort === 'newest') query.orderBy('v.published_at', 'desc')
-  else query.orderBy('v.daily_rate', 'asc')
+  else query.orderByRaw(RECOMMENDED_ORDER)
   const rows = await query
     .orderBy('v.id', 'desc')
     .limit(perPage)

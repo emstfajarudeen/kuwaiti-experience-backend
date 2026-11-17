@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Switch, Table } from 'antd'
 import { router } from '@inertiajs/react'
+import { RowEditLink } from '../../components/read_only'
 import AdminLayout from '../../layouts/admin_layout'
 import RowActionMenu from '../../components/row_action_menu'
 import ConfirmModal from '../../components/confirm_modal'
@@ -107,24 +108,18 @@ export default function CountriesIndex({ adminName, csrfToken, success, error, r
                 : 'No countries configured yet.',
             }}
             columns={[
-              ...(can('countries.update')
-                ? [
-                    {
-                      title: 'Edit',
-                      key: 'edit',
-                      width: 70,
-                      render: (_: unknown, row: Country) => (
-                        <a
-                          href={`/admin/countries/${encodeURIComponent(row.code)}/edit`}
-                          className="action-pencil-btn"
-                          aria-label={`Edit ${row.name_en}`}
-                        >
-                          ✎
-                        </a>
-                      ),
-                    },
-                  ]
-                : []),
+              {
+                title: can('countries.update') ? 'Edit' : 'View',
+                key: 'edit',
+                width: 70,
+                render: (_: unknown, row: Country) => (
+                  <RowEditLink
+                    href={`/admin/countries/${encodeURIComponent(row.code)}/edit`}
+                    label={row.name_en}
+                    canEdit={can('countries.update')}
+                  />
+                ),
+              },
               { title: 'Order', dataIndex: 'sort_order', width: 90 },
               { title: 'Country', key: 'name', render: (_, row) => <strong>{row.name_en}</strong> },
               {

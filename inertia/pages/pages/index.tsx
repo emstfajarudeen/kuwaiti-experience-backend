@@ -1,3 +1,4 @@
+import { RowEditLink } from '../../components/read_only'
 import AdminLayout from '../../layouts/admin_layout'
 import { useAuthorization } from '../../lib/authorization'
 import { Table } from 'antd'
@@ -61,24 +62,18 @@ export default function PagesIndex({
               dataSource={visibleRows}
               locale={{ emptyText: 'No pages match these filters.' }}
               columns={[
-                ...(can('pages.update')
-                  ? [
-                      {
-                        title: 'Edit',
-                        key: 'edit',
-                        width: 64,
-                        render: (_: unknown, row: PageRow) => (
-                          <a
-                            href={`/admin/pages/${row.id}/edit`}
-                            className="action-pencil-btn"
-                            aria-label={`Edit ${row.title || 'page'}`}
-                          >
-                            ✎
-                          </a>
-                        ),
-                      },
-                    ]
-                  : []),
+                {
+                  title: can('pages.update') ? 'Edit' : 'View',
+                  key: 'edit',
+                  width: 64,
+                  render: (_: unknown, row: PageRow) => (
+                    <RowEditLink
+                      href={`/admin/pages/${row.id}/edit`}
+                      label={row.title || 'page'}
+                      canEdit={can('pages.update')}
+                    />
+                  ),
+                },
                 {
                   title: 'Page Title',
                   dataIndex: 'title',

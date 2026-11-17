@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Button, Form, Input, InputNumber, Switch } from 'antd'
 import AdminLayout from '../../layouts/admin_layout'
 import { postCmsForm } from '../../lib/cms_form'
+import { ReadOnlyNotice, useReadOnly } from '../../components/read_only'
 
 type Country = {
   code: string
@@ -28,12 +29,13 @@ type Props = {
 export default function CountryEdit({ adminName, csrfToken, error, form, country }: Props) {
   const [antdForm] = Form.useForm<FormValues>()
   const [processing, setProcessing] = useState(false)
+  const readOnly = useReadOnly('countries.update', Boolean(country))
   const action = country
     ? `/admin/countries/${encodeURIComponent(country.code)}/save`
     : '/admin/countries'
   return (
     <AdminLayout
-      title={country ? 'Edit country' : 'New country'}
+      title={readOnly ? 'View country' : country ? 'Edit country' : 'New country'}
       active="countries"
       adminName={adminName}
       csrfToken={csrfToken}
@@ -44,12 +46,14 @@ export default function CountryEdit({ adminName, csrfToken, error, form, country
           ← Back to countries
         </a>
       </div>
+      {readOnly && <ReadOnlyNotice thing="country" />}
       <section className="panel form-panel tw:w-full tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:p-6 tw:shadow-[0_4px_14px_rgba(0,23,46,0.06)]">
         <h2>Country details</h2>
         <Form<FormValues>
           form={antdForm}
           id="country-editor"
           layout="vertical"
+          disabled={readOnly}
           className="tw:mt-5"
           initialValues={{
             code: form?.code ?? country?.code ?? '',
@@ -114,18 +118,22 @@ export default function CountryEdit({ adminName, csrfToken, error, form, country
               <Input dir="rtl" lang="ar" maxLength={160} />
             </Form.Item>
           </div>
-          <Form.Item
-            name="active"
-            label="Active"
-            valuePropName="checked"
-          >
+          <Form.Item name="active" label="Active" valuePropName="checked">
             <Switch />
           </Form.Item>
           <div className="cms-form-actions">
-            <Button href="/admin/countries">Cancel</Button>
-            <Button type="primary" htmlType="submit" loading={processing}>
-              Save country
-            </Button>
+            {readOnly ? (
+              <Button href="/admin/countries" disabled={false}>
+                Back to countries
+              </Button>
+            ) : (
+              <>
+                <Button href="/admin/countries">Cancel</Button>
+                <Button type="primary" htmlType="submit" loading={processing}>
+                  Save country
+                </Button>
+              </>
+            )}
           </div>
         </Form>
       </section>

@@ -8,6 +8,7 @@ import RequiredMark from '../../components/required_mark'
 import OpenMapAddressSearch from '../../components/open_map_address_search'
 import ConfirmModal from '../../components/confirm_modal'
 import { postCmsForm } from '../../lib/cms_form'
+import { ReadOnlyFieldset, ReadOnlyNotice, useReadOnly } from '../../components/read_only'
 
 type Place = {
   id: number
@@ -75,6 +76,7 @@ export default function PlaceEdit({
   )
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const readOnly = useReadOnly('places.update', Boolean(place))
   const [active, setActive] = useState(
     form?.intent === 'publish'
       ? true
@@ -85,7 +87,10 @@ export default function PlaceEdit({
           : true
   )
   const [antdForm] = Form.useForm()
-  const [cover, setCover] = useState({ hasFile: false, removed: Boolean(form?.removeCover === 'on') })
+  const [cover, setCover] = useState({
+    hasFile: false,
+    removed: Boolean(form?.removeCover === 'on'),
+  })
   const [coverError, setCoverError] = useState<string | null>(null)
   const hasCover = cover.hasFile || (Boolean(coverUrl) && !cover.removed)
   // A shared key makes repeated identical errors replace the previous toast instead of being skipped.
@@ -116,7 +121,9 @@ export default function PlaceEdit({
   const action = place ? `/admin/places/${place.id}/save` : '/admin/places'
   return (
     <AdminLayout
-      title={place ? 'Edit business/place' : 'New business/place'}
+      title={
+        readOnly ? 'View business/place' : place ? 'Edit business/place' : 'New business/place'
+      }
       active="places"
       adminName={adminName}
       csrfToken={csrfToken}
@@ -132,11 +139,13 @@ export default function PlaceEdit({
           <h1>{place ? en?.title || 'Edit business/place' : 'Create a new business/place'}</h1>
         </div>
       </div>
+      {readOnly && <ReadOnlyNotice thing="business/place" />}
       <Form
         id="cms-place-editor"
         component="form"
         form={antdForm}
         layout="vertical"
+        disabled={readOnly}
         initialValues={{
           type: selectedType,
           titleEn: value('titleEn', en?.title),
@@ -161,7 +170,9 @@ export default function PlaceEdit({
           if (active && !hasCover) {
             setCoverError('Add a cover image before activating this business/place.')
             toastError('Add a cover image before activating this business/place.')
-            document.getElementById('coverImage-field')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            document
+              .getElementById('coverImage-field')
+              ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
             return
           }
           const element = document.getElementById('cms-place-editor') as HTMLFormElement | null
@@ -192,7 +203,8 @@ export default function PlaceEdit({
           const first = errorFields[0]
           if (!first) return
           toastError(first.errors[0] ?? 'Fix the highlighted fields.')
-          if (active && !hasCover) setCoverError('Add a cover image before activating this business/place.')
+          if (active && !hasCover)
+            setCoverError('Add a cover image before activating this business/place.')
           antdForm.scrollToField(first.name, { focus: true })
         }}
         action={action}
@@ -202,277 +214,287 @@ export default function PlaceEdit({
         className="editor-grid tw:grid tw:items-start tw:gap-4"
       >
         <input type="hidden" name="_csrf" value={csrfToken} />
-        <div className="editor-main panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
-          <section className="cms-form-section">
-            <div className="place-details-heading">
-              <h2>Place details</h2>
-              <label className="place-form-active-toggle tw:flex tw:items-center tw:gap-2 tw:text-sm tw:font-semibold">
-                <Switch
-                  aria-label="Place active"
-                  checked={active}
-                  onChange={setActive}
-                  disabled={processing}
-                />
-                {active ? 'Active' : 'Inactive'}
-              </label>
-            </div>
-            <div className="form-grid two tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
-              <label>
-                <span>
-                  Place type <RequiredMark />
-                </span>
-                <Form.Item
-                  name="type"
-                  rules={[{ required: true, message: 'Select a place type.' }]}
-                >
-                  <FormSelect
+        <ReadOnlyFieldset readOnly={readOnly}>
+          <div className="editor-main panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
+            <section className="cms-form-section">
+              <div className="place-details-heading">
+                <h2>Place details</h2>
+                <label className="place-form-active-toggle tw:flex tw:items-center tw:gap-2 tw:text-sm tw:font-semibold">
+                  <Switch
+                    aria-label="Place active"
+                    checked={active}
+                    onChange={setActive}
+                    disabled={processing || readOnly}
+                  />
+                  {active ? 'Active' : 'Inactive'}
+                </label>
+              </div>
+              <div className="form-grid two tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
+                <label>
+                  <span>
+                    Place type <RequiredMark />
+                  </span>
+                  <Form.Item
                     name="type"
-                    required
-                    value={selectedType}
-                    placeholder="Select a place type"
-                    options={types.map((type) => ({ value: type.code, label: type.name_en }))}
-                    onChange={(next) => {
-                      setSelectedType(next)
-                      if (
-                        selectedCategory &&
-                        !categories.some(
-                          (category) =>
-                            String(category.id) === selectedCategory &&
-                            (!next || category.type === next)
+                    rules={[{ required: true, message: 'Select a place type.' }]}
+                  >
+                    <FormSelect
+                      name="type"
+                      required
+                      value={selectedType}
+                      placeholder="Select a place type"
+                      options={types.map((type) => ({ value: type.code, label: type.name_en }))}
+                      onChange={(next) => {
+                        setSelectedType(next)
+                        if (
+                          selectedCategory &&
+                          !categories.some(
+                            (category) =>
+                              String(category.id) === selectedCategory &&
+                              (!next || category.type === next)
+                          )
                         )
-                      )
-                        setSelectedCategory('')
-                    }}
+                          setSelectedCategory('')
+                      }}
+                    />
+                  </Form.Item>
+                </label>
+                <label>
+                  Category
+                  <FormSelect
+                    name="categoryId"
+                    value={selectedCategory}
+                    placeholder="Uncategorized"
+                    options={matchedCategories.map((category) => ({
+                      value: String(category.id),
+                      label: category.name_en || category.slug,
+                    }))}
+                    onChange={setSelectedCategory}
                   />
-                </Form.Item>
-              </label>
-              <label>
-                Category
-                <FormSelect
-                  name="categoryId"
-                  value={selectedCategory}
-                  placeholder="Uncategorized"
-                  options={matchedCategories.map((category) => ({
-                    value: String(category.id),
-                    label: category.name_en || category.slug,
-                  }))}
-                  onChange={setSelectedCategory}
-                />
-              </label>
-              <label>
-                <span>
-                  English title <RequiredMark />
-                </span>
-                <Form.Item
-                  name="titleEn"
-                  rules={[
-                    { required: true, message: 'Enter an English title.' },
-                    { max: 200, message: 'Title must be 200 characters or fewer.' },
-                  ]}
-                >
-                  <Input name="titleEn" maxLength={200} placeholder="Kuwait Towers" />
-                </Form.Item>
-              </label>
-              <label>
-                <span>
-                  URL slug <RequiredMark />
-                </span>
-                <Form.Item
-                  name="slug"
-                  rules={[
-                    { required: true, message: 'Enter a URL slug.' },
-                    {
-                      pattern: /^[a-z0-9]+(-[a-z0-9]+)*$/,
-                      message: 'Use lowercase letters, numbers, and single hyphens.',
-                    },
-                    { max: 160, message: 'Slug must be 160 characters or fewer.' },
-                  ]}
-                >
-                  <Input
+                </label>
+                <label>
+                  <span>
+                    English title <RequiredMark />
+                  </span>
+                  <Form.Item
+                    name="titleEn"
+                    rules={[
+                      { required: true, message: 'Enter an English title.' },
+                      { max: 200, message: 'Title must be 200 characters or fewer.' },
+                    ]}
+                  >
+                    <Input name="titleEn" maxLength={200} placeholder="Kuwait Towers" />
+                  </Form.Item>
+                </label>
+                <label>
+                  <span>
+                    URL slug <RequiredMark />
+                  </span>
+                  <Form.Item
                     name="slug"
-                    pattern="[a-z0-9]+(-[a-z0-9]+)*"
-                    maxLength={160}
-                    placeholder="kuwait-towers"
-                  />
-                </Form.Item>
-              </label>
-              <label className="full tw:col-span-full">
-                <span>
-                  Address <RequiredMark />
-                </span>
-                <Form.Item
-                  name="addressEn"
-                  rules={[
-                    { required: true, message: 'Search for or enter an address.' },
-                    { max: 300, message: 'Address must be 300 characters or fewer.' },
-                  ]}
-                >
-                  <OpenMapAddressSearch
-                    latitude={mapLatitude}
-                    longitude={mapLongitude}
-                    onAddressEdited={() => antdForm.setFieldsValue({ latitude: '', longitude: '' })}
-                    onPlaceSelected={(_, latitude, longitude) =>
-                      antdForm.setFieldsValue({
-                        latitude: String(latitude),
-                        longitude: String(longitude),
-                      })
-                    }
-                  />
-                </Form.Item>
-              </label>
-              <label className="full tw:col-span-full">
-                About this place
-                <Form.Item name="bodyEn">
-                  <Input.TextArea
-                    name="bodyEn"
-                    rows={7}
-                    maxLength={30000}
-                    placeholder="Detailed description..."
-                  />
-                </Form.Item>
-              </label>
-              {/* Coordinates come from the map. */}
-              {['latitude', 'longitude'].map(
-                (name) => (
+                    rules={[
+                      { required: true, message: 'Enter a URL slug.' },
+                      {
+                        pattern: /^[a-z0-9]+(-[a-z0-9]+)*$/,
+                        message: 'Use lowercase letters, numbers, and single hyphens.',
+                      },
+                      { max: 160, message: 'Slug must be 160 characters or fewer.' },
+                    ]}
+                  >
+                    <Input
+                      name="slug"
+                      pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                      maxLength={160}
+                      placeholder="kuwait-towers"
+                    />
+                  </Form.Item>
+                </label>
+                <label className="full tw:col-span-full">
+                  <span>
+                    Address <RequiredMark />
+                  </span>
+                  <Form.Item
+                    name="addressEn"
+                    rules={[
+                      { required: true, message: 'Search for or enter an address.' },
+                      { max: 300, message: 'Address must be 300 characters or fewer.' },
+                    ]}
+                  >
+                    <OpenMapAddressSearch
+                      latitude={mapLatitude}
+                      longitude={mapLongitude}
+                      onAddressEdited={() =>
+                        antdForm.setFieldsValue({ latitude: '', longitude: '' })
+                      }
+                      onPlaceSelected={(_, latitude, longitude) =>
+                        antdForm.setFieldsValue({
+                          latitude: String(latitude),
+                          longitude: String(longitude),
+                        })
+                      }
+                    />
+                  </Form.Item>
+                </label>
+                <label className="full tw:col-span-full">
+                  About this place
+                  <Form.Item name="bodyEn">
+                    <Input.TextArea
+                      name="bodyEn"
+                      rows={7}
+                      maxLength={30000}
+                      placeholder="Detailed description..."
+                    />
+                  </Form.Item>
+                </label>
+                {/* Coordinates come from the map. */}
+                {['latitude', 'longitude'].map((name) => (
                   <Form.Item key={name} name={name} hidden>
                     <Input name={name} />
                   </Form.Item>
-                )
-              )}
-              <label className="full tw:col-span-full">
-                Website URL
-                <Form.Item
-                  name="websiteUrl"
-                  rules={[
-                    {
-                      type: 'url',
-                      warningOnly: true,
-                      message: 'Use a complete URL starting with https://',
-                    },
-                  ]}
-                >
-                  <Input
+                ))}
+                <label className="full tw:col-span-full">
+                  Website URL
+                  <Form.Item
                     name="websiteUrl"
-                    placeholder="https://example.com"
-                    onBlur={(e) => {
-                      const val = e.target.value.trim()
-                      if (val && !/^https?:\/\//i.test(val)) {
-                        antdForm.setFieldValue('websiteUrl', `https://${val}`)
-                      }
-                    }}
-                  />
-                </Form.Item>
-              </label>
-            </div>
-          </section>
-          <section className="cms-form-section">
-            <h2>Images</h2>
-            <div className="image-block">
-              <span className="image-block-label">
-                Cover image {active && <RequiredMark />}
-              </span>
-              <ImageUpload
-                name="coverImage"
-                currentImageUrl={coverUrl}
-                currentImageAlt="Current cover"
-                removeName="removeCover"
-                initiallyRemoved={form?.removeCover === 'on'}
-                allowRemove={place?.status !== 'published' || !active}
-                disabledRemoveReason="Deactivate this place before removing its cover image."
-                invalid={Boolean(coverError)}
-                errorMessage={coverError}
-                onStateChange={setCover}
-              />
-            </div>
-            <div className="image-block">
-              <GallerySorter images={gallery} maxFiles={maxUploads} />
-            </div>
-          </section>
-          <section className="cms-form-section">
-            <h2>Arabic translation</h2>
-            <div className="form-grid two tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
-              <label>
-                Arabic title
-                <Form.Item name="titleAr">
-                  <Input name="titleAr" lang="ar" dir="rtl" placeholder="أبراج الكويت" />
-                </Form.Item>
-              </label>
-              <label>
-                Arabic address
-                <Form.Item name="addressAr">
-                  <Input
-                    name="addressAr"
-                    lang="ar"
-                    dir="rtl"
-                    placeholder="شارع الخليج العربي، الشرق"
-                  />
-                </Form.Item>
-              </label>
-              <label className="full tw:col-span-full">
-                Arabic body
-                <Form.Item name="bodyAr">
-                  <Input.TextArea name="bodyAr" lang="ar" dir="rtl" rows={5} />
-                </Form.Item>
-              </label>
-            </div>
-          </section>
-          <section className="cms-form-section">
-            <h2>Search &amp; homepage</h2>
-            <div className="form-grid two tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
-              <label>
-                SEO title
-                <Form.Item name="seoTitleEn">
-                  <Input name="seoTitleEn" placeholder="Kuwait Towers" />
-                </Form.Item>
-              </label>
-              <label>
-                Home display order
-                <Form.Item name="featured_order">
-                  <Input name="featured_order" type="number" min={0} max={9999} />
-                </Form.Item>
-              </label>
-              <div className="full tw:col-span-full">
-                <Checkbox
-                  name="featured"
-                  defaultChecked={
-                    form ? form.featured === 'on' : Boolean(place && place.featured_order !== null)
-                  }
-                >
-                  Feature this venue on the homepage
-                </Checkbox>
+                    rules={[
+                      {
+                        type: 'url',
+                        warningOnly: true,
+                        message: 'Use a complete URL starting with https://',
+                      },
+                    ]}
+                  >
+                    <Input
+                      name="websiteUrl"
+                      placeholder="https://example.com"
+                      onBlur={(e) => {
+                        const val = e.target.value.trim()
+                        if (val && !/^https?:\/\//i.test(val)) {
+                          antdForm.setFieldValue('websiteUrl', `https://${val}`)
+                        }
+                      }}
+                    />
+                  </Form.Item>
+                </label>
               </div>
-              <label className="full tw:col-span-full">
-                SEO description
-                <Form.Item name="seoDescriptionEn">
-                  <Input.TextArea name="seoDescriptionEn" rows={2} />
-                </Form.Item>
-              </label>
+            </section>
+            <section className="cms-form-section">
+              <h2>Images</h2>
+              <div className="image-block">
+                <span className="image-block-label">Cover image {active && <RequiredMark />}</span>
+                <ImageUpload
+                  name="coverImage"
+                  currentImageUrl={coverUrl}
+                  currentImageAlt="Current cover"
+                  removeName="removeCover"
+                  initiallyRemoved={form?.removeCover === 'on'}
+                  allowRemove={place?.status !== 'published' || !active}
+                  disabledRemoveReason="Deactivate this place before removing its cover image."
+                  invalid={Boolean(coverError)}
+                  errorMessage={coverError}
+                  onStateChange={setCover}
+                />
+              </div>
+              <div className="image-block">
+                <GallerySorter images={gallery} maxFiles={maxUploads} />
+              </div>
+            </section>
+            <section className="cms-form-section">
+              <h2>Arabic translation</h2>
+              <div className="form-grid two tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
+                <label>
+                  Arabic title
+                  <Form.Item name="titleAr">
+                    <Input name="titleAr" lang="ar" dir="rtl" placeholder="أبراج الكويت" />
+                  </Form.Item>
+                </label>
+                <label>
+                  Arabic address
+                  <Form.Item name="addressAr">
+                    <Input
+                      name="addressAr"
+                      lang="ar"
+                      dir="rtl"
+                      placeholder="شارع الخليج العربي، الشرق"
+                    />
+                  </Form.Item>
+                </label>
+                <label className="full tw:col-span-full">
+                  Arabic body
+                  <Form.Item name="bodyAr">
+                    <Input.TextArea name="bodyAr" lang="ar" dir="rtl" rows={5} />
+                  </Form.Item>
+                </label>
+              </div>
+            </section>
+            <section className="cms-form-section">
+              <h2>Search &amp; homepage</h2>
+              <div className="form-grid two tw:[margin-top:16px] tw:grid tw:grid-cols-1 tw:gap-4 tw:grid-cols-2 tw:max-[900px]:grid-cols-1">
+                <label>
+                  SEO title
+                  <Form.Item name="seoTitleEn">
+                    <Input name="seoTitleEn" placeholder="Kuwait Towers" />
+                  </Form.Item>
+                </label>
+                <label>
+                  Home display order
+                  <Form.Item name="featured_order">
+                    <Input name="featured_order" type="number" min={0} max={9999} />
+                  </Form.Item>
+                </label>
+                <div className="full tw:col-span-full">
+                  <Checkbox
+                    name="featured"
+                    defaultChecked={
+                      form
+                        ? form.featured === 'on'
+                        : Boolean(place && place.featured_order !== null)
+                    }
+                  >
+                    Feature this venue on the homepage
+                  </Checkbox>
+                </div>
+                <label className="full tw:col-span-full">
+                  SEO description
+                  <Form.Item name="seoDescriptionEn">
+                    <Input.TextArea name="seoDescriptionEn" rows={2} />
+                  </Form.Item>
+                </label>
+              </div>
+            </section>
+            <div className="cms-form-actions">
+              {readOnly ? (
+                <Button href="/admin/places" disabled={false}>
+                  Back to Business/Places
+                </Button>
+              ) : (
+                <>
+                  {place && (
+                    <Button
+                      danger
+                      className="cms-form-actions-start"
+                      onClick={() => setConfirmDelete(true)}
+                    >
+                      Delete permanently
+                    </Button>
+                  )}
+                  <Button href="/admin/places">Cancel</Button>
+                  <Button type="primary" htmlType="submit" loading={processing}>
+                    {active
+                      ? place?.status === 'published'
+                        ? 'Save changes'
+                        : 'Save and activate'
+                      : place?.status === 'published'
+                        ? 'Save and deactivate'
+                        : place
+                          ? 'Save changes'
+                          : 'Save draft'}
+                  </Button>
+                </>
+              )}
             </div>
-          </section>
-          <div className="cms-form-actions">
-            {place && (
-              <Button
-                danger
-                className="cms-form-actions-start"
-                onClick={() => setConfirmDelete(true)}
-              >
-                Delete permanently
-              </Button>
-            )}
-            <Button href="/admin/places">Cancel</Button>
-            <Button type="primary" htmlType="submit" loading={processing}>
-              {active
-                ? place?.status === 'published'
-                  ? 'Save changes'
-                  : 'Save and activate'
-                : place?.status === 'published'
-                  ? 'Save and deactivate'
-                  : place
-                    ? 'Save changes'
-                    : 'Save draft'}
-            </Button>
           </div>
-        </div>
+        </ReadOnlyFieldset>
       </Form>
       <ConfirmModal
         open={confirmDelete}
