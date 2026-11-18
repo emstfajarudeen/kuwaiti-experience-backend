@@ -34,6 +34,39 @@ export class AdminPasswordResetTokenSchema extends BaseModel {
   declare userId: number
 }
 
+export class AppBaseUrlRuleSchema extends BaseModel {
+  static $columns = [
+    'apiBaseUrl',
+    'createdAt',
+    'environment',
+    'id',
+    'imageBaseUrl',
+    'note',
+    'platform',
+    'sortOrder',
+    'version',
+  ] as const
+  $columns = AppBaseUrlRuleSchema.$columns
+  @column()
+  declare apiBaseUrl: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare environment: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare imageBaseUrl: string | null
+  @column()
+  declare note: string | null
+  @column()
+  declare platform: string
+  @column()
+  declare sortOrder: number
+  @column()
+  declare version: string
+}
+
 export class AppConfigSchema extends BaseModel {
   static $columns = [
     'androidForce',

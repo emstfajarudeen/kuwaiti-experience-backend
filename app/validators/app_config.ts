@@ -28,5 +28,27 @@ export const appConfigValidator = vine.compile(
     maintenance_title_ar: title().nullable(),
     maintenance_message_en: message(),
     maintenance_message_ar: message().nullable(),
+    base_url_rules: vine
+      .array(
+        vine.object({
+          platform: vine.enum(['ios', 'android'] as const),
+          // "1.1" covers every 1.1.x build; "1.1.2" covers that build only.
+          version: vine
+            .string()
+            .trim()
+            .regex(/^\d+\.\d+(\.\d+)?$/),
+          api_base_url: vine.string().trim().url({ require_protocol: true }).maxLength(500),
+          image_base_url: vine
+            .string()
+            .trim()
+            .url({ require_protocol: true })
+            .maxLength(500)
+            .nullable()
+            .optional(),
+          note: vine.string().trim().maxLength(200).nullable().optional(),
+        })
+      )
+      .maxLength(50)
+      .optional(),
   })
 )

@@ -5,7 +5,7 @@ import db from '@adonisjs/lucid/services/db'
 import hash from '@adonisjs/core/services/hash'
 import env from '#start/env'
 import Tokens from 'csrf'
-import { appConfigDefaults } from '#services/app_config_service'
+import { appConfigDefaults, matchBaseUrlRule } from '#services/app_config_service'
 import { loginAdmin } from '../helpers/admin_auth.js'
 
 function cmsPost(client: ApiClient, token: string, fields: Record<string, unknown>) {
@@ -126,6 +126,100 @@ test.group('App configuration', (group) => {
       response.assertStatus(200)
       assert.equal(response.body().data.update.title, appConfigDefaults.update_title_en)
       assert.isTrue(response.body().data.maintenance.enabled)
+    } finally {
+      env.set('APP_CONFIG_ENVIRONMENT', previous)
+      if (previous === undefined) delete process.env.APP_CONFIG_ENVIRONMENT
+    }
+  })
+
+  test('matches the most specific version rule', ({ assert }) => {
+    const rules = [
+      { platform: 'ios' as const, version: '1.1', api_base_url: 'https://minor.example.com' },
+      { platform: 'ios' as const, version: '1.1.2', api_base_url: 'https://exact.example.com' },
+      { platform: 'android' as const, version: '1.1', api_base_url: 'https://droid.example.com' },
+    ]
+    const pick = (platform: unknown, version: unknown) =>
+      matchBaseUrlRule(rules, platform, version)?.api_base_url ?? null
+    assert.equal(pick('ios', '1.1.0'), 'https://minor.example.com')
+    assert.equal(pick('ios', '1.1'), 'https://minor.example.com')
+    assert.equal(pick('ios', '1.1.7'), 'https://minor.example.com')
+    assert.equal(pick('ios', '1.1.2'), 'https://exact.example.com')
+    assert.equal(pick('android', '1.1.2'), 'https://droid.example.com')
+    assert.isNull(pick('ios', '1.10.0'))
+    assert.isNull(pick('ios', '1.2.0'))
+    assert.isNull(pick('ios', undefined))
+    assert.isNull(pick('web', '1.1.0'))
+    assert.isNull(pick('ios', '1.1.0-beta'))
+  })
+
+  test('staff send one app version to another server', async ({ client, assert }) => {
+    const previous = env.get('APP_CONFIG_ENVIRONMENT')
+    try {
+      env.set('APP_CONFIG_ENVIRONMENT', 'qa')
+      await db.from('app_config').where('environment', 'qa').delete()
+      await db.from('app_base_url_rules').where('environment', 'qa').delete()
+      await db.table('users').insert({
+        full_name: 'Rules Admin',
+        email: 'rules-admin@example.com',
+        password: await hash.make('a-very-long-test-password'),
+        role: 'admin',
+        active: true,
+        created_at: new Date(),
+      })
+      const login = await loginAdmin('rules-admin@example.com', 'a-very-long-test-password')
+      const normal = await client.get('/api/v2/config')
+      const defaultUrl = normal.body().data.api_base_url
+
+      const duplicate = await cmsPost(client, login.accessToken, {
+        ...appConfigDefaults,
+        base_url_rules: [
+          { platform: 'ios', version: '1.1', api_base_url: 'https://a.example.com' },
+          { platform: 'ios', version: '1.1', api_base_url: 'https://b.example.com' },
+        ],
+      })
+      duplicate.assertStatus(302)
+      assert.isNull(await db.from('app_base_url_rules').first())
+
+      const saved = await cmsPost(client, login.accessToken, {
+        ...appConfigDefaults,
+        base_url_rules: [
+          {
+            platform: 'ios',
+            version: '1.1',
+            api_base_url: 'https://review.example.com/api/v2',
+            image_base_url: '',
+            note: 'App Store review build',
+          },
+        ],
+      })
+      saved.assertStatus(302)
+      const rows = await db.from('app_base_url_rules').where('environment', 'qa')
+      assert.lengthOf(rows, 1)
+      assert.equal(rows[0].api_base_url, 'https://review.example.com')
+      assert.isNull(rows[0].image_base_url)
+
+      const ios11 = await client.get('/api/v2/config').qs({ platform: 'ios', version: '1.1.0' })
+      ios11.assertStatus(200)
+      assert.equal(ios11.body().data.api_base_url, 'https://review.example.com')
+      assert.equal(ios11.body().data.image_base_url, 'https://review.example.com')
+      assert.deepEqual(ios11.body().data.base_url_rule, { platform: 'ios', version: '1.1' })
+
+      for (const query of [
+        {},
+        { platform: 'ios', version: '1.2.0' },
+        { platform: 'android', version: '1.1.0' },
+      ]) {
+        const other = await client.get('/api/v2/config').qs(query)
+        assert.equal(other.body().data.api_base_url, defaultUrl)
+        assert.isNull(other.body().data.base_url_rule)
+      }
+
+      const cleared = await cmsPost(client, login.accessToken, {
+        ...appConfigDefaults,
+        base_url_rules: [],
+      })
+      cleared.assertStatus(302)
+      assert.isNull(await db.from('app_base_url_rules').first())
     } finally {
       env.set('APP_CONFIG_ENVIRONMENT', previous)
       if (previous === undefined) delete process.env.APP_CONFIG_ENVIRONMENT

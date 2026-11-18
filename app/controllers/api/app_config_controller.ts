@@ -6,6 +6,9 @@ export default class AppConfigController {
   async show({ request, response }: HttpContext) {
     response.header('Cache-Control', 'no-store')
     response.header('Vary', 'Accept-Language')
-    return publicAppConfig(publicLanguage(request.header('accept-language')))
+    return publicAppConfig(publicLanguage(request.header('accept-language')), {
+      platform: request.input('platform'),
+      version: request.input('version'),
+    })
   }
 }

@@ -1,16 +1,56 @@
 {
   "openapi": "3.1.0",
-  "info": { "title": "Mobile app configuration", "version": "2.0.0" },
+  "info": {
+    "title": "Mobile app configuration",
+    "version": "2.0.0"
+  },
   "paths": {
     "/api/v2/config": {
       "get": {
         "summary": "Get the public app configuration for this environment",
         "description": "No authentication is required. The language header selects English or Arabic with English fallback. Values can change in the CMS; cache the last successful response for offline startup.",
-        "parameters": [{ "name": "Accept-Language", "in": "header", "required": false, "schema": { "type": "string", "example": "ar" } }],
+        "parameters": [
+          {
+            "name": "Accept-Language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "ar"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["ios", "android"]
+            },
+            "description": "Send on every startup so a per-version server address can apply."
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d+(\\.\\d+){0,2}$",
+              "example": "1.1.0"
+            },
+            "description": "Installed app version, major.minor.patch."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Current configuration; do not cache HTTP responses",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConfigResult" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigResult"
+                }
+              }
+            }
           }
         }
       }
@@ -19,31 +59,105 @@
   "components": {
     "schemas": {
       "PlatformUpdate": {
-        "type": "object", "required": ["version", "force", "store_url"],
+        "type": "object",
+        "required": ["version", "force", "store_url"],
         "properties": {
-          "version": { "type": ["string", "null"], "example": "1.0.0", "description": "Latest available version. Null means no update is configured." },
-          "force": { "type": "boolean" },
-          "store_url": { "type": ["string", "null"], "format": "uri" }
+          "version": {
+            "type": ["string", "null"],
+            "example": "1.0.0",
+            "description": "Latest available version. Null means no update is configured."
+          },
+          "force": {
+            "type": "boolean"
+          },
+          "store_url": {
+            "type": ["string", "null"],
+            "format": "uri"
+          }
         }
       },
       "ConfigResult": {
-        "type": "object", "required": ["data"], "properties": {
+        "type": "object",
+        "required": ["data"],
+        "properties": {
           "data": {
-            "type": "object", "required": ["environment", "api_base_url", "image_base_url", "update", "maintenance"],
+            "type": "object",
+            "required": [
+              "environment",
+              "api_base_url",
+              "image_base_url",
+              "update",
+              "maintenance",
+              "base_url_rule"
+            ],
             "properties": {
-              "environment": { "type": ["string", "null"], "enum": ["qa", "live", null] },
-              "api_base_url": { "type": "string", "format": "uri", "description": "Origin; API paths already begin with /api/v2." },
-              "image_base_url": { "type": "string", "format": "uri", "description": "Origin for resolving returned relative image paths." },
+              "environment": {
+                "type": ["string", "null"],
+                "enum": ["qa", "live", null]
+              },
+              "api_base_url": {
+                "type": "string",
+                "format": "uri",
+                "description": "Origin; API paths already begin with /api/v2."
+              },
+              "image_base_url": {
+                "type": "string",
+                "format": "uri",
+                "description": "Origin for resolving returned relative image paths."
+              },
+              "base_url_rule": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": ["platform", "version"],
+                    "properties": {
+                      "platform": {
+                        "type": "string",
+                        "enum": ["ios", "android"]
+                      },
+                      "version": {
+                        "type": "string",
+                        "example": "1.1"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The CMS version rule that set api_base_url and image_base_url, or null when the default address applies."
+              },
               "update": {
-                "type": "object", "required": ["title", "message", "ios", "android"], "properties": {
-                  "title": { "type": "string" }, "message": { "type": "string" },
-                  "ios": { "$ref": "#/components/schemas/PlatformUpdate" },
-                  "android": { "$ref": "#/components/schemas/PlatformUpdate" }
+                "type": "object",
+                "required": ["title", "message", "ios", "android"],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  },
+                  "ios": {
+                    "$ref": "#/components/schemas/PlatformUpdate"
+                  },
+                  "android": {
+                    "$ref": "#/components/schemas/PlatformUpdate"
+                  }
                 }
               },
               "maintenance": {
-                "type": "object", "required": ["enabled", "title", "message"], "properties": {
-                  "enabled": { "type": "boolean" }, "title": { "type": "string" }, "message": { "type": "string" }
+                "type": "object",
+                "required": ["enabled", "title", "message"],
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  }
                 }
               }
             }
