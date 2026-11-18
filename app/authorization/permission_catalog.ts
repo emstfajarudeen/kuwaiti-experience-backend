@@ -15,7 +15,7 @@ const permissionDefinitions = [
     label: 'Turn places off (inactive)',
   },
   ...(['view', 'create', 'update', 'delete'] as const).flatMap((action) =>
-    (['categories', 'category_types', 'countries', 'pages', 'place_features'] as const).map(
+    (['categories', 'category_types', 'countries', 'pages'] as const).map(
       (module) => ({
         key: `${module}.${action}` as const,
         module,
@@ -47,6 +47,15 @@ const permissionDefinitions = [
     label: `${action[0].toUpperCase()}${action.slice(1)} showtimes`,
     hidden: true as const,
   })),
+  // Place features: the app shows a place's features on its detail page, but there is no CMS
+  // screen for managing them, only the admin API.
+  ...(['view', 'create', 'update', 'delete'] as const).map((action) => ({
+    key: `place_features.${action}` as const,
+    module: 'place_features',
+    action,
+    label: `${action[0].toUpperCase()}${action.slice(1)} place features`,
+    hidden: true as const,
+  })),
   {
     key: 'contact_requests.view',
     module: 'contact_requests',
@@ -66,6 +75,8 @@ const permissionDefinitions = [
     module: 'transport',
     action,
     label: `${action[0].toUpperCase()}${action.slice(1)} transport locations`,
+    // The app's cab tab doesn't use the transport API yet, and there is no CMS screen.
+    hidden: true as const,
   })),
   { key: 'settings.view', module: 'settings', action: 'view', label: 'View site settings' },
   { key: 'settings.update', module: 'settings', action: 'update', label: 'Update site settings' },

@@ -43,36 +43,6 @@ const navigation: NavSection[] = [
     ],
   },
   {
-    label: 'REPORTS',
-    links: [
-      {
-        href: '/admin/rentals/reports/booking-fees',
-        icon: '▦',
-        label: 'Reports',
-        active: 'reports',
-        permission: 'rental_reports.view',
-        children: [
-          {
-            href: '/admin/rentals/reports/booking-fees',
-            label: 'Booking fees',
-            active: 'report-booking-fees',
-          },
-          { href: '/admin/rentals/reports/bookings', label: 'Bookings', active: 'report-bookings' },
-          {
-            href: '/admin/rentals/reports/providers',
-            label: 'Providers and branches',
-            active: 'report-providers',
-          },
-          {
-            href: '/admin/rentals/reports/customers',
-            label: 'Customers',
-            active: 'report-customers',
-          },
-        ],
-      },
-    ],
-  },
-  {
     label: 'MASTERS',
     links: [
       {
@@ -116,51 +86,6 @@ const navigation: NavSection[] = [
         label: 'Countries',
         active: 'countries',
         permission: 'countries.view',
-      },
-    ],
-  },
-  {
-    label: 'ACCOUNTS & ACCESS',
-    links: [
-      {
-        href: '/admin/customers',
-        icon: '♙',
-        label: 'Users',
-        active: 'customers',
-        permission: 'customers.view',
-      },
-      {
-        href: '/admin/users',
-        icon: '♟',
-        label: 'Staff',
-        active: 'users',
-        permission: 'staff.view',
-      },
-      {
-        href: '/admin/roles',
-        icon: '⚿',
-        label: 'Roles & Permissions',
-        active: 'roles',
-        permission: 'roles.view',
-      },
-    ],
-  },
-  {
-    label: 'OPERATIONS',
-    links: [
-      {
-        href: '/admin/contact-requests',
-        icon: '✉',
-        label: 'Contact requests',
-        active: 'contacts',
-        permission: 'contact_requests.view',
-      },
-      {
-        href: '/admin/notifications',
-        icon: '❖',
-        label: 'Notifications',
-        active: 'notifications',
-        permission: 'notifications.view',
       },
     ],
   },
@@ -220,6 +145,81 @@ const navigation: NavSection[] = [
         label: 'Homepage',
         active: 'home',
         permission: 'home.view',
+      },
+    ],
+  },
+  {
+    label: 'OPERATIONS',
+    links: [
+      {
+        href: '/admin/contact-requests',
+        icon: '✉',
+        label: 'Contact requests',
+        active: 'contacts',
+        permission: 'contact_requests.view',
+      },
+      {
+        href: '/admin/notifications',
+        icon: '❖',
+        label: 'Notifications',
+        active: 'notifications',
+        permission: 'notifications.view',
+      },
+    ],
+  },
+  {
+    label: 'REPORTS',
+    links: [
+      {
+        href: '/admin/rentals/reports/booking-fees',
+        icon: '▦',
+        label: 'Reports',
+        active: 'reports',
+        permission: 'rental_reports.view',
+        children: [
+          {
+            href: '/admin/rentals/reports/booking-fees',
+            label: 'Booking fees',
+            active: 'report-booking-fees',
+          },
+          { href: '/admin/rentals/reports/bookings', label: 'Bookings', active: 'report-bookings' },
+          {
+            href: '/admin/rentals/reports/providers',
+            label: 'Providers and branches',
+            active: 'report-providers',
+          },
+          {
+            href: '/admin/rentals/reports/customers',
+            label: 'Customers',
+            active: 'report-customers',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    label: 'ACCOUNTS & ACCESS',
+    links: [
+      {
+        href: '/admin/customers',
+        icon: '♙',
+        label: 'Users',
+        active: 'customers',
+        permission: 'customers.view',
+      },
+      {
+        href: '/admin/users',
+        icon: '♟',
+        label: 'Staff',
+        active: 'users',
+        permission: 'staff.view',
+      },
+      {
+        href: '/admin/roles',
+        icon: '⚿',
+        label: 'Roles & Permissions',
+        active: 'roles',
+        permission: 'roles.view',
       },
     ],
   },
