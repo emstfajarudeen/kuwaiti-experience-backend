@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 
 type Action = {
   href?: string
@@ -19,6 +26,7 @@ export default function RowActionMenu({ label, actions }: Props) {
   const [position, setPosition] = useState<CSSProperties>({})
   const rootRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -36,12 +44,15 @@ export default function RowActionMenu({ label, actions }: Props) {
 
     document.addEventListener('pointerdown', onPointerDown)
     document.addEventListener('keydown', onKeyDown)
-    window.addEventListener('scroll', close, true)
+    const onScroll = (event: Event) => {
+      if (!menuRef.current?.contains(event.target as Node)) close()
+    }
+    window.addEventListener('scroll', onScroll, true)
     window.addEventListener('resize', close)
     return () => {
       document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('keydown', onKeyDown)
-      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('scroll', onScroll, true)
       window.removeEventListener('resize', close)
     }
   }, [open])
@@ -53,16 +64,27 @@ export default function RowActionMenu({ label, actions }: Props) {
     }
     const rect = buttonRef.current?.getBoundingClientRect()
     if (!rect) return
-    const dropdownHeight = 120
-    const above = window.innerHeight - rect.bottom < dropdownHeight && rect.top > dropdownHeight
-    setPosition({
-      top: above ? undefined : rect.bottom + 4,
-      bottom: above ? window.innerHeight - rect.top + 4 : undefined,
-      right: Math.max(10, window.innerWidth - rect.right),
-      left: 'auto',
-    })
+    // Placed below the button first; the layout effect moves it once its real height is known.
+    setPosition({ top: rect.bottom + 4, right: Math.max(10, window.innerWidth - rect.right) })
     setOpen(true)
   }
+
+  // Keeps every item on screen, including on the last rows of a table: opens above the button
+  // when there is no room below, and otherwise stays inside the window.
+  useLayoutEffect(() => {
+    if (!open) return
+    const button = buttonRef.current?.getBoundingClientRect()
+    const menu = menuRef.current?.getBoundingClientRect()
+    if (!button || !menu) return
+    const gap = 8
+    const right = Math.max(10, window.innerWidth - button.right)
+    let top = button.bottom + 4
+    if (top + menu.height > window.innerHeight - gap) {
+      const above = button.top - 4 - menu.height
+      top = above >= gap ? above : Math.max(gap, window.innerHeight - gap - menu.height)
+    }
+    if (top !== position.top || right !== position.right) setPosition({ top, right })
+  }, [open, position])
 
   return (
     <div
@@ -86,7 +108,8 @@ export default function RowActionMenu({ label, actions }: Props) {
         </svg>
       </button>
       <div
-        className={`row-menu-dropdown tw:fixed tw:z-[99999] tw:min-w-[150px] tw:box-border tw:flex-col tw:gap-0.5 tw:rounded-cms-sm tw:border tw:border-brand-line tw:bg-white tw:p-1.5 tw:shadow-[0_8px_24px_rgba(0,23,46,0.12),0_2px_6px_rgba(0,23,46,0.06)] ${open ? 'tw:flex' : 'tw:hidden'}`}
+        className={`row-menu-dropdown tw:fixed tw:z-[99999] tw:max-h-[calc(100vh-16px)] tw:min-w-[150px] tw:overflow-y-auto tw:box-border tw:flex-col tw:gap-0.5 tw:rounded-cms-sm tw:border tw:border-brand-line tw:bg-white tw:p-1.5 tw:shadow-[0_8px_24px_rgba(0,23,46,0.12),0_2px_6px_rgba(0,23,46,0.06)] ${open ? 'tw:flex' : 'tw:hidden'}`}
+        ref={menuRef}
         role="menu"
         style={open ? position : undefined}
       >

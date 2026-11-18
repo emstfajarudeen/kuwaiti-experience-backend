@@ -394,39 +394,52 @@ export default function RentalBooking({
           {payments.length === 0 ? (
             <p className="tw:text-brand-muted">No payment started.</p>
           ) : (
-            <table className="tw:w-full tw:text-[13px]">
-              <thead>
-                <tr className="tw:text-left">
-                  <th>Invoice</th>
-                  <th>Method</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Paid</th>
-                  <th>Refund</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.map((payment) => (
-                  <tr key={payment.id}>
-                    <td>
-                      {payment.invoice_id}
-                      {payment.payment_id ? ` / ${payment.payment_id}` : ''}
-                    </td>
-                    <td>{payment.method ?? '—'}</td>
-                    <td>KWD {payment.amount}</td>
-                    <td>
-                      <StatusBadge status={payment.status} />
-                    </td>
-                    <td>{formatDateTime(payment.paid_at)}</td>
-                    <td>
-                      {payment.refunded_at
-                        ? `${formatDateTime(payment.refunded_at)} (${payment.refund_reference ?? ''})`
-                        : '—'}
-                    </td>
+            <div className="tw:overflow-x-auto">
+              <table className="tw:w-full tw:min-w-[640px] tw:text-[13px] tw:[&_td]:py-2 tw:[&_td]:pr-4 tw:[&_th]:pr-4">
+                <thead>
+                  <tr className="tw:text-left">
+                    <th>Invoice</th>
+                    <th>Method</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Paid</th>
+                    <th>Refund</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {payments.map((payment) => (
+                    <tr key={payment.id}>
+                      <td>
+                        {payment.invoice_id}
+                        {payment.payment_id ? ` / ${payment.payment_id}` : ''}
+                      </td>
+                      <td>{payment.method ?? '—'}</td>
+                      <td className="tw:whitespace-nowrap">KWD {payment.amount}</td>
+                      <td>
+                        <StatusBadge status={payment.status} />
+                      </td>
+                      <td className="tw:whitespace-nowrap">{formatDateTime(payment.paid_at)}</td>
+                      <td>
+                        {payment.refunded_at ? (
+                          <>
+                            <span className="tw:whitespace-nowrap">
+                              {formatDateTime(payment.refunded_at)}
+                            </span>
+                            {payment.refund_reference && (
+                              <span className="tw:block tw:text-[12px] tw:text-brand-muted">
+                                {payment.refund_reference}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Panel>
       )}
@@ -453,43 +466,45 @@ export default function RentalBooking({
           {providerEmails.length === 0 ? (
             <p className="tw:text-brand-muted">No emails sent yet.</p>
           ) : (
-            <table className="tw:w-full tw:text-[13px]">
-              <thead>
-                <tr className="tw:text-left">
-                  <th>Email</th>
-                  <th>Recipient</th>
-                  <th>Result</th>
-                  <th>Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {providerEmails.map((email) => (
-                  <tr key={email.id}>
-                    <td>
-                      {email.kind === 'confirmed' ? 'Booking confirmed' : 'Booking cancelled'}
-                    </td>
-                    <td>{email.recipient ?? '—'}</td>
-                    <td>
-                      <span
-                        className={`status ${email.status === 'sent' ? 'published' : email.status === 'failed' ? 'archived' : 'draft'}`}
-                      >
-                        {email.status === 'sent'
-                          ? 'Sent'
-                          : email.status === 'failed'
-                            ? 'Failed'
-                            : 'Not sent'}
-                      </span>
-                      {email.error && (
-                        <span className="tw:mt-1 tw:block tw:text-[12px] tw:text-brand-muted">
-                          {email.error}
-                        </span>
-                      )}
-                    </td>
-                    <td>{formatDateTime(email.created_at)}</td>
+            <div className="tw:overflow-x-auto">
+              <table className="tw:w-full tw:min-w-[640px] tw:text-[13px] tw:[&_td]:py-2 tw:[&_td]:pr-4 tw:[&_th]:pr-4">
+                <thead>
+                  <tr className="tw:text-left">
+                    <th>Email</th>
+                    <th>Recipient</th>
+                    <th>Result</th>
+                    <th>Time</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {providerEmails.map((email) => (
+                    <tr key={email.id}>
+                      <td>
+                        {email.kind === 'confirmed' ? 'Booking confirmed' : 'Booking cancelled'}
+                      </td>
+                      <td>{email.recipient ?? '—'}</td>
+                      <td>
+                        <span
+                          className={`status ${email.status === 'sent' ? 'published' : email.status === 'failed' ? 'archived' : 'draft'}`}
+                        >
+                          {email.status === 'sent'
+                            ? 'Sent'
+                            : email.status === 'failed'
+                              ? 'Failed'
+                              : 'Not sent'}
+                        </span>
+                        {email.error && (
+                          <span className="tw:mt-1 tw:block tw:text-[12px] tw:text-brand-muted">
+                            {email.error}
+                          </span>
+                        )}
+                      </td>
+                      <td className="tw:whitespace-nowrap">{formatDateTime(email.created_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Panel>
       )}

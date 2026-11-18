@@ -106,10 +106,7 @@ test.group('CMS migrated content browser', (group) => {
     assert.equal(publishedPage.status, 'published')
   })
 
-  test('saves a place with FilePond images and Explore details', async ({
-    visit,
-    assert,
-  }) => {
+  test('saves a place with FilePond images', async ({ visit, assert }) => {
     await admin()
     await db
       .table('category_types')
@@ -151,16 +148,6 @@ test.group('CMS migrated content browser', (group) => {
     assert.isString(savedPlace.cover_image_key)
     const galleryImages = await db.from('place_images').where('place_id', place.id)
     assert.equal(galleryImages.length, 1)
-
-    await page.goto(new URL(`/admin/places/${place.id}/explore`, page.url()).toString())
-    await page.getByLabel('Venue phone').fill('+96590987788')
-    await page.getByRole('button', { name: 'Save Explore details' }).click()
-    await page
-      .locator('.ant-notification-notice')
-      .filter({ hasText: 'Changes saved.' })
-      .waitFor({ state: 'visible' })
-    const explored = await db.from('places').where('id', place.id).first()
-    assert.equal(explored.phone_e164, '+96590987788')
   })
 
   test('manages movie and theater showtime forms', async ({ visit, assert }) => {

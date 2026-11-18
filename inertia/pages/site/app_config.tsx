@@ -3,6 +3,7 @@ import { useState } from 'react'
 import AdminLayout from '../../layouts/admin_layout'
 import { postCmsForm } from '../../lib/cms_form'
 import RequiredMark from '../../components/required_mark'
+import { ReadOnlyNotice, useReadOnly } from '../../components/read_only'
 
 type AppConfig = {
   ios_version: string | null
@@ -36,6 +37,7 @@ const grid = 'tw:mt-4 tw:grid tw:grid-cols-2 tw:items-start tw:gap-x-6 tw:max-[9
 export default function AppConfigPage({ adminName, csrfToken, success, error, config }: Props) {
   const [form] = Form.useForm<AppConfig>()
   const [processing, setProcessing] = useState(false)
+  const readOnly = useReadOnly('settings.update', true)
   const forced = {
     ios: Form.useWatch('ios_force', form),
     android: Form.useWatch('android_force', form),
@@ -49,11 +51,13 @@ export default function AppConfigPage({ adminName, csrfToken, success, error, co
       success={success}
       error={error}
     >
+      {readOnly && <ReadOnlyNotice thing="page" />}
       <ConfigProvider theme={{ components: { Form: { itemMarginBottom: 24 } } }}>
         <Form
           id="app-config-editor"
           noValidate
           form={form}
+          disabled={readOnly}
           layout="vertical"
           initialValues={config}
           onFinish={(values) =>
@@ -77,11 +81,7 @@ export default function AppConfigPage({ adminName, csrfToken, success, error, co
                     <h3 className="tw:mb-3">{platform === 'ios' ? 'iOS' : 'Android'}</h3>
                     <Form.Item
                       name={`${platform}_version`}
-                      label={
-                        <>
-                          Latest version{forced[platform] && <RequiredMark />}
-                        </>
-                      }
+                      label={<>Latest version{forced[platform] && <RequiredMark />}</>}
                       dependencies={[`${platform}_force`]}
                       rules={[
                         ({ getFieldValue }) => ({
@@ -101,17 +101,15 @@ export default function AppConfigPage({ adminName, csrfToken, success, error, co
                     </Form.Item>
                     <Form.Item
                       name={`${platform}_store_url`}
-                      label={
-                        <>
-                          Store link{forced[platform] && <RequiredMark />}
-                        </>
-                      }
+                      label={<>Store link{forced[platform] && <RequiredMark />}</>}
                       dependencies={[`${platform}_force`]}
                       rules={[
                         ({ getFieldValue }) => ({
                           validator: (_, value) =>
                             getFieldValue(`${platform}_force`) && !String(value ?? '').trim()
-                              ? Promise.reject(new Error('Enter a store link to require an update.'))
+                              ? Promise.reject(
+                                  new Error('Enter a store link to require an update.')
+                                )
                               : Promise.resolve(),
                         }),
                         { type: 'url', message: 'Enter a valid link starting with https://' },
@@ -220,11 +218,13 @@ export default function AppConfigPage({ adminName, csrfToken, success, error, co
                 </div>
               </div>
             </section>
-            <div className="cms-form-actions">
-              <Button type="primary" htmlType="submit" loading={processing}>
-                Save configuration
-              </Button>
-            </div>
+            {!readOnly && (
+              <div className="cms-form-actions">
+                <Button type="primary" htmlType="submit" loading={processing}>
+                  Save configuration
+                </Button>
+              </div>
+            )}
           </div>
         </Form>
       </ConfigProvider>

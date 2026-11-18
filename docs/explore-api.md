@@ -67,11 +67,8 @@ The unique customer/place key prevents duplicates. No customer ID is accepted fr
 
 ## Manage place details in the CMS
 
-Open **Places → Edit → Manage Explore details and features** at `/admin/places/:id/explore`.
+The **Explore details** CMS page was removed on 18 November 2026: the app and website designs don't show a venue phone, hotel check-in/out times or a cinema screen count, and no place had them filled. The `phone_e164`, `check_in_time`, `check_out_time` and `screen_count` columns and API fields stay, always `null`, so app models don't break. Bring the page back from git history if the business wants them.
 
-- Venue phone: international `phone_e164`; blank hides the Call action. Native dialing is app behavior and needs no call endpoint.
-- Stay: nullable `check_in_time` and `check_out_time`, shown only for `hotel_resort`.
-- Theater: nullable integer `screen_count` (1–1000), shown only for `theater`; link to manage sessions.
 - Features: checkboxes for definitions belonging to this place type; maximum 50 assignments. Inactive definitions remain manageable but are hidden publicly.
 
 Existing place text, price, cover and gallery editors remain available. A place's type cannot change while it has feature assignments, stay/theater-specific values or showtimes; clear those first. New Explore fields use exact DB names in CMS form payloads and v2 JSON APIs.

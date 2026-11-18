@@ -206,24 +206,22 @@ export default function PlacesIndex({
                       />
                     ),
                   },
-                  {
-                    title: 'Actions',
-                    key: 'actions',
-                    render: (_: unknown, row) => (
-                      <RowActionMenu
-                        label={`More actions for ${row.title}`}
-                        actions={[
-                          {
-                            label: 'Explore details',
-                            href: `/admin/places/${row.id}/explore`,
-                          },
-                          ...(can('places.delete')
-                            ? [{ label: 'Delete', danger: true, onClick: () => setDeleting(row) }]
-                            : []),
-                        ]}
-                      />
-                    ),
-                  },
+                  ...(can('places.delete')
+                    ? [
+                        {
+                          title: 'Actions',
+                          key: 'actions',
+                          render: (_: unknown, row: Place) => (
+                            <RowActionMenu
+                              label={`More actions for ${row.title}`}
+                              actions={[
+                                { label: 'Delete', danger: true, onClick: () => setDeleting(row) },
+                              ]}
+                            />
+                          ),
+                        },
+                      ]
+                    : []),
                 ]}
               />
             </div>

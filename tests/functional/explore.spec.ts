@@ -436,24 +436,16 @@ test.group('Explore and CMS extensions', (group) => {
   test('renders and saves actual CMS forms with CSRF protection', async ({ client, assert }) => {
     const p = await place('hotel_resort')
     const token = auth.replace('Bearer ', '')
-    for (const path of [
-      '/admin/movies',
-      '/admin/movies/new',
-      '/admin/showtimes',
-      `/admin/places/${p.id}/explore`,
-    ]) {
+    for (const path of ['/admin/movies', '/admin/movies/new', '/admin/showtimes']) {
       const page = await client.get(path).cookie('admin_access', token)
       assert.equal(page.status(), 200, `${path}: ${page.text().slice(0, 400)}`)
     }
-    const save = await client
-      .post(`/admin/places/${p.id}/explore`)
+    // The Explore details CMS page was removed: the app designs don't use those fields.
+    const removed = await client
+      .get(`/admin/places/${p.id}/explore`)
       .cookie('admin_access', token)
-      .withCsrfToken()
-      .form({ phone_e164: '+96590987788', check_in_time: '15:00', check_out_time: '11:00' })
-    save.assertStatus(200)
-    const row = await db.from('places').where('id', p.id).first()
-    assert.equal(row.phone_e164, '+96590987788')
-    assert.equal(row.check_in_time, '15:00:00')
+      .redirects(0)
+    assert.notEqual(removed.status(), 200)
     await client
       .post('/admin/movies')
       .cookie('admin_access', token)
@@ -494,19 +486,9 @@ test.group('Explore and CMS extensions', (group) => {
     showtimeSave.assertStatus(200)
     const showtime = await db.from('theater_showtimes').where('movie_id', movie.id).first()
     assert.isNotNull(showtime)
-    for (const path of [
-      `/admin/movies/${movie.id}/edit`,
-      `/admin/showtimes/${showtime.id}/edit`,
-      `/admin/places/${theater.id}/explore`,
-    ]) {
+    for (const path of [`/admin/movies/${movie.id}/edit`, `/admin/showtimes/${showtime.id}/edit`]) {
       const page = await client.get(path).cookie('admin_access', token)
       assert.equal(page.status(), 200, path)
     }
-    await client
-      .post(`/admin/places/${p.id}/explore`)
-      .cookie('admin_access', token)
-      .form({ phone_e164: '+96590987999' })
-    const protectedRow = await db.from('places').where('id', p.id).first()
-    assert.equal(protectedRow.phone_e164, '+96590987788')
   })
 })

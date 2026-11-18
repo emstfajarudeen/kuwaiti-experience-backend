@@ -4,6 +4,7 @@ import ImageUpload from '../../components/image_upload'
 import { Button, Form, Input } from 'antd'
 import { postCmsForm } from '../../lib/cms_form'
 import RequiredMark from '../../components/required_mark'
+import { ReadOnlyFieldset, ReadOnlyNotice, useReadOnly } from '../../components/read_only'
 type Home = {
   hero_eyebrow: string | null
   hero_title: string | null
@@ -33,6 +34,7 @@ export default function HomePage({
 }: Props) {
   const [homeForm] = Form.useForm()
   const [processing, setProcessing] = useState(false)
+  const readOnly = useReadOnly('home.update', true)
   const value = (key: string, fallback: string | null | undefined) => form?.[key] ?? fallback ?? ''
   return (
     <AdminLayout
@@ -46,6 +48,7 @@ export default function HomePage({
       <div className="page-head form-page-head home-page-head tw:mb-6 tw:flex tw:flex-wrap tw:items-start tw:justify-between tw:gap-4">
         <h1>Homepage</h1>
       </div>
+      {readOnly && <ReadOnlyNotice thing="homepage" />}
       <div className="filter-pills tw:[display:flex] tw:[align-items:center] tw:[gap:var(--space-2)] tw:[margin-bottom:var(--space-5)]">
         <a href="/admin/home?locale=en" className={locale === 'en' ? 'selected' : ''}>
           English
@@ -58,6 +61,7 @@ export default function HomePage({
         id="cms-home-editor"
         component="form"
         form={homeForm}
+        disabled={readOnly}
         layout="vertical"
         initialValues={{
           hero_eyebrow: value('hero_eyebrow', home?.hero_eyebrow ?? 'WELCOME TO KUWAIT'),
@@ -119,14 +123,16 @@ export default function HomePage({
                   <Input name="hero_title" />
                 </Form.Item>
               </label>
-              <ImageUpload
-                name="heroImage"
-                label={`Hero image (${locale === 'ar' ? 'Arabic' : 'English'})`}
-                currentImageUrl={heroImageUrl}
-                currentImageAlt="Current hero image"
-                removeName="removeHeroImage"
-                initiallyRemoved={form?.removeHeroImage === 'on'}
-              />
+              <ReadOnlyFieldset readOnly={readOnly}>
+                <ImageUpload
+                  name="heroImage"
+                  label={`Hero image (${locale === 'ar' ? 'Arabic' : 'English'})`}
+                  currentImageUrl={heroImageUrl}
+                  currentImageAlt="Current hero image"
+                  removeName="removeHeroImage"
+                  initiallyRemoved={form?.removeHeroImage === 'on'}
+                />
+              </ReadOnlyFieldset>
             </div>
           </section>
           <section className="cms-form-section">
@@ -147,7 +153,9 @@ export default function HomePage({
                 <RequiredMark />
                 <Form.Item
                   name="discovery_title"
-                  rules={[{ required: true, whitespace: true, message: 'Enter a section heading.' }]}
+                  rules={[
+                    { required: true, whitespace: true, message: 'Enter a section heading.' },
+                  ]}
                 >
                   <Input name="discovery_title" />
                 </Form.Item>
@@ -157,23 +165,27 @@ export default function HomePage({
                 <RequiredMark />
                 <Form.Item
                   name="discovery_description"
-                  rules={[{ required: true, whitespace: true, message: 'Enter a section description.' }]}
+                  rules={[
+                    { required: true, whitespace: true, message: 'Enter a section description.' },
+                  ]}
                 >
                   <Input.TextArea name="discovery_description" rows={3} />
                 </Form.Item>
               </label>
             </div>
           </section>
-          <div className="cms-form-actions">
-            <Button
-              className="button primary"
-              type="primary"
-              htmlType="submit"
-              loading={processing}
-            >
-              Save homepage
-            </Button>
-          </div>
+          {!readOnly && (
+            <div className="cms-form-actions">
+              <Button
+                className="button primary"
+                type="primary"
+                htmlType="submit"
+                loading={processing}
+              >
+                Save homepage
+              </Button>
+            </div>
+          )}
         </div>
       </Form>
     </AdminLayout>

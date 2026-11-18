@@ -1661,3 +1661,5 @@ textarea[aria-invalid="true"], input[aria-invalid="true"] { border-color: #b4231
 @media (max-width: 900px) {
   .cms-table-toolbar-range.ant-picker { flex: 1 1 100%; width: 100%; }
 }
+/* Read-only pages: buttons inside a disabled fieldset look disabled too. */
+fieldset:disabled button { opacity: 0.55; cursor: not-allowed; }

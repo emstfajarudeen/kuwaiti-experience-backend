@@ -302,12 +302,12 @@ This complete illustrative English list response shows all required Place keys. 
 | Cover                                      | `cover_image_key` matched to `meta.images[].storage_key`; resolve its `url` against API origin               |
 | Gallery                                    | Ordered `place_images`; match each `storage_key` to the same image metadata                                  |
 | Bookmark icon                              | Match `meta.viewer[].place_id` to `place.id`, then read `saved`                                              |
-| Phone Call                                 | Native `tel:` action using `phone_e164`; hide/disable when null                                              |
+| Phone Call                                 | Not used yet: `phone_e164` is always `null` (no CMS editor). Don't build a Call button                       |
 | Price                                      | `price_mode` (`unknown`, `free`, `from`, `fixed`), `price_amount`, `price_currency`, translated `price_unit` |
 | Opening-hours note                         | Translated `hours_note` (free text)                                                |
-| Stay check-in/out                          | Nullable `check_in_time`/`check_out_time`, for `hotel_resort`                                                |
+| Stay check-in/out                          | Not used yet: `check_in_time`/`check_out_time` are always `null` (no CMS editor)                             |
 | Highlights/amenities                       | Localized `place_features` labels, grouped by `kind`                                                         |
-| Theater screens                            | Nullable `screen_count`; movie sessions use section 9                                                        |
+| Theater screens                            | Not used yet: `screen_count` is always `null` (no CMS editor); movie sessions use section 9                  |
 | Cab destination                            | Future app flow can use place identity/coordinates; ride creation is not available                           |
 
 Derived viewer/image metadata is outside Place. Do not add `is_saved`, `cover`, `hoursNote` or nested `price.amount` aliases to the wire model. Presentation/view models can format these values locally.

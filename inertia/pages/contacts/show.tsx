@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Button, Form, Select } from 'antd'
 import AdminLayout from '../../layouts/admin_layout'
 import { postCmsForm } from '../../lib/cms_form'
+import { ReadOnlyNotice, useReadOnly } from '../../components/read_only'
 
 type Contact = {
   id: number
@@ -26,6 +27,7 @@ const statuses = ['new', 'in_progress', 'resolved'] as const
 export default function ContactDetail({ adminName, csrfToken, success, contact }: Props) {
   const [form] = Form.useForm<{ status: Contact['status'] }>()
   const [processing, setProcessing] = useState(false)
+  const readOnly = useReadOnly('contact_requests.update', true)
 
   return (
     <AdminLayout
@@ -68,9 +70,16 @@ export default function ContactDetail({ adminName, csrfToken, success, contact }
             {contact.created_at}
           </p>
         </div>
-        <div className="form-page-actions"><Button type="primary" htmlType="submit" form="cms-contact-status" loading={processing}>Save status</Button></div>
+        {!readOnly && (
+          <div className="form-page-actions">
+            <Button type="primary" htmlType="submit" form="cms-contact-status" loading={processing}>
+              Save status
+            </Button>
+          </div>
+        )}
       </div>
 
+      {readOnly && <ReadOnlyNotice thing="request" />}
       <div className="content-grid cms-form-workspace tw:grid tw:gap-4">
         <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
           {contact.inquiry_type && (
@@ -96,6 +105,7 @@ export default function ContactDetail({ adminName, csrfToken, success, contact }
           <Form
             id="cms-contact-status"
             form={form}
+            disabled={readOnly}
             layout="vertical"
             initialValues={{ status: contact.status }}
             onFinish={(values) => {

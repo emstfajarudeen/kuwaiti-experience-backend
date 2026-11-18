@@ -42,7 +42,6 @@ const AdminServiceAreasController = () =>
   import('#controllers/admin/rental_service_areas_controller')
 const AdminHomeController = () => import('#controllers/api/admin_home_controller')
 const AdminExploreController = () => import('#controllers/api/admin_explore_controller')
-const ExplorePageController = () => import('#controllers/admin/explore_controller')
 const ImagesController = () => import('#controllers/api/images_controller')
 const AdminPlacesController = () => import('#controllers/api/admin_places_controller')
 const AdminCategoriesController = () => import('#controllers/api/admin_categories_controller')
@@ -94,12 +93,6 @@ router
     router.get('/places/address-reverse', [AdminAddressSearchController, 'reverse'])
     router.post('/places', [AdminPlacesPageController, 'save']).as('cms.places.create')
     router.get('/places/:id/edit', [AdminPlacesPageController, 'edit'])
-    router
-      .get('/places/:id/explore', [ExplorePageController, 'place'])
-      .as('explore.ExplorePageController.get.places_id_explore')
-    router
-      .post('/places/:id/explore', [ExplorePageController, 'savePlace'])
-      .as('explore.ExplorePageController.post.places_id_explore')
     router.get('/account', [AdminAuthController, 'account'])
     router.post('/account/password', [AdminAuthController, 'password'])
     router.get('/customers', [AdminCustomersController, 'index'])

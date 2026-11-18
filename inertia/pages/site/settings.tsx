@@ -2,6 +2,7 @@ import AdminLayout from '../../layouts/admin_layout'
 import { Button, Form, Input } from 'antd'
 import { useState } from 'react'
 import { postCmsForm } from '../../lib/cms_form'
+import { ReadOnlyNotice, useReadOnly } from '../../components/read_only'
 type Props = {
   adminName: string
   csrfToken: string
@@ -71,6 +72,7 @@ const contactFields = [
 export default function Settings({ adminName, csrfToken, success, error, form, settings }: Props) {
   const [settingsForm] = Form.useForm()
   const [processing, setProcessing] = useState(false)
+  const readOnly = useReadOnly('settings.update', true)
   const value = (formKey: string, settingKey: string, fallback = '') =>
     form?.[formKey] ?? settings?.[settingKey] ?? fallback
   return (
@@ -82,10 +84,12 @@ export default function Settings({ adminName, csrfToken, success, error, form, s
       success={success}
       error={error}
     >
+      {readOnly && <ReadOnlyNotice thing="page" />}
       <Form
         id="cms-settings-editor"
         component="form"
         form={settingsForm}
+        disabled={readOnly}
         layout="vertical"
         initialValues={{
           appStoreUrl: value('appStoreUrl', 'app_store_url'),
@@ -113,9 +117,11 @@ export default function Settings({ adminName, csrfToken, success, error, form, s
           <section className="panel form-panel tw:mb-6 tw:overflow-hidden tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-white tw:shadow-[0_4px_14px_rgba(0,23,46,0.06),0_1px_3px_rgba(0,23,46,0.04)] tw:p-6">
             <div className="tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-4">
               <h2>Site settings</h2>
-              <Button className="button primary" htmlType="submit" loading={processing}>
-                Save settings
-              </Button>
+              {!readOnly && (
+                <Button className="button primary" htmlType="submit" loading={processing}>
+                  Save settings
+                </Button>
+              )}
             </div>
             <h3 className="tw:mt-6">Contact &amp; channels</h3>
             <div className="form-grid two tw:mt-4 tw:grid tw:grid-cols-2 tw:gap-4 tw:max-[900px]:grid-cols-1">
@@ -152,7 +158,10 @@ export default function Settings({ adminName, csrfToken, success, error, form, s
                     name="appStoreUrl"
                     rules={[
                       { type: 'url', message: 'Enter a valid link starting with https://' },
-                      { pattern: /^https?:\/\//i, message: 'The link must start with http:// or https://' },
+                      {
+                        pattern: /^https?:\/\//i,
+                        message: 'The link must start with http:// or https://',
+                      },
                       { max: 500, message: 'Link must be 500 characters or fewer.' },
                     ]}
                   >
@@ -165,7 +174,10 @@ export default function Settings({ adminName, csrfToken, success, error, form, s
                     name="playStoreUrl"
                     rules={[
                       { type: 'url', message: 'Enter a valid link starting with https://' },
-                      { pattern: /^https?:\/\//i, message: 'The link must start with http:// or https://' },
+                      {
+                        pattern: /^https?:\/\//i,
+                        message: 'The link must start with http:// or https://',
+                      },
                       { max: 500, message: 'Link must be 500 characters or fewer.' },
                     ]}
                   >
