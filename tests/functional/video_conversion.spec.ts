@@ -86,7 +86,7 @@ test.group('Video conversion', (group) => {
       id
     )
 
-    assert.isTrue(await processVideo(id))
+    assert.equal(await processVideo(id), 'converted')
     const row = await db.from('videos').where('id', id).firstOrFail()
     assert.equal(row.processing_status, 'ready')
     assert.isNull(row.source_key)
@@ -122,7 +122,7 @@ test.group('Video conversion', (group) => {
     assert.equal(queued.video_key, original)
     assert.equal(queued.source_key, original)
 
-    assert.equal(await processWaitingVideos(), 1)
+    assert.include(await processWaitingVideos(), { converted: 1 })
     const row = await db.from('videos').where('id', id).firstOrFail()
     assert.notEqual(row.video_key, original)
     assert.deepEqual([row.width, row.height], [1280, 720])
@@ -144,7 +144,7 @@ test.group('Video conversion', (group) => {
       processing_status: 'pending',
     })
 
-    await processWaitingVideos()
+    assert.deepEqual(await processWaitingVideos(), { converted: 0, failed: 1, missing: 0 })
     const row = await db.from('videos').where('id', id).firstOrFail()
     assert.equal(row.processing_status, 'failed')
     assert.equal(Number(row.processing_attempts), 3)
@@ -192,7 +192,7 @@ test.group('Video conversion', (group) => {
     const hidden = await client.get('/api/v2/videos')
     assert.lengthOf(hidden.body().data, 0)
 
-    assert.equal(await processWaitingVideos(), 1)
+    assert.include(await processWaitingVideos(), { converted: 1 })
     const ready = await db.from('videos').firstOrFail()
     assert.equal(ready.processing_status, 'ready')
     assert.deepEqual([ready.width, ready.height], [720, 1280])
@@ -202,4 +202,35 @@ test.group('Video conversion', (group) => {
     const shown = await client.get('/api/v2/videos')
     assert.lengthOf(shown.body().data, 1)
   }).timeout(60_000)
+
+  test('a missing file is not retried: a playing video stays ready, a lost upload fails', async ({
+    assert,
+  }) => {
+    const playing = makeClip(720, 1280, 30)
+    const gone = `videos/${randomUUID()}.mp4`
+    const existing = await insertVideo({ video_key: gone, thumbnail_key: null })
+    const replaced = await insertVideo({
+      video_key: playing,
+      source_key: `videos/${randomUUID()}.mp4`,
+      processing_status: 'pending',
+    })
+    const lost = await insertVideo({
+      video_key: null,
+      source_key: `videos/${randomUUID()}.mp4`,
+      processing_status: 'pending',
+    })
+    assert.equal(await queueExistingVideos(), 1)
+
+    assert.deepEqual(await processWaitingVideos(), { converted: 0, failed: 0, missing: 3 })
+    const rows = await db.from('videos').orderBy('id')
+    const byId = new Map(rows.map((row) => [Number(row.id), row]))
+    for (const id of [existing, replaced]) {
+      assert.equal(byId.get(id).processing_status, 'ready')
+      assert.isNull(byId.get(id).source_key)
+      assert.equal(Number(byId.get(id).processing_attempts), 1)
+    }
+    assert.equal(byId.get(replaced).video_key, playing)
+    assert.equal(byId.get(lost).processing_status, 'failed')
+    assert.match(byId.get(lost).processing_error, /missing/)
+  })
 })

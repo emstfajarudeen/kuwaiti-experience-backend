@@ -36,7 +36,14 @@ export default class VideosConvert extends BaseCommand {
       const queued = await retryFailedVideos()
       this.logger.info(`Queued ${queued} failed video(s) again`)
     }
-    const handled = await processWaitingVideos()
-    this.logger.success(`Converted ${handled} video(s)`)
+    const { converted, failed, missing } = await processWaitingVideos()
+    this.logger.success(`Converted ${converted} video(s)`)
+    if (failed) this.logger.error(`${failed} video(s) failed to convert; see the errors above`)
+    if (missing) {
+      this.logger.warning(
+        `${missing} video file(s) were not found under ${this.app.makePath('storage/uploads')}. ` +
+          'Run this command from the folder the server runs in (for a build: cd build).'
+      )
+    }
   }
 }

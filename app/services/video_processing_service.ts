@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { access, mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import logger from '@adonisjs/core/services/logger'
@@ -197,19 +197,48 @@ async function claim(id: number) {
   return Number(Array.isArray(affected) ? affected[0] : affected) === 1
 }
 
-/** Converts one video. Returns false when there was nothing to do. */
-export async function processVideo(id: number) {
-  if (!(await claim(id))) return false
+export type ProcessResult = 'converted' | 'retry' | 'failed' | 'missing' | null
+
+/**
+ * Converts one video. Returns null when there was nothing to do, `retry` when it will be
+ * tried again, `missing` when the source file is not on disk (no point retrying).
+ */
+export async function processVideo(id: number): Promise<ProcessResult> {
+  if (!(await claim(id))) return null
   const row = (await db.from('videos').where('id', id).first()) as Row | null
-  if (!row?.source_key) return false
+  if (!row?.source_key) return null
   const sourceKey = row.source_key as string
+  const sourcePath = videoFilePath(sourceKey)
+  if (
+    !(await access(sourcePath).then(
+      () => true,
+      () => false
+    ))
+  ) {
+    // A playing video stays as it is; an upload that never arrived needs a new upload.
+    const keepsPlaying = Boolean(row.video_key)
+    logger.warn({ videoId: id, path: sourcePath }, 'Video file to convert is missing')
+    await db
+      .from('videos')
+      .where('id', id)
+      .where('source_key', sourceKey)
+      .update({
+        source_key: null,
+        processing_status: keepsPlaying ? 'ready' : 'failed',
+        processing_error: keepsPlaying
+          ? null
+          : 'The uploaded file is missing. Upload the video again.',
+        processing_started_at: null,
+      })
+    return 'missing'
+  }
   const workDir = await mkdtemp(join(tmpdir(), 'video-'))
   const newKey = `videos/${randomUUID()}.mp4`
   let coverKey: string | null = null
   let stored = false
   try {
     const output = join(workDir, 'out.mp4')
-    await convertVideoFile(videoFilePath(sourceKey), output)
+    await convertVideoFile(sourcePath, output)
     const info = await probeVideo(output)
     const { size } = await stat(output)
     await drive.use('local').put(newKey, await readFile(output))
@@ -245,26 +274,27 @@ export async function processVideo(id: number) {
     if (!released) {
       await deleteVideoFiles([newKey])
       await deleteImages([coverKey])
-      return true
+      return null
     }
     await deleteVideoFiles(new Set(released))
     logger.info({ videoId: id, ...info, size }, 'Video converted')
-    return true
+    return 'converted'
   } catch (error) {
     if (stored) await deleteVideoFiles([newKey])
     await deleteImages([coverKey])
     const message = (error instanceof Error ? error.message : String(error)).slice(0, 500)
     logger.error({ err: error, videoId: id }, 'Video conversion failed')
+    const failed = Number(row.processing_attempts) >= MAX_ATTEMPTS
     await db
       .from('videos')
       .where('id', id)
       .where('source_key', sourceKey)
       .update({
-        processing_status: Number(row.processing_attempts) >= MAX_ATTEMPTS ? 'failed' : 'pending',
+        processing_status: failed ? 'failed' : 'pending',
         processing_error: message,
         processing_started_at: null,
       })
-    return true
+    return failed ? 'failed' : 'retry'
   } finally {
     await rm(workDir, { recursive: true, force: true })
   }
@@ -290,15 +320,22 @@ async function waiting(limit: number) {
   return rows.map((row: Row) => Number(row.id))
 }
 
-/** Converts waiting videos one at a time until none are left. Returns how many were handled. */
-export async function processWaitingVideos() {
-  let handled = 0
+export type ProcessSummary = { converted: number; failed: number; missing: number }
+
+/** Converts waiting videos one at a time until none are left. */
+export async function processWaitingVideos(): Promise<ProcessSummary> {
+  const summary: ProcessSummary = { converted: 0, failed: 0, missing: 0 }
   for (;;) {
     const ids = await waiting(5)
-    if (!ids.length) return handled
+    if (!ids.length) return summary
     let progressed = false
-    for (const id of ids) if (await processVideo(id)) (handled++, (progressed = true))
-    if (!progressed) return handled
+    for (const id of ids) {
+      const result = await processVideo(id)
+      if (!result) continue
+      progressed = true
+      if (result !== 'retry') summary[result]++
+    }
+    if (!progressed) return summary
   }
 }
 
