@@ -237,11 +237,10 @@ export default function AppConfigPage({ adminName, csrfToken, success, error, co
             <section className="cms-form-section">
               <h2>Server address by app version</h2>
               <p className="tw:mt-1 tw:max-w-[72ch] tw:text-[13px] tw:text-brand-muted">
-                Send one app version to a different server. Only apps that send their platform and
-                version on startup (<code>/api/v2/config?platform=ios&amp;version=1.1.0</code>) can
-                be matched; every other app uses the normal address. Version <code>1.1</code> covers
-                all 1.1.x builds; <code>1.1.2</code> covers that build only and wins over{' '}
-                <code>1.1</code>.
+                Use this to connect one version of the app to a different server. Enter the version
+                number as it appears in the App Store or Play Store, for example <b>3.2.1</b>. To
+                include every update of that version, enter only the first two numbers, for example{' '}
+                <b>3.2</b>. All other versions keep using the normal server.
               </p>
               <Form.List name="base_url_rules">
                 {(fields, { add, remove }) => (
@@ -284,11 +283,11 @@ export default function AppConfigPage({ adminName, csrfToken, success, error, co
                               { required: true, whitespace: true, message: 'Enter a version.' },
                               {
                                 pattern: /^\d+\.\d+(\.\d+)?$/,
-                                message: 'Use 1.1 or 1.1.2.',
+                                message: 'Enter a version number such as 3.2 or 3.2.1.',
                               },
                             ]}
                           >
-                            <Input placeholder="1.1" />
+                            <Input placeholder="e.g. 3.2.1" />
                           </Form.Item>
                           <Form.Item
                             name={[field.name, 'api_base_url']}
