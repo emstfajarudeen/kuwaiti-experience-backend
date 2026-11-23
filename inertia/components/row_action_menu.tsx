@@ -6,6 +6,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 
 type Action = {
   href?: string
@@ -33,7 +34,8 @@ export default function RowActionMenu({ label, actions }: Props) {
 
     const close = () => setOpen(false)
     const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) close()
+      const target = event.target as Node
+      if (!rootRef.current?.contains(target) && !menuRef.current?.contains(target)) close()
     }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -107,42 +109,49 @@ export default function RowActionMenu({ label, actions }: Props) {
           <circle cx="12" cy="19" r="1.75" />
         </svg>
       </button>
-      <div
-        className={`row-menu-dropdown tw:fixed tw:z-[99999] tw:max-h-[calc(100vh-16px)] tw:min-w-[150px] tw:overflow-y-auto tw:box-border tw:flex-col tw:gap-0.5 tw:rounded-cms-sm tw:border tw:border-brand-line tw:bg-white tw:p-1.5 tw:shadow-[0_8px_24px_rgba(0,23,46,0.12),0_2px_6px_rgba(0,23,46,0.06)] ${open ? 'tw:flex' : 'tw:hidden'}`}
-        ref={menuRef}
-        role="menu"
-        style={open ? position : undefined}
-      >
-        {actions.map((action) =>
-          action.href ? (
-            <a
-              key={action.label}
-              href={action.href}
-              target={action.target}
-              rel={action.target === '_blank' ? 'noopener noreferrer' : undefined}
-              className="row-menu-item tw:flex tw:min-h-[34px] tw:w-full tw:items-center tw:gap-2.5 tw:rounded tw:border-0 tw:bg-transparent tw:px-3 tw:py-2 tw:text-left tw:text-[13px] tw:font-medium tw:text-brand-ink tw:no-underline tw:transition-[background,color] tw:duration-[120ms] tw:hover:bg-brand-navy-surface tw:hover:text-brand-navy"
-              role="menuitem"
-            >
-              {action.icon}
-              <span>{action.label}</span>
-            </a>
-          ) : (
-            <button
-              key={action.label}
-              type="button"
-              className={`row-menu-item tw:flex tw:min-h-[34px] tw:w-full tw:items-center tw:gap-2.5 tw:rounded tw:border-0 tw:bg-transparent tw:px-3 tw:py-2 tw:text-left tw:text-[13px] tw:font-medium tw:text-brand-ink tw:transition-[background,color] tw:duration-[120ms] tw:hover:bg-brand-navy-surface tw:hover:text-brand-navy ${action.danger ? 'danger tw:text-brand-danger-text tw:hover:bg-brand-danger-bg tw:hover:text-brand-danger-text' : ''}`}
-              role="menuitem"
-              onClick={() => {
-                setOpen(false)
-                action.onClick?.()
-              }}
-            >
-              {action.icon}
-              <span>{action.label}</span>
-            </button>
-          )
+      {/* Rendered on <body> so no table scroll box or transformed parent can cut it off. */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className={`row-menu-dropdown tw:fixed tw:z-[99999] tw:max-h-[calc(100vh-16px)] tw:min-w-[150px] tw:overflow-y-auto tw:box-border tw:flex-col tw:gap-0.5 tw:rounded-cms-sm tw:border tw:border-brand-line tw:bg-white tw:p-1.5 tw:shadow-[0_8px_24px_rgba(0,23,46,0.12),0_2px_6px_rgba(0,23,46,0.06)] ${open ? 'tw:flex' : 'tw:hidden'}`}
+            ref={menuRef}
+            role="menu"
+            style={open ? position : undefined}
+            // React bubbles portal events to the table row; keep menu clicks from opening the row.
+            onClick={(event) => event.stopPropagation()}
+          >
+            {actions.map((action) =>
+              action.href ? (
+                <a
+                  key={action.label}
+                  href={action.href}
+                  target={action.target}
+                  rel={action.target === '_blank' ? 'noopener noreferrer' : undefined}
+                  className="row-menu-item tw:flex tw:min-h-[34px] tw:w-full tw:items-center tw:gap-2.5 tw:rounded tw:border-0 tw:bg-transparent tw:px-3 tw:py-2 tw:text-left tw:text-[13px] tw:font-medium tw:text-brand-ink tw:no-underline tw:transition-[background,color] tw:duration-[120ms] tw:hover:bg-brand-navy-surface tw:hover:text-brand-navy"
+                  role="menuitem"
+                >
+                  {action.icon}
+                  <span>{action.label}</span>
+                </a>
+              ) : (
+                <button
+                  key={action.label}
+                  type="button"
+                  className={`row-menu-item tw:flex tw:min-h-[34px] tw:w-full tw:items-center tw:gap-2.5 tw:rounded tw:border-0 tw:bg-transparent tw:px-3 tw:py-2 tw:text-left tw:text-[13px] tw:font-medium tw:text-brand-ink tw:transition-[background,color] tw:duration-[120ms] tw:hover:bg-brand-navy-surface tw:hover:text-brand-navy ${action.danger ? 'danger tw:text-brand-danger-text tw:hover:bg-brand-danger-bg tw:hover:text-brand-danger-text' : ''}`}
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false)
+                    action.onClick?.()
+                  }}
+                >
+                  {action.icon}
+                  <span>{action.label}</span>
+                </button>
+              )
+            )}
+          </div>,
+          document.body
         )}
-      </div>
     </div>
   )
 }
