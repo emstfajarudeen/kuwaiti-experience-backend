@@ -36,9 +36,7 @@ export default function Login({ canRefresh, csrfToken, loginError, loginNotice, 
       <main className="login-shell login-shell--sign-in">
         <section className="login-visual" aria-label="The Kuwaiti Experience Content Studio">
           <div className="login-visual-top">
-            <div className="login-monogram" aria-hidden="true">
-              K
-            </div>
+            <img className="login-monogram" src="/brand/mark.png" alt="" width={44} height={44} />
             <div className="login-brand-lockup">
               <span className="login-brand">The Kuwaiti Experience</span>
               <span>Content Studio</span>
@@ -53,7 +51,7 @@ export default function Login({ canRefresh, csrfToken, loginError, loginNotice, 
 
         <section className="login-panel">
           <div className="login-mobile-brand" aria-hidden="true">
-            <span>K</span>
+            <img src="/brand/mark.png" alt="" width={32} height={32} />
             <p>The Kuwaiti Experience</p>
           </div>
           <h2>Welcome back</h2>

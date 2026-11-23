@@ -387,12 +387,13 @@ export default function AdminLayout({
             className="brand tw:flex tw:items-center tw:gap-3 tw:px-2 tw:pb-6 tw:pt-2 tw:font-bebas tw:text-[22px] tw:leading-[0.9] tw:tracking-[0.03em] tw:text-white"
             aria-label="Kuwaiti Experience dashboard"
           >
-            <span
-              className="brand-mark tw:grid tw:size-10 tw:min-w-10 tw:place-items-center tw:rounded-cms tw:border-[1.5px] tw:border-brand-gold tw:bg-brand-gold/10 tw:font-playfair tw:text-[24px] tw:italic tw:text-brand-gold"
-              aria-hidden="true"
-            >
-              K
-            </span>
+            <img
+              src="/brand/mark.png"
+              alt=""
+              width={40}
+              height={40}
+              className="brand-mark tw:size-10 tw:min-w-10 tw:rounded-cms tw:ring-1 tw:ring-brand-gold/40"
+            />
             <span className="brand-text tw:flex tw:flex-col">
               <span className="brand-title tw:text-[18px] tw:leading-none tw:tracking-[0.04em]">
                 THE KUWAITI EXPERIENCE

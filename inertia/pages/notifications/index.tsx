@@ -98,7 +98,8 @@ export default function NotificationsPage({
   // Every render of this page carries a fresh idempotency key. After a successful send,
   // clear the message so it can't be sent twice by accident.
   useEffect(() => {
-    if (submitted.current && success) form.resetFields(['title', 'body', 'title_ar', 'body_ar', 'customer_id'])
+    if (submitted.current && success)
+      form.resetFields(['title', 'body', 'title_ar', 'body_ar', 'customer_id'])
     submitted.current = false
   }, [requestKey])
 
@@ -283,11 +284,7 @@ export default function NotificationsPage({
                 size="small"
                 className="button secondary tw:!min-w-8 tw:!px-0"
                 aria-label="Refresh status"
-                title={
-                  canSend
-                    ? 'Refresh status and check the push connection'
-                    : 'Refresh status'
-                }
+                title={canSend ? 'Refresh status and check the push connection' : 'Refresh status'}
                 icon={<ReloadOutlined />}
                 onClick={refresh}
                 loading={checking}
@@ -454,12 +451,13 @@ export default function NotificationsPage({
               <div aria-label="Notification preview">
                 <span className={tileLabel}>Preview · English</span>
                 <div className="tw:mt-2 tw:flex tw:gap-3 tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-[#f4f7fa] tw:p-4">
-                  <span
-                    className="tw:grid tw:size-10 tw:min-w-10 tw:place-items-center tw:rounded-cms tw:bg-brand-navy tw:font-playfair tw:text-[22px] tw:italic tw:text-brand-gold"
-                    aria-hidden="true"
-                  >
-                    K
-                  </span>
+                  <img
+                    src="/brand/mark.png"
+                    alt=""
+                    width={40}
+                    height={40}
+                    className="tw:size-10 tw:min-w-10 tw:rounded-cms"
+                  />
                   <div className="tw:min-w-0">
                     <strong className="tw:block tw:break-words">
                       {title?.trim() || 'Notification title'}
@@ -477,12 +475,13 @@ export default function NotificationsPage({
                       lang="ar"
                       className="tw:mt-2 tw:flex tw:gap-3 tw:rounded-cms-lg tw:border tw:border-brand-line tw:bg-[#f4f7fa] tw:p-4"
                     >
-                      <span
-                        className="tw:grid tw:size-10 tw:min-w-10 tw:place-items-center tw:rounded-cms tw:bg-brand-navy tw:font-playfair tw:text-[22px] tw:italic tw:text-brand-gold"
-                        aria-hidden="true"
-                      >
-                        K
-                      </span>
+                      <img
+                        src="/brand/mark.png"
+                        alt=""
+                        width={40}
+                        height={40}
+                        className="tw:size-10 tw:min-w-10 tw:rounded-cms"
+                      />
                       <div className="tw:min-w-0">
                         <strong className="tw:block tw:break-words">
                           {titleAr?.trim() || 'عنوان الإشعار'}

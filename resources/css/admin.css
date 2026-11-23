@@ -1100,15 +1100,10 @@
   }
 
   .login-monogram {
-    display: grid;
+    display: block;
     width: 44px;
     height: 44px;
-    place-items: center;
     border: 1px solid rgba(229, 185, 102, 0.85);
-    color: var(--gold-light);
-    font-family: 'Playfair Display', Georgia, serif;
-    font-size: 25px;
-    font-style: italic;
   }
 
   .login-brand-lockup {
@@ -1464,16 +1459,10 @@
       margin-bottom: 40px;
     }
 
-    .login-mobile-brand > span {
-      display: grid;
+    .login-mobile-brand > img {
+      display: block;
       width: 32px;
       height: 32px;
-      place-items: center;
-      border: 1px solid var(--gold);
-      color: var(--gold-deep);
-      font-family: 'Playfair Display', Georgia, serif;
-      font-size: 18px;
-      font-style: italic;
     }
 
     .login-mobile-brand p {
